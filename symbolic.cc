@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: symbolic.cc,v 1.2 2003-08-13 21:47:46 lorens Exp $
+ * $Id: symbolic.cc,v 1.3 2003-08-15 03:35:35 lorens Exp $
  */
 #include "formulas.h"
 #include "models.h"
@@ -654,7 +654,6 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   Cudd_RecursiveDeref(dd_man, dd2);
   double* soln = mtbdd_to_double_vector(dd_man, yes, rvars, nvars, odd);
   Cudd_RecursiveDeref(dd_man, yes);
-  std::cout << nstates << std::endl;
   double* soln2 = new double[nstates];
   double* sum;
   int init = (formula_level == 0) ? model.init_index(dd_man) : -1;
@@ -677,8 +676,10 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   if (verbosity > 0) {
     std::cout << "Uniformization: " << max_diag << "*" << time << " = "
 	      << (max_diag*time) << std::endl;
-    fox_glynn_weighter(left, right, weights, weight_sum,
-		       1.01*max_diag*time, epsilon);
+  }
+  fox_glynn_weighter(left, right, weights, weight_sum,
+		     1.01*max_diag*time, epsilon);
+  if (verbosity > 0) {
     std::cout << "Fox-Glynn: left = " << left << ", right = " << right
 	      << std::endl;
   }
