@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: ymer.cc,v 2.1 2004-01-25 12:45:47 lorens Exp $
+ * $Id: ymer.cc,v 3.1 2004-03-11 20:20:18 lorens Exp $
  */
 #include <config.h>
 #include "comm.h"
@@ -30,7 +30,8 @@
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -70,11 +71,6 @@ std::vector<size_t> samples;
 double total_path_lengths;
 /* Sockets for communication. */
 int server_socket = -1;
-int client_socket = -1;
-/* Base port. */
-int port = -1;
-/* Registered clients. */
-ClientTable registered_clients;
 /* Current property. */
 size_t current_property;
 
@@ -86,8 +82,6 @@ static option long_options[] = {
   { "epsilon", required_argument, NULL, 'E' },
   { "engine", required_argument, NULL, 'e' },
   { "host", required_argument, NULL, 'h' },
-  { "ip-address", required_argument, NULL, 'I' },
-  { "client-id", required_argument, NULL, 'i' },
   { "matching-moments", required_argument, NULL, 'm' },
   { "port", required_argument, NULL, 'p' },
   { "seed", required_argument, NULL, 'S' },
@@ -97,7 +91,7 @@ static option long_options[] = {
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:D:E:e:h:I:i:m:p:S:T:v::V?";
+static const char OPTION_STRING[] = "A:B:D:E:e:h:m:p:S:T:v::V?";
 
 
 /* Displays help. */
@@ -125,10 +119,6 @@ static void display_help() {
 	    << "\t\t\t  or `mixed'" << std::endl
 	    << "  -h h,  --host=h\t"
 	    << "connect to server on host h" << std::endl
-	    << "  -I i,  --ip-address=i\t"
-	    << "IP address of machine running program" << std::endl
-	    << "  -i i,  --client-id=i\t"
-	    << "start as client with id i" << std::endl
 	    << "  -m m,  --matching-moments=m" << std::endl
 	    << "\t\t\tmatch the first m moments of general distributions"
 	    << std::endl
@@ -261,11 +251,9 @@ int main(int argc, char* argv[]) {
   /* Set default verbosity. */
   verbosity = 0;
   /* Sever hostname */
-  std::string hostname = "localhost";
-  /* Local ip-address */
-  std::string ip_address = "127.0.0.1";
-  /* Client id. */
-  int client_id = -1;
+  std::string hostname;
+  /* Server port. */
+  int port = -1;
 
   try {
     /*
@@ -326,15 +314,6 @@ int main(int argc, char* argv[]) {
       case 'h':
 	hostname = optarg;
 	break;
-      case 'I':
-	ip_address = optarg;
-	break;
-      case 'i':
-	client_id = atoi(optarg);
-	if (client_id < 0 || client_id > 0xffff) {
-	  throw std::invalid_argument("invalid client id");
-	}
-	break;
       case 'm':
 	moments = atoi(optarg);
 	if (moments < 1) {
@@ -370,7 +349,7 @@ int main(int argc, char* argv[]) {
       default:
 	std::cerr << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
-	return -1;
+	return 1;
       }
     }
 
@@ -383,7 +362,7 @@ int main(int argc, char* argv[]) {
        */
       while (optind < argc) {
 	if (!read_file(argv[optind++])) {
-	  return -1;
+	  return 1;
 	}
       }
     } else {
@@ -392,7 +371,7 @@ int main(int argc, char* argv[]) {
        */
       yyin = stdin;
       if (yyparse() != 0) {
-	return -1;
+	return 1;
       }
     }
     clear_declarations();
@@ -406,81 +385,80 @@ int main(int argc, char* argv[]) {
 
     std::cout.setf(std::ios::unitbuf);
     if (port >= 0) {
-      client_socket = socket(PF_INET, SOCK_DGRAM, 0);
-      if (client_socket == -1) {
-	perror(PACKAGE);
-	return -1;
-      }
-      server_socket = socket(PF_INET, SOCK_DGRAM, 0);
-      if (server_socket == -1) {
-	perror(PACKAGE);
-	return -1;
-      }
-      hostent* host = gethostbyname(hostname.c_str());
-      if (host == NULL) {
-	herror(PACKAGE);
-	return -1;
-      }
       sockaddr_in srvaddr;
       srvaddr.sin_family = AF_INET;
       srvaddr.sin_port = htons(port);
-      srvaddr.sin_addr = *(in_addr*) host->h_addr;
-      if (client_id >= 0) {
+      if (!hostname.empty()) {
 	/* Client mode. */
-	if (-1 == connect(client_socket,
-			  (sockaddr*) &srvaddr, sizeof srvaddr)) {
-	  perror(PACKAGE);
-	  return -1;
+	hostent* host = gethostbyname(hostname.c_str());
+	if (host == NULL) {
+	  herror(PACKAGE);
+	  return 1;
 	}
-	sockaddr_in locaddr;
-	locaddr.sin_family = AF_INET;
-	locaddr.sin_port = htons(port + client_id + 1);
-	inet_aton(ip_address.c_str(), &locaddr.sin_addr);
-	if (-1 == bind(server_socket, (sockaddr*) &locaddr, sizeof locaddr)) {
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd == -1) {
 	  perror(PACKAGE);
-	  return -1;
+	  return 1;
 	}
-	unsigned long caddr = ntohl(locaddr.sin_addr.s_addr);
+	srvaddr.sin_addr = *(in_addr*) host->h_addr;
+	if (-1 == connect(sockfd, (sockaddr*) &srvaddr, sizeof srvaddr)) {
+	  perror(PACKAGE);
+	  return 1;
+	}
+	ServerMsg smsg;
+	int nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
+	if (nbytes == -1) {
+	  perror(PACKAGE);
+	  return 1;
+	} else if (nbytes == 0) {
+	  if (verbosity > 0) {
+	    std::cout << "Shutting down (server unavailable)" << std::endl;
+	  }
+	  return 0;
+	}
+	if (smsg.id != ServerMsg::REGISTER) {
+	  throw std::logic_error("expecting register message");
+	}
+	int client_id = smsg.value;
 	if (verbosity > 0) {
-	  std::cout << "Client " << client_id << " at "
-		    << ((caddr >> 24UL)&0xffUL) << '.'
-		    << ((caddr >> 16UL)&0xffUL) << '.'
-		    << ((caddr >> 8UL)&0xffUL) << '.'
-		    << (caddr&0xffUL) << std::endl;
+	  std::cout << "Client " << client_id << std::endl;
 	  std::cout << "Initializing random number generator...";
-	  Distribution::mts = get_mt_parameter_id(client_id);
+	}
+	Distribution::mts = get_mt_parameter_id(client_id);
+	if (verbosity > 0) {
 	  std::cout << "done" << std::endl;
 	}
- 	ClientMsg msg = { ClientMsg::REGISTER, client_id, caddr };
-	if (-1 == send(client_socket, &msg, sizeof msg, 0)) {
-	  perror(PACKAGE);
-	  return -1;
-	}
-	fd_set rfds;
-	FD_ZERO(&rfds);
-	FD_SET(server_socket, &rfds);
+	fd_set master_fds;
+	FD_ZERO(&master_fds);
+	FD_SET(sockfd, &master_fds);
 	const State init_state(*global_model);
 	const PathFormula* pf = NULL;
 	double alphap = alpha, betap = beta;
-	timeval timeout = { 0, 0 };
+	timeval timeout;
 	timeval* to = NULL;
 	while (true) {
-	  timeout.tv_sec = 0;
-	  timeout.tv_usec = 0;
-	  int result = select(server_socket + 1, &rfds, NULL, NULL, to);
+	  if (to != NULL) {
+	    to->tv_sec = 0;
+	    to->tv_usec = 0;
+	  }
+	  fd_set read_fds = master_fds;
+	  int result = select(sockfd + 1, &read_fds, NULL, NULL, to);
 	  if (result == -1) {
 	    perror(PACKAGE);
 	    exit(-1);
 	  } else if (result == 0) {
 	    if (pf != NULL) {
-	      ClientMsg msg = { ClientMsg::SAMPLE, client_id };
-	      if (pf->sample(*global_model, init_state,
-			     delta, alphap, betap)) {
-		msg.value = 1;
-	      } else {
-		msg.value = 0;
+	      ClientMsg msg = { ClientMsg::SAMPLE };
+	      msg.value = pf->sample(*global_model, init_state,
+				     delta, alphap, betap);
+	      if (verbosity > 1) {
+		std::cout << "Sending sample " << msg.value << std::endl;
 	      }
-	      if (-1 == send(client_socket, &msg, sizeof msg, 0)) {
+	      nbytes = send(sockfd, &msg, sizeof msg, 0);
+	      if (nbytes == -1) {
+		perror(PACKAGE);
+		return 1;
+	      } else if (nbytes == 0) {
 		if (verbosity > 0) {
 		  std::cout << "Shutting down (server unavailable)"
 			    << std::endl;
@@ -489,17 +467,22 @@ int main(int argc, char* argv[]) {
 	      }
 	    }
 	  } else {
-	    ServerMsg smsg;
-	    if (-1 == recv(server_socket, &smsg, sizeof smsg, 0)) {
+	    nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
+	    if (nbytes == -1) {
 	      perror(PACKAGE);
-	      return -1;
+	      return 1;
+	    } else if (nbytes == 0) {
+	      if (verbosity > 0) {
+		std::cout << "Shutting down (server unavailable)" << std::endl;
+	      }
+	      return 0;
 	    }
 	    if (smsg.id == ServerMsg::START) {
 	      double theta;
 	      if (!extract_path_formula(pf, theta, *properties[smsg.value])) {
 		std::cerr << PACKAGE << ": multiple path formulae"
 			  << std::endl;
-		return -1;
+		return 1;
 	      }
 	      if (pf != NULL) {
 		alphap = alpha;
@@ -529,11 +512,6 @@ int main(int argc, char* argv[]) {
 	      if (verbosity > 0) {
 		std::cout << "Sampling stopped." << std::endl;
 	      }
-	    } else if (smsg.id == ServerMsg::QUIT) {
-	      if (verbosity > 0) {
-		std::cout << "Client terminated by sever." << std::endl;
-	      }
-	      return 0;
 	    } else {
 	      std::cerr << "Message with bad id (" << smsg.id << ") ignored."
 			<< std::endl;
@@ -542,12 +520,28 @@ int main(int argc, char* argv[]) {
 	}
       } else {
 	/* Server mode. */
+	server_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if (server_socket == -1) {
+	  perror(PACKAGE);
+	  return 1;
+	}
+	int yes = 1;
+	if (-1 == setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
+			     sizeof yes)) {
+	  perror(PACKAGE);
+	  return 1;
+	}
+	srvaddr.sin_addr.s_addr = INADDR_ANY;
+	if (-1 == bind(server_socket, (sockaddr*) &srvaddr, sizeof srvaddr)) {
+	  perror(PACKAGE);
+	  return 1;
+	}
+	if (-1 == listen(server_socket, 100)) {
+	  perror(PACKAGE);
+	  return 1;
+	}
 	if (verbosity > 0) {
 	  std::cout << "Server at port " << port << std::endl;
-	}
-	if (-1 == bind(client_socket, (sockaddr*) &srvaddr, sizeof srvaddr)) {
-	  perror(PACKAGE);
-	  return -1;
 	}
       }
     }
@@ -593,24 +587,22 @@ int main(int argc, char* argv[]) {
 	total_path_lengths = 0.0;
 	for (size_t i = 0; i < trials; i++) {
 	  timeval start_time;
-	  gettimeofday(&start_time, NULL);
 	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
+	  if (server_socket != -1) {
+	    gettimeofday(&start_time, NULL);
+	  } else {
 #ifdef PROFILING
-	  setitimer(ITIMER_VIRTUAL, &timer, NULL);
+	    setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-	  setitimer(ITIMER_PROF, &timer, NULL);
+	    setitimer(ITIMER_PROF, &timer, NULL);
 #endif
+	  }
 	  bool sol = (*fi)->verify(*global_model, init_state,
 				   delta, alpha, beta);
-#ifdef PROFILING
-	  getitimer(ITIMER_VIRTUAL, &timer);
-#else
-	  getitimer(ITIMER_PROF, &timer);
-#endif
-	  timeval end_time;
-	  gettimeofday(&end_time, NULL);
 	  double t;
-	  if (client_socket != -1) {
+	  if (server_socket != -1) {
+	    timeval end_time;
+	    gettimeofday(&end_time, NULL);
 	    long sec = end_time.tv_sec - start_time.tv_sec;
 	    long usec = end_time.tv_usec - start_time.tv_usec;
 	    if (usec < 0) {
@@ -619,6 +611,11 @@ int main(int argc, char* argv[]) {
 	    }
 	    t = std::max(0.0, sec + usec*1e-6);
 	  } else {
+#ifdef PROFILING
+	    getitimer(ITIMER_VIRTUAL, &timer);
+#else
+	    getitimer(ITIMER_PROF, &timer);
+#endif
 	    long sec = 40000000L - timer.it_value.tv_sec;
 	    long usec = 1000000 - timer.it_value.tv_usec;
 	    if (usec < 1000000) {
@@ -882,33 +879,14 @@ int main(int argc, char* argv[]) {
     properties.clear();
   } catch (const std::exception& e) {
     std::cerr << std::endl << PACKAGE ": " << e.what() << std::endl;
-    return -1;
+    return 1;
   } catch (...) {
     std::cerr << std::endl << PACKAGE ": fatal error" << std::endl;
-    return -1;
+    return 1;
   }
   if (Distribution::mts != NULL) {
     free_mt_struct(Distribution::mts);
   }
-  for (ClientTable::const_iterator ci = registered_clients.begin();
-       ci != registered_clients.end(); ci++) {
-    std::cout << "terminating client " << (*ci).first << std::endl;
-    ServerMsg smsg = { ServerMsg::QUIT };
-    const sockaddr* addr = (sockaddr*) &(*ci).second;
-    if (-1 == sendto(server_socket, &smsg, sizeof smsg, 0,
-		     addr, sizeof *addr)) {
-      perror(PACKAGE);
-      return -1;
-    }
-  }
-#if 0
-  if (client_socket != -1) {
-    close(client_socket);
-  }
-  if (server_socket != -1) {
-    close(server_socket);
-  }
-#endif
 
   return 0;
 }
