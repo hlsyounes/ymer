@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: symbolic.cc,v 1.4 2003-11-07 04:26:37 lorens Exp $
+ * $Id: symbolic.cc,v 1.5 2003-11-12 20:56:21 lorens Exp $
  */
 #include "formulas.h"
 #include "models.h"
@@ -894,7 +894,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
     iters = right;
   }
   if (verbosity > 0) {
-    std::cout << iters << " iterations." << std::endl;
+    std::cout << ' ' << iters << " iterations." << std::endl;
   }
   if (verbosity > 0 && steady) {
     std::cout << "Steady state detected." << std::endl;
