@@ -1,19 +1,23 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of Ymer.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: models.cc,v 1.5 2003-08-21 17:07:59 lorens Exp $
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: models.cc,v 1.6 2003-11-07 04:25:27 lorens Exp $
  */
 #include "models.h"
 #include "formulas.h"
@@ -158,7 +162,7 @@ void Model::add_module(const Module& module) {
 /* Caches commands for this model. */
 void Model::cache_commands() const {
   commands_.clear();
-  hashing::hash_set<size_t> synchs;
+  std::set<size_t> synchs;
   SynchronizationMap synch_commands;
   for (ModuleList::const_reverse_iterator mi = modules().rbegin();
        mi != modules().rend(); mi++) {
@@ -179,7 +183,7 @@ void Model::cache_commands() const {
   /*
    * Add synchronized commands.
    */
-  for (hashing::hash_set<size_t>::const_iterator si = synchs.begin();
+  for (std::set<size_t>::const_iterator si = synchs.begin();
        si != synchs.end(); si++) {
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
@@ -276,7 +280,7 @@ void Model::cache_dds(DdManager* dd_man) const {
     DdNode* ddR = Cudd_ReadZero(dd_man);
     Cudd_Ref(ddR);
     SynchronizationMap synch_commands;
-    hashing::hash_set<size_t> synchs;
+    std::set<size_t> synchs;
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
       const VariableList& mod_variables = (*mi)->variables();
@@ -346,7 +350,7 @@ void Model::cache_dds(DdManager* dd_man) const {
     /*
      * Add MTBDDs for synchronized commands.
      */
-    for (hashing::hash_set<size_t>::const_iterator si = synchs.begin();
+    for (std::set<size_t>::const_iterator si = synchs.begin();
 	 si != synchs.end(); si++) {
       for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	   mi != modules().rend(); mi++) {
