@@ -13,12 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: expressions.cc,v 1.1 2003-08-10 01:52:26 lorens Exp $
+ * $Id: expressions.cc,v 1.2 2003-08-10 19:45:36 lorens Exp $
  */
 #include "expressions.h"
 #include "exceptions.h"
-#include "util.h"
-#include "cudd.h"
 
 
 /* ====================================================================== */
@@ -519,7 +517,7 @@ Rational Value::value(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Expression& Value::substitution(const ValueMap& values) const {
+const Value& Value::substitution(const ValueMap& values) const {
   return *this;
 }
 

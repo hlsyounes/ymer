@@ -16,19 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 1.1 2003-08-10 01:52:37 lorens Exp $
+ * $Id: formulas.h,v 1.2 2003-08-10 19:44:41 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
 #include <config.h>
+#include "expressions.h"
 #include <deque>
-
-struct DdManager;
-struct DdNode;
-struct Expression;
-struct SubstitutionMap;
-struct ValueMap;
+#include <util.h>
+#include <cudd.h>
 
 
 /* ====================================================================== */
@@ -48,7 +45,6 @@ struct StateFormula {
   /* Unregister use of the given state formula. */
   static void unregister_use(const StateFormula* f) {
     if (f != NULL) {
-      f->ref_count_--;
       if (f->ref_count_ == 0) {
 	delete f;
       }
@@ -77,6 +73,53 @@ struct StateFormula {
 protected:
   /* Constructs a state formula. */
   StateFormula() : ref_count_(0) {}
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
+};
+
+
+/* ====================================================================== */
+/* PathFormula */
+
+/*
+ * A path formula.
+ */
+struct PathFormula {
+  /* Register use of the given path formula. */
+  static void register_use(const PathFormula* f) {
+    if (f != NULL) {
+      f->ref_count_++;
+    }
+  }
+
+  /* Unregister use of the given path formula. */
+  static void unregister_use(const PathFormula* f) {
+    if (f != NULL) {
+      f->ref_count_--;
+      if (f->ref_count_ == 0) {
+	delete f;
+      }
+    }
+  }
+
+  /* Deletes this path formula. */
+  virtual ~PathFormula() {}
+
+  /* Returns this path formula subject to the given substitutions. */
+  virtual const PathFormula& substitution(const ValueMap& values) const = 0;
+
+  /* Returns this path formula subject to the given substitutions. */
+  virtual const PathFormula&
+  substitution(const SubstitutionMap& subst) const = 0;
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const = 0;
+
+protected:
+  /* Constructs a path formula. */
+  PathFormula() : ref_count_(0) {}
 
 private:
   /* Reference counter. */
@@ -196,6 +239,97 @@ struct Negation : public StateFormula {
 private:
   /* The negated state formula. */
   const StateFormula* negand_;
+};
+
+
+/* ====================================================================== */
+/* Implication */
+
+/*
+ * An implication.
+ */
+struct Implication : public StateFormula {
+  /* Constructs an implication. */
+  Implication(const StateFormula& antecedent, const StateFormula& consequent);
+
+  /* Deletes this implication. */
+  virtual ~Implication();
+
+  /* Returns the antecedent of this implication. */
+  const StateFormula& antecedent() const { return *antecedent_; }
+
+  /* Returns the consequent of this implication. */
+  const StateFormula& consequent() const { return *consequent_; }
+
+  /* Tests if this state formula contains probabilistic elements. */
+  virtual bool probabilistic() const;
+
+  /* Returns this state formula subject to the given substitutions. */
+  virtual const StateFormula& substitution(const ValueMap& values) const;
+
+  /* Returns this state formula subject to the given substitutions. */
+  virtual const Implication& substitution(const SubstitutionMap& subst) const;
+
+  /* Returns a BDD representation for this state formula. */
+  virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
+private:
+  /* The antecedent of this implication. */
+  const StateFormula* antecedent_;
+  /* The consequent of this implication. */
+  const StateFormula* consequent_;
+};
+
+
+/* ====================================================================== */
+/* Probabilistic */
+
+/*
+ * Probabilistic path quantification.
+ */
+struct Probabilistic : public StateFormula {
+  /* Constructs a probabilistic path quantification. */
+  Probabilistic(const Rational& threshold, bool strict,
+		const PathFormula& formula);
+
+  /* Deletes this probabilistic path quantification. */
+  virtual ~Probabilistic();
+
+  /* Returns the probability threshold. */
+  const Rational& threshold() const { return threshold_; }
+
+  /* Tests if the threshold is strict. */
+  bool strict() const { return strict_; }
+
+  /* Returns the path formula. */
+  const PathFormula& formula() const { return *formula_; }
+
+  /* Tests if this state formula contains probabilistic elements. */
+  virtual bool probabilistic() const;
+
+  /* Returns this state formula subject to the given substitutions. */
+  virtual const StateFormula& substitution(const ValueMap& values) const;
+
+  /* Returns this state formula subject to the given substitutions. */
+  virtual const Probabilistic&
+  substitution(const SubstitutionMap& subst) const;
+
+  /* Returns a BDD representation for this state formula. */
+  virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
+private:
+  /* The probability threshold. */
+  Rational threshold_;
+  /* Whether the threshold is strict. */
+  bool strict_;
+  /* The path formula. */
+  const PathFormula* formula_;
 };
 
 
@@ -373,6 +507,53 @@ struct Inequality : public Comparison {
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
+};
+
+
+/* ====================================================================== */
+/* Until */
+
+/*
+ * An until path formula.
+ */
+struct Until : public PathFormula {
+  /* Constructs an until formula. */
+  Until(const StateFormula& pre, const StateFormula& post,
+	const Rational& min_time, const Rational& max_time);
+
+  /* Deletes this until formula. */
+  virtual ~Until();
+
+  /* Returns the precondition formula. */
+  const StateFormula& pre() const { return *pre_; }
+
+  /* Returns the postcondition formula. */
+  const StateFormula& post() const { return *post_; }
+
+  /* Returns the lower time bound. */
+  const Rational& min_time() const { return min_time_; }
+
+  /* Returns the upper time bound. */
+  const Rational& max_time() const { return max_time_; }
+
+  /* Returns this path formula subject to the given substitutions. */
+  virtual const PathFormula& substitution(const ValueMap& values) const;
+
+  /* Returns this path formula subject to the given substitutions. */
+  virtual const Until& substitution(const SubstitutionMap& subst) const;
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
+private:
+  /* The precondition formula. */
+  const StateFormula* pre_;
+  /* The postcondition formula. */
+  const StateFormula* post_;
+  /* The lower time bound. */
+  Rational min_time_;
+  /* The upper time bound. */
+  Rational max_time_;
 };
 
 

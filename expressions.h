@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: expressions.h,v 1.1 2003-08-10 01:52:30 lorens Exp $
+ * $Id: expressions.h,v 1.2 2003-08-10 19:45:53 lorens Exp $
  */
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
@@ -24,10 +24,9 @@
 #include <config.h>
 #include "rational.h"
 #include "hashing.h"
+#include <util.h>
+#include <cudd.h>
 #include <vector>
-
-struct DdManager;
-struct DdNode;
 
 
 /* ====================================================================== */
@@ -376,7 +375,7 @@ struct Value : public Expression {
   virtual Rational value(const ValueMap& values) const;
 
   /* Returns this expression subject to the given substitutions. */
-  virtual const Expression& substitution(const ValueMap& values) const;
+  virtual const Value& substitution(const ValueMap& values) const;
 
   /* Returns this expression subject to the given substitutions. */
   virtual const Value& substitution(const SubstitutionMap& subst) const;

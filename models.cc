@@ -13,13 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: models.cc,v 1.1 2003-08-10 01:52:54 lorens Exp $
+ * $Id: models.cc,v 1.2 2003-08-10 19:46:54 lorens Exp $
  */
 #include "models.h"
 #include "formulas.h"
-#include "util.h"
-#include "cudd.h"
-#include "cuddInt.h"
 
 
 /* Verbosity level. */
