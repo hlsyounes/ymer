@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: models.h,v 1.3 2003-11-07 04:25:32 lorens Exp $
+ * $Id: models.h,v 1.4 2003-11-12 03:50:03 lorens Exp $
  */
 #ifndef MODELS_H
 #define MODELS_H
@@ -29,21 +29,6 @@
 #include "modules.h"
 #include "odd.h"
 #include <map>
-
-
-/* ====================================================================== */
-/* SynchronizationMap */
-
-/*
- * A synchronization map.
- */
-struct SynchronizationMap
-  : public std::multimap<std::pair<const Module*, size_t>, const Command*> {
-};
-
-/* Range for synchronization map. */
-typedef std::pair<SynchronizationMap::const_iterator,
-		  SynchronizationMap::const_iterator> SynchronizationMapRange;
 
 
 /* ====================================================================== */
@@ -65,14 +50,14 @@ struct Model {
   /* Adds a module to this model. */
   void add_module(const Module& module);
 
+  /* Compiles the commands of this model. */
+  void compile();
+
   /* Returns the global variables for this model. */
   const VariableList& variables() const { return variables_; }
 
   /* Returns the modules for this model */
   const ModuleList& modules() const { return modules_; }
-
-  /* Caches commands for this model. */
-  void cache_commands() const;
 
   /* Returns all commands for this model. */
   const CommandList& commands() const { return commands_; }
@@ -115,8 +100,10 @@ private:
   VariableList variables_;
   /* The modules for this model */
   ModuleList modules_;
-  /* Cached commands for this model. */
-  mutable CommandList commands_;
+  /* Compiled commands for this model. */
+  CommandList commands_;
+  /* Modules that the above commands are associated with. */
+  std::vector<ModuleSet> command_modules_;
   /* Cached MTBDD representing rate matrix. */
   mutable DdNode* rate_mtbdd_;
   /* Cached reachability BDD. */
