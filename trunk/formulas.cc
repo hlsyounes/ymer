@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 1.2 2003-08-10 19:44:34 lorens Exp $
+ * $Id: formulas.cc,v 1.3 2003-08-13 18:43:01 lorens Exp $
  */
 #include "formulas.h"
 #include "exceptions.h"
@@ -45,6 +45,18 @@ void Conjunction::add_conjunct(const StateFormula& conjunct) {
 /* Tests if this state formula contains probabilistic elements. */
 bool Conjunction::probabilistic() const {
   return !conjuncts().empty() && conjuncts().front()->probabilistic();
+}
+
+
+/* Tests if this state formula holds in the given state. */
+bool Conjunction::holds(const ValueMap& values) const {
+  for (FormulaList::const_iterator fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    if (!(*fi)->holds(values)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 
@@ -156,6 +168,18 @@ bool Disjunction::probabilistic() const {
 }
 
 
+/* Tests if this state formula holds in the given state. */
+bool Disjunction::holds(const ValueMap& values) const {
+  for (FormulaList::const_iterator fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    if ((*fi)->holds(values)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 /* Returns this state formula subject to the given substitutions. */
 const StateFormula& Disjunction::substitution(const ValueMap& values) const {
   Disjunction* subst_disj = new Disjunction();
@@ -257,6 +281,12 @@ bool Negation::probabilistic() const {
 }
 
 
+/* Tests if this state formula holds in the given state. */
+bool Negation::holds(const ValueMap& values) const {
+  return !negand().holds(values);
+}
+
+
 /* Returns this state formula subject to the given substitutions. */
 const StateFormula& Negation::substitution(const ValueMap& values) const {
   const StateFormula& f = negand().substitution(values);
@@ -318,6 +348,12 @@ Implication::~Implication() {
 /* Tests if this state formula contains probabilistic elements. */
 bool Implication::probabilistic() const {
   return antecedent().probabilistic() || consequent().probabilistic();
+}
+
+
+/* Tests if this state formula holds in the given state. */
+bool Implication::holds(const ValueMap& values) const {
+  return !antecedent().holds(values) || consequent().holds(values);
 }
 
 
@@ -394,6 +430,12 @@ bool Probabilistic::probabilistic() const {
 }
 
 
+/* Tests if this state formula holds in the given state. */
+bool Probabilistic::holds(const ValueMap& values) const {
+  throw Exception("Probabilistic::holds not implemented");
+}
+
+
 /* Returns this state formula subject to the given substitutions. */
 const StateFormula& Probabilistic::substitution(const ValueMap& values) const {
   const PathFormula& f = formula().substitution(values);
@@ -461,6 +503,12 @@ bool Comparison::probabilistic() const {
 /* Constructs a less-than comparison. */
 LessThan::LessThan(const Expression& expr1, const Expression& expr2)
   : Comparison(expr1, expr2) {}
+
+
+/* Tests if this state formula holds in the given state. */
+bool LessThan::holds(const ValueMap& values) const {
+  return expr1().value(values) < expr2().value(values);
+}
 
 
 /* Returns this state formula subject to the given substitutions. */
@@ -544,6 +592,12 @@ void LessThan::print(std::ostream& os) const {
 LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
 				 const Expression& expr2)
   : Comparison(expr1, expr2) {}
+
+
+/* Tests if this state formula holds in the given state. */
+bool LessThanOrEqual::holds(const ValueMap& values) const {
+  return expr1().value(values) <= expr2().value(values);
+}
 
 
 /* Returns this state formula subject to the given substitutions. */
@@ -631,6 +685,12 @@ GreaterThanOrEqual::GreaterThanOrEqual(const Expression& expr1,
   : Comparison(expr1, expr2) {}
 
 
+/* Tests if this state formula holds in the given state. */
+bool GreaterThanOrEqual::holds(const ValueMap& values) const {
+  return expr1().value(values) >= expr2().value(values);
+}
+
+
 /* Returns this state formula subject to the given substitutions. */
 const StateFormula&
 GreaterThanOrEqual::substitution(const ValueMap& values) const {
@@ -713,6 +773,12 @@ void GreaterThanOrEqual::print(std::ostream& os) const {
 /* Constructs a greater-than comparison. */
 GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
   : Comparison(expr1, expr2) {}
+
+
+/* Tests if this state formula holds in the given state. */
+bool GreaterThan::holds(const ValueMap& values) const {
+  return expr1().value(values) > expr2().value(values);
+}
 
 
 /* Returns this state formula subject to the given substitutions. */
@@ -798,6 +864,12 @@ Equality::Equality(const Expression& expr1, const Expression& expr2)
   : Comparison(expr1, expr2) {}
 
 
+/* Tests if this state formula holds in the given state. */
+bool Equality::holds(const ValueMap& values) const {
+  return expr1().value(values) == expr2().value(values);
+}
+
+
 /* Returns this state formula subject to the given substitutions. */
 const StateFormula& Equality::substitution(const ValueMap& values) const {
   const Expression& e1 = expr1().substitution(values);
@@ -875,6 +947,12 @@ void Equality::print(std::ostream& os) const {
 /* Constructs an inequality comparison. */
 Inequality::Inequality(const Expression& expr1, const Expression& expr2)
   : Comparison(expr1, expr2) {}
+
+
+/* Tests if this state formula holds in the given state. */
+bool Inequality::holds(const ValueMap& values) const {
+  return expr1().value(values) != expr2().value(values);
+}
 
 
 /* Returns this state formula subject to the given substitutions. */
@@ -968,6 +1046,12 @@ Until::Until(const StateFormula& pre, const StateFormula& post,
 Until::~Until() {
   StateFormula::unregister_use(pre_);
   StateFormula::unregister_use(post_);
+}
+
+
+/* Tests if this path formula contains probabilistic elements. */
+bool Until::probabilistic() const {
+  return pre().probabilistic() || post().probabilistic();
 }
 
 
