@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: models.cc,v 1.2 2003-08-10 19:46:54 lorens Exp $
+ * $Id: models.cc,v 1.3 2003-08-13 18:47:29 lorens Exp $
  */
 #include "models.h"
 #include "formulas.h"
@@ -29,7 +29,8 @@ extern int verbosity;
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
 static DdNode* reachability_bdd(DdManager* dd_man,
-				DdNode* init, DdNode* rates) {
+				DdNode* init, DdNode* rates,
+				DdNode** row_variables) {
   if (verbosity > 0) {
     std::cout << "Computing reachable states...";
   }
@@ -49,13 +50,8 @@ static DdNode* reachability_bdd(DdManager* dd_man,
     }
   }
   nvars /= 2;
-  DdNode** row_variables = new DdNode*[nvars];
-  for (size_t i = 0; i < nvars; i++) {
-    row_variables[i] = Cudd_bddIthVar(dd_man, 2*i);
-  }
   DdNode* row_cube = Cudd_bddComputeCube(dd_man, row_variables, NULL, nvars);
   Cudd_Ref(row_cube);
-  delete row_variables;
   /*
    * Fixpoint computation of reachability.
    */
@@ -120,6 +116,13 @@ static DdNode* variable_identities(DdManager* dd_man, DdNode* dd_start,
 }
 
 
+/* Constructs a model. */
+Model::Model()
+  : rate_mtbdd_(NULL), reach_bdd_(NULL), odd_(NULL), init_bdd_(NULL),
+    init_index_(-1), row_variables_(NULL), column_variables_(NULL) {
+}
+
+
 /* Deletes this model. */
 Model::~Model() {
   for (VariableList::const_iterator vi = variables().begin();
@@ -129,6 +132,12 @@ Model::~Model() {
   for (ModuleList::const_iterator mi = modules().begin();
        mi != modules().end(); mi++) {
     delete *mi;
+  }
+  for (CommandList::const_iterator ci = commands().begin();
+       ci != commands().end(); ci++) {
+    if ((*ci)->synch() != 0) {
+      delete *ci;
+    }
   }
 }
 
@@ -146,134 +155,29 @@ void Model::add_module(const Module& module) {
 }
 
 
-/* Returns an MTBDD representing the rate matrix for this model. */
-DdNode* Model::mtbdd(DdManager* dd_man) const {
-  if (verbosity > 0) {
-    std::cout << "Buidling model...";
-  }
-  /*
-   * Precomute DDs for variables and modules.
-   */
-  DdNode* init = Cudd_ReadOne(dd_man);
-  Cudd_Ref(init);
-  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-       mi != modules().rend(); mi++) {
-    const Module& mod = **mi;
-    for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
-	 vi != mod.variables().rend(); vi++) {
-      const Variable& v = **vi;
-      DdNode* ddv = v.mtbdd(dd_man);
-      DdNode* dds = Cudd_addBddInterval(dd_man, ddv, v.start(), v.start());
-      Cudd_Ref(dds);
-      DdNode* dda = Cudd_bddAnd(dd_man, dds, init);
-      Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man, dds);
-      Cudd_RecursiveDeref(dd_man, init);
-      init = dda;
-      v.primed_mtbdd(dd_man);
-      v.identity_bdd(dd_man);
-    }
-    mod.identity_bdd(dd_man);
-  }
-  for (VariableList::const_reverse_iterator vi = variables().rbegin();
-       vi != variables().rend(); vi++) {
-    const Variable& v = **vi;
-    DdNode* ddv = v.mtbdd(dd_man);
-    DdNode* dds = Cudd_addBddInterval(dd_man, ddv, v.start(), v.start());
-    Cudd_Ref(dds);
-    Cudd_RecursiveDeref(dd_man, ddv);
-    DdNode* dda = Cudd_bddAnd(dd_man, dds, init);
-    Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man, dds);
-    Cudd_RecursiveDeref(dd_man, init);
-    init = dda;
-    v.primed_mtbdd(dd_man);
-    v.identity_bdd(dd_man);
-  }
-  /* BDD for variable ranges. */
-  DdNode* range = range_bdd(dd_man);
-#if DEBUG_DD
-  std::cout << "bdd for variable ranges" << std::endl;
-  Cudd_PrintDebug(dd_man, range, Cudd_ReadSize(dd_man), 4);
-#endif
-  /*
-   * Compute rate matrix for non-synchronized commands.
-   */
-  DdNode* ddR = Cudd_ReadZero(dd_man);
-  Cudd_Ref(ddR);
-  SynchronizationMap synch_commands;
+/* Caches commands for this model. */
+void Model::cache_commands() const {
+  commands_.clear();
   hashing::hash_set<size_t> synchs;
+  SynchronizationMap synch_commands;
   for (ModuleList::const_reverse_iterator mi = modules().rbegin();
        mi != modules().rend(); mi++) {
-    const VariableList& mod_variables = (*mi)->variables();
-    const CommandList& mod_commands = (*mi)->commands();
-    for (CommandList::const_iterator ci = mod_commands.begin();
-	 ci != mod_commands.end(); ci++) {
+    for (CommandList::const_iterator ci = (*mi)->commands().begin();
+	 ci != (*mi)->commands().end(); ci++) {
       const Command& command = **ci;
       size_t synch = command.synch();
       if (synch != 0) {
 	/* Command is synchronized so store it for later processing. */
 	synch_commands.insert(std::make_pair(std::make_pair(*mi, synch), *ci));
 	synchs.insert(synch);
-      } else { /* Command is not synchronized. */
-	/* BDD for command. */
-	VariableSet updated_variables;
-	DdNode* ddu = command.bdd(updated_variables, dd_man);
-	/* Conjunction with identity BDD for untouched global variables. */
-	ddu = variable_identities(dd_man, ddu, variables(), updated_variables);
-	/* Conjunction with identity BDD for untouched module variables. */
-	ddu = variable_identities(dd_man, ddu, mod_variables,
-				  updated_variables);
-	/*
-	 * Conjunction with identity BDD for other modules.
-	 */
-	for (ModuleList::const_reverse_iterator mj = modules().rbegin();
-	     mj != modules().rend(); mj++) {
-	  if (*mj != *mi) {
-	    DdNode* ddm = (*mj)->identity_bdd(dd_man);
-	    DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
-	    Cudd_Ref(dda);
-	    Cudd_RecursiveDeref(dd_man, ddm);
-	    Cudd_RecursiveDeref(dd_man, ddu);
-	    ddu = dda;
-	  }
-	}
-	/*
-	 * Conjunction with BDD for variable ranges.
-	 */
-	DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
-	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man, ddu);
-	ddu = dda;
-	/*
-	 * Multiply BDD with MTBDD for rate.
-	 */
-	DdNode* ddU = Cudd_BddToAdd(dd_man, ddu);
-	Cudd_Ref(ddU);
-	Cudd_RecursiveDeref(dd_man, ddu);
-	DdNode* ddL = command.rate().mtbdd(dd_man);
-	DdNode* ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
-	Cudd_Ref(ddC);
-	Cudd_RecursiveDeref(dd_man, ddL);
-	Cudd_RecursiveDeref(dd_man, ddU);
-#if DEBUG_DD
-	std::cout << "mtbdd for command " << (ci - mod_commands.begin())
-		  << std::endl;
-	Cudd_PrintDebug(dd_man, ddC, Cudd_ReadSize(dd_man), 4);
-#endif
-	/*
-	 * Add MTBDD for command to MTBDD for model.
-	 */
-	DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
-	Cudd_Ref(ddT);
-	Cudd_RecursiveDeref(dd_man, ddC);
-	Cudd_RecursiveDeref(dd_man, ddR);
-	ddR = ddT;
+      } else { /* synch == 0 */
+	/* Command is not synchronized. */
+	commands_.push_back(*ci);
       }
     }
   }
   /*
-   * Add MTBDDs for synchronized commands.
+   * Add synchronized commands.
    */
   for (hashing::hash_set<size_t>::const_iterator si = synchs.begin();
        si != synchs.end(); si++) {
@@ -294,117 +198,424 @@ DdNode* Model::mtbdd(DdManager* dd_man) const {
 	    /*
 	     * Synchronize ci with cj.
 	     */
-	    VariableSet updated_variables;
-	    DdNode* dd1 = ci.bdd(updated_variables, dd_man);
-	    DdNode* dd2 = cj.bdd(updated_variables, dd_man);
-	    DdNode* ddu = Cudd_bddAnd(dd_man, dd1, dd2);
-	    Cudd_Ref(ddu);
-	    Cudd_RecursiveDeref(dd_man, dd1);
-	    Cudd_RecursiveDeref(dd_man, dd2);
-	    /* Conjunction with identity BDD for untouched global variables. */
-	    ddu = variable_identities(dd_man, ddu, variables(),
-				      updated_variables);
-	    /* Conjunction with identity BDD for untouched module variables. */
-	    ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
-				      updated_variables);
-	    ddu = variable_identities(dd_man, ddu, (*mj)->variables(),
-				      updated_variables);
-	    /*
-	     * Conjunction with identity BDD for other modules.
-	     */
-	    for (ModuleList::const_reverse_iterator mk = modules().rbegin();
-		 mk != modules().rend(); mk++) {
-	      if (*mk != *mi && *mk != *mj) {
-		DdNode* ddm = (*mk)->identity_bdd(dd_man);
-		DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
-		Cudd_Ref(dda);
-		Cudd_RecursiveDeref(dd_man, ddm);
-		Cudd_RecursiveDeref(dd_man, ddu);
-		ddu = dda;
-	      }
+	    Conjunction& guard = *new Conjunction();
+	    guard.add_conjunct(ci.guard());
+	    guard.add_conjunct(cj.guard());
+	    Command* c =
+	      new Command(*si, guard,
+			  *new Multiplication(ci.rate(), cj.rate()));
+	    for (UpdateList::const_iterator ui = ci.updates().begin();
+		 ui != ci.updates().end(); ui++) {
+	      c->add_update(**ui);
 	    }
-	    /*
-	     * Conjunction with BDD for variable ranges.
-	     */
-	    DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
-	    Cudd_Ref(dda);
-	    Cudd_RecursiveDeref(dd_man, ddu);
-	    ddu = dda;
-	    /*
-	     * Multiply BDD with MTBDD for rate.
-	     */
-	    DdNode* ddC = Cudd_BddToAdd(dd_man, ddu);
-	    Cudd_Ref(ddC);
-	    Cudd_RecursiveDeref(dd_man, ddu);
-	    DdNode* ddL = ci.rate().mtbdd(dd_man);
-	    DdNode* ddU = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddC);
-	    Cudd_Ref(ddU);
-	    Cudd_RecursiveDeref(dd_man, ddL);
-	    Cudd_RecursiveDeref(dd_man, ddC);
-	    ddL = cj.rate().mtbdd(dd_man);
-	    ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
-	    Cudd_Ref(ddC);
-	    Cudd_RecursiveDeref(dd_man, ddL);
-	    Cudd_RecursiveDeref(dd_man, ddU);
-#if DEBUG_DD
-	    std::cout << "mtbdd for synchronized command " << std::endl;
-	    Cudd_PrintDebug(dd_man, ddC, Cudd_ReadSize(dd_man), 4);
-#endif
-	    /*
-	     * Add MTBDD for command to MTBDD for model.
-	     */
-	    DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
-	    Cudd_Ref(ddT);
-	    Cudd_RecursiveDeref(dd_man, ddC);
-	    Cudd_RecursiveDeref(dd_man, ddR);
-	    ddR = ddT;
+	    for (UpdateList::const_iterator uj = cj.updates().begin();
+		 uj != cj.updates().end(); uj++) {
+	      c->add_update(**uj);
+	    }
+	    commands_.push_back(c);
 	  }
 	}
       }
     }
   }
-  /* Release BDD for variable ranges. */
-  Cudd_RecursiveDeref(dd_man, range);
-  /*
-   * Release DDs for variables and modules.
-   */
-  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-       mi != modules().rend(); mi++) {
-    const Module& mod = **mi;
-    mod.uncache_dds(dd_man);
-    for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
-	 vi != mod.variables().rend(); vi++) {
+}
+
+
+/* Caches DDs for for this model. */
+void Model::cache_dds(DdManager* dd_man) const {
+  if (rate_mtbdd_ == NULL) {
+    if (verbosity > 0) {
+      std::cout << "Buidling model...";
+    }
+    /*
+     * Precomute DDs for variables and modules.
+     */
+    init_bdd_ = Cudd_ReadOne(dd_man);
+    Cudd_Ref(init_bdd_);
+    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
+	 mi != modules().rend(); mi++) {
+      const Module& mod = **mi;
+      for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
+	   vi != mod.variables().rend(); vi++) {
+	const Variable& v = **vi;
+	DdNode* ddv = v.mtbdd(dd_man);
+	DdNode* dds = Cudd_addBddInterval(dd_man, ddv, v.start(), v.start());
+	Cudd_Ref(dds);
+	DdNode* dda = Cudd_bddAnd(dd_man, dds, init_bdd_);
+	Cudd_Ref(dda);
+	Cudd_RecursiveDeref(dd_man, dds);
+	Cudd_RecursiveDeref(dd_man, init_bdd_);
+	init_bdd_ = dda;
+	v.primed_mtbdd(dd_man);
+	v.identity_bdd(dd_man);
+      }
+      mod.identity_bdd(dd_man);
+    }
+    for (VariableList::const_reverse_iterator vi = variables().rbegin();
+	 vi != variables().rend(); vi++) {
+      const Variable& v = **vi;
+      DdNode* ddv = v.mtbdd(dd_man);
+      DdNode* dds = Cudd_addBddInterval(dd_man, ddv, v.start(), v.start());
+      Cudd_Ref(dds);
+      Cudd_RecursiveDeref(dd_man, ddv);
+      DdNode* dda = Cudd_bddAnd(dd_man, dds, init_bdd_);
+      Cudd_Ref(dda);
+      Cudd_RecursiveDeref(dd_man, dds);
+      Cudd_RecursiveDeref(dd_man, init_bdd_);
+      init_bdd_ = dda;
+      v.primed_mtbdd(dd_man);
+      v.identity_bdd(dd_man);
+    }
+    /* BDD for variable ranges. */
+    DdNode* range = range_bdd(dd_man);
+    /*
+     * Compute rate matrix for non-synchronized commands.
+     */
+    DdNode* ddR = Cudd_ReadZero(dd_man);
+    Cudd_Ref(ddR);
+    SynchronizationMap synch_commands;
+    hashing::hash_set<size_t> synchs;
+    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
+	 mi != modules().rend(); mi++) {
+      const VariableList& mod_variables = (*mi)->variables();
+      const CommandList& mod_commands = (*mi)->commands();
+      for (CommandList::const_iterator ci = mod_commands.begin();
+	   ci != mod_commands.end(); ci++) {
+	const Command& command = **ci;
+	size_t synch = command.synch();
+	if (synch != 0) {
+	  /* Command is synchronized so store it for later processing. */
+	  synch_commands.insert(std::make_pair(std::make_pair(*mi, synch),
+					       *ci));
+	  synchs.insert(synch);
+	} else { /* Command is not synchronized. */
+	  /* BDD for command. */
+	  VariableSet updated_variables;
+	  DdNode* ddu = command.bdd(updated_variables, dd_man);
+	  /* Conjunction with identity BDD for untouched global variables. */
+	  ddu = variable_identities(dd_man, ddu, variables(),
+				    updated_variables);
+	  /* Conjunction with identity BDD for untouched module variables. */
+	  ddu = variable_identities(dd_man, ddu, mod_variables,
+				    updated_variables);
+	  /*
+	   * Conjunction with identity BDD for other modules.
+	   */
+	  for (ModuleList::const_reverse_iterator mj = modules().rbegin();
+	       mj != modules().rend(); mj++) {
+	    if (*mj != *mi) {
+	      DdNode* ddm = (*mj)->identity_bdd(dd_man);
+	      DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
+	      Cudd_Ref(dda);
+	      Cudd_RecursiveDeref(dd_man, ddm);
+	      Cudd_RecursiveDeref(dd_man, ddu);
+	      ddu = dda;
+	    }
+	  }
+	  /*
+	   * Conjunction with BDD for variable ranges.
+	   */
+	  DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
+	  Cudd_Ref(dda);
+	  Cudd_RecursiveDeref(dd_man, ddu);
+	  ddu = dda;
+	  /*
+	   * Multiply BDD with MTBDD for rate.
+	   */
+	  DdNode* ddU = Cudd_BddToAdd(dd_man, ddu);
+	  Cudd_Ref(ddU);
+	  Cudd_RecursiveDeref(dd_man, ddu);
+	  DdNode* ddL = command.rate().mtbdd(dd_man);
+	  DdNode* ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
+	  Cudd_Ref(ddC);
+	  Cudd_RecursiveDeref(dd_man, ddL);
+	  Cudd_RecursiveDeref(dd_man, ddU);
+	  /*
+	   * Add MTBDD for command to MTBDD for model.
+	   */
+	  DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
+	  Cudd_Ref(ddT);
+	  Cudd_RecursiveDeref(dd_man, ddC);
+	  Cudd_RecursiveDeref(dd_man, ddR);
+	  ddR = ddT;
+	}
+      }
+    }
+    /*
+     * Add MTBDDs for synchronized commands.
+     */
+    for (hashing::hash_set<size_t>::const_iterator si = synchs.begin();
+	 si != synchs.end(); si++) {
+      for (ModuleList::const_reverse_iterator mi = modules().rbegin();
+	   mi != modules().rend(); mi++) {
+	SynchronizationMapRange sri =
+	  synch_commands.equal_range(std::make_pair(*mi, *si));
+	for (SynchronizationMap::const_iterator smi = sri.first;
+	     smi != sri.second; smi++) {
+	  const Command& ci = *(*smi).second;
+	  for (ModuleList::const_reverse_iterator mj = mi + 1;
+	       mj != modules().rend(); mj++) {
+	    SynchronizationMapRange srj =
+	      synch_commands.equal_range(std::make_pair(*mj, *si));
+	    for (SynchronizationMap::const_iterator smj = srj.first;
+		 smj != srj.second; smj++) {
+	      const Command& cj = *(*smj).second;
+	      /*
+	       * Synchronize ci with cj.
+	       */
+	      VariableSet updated_variables;
+	      DdNode* dd1 = ci.bdd(updated_variables, dd_man);
+	      DdNode* dd2 = cj.bdd(updated_variables, dd_man);
+	      DdNode* ddu = Cudd_bddAnd(dd_man, dd1, dd2);
+	      Cudd_Ref(ddu);
+	      Cudd_RecursiveDeref(dd_man, dd1);
+	      Cudd_RecursiveDeref(dd_man, dd2);
+	      /* Conjunction with identity BDD for untouched global
+		 variables. */
+	      ddu = variable_identities(dd_man, ddu, variables(),
+					updated_variables);
+	      /* Conjunction with identity BDD for untouched module
+		 variables. */
+	      ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
+					updated_variables);
+	      ddu = variable_identities(dd_man, ddu, (*mj)->variables(),
+					updated_variables);
+	      /*
+	       * Conjunction with identity BDD for other modules.
+	       */
+	      for (ModuleList::const_reverse_iterator mk = modules().rbegin();
+		   mk != modules().rend(); mk++) {
+		if (*mk != *mi && *mk != *mj) {
+		  DdNode* ddm = (*mk)->identity_bdd(dd_man);
+		  DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
+		  Cudd_Ref(dda);
+		  Cudd_RecursiveDeref(dd_man, ddm);
+		  Cudd_RecursiveDeref(dd_man, ddu);
+		  ddu = dda;
+		}
+	      }
+	      /*
+	       * Conjunction with BDD for variable ranges.
+	       */
+	      DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
+	      Cudd_Ref(dda);
+	      Cudd_RecursiveDeref(dd_man, ddu);
+	      ddu = dda;
+	      /*
+	       * Multiply BDD with MTBDD for rate.
+	       */
+	      DdNode* ddC = Cudd_BddToAdd(dd_man, ddu);
+	      Cudd_Ref(ddC);
+	      Cudd_RecursiveDeref(dd_man, ddu);
+	      DdNode* ddL = ci.rate().mtbdd(dd_man);
+	      DdNode* ddU = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddC);
+	      Cudd_Ref(ddU);
+	      Cudd_RecursiveDeref(dd_man, ddL);
+	      Cudd_RecursiveDeref(dd_man, ddC);
+	      ddL = cj.rate().mtbdd(dd_man);
+	      ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
+	      Cudd_Ref(ddC);
+	      Cudd_RecursiveDeref(dd_man, ddL);
+	      Cudd_RecursiveDeref(dd_man, ddU);
+	      /*
+	       * Add MTBDD for command to MTBDD for model.
+	       */
+	      DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
+	      Cudd_Ref(ddT);
+	      Cudd_RecursiveDeref(dd_man, ddC);
+	      Cudd_RecursiveDeref(dd_man, ddR);
+	      ddR = ddT;
+	    }
+	  }
+	}
+      }
+    }
+    /* Release BDD for variable ranges. */
+    Cudd_RecursiveDeref(dd_man, range);
+    /*
+     * Release DDs for variables and modules.
+     */
+    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
+	 mi != modules().rend(); mi++) {
+      const Module& mod = **mi;
+      mod.uncache_dds(dd_man);
+      for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
+	   vi != mod.variables().rend(); vi++) {
+	const Variable& v = **vi;
+	v.uncache_dds(dd_man);
+      }
+    }
+    for (VariableList::const_reverse_iterator vi = variables().rbegin();
+	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
       v.uncache_dds(dd_man);
     }
+    if (verbosity > 0) {
+      std::cout << Cudd_ReadSize(dd_man) << " variables." << std::endl;
+    }
+    /*
+     * Collect row and column variables.
+     */
+    size_t nvars = Cudd_ReadSize(dd_man) / 2;
+    row_variables_ = new DdNode*[nvars];
+    column_variables_ = new DdNode*[nvars];
+    for (size_t i = 0; i < nvars; i++) {
+      row_variables_[i] = Cudd_bddIthVar(dd_man, 2*i);
+      column_variables_[i] = Cudd_bddIthVar(dd_man, 2*i + 1);
+    }
+    /*
+     * Reachability analysis.
+     */
+    reach_bdd_ = ::reachability_bdd(dd_man, init_bdd_, ddR, row_variables_);
+    DdNode* reach_add = Cudd_BddToAdd(dd_man, reach_bdd_);
+    Cudd_Ref(reach_add);
+    DdNode* ddT = Cudd_addApply(dd_man, Cudd_addTimes, reach_add, ddR);
+    Cudd_Ref(ddT);
+    Cudd_RecursiveDeref(dd_man, ddR);
+    rate_mtbdd_ = ddT;
+    /* Build ODD. */
+    odd_ = build_odd(dd_man, reach_add, row_variables_, nvars);
+    Cudd_RecursiveDeref(dd_man, reach_add);
   }
-  for (VariableList::const_reverse_iterator vi = variables().rbegin();
-       vi != variables().rend(); vi++) {
-    const Variable& v = **vi;
-    v.uncache_dds(dd_man);
+}
+
+
+/* Returns an MTBDD representing the rate matrix for this model. */
+DdNode* Model::rate_mtbdd(DdManager* dd_man) const {
+  if (rate_mtbdd_ == NULL) {
+    cache_dds(dd_man);
   }
-  if (verbosity > 0) {
-    std::cout << Cudd_ReadSize(dd_man) << " variables." << std::endl;
+  Cudd_Ref(rate_mtbdd_);
+  return rate_mtbdd_;
+}
+
+
+/* Returns a reachability BDD for this model. */
+DdNode* Model::reachability_bdd(DdManager* dd_man) const {
+  if (reach_bdd_ == NULL) {
+    cache_dds(dd_man);
   }
-  /*
-   * Reachability analysis.
-   */
-  DdNode* reach = reachability_bdd(dd_man, init, ddR);
-#if DEBUG_DD
-  std::cout << "bdd for reachability" << std::endl;
-  Cudd_PrintDebug(dd_man, reach, Cudd_ReadSize(dd_man), 4);
-#endif
-  DdNode* reach_add = Cudd_BddToAdd(dd_man, reach);
-  Cudd_Ref(reach_add);
-  Cudd_RecursiveDeref(dd_man, reach);
-  DdNode* ddT = Cudd_addApply(dd_man, Cudd_addTimes, reach_add, ddR);
-  Cudd_Ref(ddT);
-  Cudd_RecursiveDeref(dd_man, reach_add);
-  Cudd_RecursiveDeref(dd_man, ddR);
-  ddR = ddT;
-  /* Release BDD for initial state. */
-  Cudd_RecursiveDeref(dd_man, init);
-  return ddR;
+  Cudd_Ref(reach_bdd_);
+  return reach_bdd_;
+}
+
+
+/* Returns an ODD for this model. */
+ODDNode* Model::odd(DdManager* dd_man) const {
+  if (odd_ == NULL) {
+    cache_dds(dd_man);
+  }
+  return odd_;
+}
+
+
+/* Returns a BDD representing the initial state for this model. */
+DdNode* Model::init_bdd(DdManager* dd_man) const {
+  if (init_bdd_ == NULL) {
+    cache_dds(dd_man);
+  }
+  Cudd_Ref(init_bdd_);
+  return init_bdd_;
+}
+
+
+/* Returns the index associated with the initial state for this model. */
+int Model::init_index(DdManager* dd_man) const {
+  if (init_index_ == -1) {
+    cache_dds(dd_man);
+    DdNode* init_add_ = Cudd_BddToAdd(dd_man, init_bdd_);
+    Cudd_Ref(init_add_);
+    DdNode* d = init_add_;
+    ODDNode* o = odd_;
+    init_index_ = 0;
+    size_t nvars = Cudd_ReadSize(dd_man) / 2;
+    for (size_t i = 1; i <= nvars; i++) {
+      bool bit;
+      if (i == nvars) {
+	bit = (Cudd_T(d) == Cudd_ReadOne(dd_man));
+      } else {
+	DdNode* t = Cudd_T(d);
+	if (Cudd_IsConstant(t)) {
+	  bit = false;
+	  d = Cudd_E(d);
+	} else {
+	  bit = true;
+	  d = t;
+	}
+      }
+      if (bit) {
+	init_index_ += o->eoff;
+	o = o->t;
+      } else {
+	o = o->e;
+      }
+    }
+    Cudd_RecursiveDeref(dd_man, init_add_);
+  }
+  return init_index_;
+}
+
+
+/* Returns the row variables for this model. */
+DdNode** Model::row_variables(DdManager* dd_man) const {
+  if (row_variables_ == NULL) {
+    cache_dds(dd_man);
+  }
+  return row_variables_;
+}
+
+
+/* Returns the column variables for this model. */
+DdNode** Model::column_variables(DdManager* dd_man) const {
+  if (column_variables_ == NULL) {
+    cache_dds(dd_man);
+  }
+  return column_variables_;
+}
+
+
+/* Returns the number of states for this model. */
+double Model::num_states(DdManager* dd_man) const {
+  if (reach_bdd_ == NULL) {
+    cache_dds(dd_man);
+  }
+  return Cudd_CountMinterm(dd_man, reach_bdd_, Cudd_ReadSize(dd_man) / 2);
+}
+
+
+/* Returns the number of transitions for this model. */
+double Model::num_transitions(DdManager* dd_man) const {
+  if (rate_mtbdd_ == NULL) {
+    cache_dds(dd_man);
+  }
+  return Cudd_CountMinterm(dd_man, rate_mtbdd_, Cudd_ReadSize(dd_man));
+}
+
+
+/* Releases all DDs cached for this model. */
+void Model::uncache_dds(DdManager* dd_man) const {
+  if (rate_mtbdd_ != NULL) {
+    Cudd_RecursiveDeref(dd_man, rate_mtbdd_);
+    rate_mtbdd_ = NULL;
+  }
+  if (reach_bdd_ != NULL) {
+    Cudd_RecursiveDeref(dd_man, reach_bdd_);
+    reach_bdd_ = NULL;
+  }
+  odd_ = NULL;
+  if (init_bdd_ != NULL) {
+    Cudd_RecursiveDeref(dd_man, init_bdd_);
+    init_bdd_ = NULL;
+  }
+  init_index_ = -1;
+  if (row_variables_ != NULL) {
+    delete row_variables_;
+    row_variables_ = NULL;
+  }
+  if (column_variables_ != NULL) {
+    delete column_variables_;
+    column_variables_ = NULL;
+  }
 }
 
 
