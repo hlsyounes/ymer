@@ -15,13 +15,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: ymer.cc,v 1.1 2003-08-10 01:51:48 lorens Exp $
+ * $Id: ymer.cc,v 1.2 2003-08-10 19:47:13 lorens Exp $
  */
 #include <config.h>
 #include "models.h"
+#include "formulas.h"
 #include "exceptions.h"
-#include "util.h"
-#include "cudd.h"
+#include <util.h>
+#include <cudd.h>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
@@ -43,6 +44,7 @@ extern FILE* yyin;
 extern const Model* global_model;
 /* Number of bits required by binary encoding of state space. */
 extern int num_model_bits;
+extern FormulaList properties;
 /* Clears all previously parsed declarations. */
 extern void clear_declarations();
 
@@ -176,9 +178,16 @@ int main(int argc, char* argv[]) {
     clear_declarations();
     if (verbosity > 1) {
       std::cout << *global_model << std::endl;
+      for (FormulaList::const_iterator fi = properties.begin();
+	   fi != properties.end(); fi++) {
+	std::cout << std::endl;
+	(*fi)->print(std::cout);
+	std::cout << std::endl;
+      }
     }
     DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
 				  CUDD_CACHE_SLOTS, 0);
+    Cudd_SetEpsilon(dd_man, 1e-15);
     struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 #ifdef PROFILING
     setitimer(ITIMER_VIRTUAL, &timer, NULL);
@@ -205,6 +214,11 @@ int main(int argc, char* argv[]) {
     }
     Cudd_Quit(dd_man);
     delete global_model;
+    for (FormulaList::const_iterator fi = properties.begin();
+	 fi != properties.end(); fi++) {
+      StateFormula::unregister_use(*fi);
+    }
+    properties.clear();
   } catch (const Exception& e) {
     std::cerr << PACKAGE ": " << e << std::endl;
     return -1;
