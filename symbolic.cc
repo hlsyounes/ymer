@@ -2,7 +2,7 @@
  * Symbolic model checking of CSL formulas.
  *
  * Copyright (C) 2002 Dave Parker
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: symbolic.cc,v 1.5 2003-11-12 20:56:21 lorens Exp $
+ * $Id: symbolic.cc,v 2.1 2004-01-25 13:07:03 lorens Exp $
  */
 #include "formulas.h"
 #include "models.h"
