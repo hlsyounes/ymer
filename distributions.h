@@ -2,7 +2,7 @@
 /*
  * Probability distributions.
  *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003--2005 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: distributions.h,v 2.1 2004-01-25 12:20:35 lorens Exp $
+ * $Id: distributions.h,v 4.1 2005-02-01 14:01:41 lorens Exp $
  */
 #ifndef DISTRIBUTIONS_H
 #define DISTRIBUTIONS_H
@@ -134,6 +134,9 @@ struct Distribution {
      distribution. */
   void acph2(ACPH2Parameters& params) const;
 
+  /* Tests if this a memoryless distribution. */
+  virtual bool memoryless() const { return false; }
+
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const = 0;
 
@@ -180,6 +183,9 @@ struct Exponential : public Distribution {
 
   /* Returns the rate of this exponential distribution. */
   const Expression& rate() const { return *rate_; }
+
+  /* Tests if this a memoryless distribution. */
+  virtual bool memoryless() const { return true; }
 
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const;
