@@ -17,30 +17,13 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: states.cc,v 1.2 2003-11-07 04:26:28 lorens Exp $
+ * $Id: states.cc,v 1.3 2003-11-12 03:54:24 lorens Exp $
  */
 #include "states.h"
 #include "models.h"
+#include "distributions.h"
 #include "formulas.h"
-#include <cmath>
-
-
-/* Generates a random number in the interval [0,1). */
-static double rand01ex() {
-  return rand()/(RAND_MAX + 1.0);
-}
-
-
-/* Generates a random number in the interval (0,1). */
-static double rand0ex1ex() {
-  return (rand() + 1.0)/(RAND_MAX + 2.0);
-}
-
-
-/* Generates an exponentially distributed random number. */
-static double rand_exp() {
-  return -log(rand0ex1ex());
-}
+#include "rng.h"
 
 
 /* ====================================================================== */
@@ -89,12 +72,11 @@ const State& State::next(const Model& model) const {
        ci != model.commands().end(); ci++) {
     const Command& command = **ci;
     if (command.guard().holds(values())) {
-      double rate = command.rate().value(values()).double_value();
-      double t = rand_exp()/rate;
+      double t = command.delay().sample(values());
       if (first_command != NULL && t == first_time) {
 	streak++;
 	if (tie_breaker < 0.0) {
-	  tie_breaker = rand01ex();
+	  tie_breaker = genrand_real2();
 	}
       } else {
 	streak = 1;
@@ -116,11 +98,8 @@ const State& State::next(const Model& model) const {
 /* Prints this object on the given stream. */
 void State::print(std::ostream& os) const {
   ValueMap::const_iterator vi = values().begin();
-  (*vi).first->print(os);
-  os << '=' << (*vi).second;
+  os << (*vi).first << '=' << (*vi).second;
   for (vi++; vi != values().end(); vi++) {
-    os << " & ";
-    (*vi).first->print(os);
-    os << '=' << (*vi).second;
+    os << " & " << (*vi).first << '=' << (*vi).second;
   }
 }
