@@ -13,13 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: modules.cc,v 1.1 2003-08-10 01:52:41 lorens Exp $
+ * $Id: modules.cc,v 1.2 2003-08-10 19:46:40 lorens Exp $
  */
 #include "modules.h"
 #include "formulas.h"
 #include "expressions.h"
-#include "util.h"
-#include "cudd.h"
 
 
 /* ====================================================================== */
@@ -94,6 +92,7 @@ Command::Command(size_t synch, const StateFormula& guard,
 /* Deletes this command. */
 Command::~Command() {
   StateFormula::unregister_use(guard_);
+  Expression::unregister_use(rate_);
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     delete *ui;
