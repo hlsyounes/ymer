@@ -1,7 +1,7 @@
 /*
  * Sampling-based model checking of CSL formulas.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,10 +19,13 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: sampling.cc,v 1.3 2003-11-07 21:59:49 lorens Exp $
+ * $Id: sampling.cc,v 2.1 2004-01-25 12:42:17 lorens Exp $
  */
 #include "formulas.h"
+#include "comm.h"
 #include "states.h"
+#include <sys/socket.h>
+#include <queue>
 #include <cmath>
 
 
@@ -202,6 +205,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     p0 = std::min(1.0, theta + delta);
     p1 = std::max(0.0, theta - delta);
   }
+
   double logA = -log(alpha);
   /* If p1 is 0, then a beta of 0 can always be guaranteed. */
   if (p1 > 0.0) {
@@ -223,8 +227,117 @@ bool Probabilistic::verify(const Model& model, const State& state,
   size_t n = 0;
   double logf = 0.0;
   formula_level_++;
+  std::queue<short> schedule;
+  std::map<short, std::queue<bool> > buffer;
+  std::map<short, size_t> sample_count;
+  std::map<short, size_t> usage_count;
+  for (ClientTable::const_iterator ci = registered_clients.begin();
+       ci != registered_clients.end(); ci++) {
+    short client_id = (*ci).first;
+    schedule.push(client_id);
+    ServerMsg smsg = { ServerMsg::START, current_property };
+    const sockaddr* addr = (sockaddr*) &(*ci).second;
+    if (-1 == sendto(server_socket, &smsg, sizeof smsg, 0,
+	addr, sizeof *addr)) {
+      perror(PACKAGE);
+      return -1;
+    }
+  }
   while (logB < logf && logf < logA) {
-    if (formula().sample(model, state, delta, alphap, betap)) {
+    bool s;
+    if (!schedule.empty() && !buffer[schedule.front()].empty()) {
+      short client_id = schedule.front();
+      s = buffer[client_id].front();
+      buffer[client_id].pop();
+      schedule.push(client_id);
+      schedule.pop();
+      if (verbosity > 1) {
+	std::cout << "Using sample (" << s << ") from client " << client_id
+		  << std::endl;
+      }
+      usage_count[client_id]++;
+    } else if (client_socket != -1) {
+      /* Server mode. */
+      fd_set rfds;
+      FD_ZERO(&rfds);
+      FD_SET(client_socket, &rfds);
+      int result = select(client_socket + 1, &rfds, NULL, NULL, NULL);
+      if (result == -1) {
+	perror(PACKAGE);
+	exit(-1);
+      } else if (result == 0) {
+	/* timeout */
+	close(client_socket);
+	client_socket = -1;
+	continue;
+      } else {
+	ClientMsg msg;
+	sockaddr_in sender;
+	socklen_t addrlen = sizeof sender;
+	if (-1 == recvfrom(client_socket, &msg, sizeof msg, 0,
+			   (sockaddr*) &sender, &addrlen)) {
+	  perror(PACKAGE);
+	  return -1;
+	}
+	if (msg.id == ClientMsg::REGISTER) {
+	  /* register a client */
+	  sender.sin_port = htons(port + msg.client_id + 1);
+	  sender.sin_addr.s_addr = htonl(msg.value);
+	  ClientTable::const_iterator ci =
+	    registered_clients.find(msg.client_id);
+	  if (ci == registered_clients.end()) {
+	    registered_clients.insert(std::make_pair(msg.client_id, sender));
+	    schedule.push(msg.client_id);
+	    ServerMsg smsg = { ServerMsg::START, current_property };
+	    const sockaddr* addr =
+	      (sockaddr*) &registered_clients[msg.client_id];
+	    if (verbosity > 1) {
+	      unsigned long caddr =
+		ntohl(registered_clients[msg.client_id].sin_addr.s_addr);
+	      std::cout << "Registering client " << msg.client_id << " at "
+			<< ((caddr >> 24UL)&0xffUL) << '.'
+			<< ((caddr >> 16UL)&0xffUL) << '.'
+			<< ((caddr >> 8UL)&0xffUL) << '.'
+			<< (caddr&0xffUL) << std::endl;
+	    }
+	    if (-1 == sendto(server_socket, &smsg, sizeof smsg, 0,
+			     addr, sizeof *addr)) {
+	      perror(PACKAGE);
+	      return -1;
+	    }
+	  }
+	  continue;
+	} else if (msg.id == ClientMsg::SAMPLE) {
+	  /* receive a sample */
+	  s = (msg.value == 1);
+	  if (verbosity > 1) {
+	    std::cout << "Receiving sample (" << s << ") from client "
+		      << msg.client_id << std::endl;
+	  }
+	  sample_count[msg.client_id]++;
+	  schedule.push(msg.client_id);
+	  if (schedule.front() == msg.client_id) {
+	    schedule.pop();
+	    if (verbosity > 1) {
+	      std::cout << "Using sample (" << s << ") from client "
+			<< msg.client_id << std::endl;
+	    }
+	    usage_count[msg.client_id]++;
+	  } else {
+	    buffer[msg.client_id].push(s);
+	    continue;
+	  }
+	} else {
+	  std::cerr << "Message with bad id (" << msg.id << ") ignored."
+		    << std::endl;
+	  continue;
+	}
+      }
+    } else {
+      /* Local mode. */
+      s = formula().sample(model, state, delta, alphap, betap);
+    }
+    if (s) {
       if (p1 > 0.0) {
 	logf += log(p1) - log(p0);
       } else {
@@ -256,6 +369,26 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     total_samples += n;
     samples.push_back(n);
+  }
+  if (client_socket != -1) {
+    if (verbosity > 0) {
+      for (std::map<short, size_t>::const_iterator si = sample_count.begin();
+	   si != sample_count.end(); si++) {
+	std::cout << "Client " << (*si).first << ": " << (*si).second
+		  << " generated " << usage_count[(*si).first] << " used"
+		  << std::endl;
+      }
+    }
+    for (ClientTable::const_iterator ci = registered_clients.begin();
+	 ci != registered_clients.end(); ci++) {
+      ServerMsg smsg = { ServerMsg::STOP };
+      const sockaddr* addr = (sockaddr*) &(*ci).second;
+      if (-1 == sendto(server_socket, &smsg, sizeof smsg, 0,
+		       addr, sizeof *addr)) {
+	perror(PACKAGE);
+	return -1;
+      }
+    }
   }
   return logf <= logB;
 }
