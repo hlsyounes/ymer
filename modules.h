@@ -2,7 +2,7 @@
 /*
  * Modules.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: modules.h,v 1.3 2003-11-12 03:58:23 lorens Exp $
+ * $Id: modules.h,v 2.1 2004-01-25 12:38:08 lorens Exp $
  */
 #ifndef MODULES_H
 #define MODULES_H
@@ -137,6 +137,9 @@ private:
   /* The updates for this command. */
   UpdateList updates_;
 };
+
+/* Output operator for commands. */
+std::ostream& operator<<(std::ostream& os, const Command& c);
 
 
 /* ====================================================================== */
