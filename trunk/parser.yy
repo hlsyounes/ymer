@@ -3,20 +3,24 @@
  * Parser.
  *
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of Ymer.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: parser.yy,v 1.3 2003-08-11 03:44:08 lorens Exp $
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: parser.yy,v 1.4 2003-11-07 04:26:06 lorens Exp $
  */
 %{
 #include <config.h>
@@ -57,7 +61,7 @@ static Model* model;
 /* Current module. */
 static Module* module;
 /* Current variable substitutions. */
-static hashing::hash_map<const Variable*, const std::string*> subst;
+static std::map<const Variable*, const std::string*> subst;
 /* Current synchronization substitutions. */
 static SynchSubstitutionMap synch_subst;
 /* Current command. */
@@ -73,11 +77,11 @@ static ValueMap rate_values;
 /* All state variables. */
 static std::map<std::string, Variable*> variables;
 /* Variables lows. */
-static hashing::hash_map<const Variable*, const Expression*> variable_lows;
+static std::map<const Variable*, const Expression*> variable_lows;
 /* Variables highs. */
-static hashing::hash_map<const Variable*, const Expression*> variable_highs;
+static std::map<const Variable*, const Expression*> variable_highs;
 /* Variables starts. */
-static hashing::hash_map<const Variable*, const Expression*> variable_starts;
+static std::map<const Variable*, const Expression*> variable_starts;
 /* Declared modules. */
 static std::map<std::string, Module*> modules;
 /* Declared synchronizations. */
@@ -427,20 +431,20 @@ static void check_undeclared() {
   rate_values.clear();
   modules.clear();
   synchronizations.clear();
-  for (hashing::hash_map<const Variable*,
-	 const Expression*>::const_iterator vi = variable_lows.begin();
+  for (std::map<const Variable*, const Expression*>::const_iterator vi =
+	 variable_lows.begin();
        vi != variable_lows.end(); vi++) {
     Expression::unregister_use((*vi).second);
   }
   variable_lows.clear();
-  for (hashing::hash_map<const Variable*,
-	 const Expression*>::const_iterator vi = variable_highs.begin();
+  for (std::map<const Variable*, const Expression*>::const_iterator vi =
+	 variable_highs.begin();
        vi != variable_highs.end(); vi++) {
     Expression::unregister_use((*vi).second);
   }
   variable_highs.clear();
-  for (hashing::hash_map<const Variable*,
-	 const Expression*>::const_iterator vi = variable_starts.begin();
+  for (std::map<const Variable*, const Expression*>::const_iterator vi =
+	 variable_starts.begin();
        vi != variable_starts.end(); vi++) {
     Expression::unregister_use((*vi).second);
   }
@@ -845,8 +849,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
       SubstitutionMap c_subst;
       for (ValueMap::const_iterator ci = constant_values.begin();
 	   ci != constant_values.end(); ci++) {
-	hashing::hash_map<const Variable*,
-	  const std::string*>::const_iterator si = subst.find((*ci).first);
+	std::map<const Variable*, const std::string*>::const_iterator si =
+	  subst.find((*ci).first);
 	if (si != subst.end()) {
 	  std::map<std::string, const Variable*>::const_iterator cj =
 	    constants.find(*(*si).second);
@@ -860,8 +864,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
       SubstitutionMap v_subst;
       for (VariableList::const_iterator vi = src_module.variables().begin();
 	   vi != src_module.variables().end(); vi++) {
-	hashing::hash_map<const Variable*,
-	  const std::string*>::const_iterator si = subst.find(*vi);
+	std::map<const Variable*, const std::string*>::const_iterator si =
+	  subst.find(*vi);
 	if (si == subst.end()) {
 	  yyerror("missing substitution for module variable");
 	} else {
@@ -870,8 +874,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  const Expression* high =
 	    &(*variable_highs.find(*vi)).second->substitution(c_subst);
 	  const Expression* start;
-	  hashing::hash_map<const Variable*,
-	    const Expression*>::const_iterator i = variable_starts.find(*vi);
+	  std::map<const Variable*, const Expression*>::const_iterator i =
+	    variable_starts.find(*vi);
 	  if ((*i).second != NULL) {
 	    start = &(*i).second->substitution(c_subst);
 	  } else {
@@ -885,8 +889,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  }
 	}
       }
-      for (hashing::hash_map<const Variable*,
-	     const std::string*>::const_iterator si = subst.begin();
+      for (std::map<const Variable*, const std::string*>::const_iterator si =
+	     subst.begin();
 	   si != subst.end(); si++) {
 	const Variable* v1 = (*si).first;
 	if (!member(src_module.variables(), v1)) {

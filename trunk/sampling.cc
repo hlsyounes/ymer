@@ -2,20 +2,24 @@
  * Sampling-based model checking of CSL formulas.
  *
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of Ymer.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: sampling.cc,v 1.1 2003-08-13 18:48:30 lorens Exp $
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: sampling.cc,v 1.2 2003-11-07 04:26:24 lorens Exp $
  */
 #include "formulas.h"
 #include "states.h"
@@ -32,7 +36,7 @@ extern std::vector<size_t> samples;
 extern double total_path_lengths;
 
 /* Nesting level of formula just being verified. */
-static size_t formula_level = 0;
+size_t StateFormula::formula_level_ = 0;
 
 
 /* ====================================================================== */
@@ -208,7 +212,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   if (p0 < 1.0) {
     logB -= log(1.0 - alpha);
   }
-  if (formula_level == 0) {
+  if (formula_level() == 0) {
     if (verbosity > 0) {
       std::cout << "Acceptance sampling";
     }
@@ -218,7 +222,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   size_t n = 0;
   double logf = 0.0;
-  formula_level++;
+  formula_level_++;
   while (logB < logf && logf < logA) {
     if (formula().sample(model, state, delta, alphap, betap)) {
       if (p1 > 0.0) {
@@ -245,8 +249,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
 		<< std::endl;
     }
   }
-  formula_level--;
-  if (formula_level == 0) {
+  formula_level_--;
+  if (formula_level() == 0) {
     if (verbosity > 0) {
       std::cout << n << " samples." << std::endl;
     }
@@ -471,7 +475,7 @@ bool Until::sample(const Model& model, const State& state,
       std::cout << ">>negative sample" << std::endl;
     }
   }
-  if (formula_level == 1) {
+  if (StateFormula::formula_level() == 1) {
     total_path_lengths += path.size();
   }
   for (size_t i = 1; i < path.size(); i++) {

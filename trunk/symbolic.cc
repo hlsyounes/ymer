@@ -1,35 +1,37 @@
 /*
  * Symbolic model checking of CSL formulas.
  *
+ * Copyright (C) 2002 Dave Parker
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of Ymer.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: symbolic.cc,v 1.3 2003-08-15 03:35:35 lorens Exp $
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: symbolic.cc,v 1.4 2003-11-07 04:26:37 lorens Exp $
  */
 #include "formulas.h"
 #include "models.h"
-#include "exceptions.h"
 #include "hybrid.h"
 #include <float.h>
 #include <cmath>
+#include <stdexcept>
 
 
 /* Verbosity level. */
 extern int verbosity;
-
-/* Nesting level of formula just being verified. */
-static size_t formula_level = 0;
 
 
 /* ====================================================================== */
@@ -127,7 +129,11 @@ DdNode* Implication::verify(DdManager* dd_man, const Model& model,
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Probabilistic::verify(DdManager* dd_man, const Model& model,
 			      double epsilon) const {
-  return formula().verify(dd_man, model, threshold(), strict(), epsilon);
+  formula_level_++;
+  DdNode* res = formula().verify(dd_man, model, threshold(), strict(),
+				 epsilon);
+  formula_level_--;
+  return res;
 }
 
 
@@ -166,9 +172,9 @@ static void mtbdd_to_double_vector_rec(DdManager* ddman, DdNode* dd,
       e = Cudd_E(dd);
       t = Cudd_T(dd);
     }
-    mtbdd_to_double_vector_rec(ddman, e, vars, num_vars, level+1,
+    mtbdd_to_double_vector_rec(ddman, e, vars, num_vars, level + 1,
 			       odd->e, o, res);
-    mtbdd_to_double_vector_rec(ddman, t, vars, num_vars, level+1,
+    mtbdd_to_double_vector_rec(ddman, t, vars, num_vars, level + 1,
 			       odd->t, o+odd->eoff, res);
   }
 }
@@ -188,6 +194,59 @@ static double* mtbdd_to_double_vector(DdManager* ddman, DdNode* dd,
   mtbdd_to_double_vector_rec(ddman, dd, vars, num_vars, 0, odd, 0, res);
 
   return res;
+}
+
+
+/* Recursive component of double_vector_to_bdd. */
+static DdNode* double_vector_to_bdd_rec(DdManager* ddman, double* vec,
+					bool strict, double bound,
+					DdNode** vars, int num_vars,
+					int level, ODDNode* odd, long o) {
+  if (level == num_vars) {
+    DdNode* dd = (((strict && vec[o] > bound) || (!strict && vec[o] >= bound))
+		  ? Cudd_ReadOne(ddman) : Cudd_ReadLogicZero(ddman));
+    Cudd_Ref(dd);
+    return dd;
+  } else {
+    DdNode* e;
+    DdNode* t;
+    if (odd->eoff > 0) {
+      e = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
+				   level + 1, odd->e, o);
+    } else {
+      e = Cudd_ReadLogicZero(ddman);
+      Cudd_Ref(e);
+    }
+    if (odd->toff > 0) {
+      t = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
+				   level + 1, odd->t, o+odd->eoff);
+    } else {
+      t = Cudd_ReadLogicZero(ddman);
+      Cudd_Ref(t);
+    }
+    if (e == t) {
+      Cudd_RecursiveDeref(ddman, t);
+      return e;
+    } else {
+      Cudd_Ref(vars[level]);
+      DdNode* dd = Cudd_bddIte(ddman, vars[level], t, e);
+      Cudd_Ref(dd);
+      Cudd_RecursiveDeref(ddman, vars[level]);
+      Cudd_RecursiveDeref(ddman, t);
+      Cudd_RecursiveDeref(ddman, e);
+      return dd;
+    }
+  }
+}
+
+
+/* Converts a double vector to a BDD. */
+static DdNode* double_vector_to_bdd(DdManager* ddman, double* vec,
+				    bool strict, double bound,
+				    DdNode** vars, int num_vars,
+				    ODDNode* odd) {
+  return double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
+				  0, odd, 0);
 }
 
 
@@ -268,7 +327,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 
   /* Make sure lambda is positive. */
   if (lambda <= 0.0) {
-    throw Exception("non-positive lambda passed to finder");
+    throw std::invalid_argument("lambda <= 0.0");
   }
 
   /*
@@ -279,7 +338,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
   if (lambda < 25.0) {
     left = 0;
     if (exp(-lambda) < DBL_MIN) {
-      throw Exception("potential underflow for Fox-Glynn");
+      throw std::underflow_error("potential underflow for Fox-Glynn");
     }
   } else { /* lambda >= 25.0 */
     /* Find left using Corollary 2 with actual lambda. */
@@ -328,7 +387,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     double k_hat1 = right/sqrt_lambda + 1.0;
     double e = exp(1.0)*pow(DBL_MAX*1e-10/(right - left), -2.0/k_hat1/k_hat1);
     if (c_m*pow(e, -k_hat1*k_hat1/2.0) < DBL_MIN) {
-      throw Exception("potential underflow for Fox-Glynn");
+      throw std::underflow_error("potential underflow for Fox-Glynn");
     }
 #endif
   }
@@ -347,7 +406,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 		   exp(-lambda));
     }
     if (p*((DBL_MAX*1e-10)/(right - left)) < DBL_MIN) {
-      throw Exception("potential underflow for Fox-Glynn");
+      throw std::underflow_error("potential underflow for Fox-Glynn");
     }
   }
 #endif
@@ -364,7 +423,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
   /* Up. */
   if (lambda < 400.0) {
     if (right > 600) {
-      throw Exception("potential undeflow for Fox-Glynn");
+      throw std::underflow_error("potential undeflow for Fox-Glynn");
     } else {
       for (int j = m; j < right; ) {
 	double q = lambda/(j + 1.0);
@@ -485,7 +544,7 @@ void compute_weights(int& left, int& right, double*& weights,
   /* up */
   if (lambda < 400) {
     if (right > 600) {
-      throw Exception("Overflow: right truncation point > 600.");
+      throw std::overflow_error("overflow: right truncation point > 600");
     }
     for (int j = m; j < right; ) {
       q = lambda/(j+1);
@@ -535,16 +594,12 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
     return sol;
   }
 
-  /* Increase formula level before verifying sub-formulas. */
-  formula_level++;
-
   /*
    * Verify postcondition formula.
    */
   DdNode* dd2 = post().verify(dd_man, model, epsilon);
   if (max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
-    formula_level--;
     return dd2;
   }
 
@@ -553,12 +608,9 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
    */
   DdNode* dd1 = pre().verify(dd_man, model, epsilon);
 
-  /* Done verifying sub-formulas so decrease formula level. */
-  formula_level--;
-
   if (min_time() > 0) {
     // TODO
-    throw Exception("interval time bounds not currently supported");
+    throw std::invalid_argument("interval time bounds not supported");
   }
 
   /*
@@ -656,7 +708,8 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   Cudd_RecursiveDeref(dd_man, yes);
   double* soln2 = new double[nstates];
   double* sum;
-  int init = (formula_level == 0) ? model.init_index(dd_man) : -1;
+  int init = ((StateFormula::formula_level() == 1)
+	      ? model.init_index(dd_man) : -1);
   if (init >= 0) {
     sum = new double[1];
     sum[0] = 0.0;
@@ -811,7 +864,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
       }
       double slack = tail_bound(iters, 1.01*max_diag*time,
 				left, right, epsilon);
-      if (verbosity > 1) {
+      if (verbosity > 1 && init >= 0) {
 	std::cout << iters
 		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"
 		  << "; threshold = " << threshold << std::endl;
@@ -865,7 +918,8 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
       Cudd_Ref(sol);
     }
   } else {
-    throw Exception("transient analysis for bounded until not implemented.");
+    sol = double_vector_to_bdd(dd_man, sum, strict, threshold,
+			       rvars, nvars, odd);
   }
   delete sum;
   return sol;

@@ -1,23 +1,27 @@
 /* -*-C++-*- */
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of Ymer.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: rational.cc,v 1.1 2003-08-10 01:52:15 lorens Exp $
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: rational.cc,v 1.2 2003-11-07 04:26:11 lorens Exp $
  */
 #include "rational.h"
-#include "exceptions.h"
+#include <stdexcept>
 
 
 /* ====================================================================== */
@@ -52,7 +56,7 @@ std::pair<int, int> Rational::multipliers(int n, int m) {
 /* Constructs a rational number. */
 Rational::Rational(int n, int m) {
   if (m == 0) {
-    throw Exception("division by zero");
+    throw std::invalid_argument("division by zero");
   } else {
     int d = gcd(n, m);
     numerator_ = n/d;
@@ -78,7 +82,7 @@ Rational::Rational(const char* s)
       denominator_ = 10*denominator_ + (*si - '0');
     }
     if (denominator_ == 0) {
-      throw Exception("division by zero");
+      throw std::invalid_argument("division by zero");
     }
     int d = gcd(numerator_, denominator_);
     numerator_ /= d;
@@ -179,7 +183,7 @@ Rational operator*(const Rational& q, const Rational& p) {
 /* Division operator for rational numbers. */
 Rational operator/(const Rational& q, const Rational& p) {
   if (p == 0) {
-    throw Exception("division by zero");
+    throw std::invalid_argument("division by zero");
   }
   int d1 = gcd(q.numerator(), p.numerator());
   int d2 = gcd(p.denominator(), q.denominator());
