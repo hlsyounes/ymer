@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: formulas.h,v 1.6 2003-11-07 21:59:56 lorens Exp $
+ * $Id: formulas.h,v 1.7 2003-11-12 03:49:31 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -93,9 +93,6 @@ struct StateFormula {
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const = 0;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
 protected:
   /* Nesting level of formula just being verified. */
   static size_t formula_level_;
@@ -103,10 +100,18 @@ protected:
   /* Constructs a state formula. */
   StateFormula() : ref_count_(0) {}
 
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const = 0;
+
 private:
   /* Reference counter. */
   mutable size_t ref_count_;
+
+  friend std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 };
+
+/* Output operator for state formulas. */
+std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 
 
 /* ====================================================================== */
@@ -166,17 +171,22 @@ struct PathFormula {
 			 const Rational& p, bool strict,
 			 double epsilon) const = 0;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
 protected:
   /* Constructs a path formula. */
   PathFormula() : ref_count_(0) {}
 
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const = 0;
+
 private:
   /* Reference counter. */
   mutable size_t ref_count_;
+
+  friend std::ostream& operator<<(std::ostream& os, const PathFormula& f);
 };
+
+/* Output operator for path formulas. */
+std::ostream& operator<<(std::ostream& os, const PathFormula& f);
 
 
 /* ====================================================================== */
@@ -230,6 +240,7 @@ struct Conjunction : public StateFormula {
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -280,6 +291,7 @@ struct Disjunction : public StateFormula {
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -333,6 +345,7 @@ struct Negation : public StateFormula {
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -389,6 +402,7 @@ struct Implication : public StateFormula {
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -452,6 +466,7 @@ struct Probabilistic : public StateFormula {
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -531,6 +546,7 @@ struct LessThan : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 };
@@ -559,6 +575,7 @@ struct LessThanOrEqual : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 };
@@ -587,6 +604,7 @@ struct GreaterThanOrEqual : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 };
@@ -614,6 +632,7 @@ struct GreaterThan : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 };
@@ -641,6 +660,7 @@ struct Equality : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 };
@@ -668,6 +688,7 @@ struct Inequality : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 };
@@ -728,6 +749,7 @@ struct Until : public PathFormula {
 			 const Rational& p, bool strict,
 			 double epsilon) const;
 
+protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
