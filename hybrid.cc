@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2002 Dave Parker
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -18,7 +18,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: hybrid.cc,v 1.1 2003-11-07 04:24:35 lorens Exp $
+ * $Id: hybrid.cc,v 2.1 2004-01-25 12:25:46 lorens Exp $
  */
 #include "hybrid.h"
 
