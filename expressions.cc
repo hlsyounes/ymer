@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -17,10 +17,11 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: expressions.cc,v 1.6 2003-11-12 03:39:27 lorens Exp $
+ * $Id: expressions.cc,v 2.1 2004-01-25 12:21:31 lorens Exp $
  */
 #include "expressions.h"
 #include <stdexcept>
+#include <typeinfo>
 
 
 /* ====================================================================== */
@@ -40,15 +41,15 @@ std::ostream& operator<<(std::ostream& os, const Expression& e) {
 Computation::Computation(const Expression& operand1,
 			 const Expression& operand2)
   : operand1_(&operand1), operand2_(&operand2) {
-  register_use(operand1_);
-  register_use(operand2_);
+  ref(operand1_);
+  ref(operand2_);
 }
 
 
 /* Deletes this computation. */
 Computation::~Computation() {
-  unregister_use(operand1_);
-  unregister_use(operand2_);
+  destructive_deref(operand1_);
+  destructive_deref(operand2_);
 }
 
 
@@ -63,10 +64,10 @@ const Expression& Addition::make(const Expression& term1,
     const Value* v2 = dynamic_cast<const Value*>(&term2);
     if (v2 != NULL) {
       const Value& value = *new Value(v1->value() + v2->value());
-      register_use(v1);
-      register_use(v2);
-      unregister_use(v1);
-      unregister_use(v2);
+      ref(v1);
+      ref(v2);
+      destructive_deref(v1);
+      destructive_deref(v2);
       return value;
     }
   }
@@ -116,6 +117,18 @@ DdNode* Addition::mtbdd(DdManager* dd_man) const {
 }
 
 
+/* Returns the `next state' MTBDD representation for this expression. */
+DdNode* Addition::primed_mtbdd(DdManager* dd_man) const {
+  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
+  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
+  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addPlus, dd1, dd2);
+  Cudd_Ref(ddc);
+  Cudd_RecursiveDeref(dd_man, dd1);
+  Cudd_RecursiveDeref(dd_man, dd2);
+  return ddc;
+}
+
+
 /* Prints this object on the given stream. */
 void Addition::print(std::ostream& os) const {
   os << operand1() << '+' << operand2();
@@ -133,10 +146,10 @@ const Expression& Subtraction::make(const Expression& term1,
     const Value* v2 = dynamic_cast<const Value*>(&term2);
     if (v2 != NULL) {
       const Value& value = *new Value(v1->value() - v2->value());
-      register_use(v1);
-      register_use(v2);
-      unregister_use(v1);
-      unregister_use(v2);
+      ref(v1);
+      ref(v2);
+      destructive_deref(v1);
+      destructive_deref(v2);
       return value;
     }
   }
@@ -187,6 +200,18 @@ DdNode* Subtraction::mtbdd(DdManager* dd_man) const {
 }
 
 
+/* Returns the `next state' MTBDD representation for this expression. */
+DdNode* Subtraction::primed_mtbdd(DdManager* dd_man) const {
+  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
+  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
+  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+  Cudd_Ref(ddc);
+  Cudd_RecursiveDeref(dd_man, dd1);
+  Cudd_RecursiveDeref(dd_man, dd2);
+  return ddc;
+}
+
+
 /* Prints this object on the given stream. */
 void Subtraction::print(std::ostream& os) const {
   os << operand1() << '-';
@@ -213,10 +238,10 @@ const Expression& Multiplication::make(const Expression& factor1,
     const Value* v2 = dynamic_cast<const Value*>(&factor2);
     if (v2 != NULL) {
       const Value& value = *new Value(v1->value() * v2->value());
-      register_use(v1);
-      register_use(v2);
-      unregister_use(v1);
-      unregister_use(v2);
+      ref(v1);
+      ref(v2);
+      destructive_deref(v1);
+      destructive_deref(v2);
       return value;
     }
   }
@@ -267,6 +292,18 @@ DdNode* Multiplication::mtbdd(DdManager* dd_man) const {
 }
 
 
+/* Returns the `next state' MTBDD representation for this expression. */
+DdNode* Multiplication::primed_mtbdd(DdManager* dd_man) const {
+  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
+  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
+  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addTimes, dd1, dd2);
+  Cudd_Ref(ddc);
+  Cudd_RecursiveDeref(dd_man, dd1);
+  Cudd_RecursiveDeref(dd_man, dd2);
+  return ddc;
+}
+
+
 /* Prints this object on the given stream. */
 void Multiplication::print(std::ostream& os) const {
   bool par = (typeid(operand1()) == typeid(Addition)
@@ -305,10 +342,10 @@ const Expression& Division::make(const Expression& factor1,
 	throw std::invalid_argument("division by zero");
       }
       const Value& value = *new Value(v1->value() / v2->value());
-      register_use(v1);
-      register_use(v2);
-      unregister_use(v1);
-      unregister_use(v2);
+      ref(v1);
+      ref(v2);
+      destructive_deref(v1);
+      destructive_deref(v2);
       return value;
     }
   }
@@ -350,6 +387,18 @@ const Division& Division::substitution(const SubstitutionMap& subst) const {
 DdNode* Division::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
+  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addDivide, dd1, dd2);
+  Cudd_Ref(ddc);
+  Cudd_RecursiveDeref(dd_man, dd1);
+  Cudd_RecursiveDeref(dd_man, dd2);
+  return ddc;
+}
+
+
+/* Returns the `next state' MTBDD representation for this expression. */
+DdNode* Division::primed_mtbdd(DdManager* dd_man) const {
+  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
+  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
   DdNode* ddc = Cudd_addApply(dd_man, Cudd_addDivide, dd1, dd2);
   Cudd_Ref(ddc);
   Cudd_RecursiveDeref(dd_man, dd1);
@@ -630,8 +679,16 @@ const Value& Value::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns the `next state' MTBDD representation for this expression. */
+/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Value::mtbdd(DdManager* dd_man) const {
+  DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
+  Cudd_Ref(ddv);
+  return ddv;
+}
+
+
+/* Returns the `next state' MTBDD representation for this expression. */
+DdNode* Value::primed_mtbdd(DdManager* dd_man) const {
   DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
   Cudd_Ref(ddv);
   return ddv;
