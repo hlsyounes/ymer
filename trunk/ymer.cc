@@ -15,13 +15,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: ymer.cc,v 1.3 2003-08-13 18:48:17 lorens Exp $
+ * $Id: ymer.cc,v 1.4 2003-11-07 03:26:36 lorens Exp $
  */
 #include <config.h>
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
-#include "exceptions.h"
 #include <util.h>
 #include <cudd.h>
 #include <sys/time.h>
@@ -35,6 +34,7 @@
 #endif
 #include <cerrno>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 
@@ -98,8 +98,9 @@ static void display_help() {
 	    << "use precision e with hybrid engine (default is 1e-6)"
 	    << std::endl
 	    << "  -e e,  --engine=e\t"
-	    << "use engine e; can be `sampling' (default) or `hybrid'"
+	    << "use engine e; can be `sampling' (default), `hybrid',"
 	    << std::endl
+	    << "\t\t\t  or `mixed'" << std::endl
 	    << "  -S s,  --seed=s\t"
 	    << "use seed s with random number generator"
 	    << std::endl
@@ -170,7 +171,8 @@ int main(int argc, char* argv[]) {
   /* Set default epsilon. */
   double epsilon = 1e-6;
   /* Set default engine. */
-  enum { SAMPLING_ENGINE, HYBRID_ENGINE } engine = SAMPLING_ENGINE;
+  enum { SAMPLING_ENGINE, HYBRID_ENGINE, MIXED_ENGINE } engine =
+							  SAMPLING_ENGINE;
   /* Set default seed. */
   size_t seed = time(NULL);
   /* Set default number of trials. */
@@ -178,84 +180,87 @@ int main(int argc, char* argv[]) {
   /* Set default verbosity. */
   verbosity = 0;
 
-  /*
-   * Get command line options.
-   */
-  while (1) {
-    int option_index = 0;
-    int c = getopt_long(argc, argv, OPTION_STRING,
-			long_options, &option_index);
-    if (c == -1) {
-      break;
-    }
-    switch (c) {
-    case 'A':
-      alpha = atof(optarg);
-      if (alpha < 1e-10) {
-	throw Exception("alpha should not be less than 1e-10");
-      } else if (alpha >= 0.5) {
-	throw Exception("alpha must be less than 0.5");
-      }
-      break;
-    case 'B':
-      beta = atof(optarg);
-      if (beta < 1e-10) {
-	throw Exception("beta should not be less than 1e-10");
-      } else if (beta >= 0.5) {
-	throw Exception("beta must be less than 0.5");
-      }
-      break;
-    case 'D':
-      delta = atof(optarg);
-      if (delta < 1e-10) {
-	throw Exception("delta should not be less than 1e-10");
-      } else if (delta > 0.5) {
-	throw Exception("delta should not exceed 0.5");
-      }
-      break;
-    case 'E':
-      epsilon = atof(optarg);
-      if (epsilon < 1e-10) {
-	throw Exception("epsilon should not be less than 1e-10");
-      } else if (epsilon > 1.0) {
-	throw Exception("epsilon should not exceed 1.0");
-      }
-      break;
-    case 'e':
-      if (strcasecmp(optarg, "sampling") == 0) {
-	engine = SAMPLING_ENGINE;
-      } else if (strcasecmp(optarg, "hybrid") == 0) {
-	engine = HYBRID_ENGINE;
-      } else {
-	throw Exception("unsupported engine `" + std::string(optarg) + "'");
-      }
-      break;
-    case 'S':
-      seed = atoi(optarg);
-      break;
-    case 'T':
-      trials = atoi(optarg);
-      break;
-    case 'v':
-      verbosity = (optarg != NULL) ? atoi(optarg) : 1;
-      break;
-    case 'V':
-      display_version();
-      return 0;
-    case '?':
-      if (optopt == '?') {
-	display_help();
-	return 0;
-      }
-    case ':':
-    default:
-      std::cerr << "Try `" PACKAGE " --help' for more information."
-		<< std::endl;
-      return -1;
-    }
-  }
-
   try {
+    /*
+     * Get command line options.
+     */
+    while (1) {
+      int option_index = 0;
+      int c = getopt_long(argc, argv, OPTION_STRING,
+			  long_options, &option_index);
+      if (c == -1) {
+	break;
+      }
+      switch (c) {
+      case 'A':
+	alpha = atof(optarg);
+	if (alpha < 1e-10) {
+	  throw std::invalid_argument("alpha < 1e-10");
+	} else if (alpha >= 0.5) {
+	  throw std::invalid_argument("alpha >= 0.5");
+	}
+	break;
+      case 'B':
+	beta = atof(optarg);
+	if (beta < 1e-10) {
+	  throw std::invalid_argument("beta < 1e-10");
+	} else if (beta >= 0.5) {
+	  throw std::invalid_argument("beta >= 0.5");
+	}
+	break;
+      case 'D':
+	delta = atof(optarg);
+	if (delta < 1e-10) {
+	  throw std::invalid_argument("delta < 1e-10");
+	} else if (delta > 0.5) {
+	  throw std::invalid_argument("delta > 0.5");
+	}
+	break;
+      case 'E':
+	epsilon = atof(optarg);
+	if (epsilon < 1e-10) {
+	  throw std::invalid_argument("epsilon < 1e-10");
+	} else if (epsilon > 1.0) {
+	  throw std::invalid_argument("epsilon > 1.0");
+	}
+	break;
+      case 'e':
+	if (strcasecmp(optarg, "sampling") == 0) {
+	  engine = SAMPLING_ENGINE;
+	} else if (strcasecmp(optarg, "hybrid") == 0) {
+	  engine = HYBRID_ENGINE;
+	} else if (strcasecmp(optarg, "mixed") == 0) {
+	  engine = MIXED_ENGINE;
+	} else {
+	  throw std::invalid_argument("unsupported engine `"
+				      + std::string(optarg) + "'");
+	}
+	break;
+      case 'S':
+	seed = atoi(optarg);
+	break;
+      case 'T':
+	trials = atoi(optarg);
+	break;
+      case 'v':
+	verbosity = (optarg != NULL) ? atoi(optarg) : 1;
+	break;
+      case 'V':
+	display_version();
+	return 0;
+      case '?':
+	if (optopt == '?') {
+	  display_help();
+	  return 0;
+	}
+      case ':':
+      default:
+	std::cerr << "Try `" PACKAGE " --help' for more information."
+		  << std::endl;
+	return -1;
+      }
+    }
+
     /*
      * Read files.
      */
@@ -467,6 +472,130 @@ int main(int argc, char* argv[]) {
 	std::cerr << unrel << " unreleased DDs" << std::endl;
       }
       Cudd_Quit(dd_man);
+    } else if (engine == MIXED_ENGINE) {
+      srand(seed);
+      std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
+		<< ", delta=" << delta << ", epsilon=" << epsilon
+		<< ", seed=" << seed << std::endl;
+      DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
+				    CUDD_CACHE_SLOTS, 0);
+      Cudd_SetEpsilon(dd_man, 1e-15);
+      struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
+#ifdef PROFILING
+      setitimer(ITIMER_VIRTUAL, &timer, NULL);
+#else
+      setitimer(ITIMER_PROF, &timer, NULL);
+#endif
+      global_model->cache_dds(dd_man);
+      global_model->cache_commands();
+      const State init_state(*global_model);
+#ifdef PROFILING
+      getitimer(ITIMER_VIRTUAL, &timer);
+#else
+      getitimer(ITIMER_PROF, &timer);
+#endif
+      double t = 1000000.9
+	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
+      if (t < 1e-3) {
+	t = 0.0;
+      }
+      std::cout << "Model built in " << t << " seconds." << std::endl;
+      if (verbosity > 0) {
+	std::cout << "Variables: " << init_state.values().size() << std::endl;
+	std::cout << "Events:    " << global_model->commands().size()
+		  << std::endl;
+	std::cout << "States:      " << global_model->num_states(dd_man)
+		  << std::endl
+		  << "Transitions: " << global_model->num_transitions(dd_man)
+		  << std::endl;
+	DdNode* ddR = global_model->rate_mtbdd(dd_man);
+	std::cout << "Rate matrix";
+	Cudd_PrintDebug(dd_man, ddR, Cudd_ReadSize(dd_man), 1);
+	Cudd_RecursiveDeref(dd_man, ddR);
+	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+		  << std::endl;
+      }
+      for (FormulaList::const_iterator fi = properties.begin();
+	   fi != properties.end(); fi++) {
+	std::cout << std::endl << "Model checking ";
+	(*fi)->print(std::cout);
+	std::cout << " ..." << std::endl;
+	size_t accepts = 0;
+	std::vector<double> times;
+	double total_time = 0.0;
+	total_samples = 0;
+	samples.clear();
+	total_path_lengths = 0.0;
+	for (size_t i = 0; i < trials; i++) {
+	  struct itimerval timer =
+	    { { 1000000, 900000 }, { 1000000, 900000 } };
+#ifdef PROFILING
+	  setitimer(ITIMER_VIRTUAL, &timer, NULL);
+#else
+	  setitimer(ITIMER_PROF, &timer, NULL);
+#endif
+	  bool sol = (*fi)->verify(dd_man, *global_model, init_state,
+				   delta, alpha, beta, epsilon);
+#ifdef PROFILING
+	  getitimer(ITIMER_VIRTUAL, &timer);
+#else
+	  getitimer(ITIMER_PROF, &timer);
+#endif
+	  double t = 1000000.9
+	    - (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
+	  if (t < 1e-3) {
+	    t = 0.0;
+	  }
+	  if (trials == 1) {
+	    std::cout << "Model checking completed in " << t << " seconds."
+		      << std::endl;
+	    if (sol) {
+	      std::cout << "Property is true in the initial state."
+			<< std::endl;
+	    } else {
+	      std::cout << "Property is false in the initial state."
+			<< std::endl;
+	    }
+	  } else {
+	    if (sol) {
+	      accepts++;
+	    }
+	    total_time += t;
+	    times.push_back(t);
+	  }
+	}
+	if (trials > 1) {
+	  double time_avg = total_time/trials;
+	  double sample_avg = double(total_samples)/trials;
+	  double path_avg = total_path_lengths/total_samples;
+	  double time_var = 0.0;
+	  double sample_var = 0.0;
+	  for (size_t i = 0; i < trials; i++) {
+	    double diff = times[i] - time_avg;
+	    time_var += diff*diff;
+	    diff = samples[i] - sample_avg;
+	    sample_var += diff*diff;
+	  }
+	  time_var /= trials - 1;
+	  sample_var /= trials - 1;
+	  std::cout << "Average model checking time: " << time_avg
+		    << " seconds" << std::endl
+		    << "Time standard deviation: " << sqrt(time_var)
+		    << std::endl
+		    << "Average number of samples: " << sample_avg << std::endl
+		    << "Samples standard deviation: " << sqrt(sample_var)
+		    << std::endl
+		    << "Average path lengths: " << path_avg << std::endl
+		    << accepts << " accepted, " << (trials - accepts)
+		    << " rejected" << std::endl;
+	}
+      }
+      global_model->uncache_dds(dd_man);
+      int unrel = Cudd_CheckZeroRef(dd_man);
+      if (unrel != 0) {
+	std::cerr << unrel << " unreleased DDs" << std::endl;
+      }
+      Cudd_Quit(dd_man);
     }
     delete global_model;
     for (FormulaList::const_iterator fi = properties.begin();
@@ -474,8 +603,8 @@ int main(int argc, char* argv[]) {
       StateFormula::unregister_use(*fi);
     }
     properties.clear();
-  } catch (const Exception& e) {
-    std::cerr << PACKAGE ": " << e << std::endl;
+  } catch (const std::exception& e) {
+    std::cerr << PACKAGE ": " << e.what() << std::endl;
     return -1;
   } catch (...) {
     std::cerr << PACKAGE ": fatal error" << std::endl;
