@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: sampling.cc,v 3.1 2004-03-11 20:20:00 lorens Exp $
+ * $Id: sampling.cc,v 3.2 2004-03-11 21:29:38 lorens Exp $
  */
 #include "formulas.h"
 #include "comm.h"
@@ -271,7 +271,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
   }
   while (logB < logf && logf < logA) {
-    bool s, have_sample;
+    bool s, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
       short client_id = schedule.front();
       s = buffer[client_id].front();
