@@ -1,3 +1,24 @@
+2005-02-01  Haakan L. S. Younes  <lorens@sweden.autonomy.ri.cmu.edu>
+
+	* README: Release 3.0.
+
+	* NEWS: Announcing release 3.0.
+
+	* ymer.cc: Added several new command line options.  Fixed timing
+	of verification and model building.
+
+	* symbolic.cc: Added support for probability estimation.
+
+	* states.h: Added resampled method to State class.
+
+	* mixed.cc, sampling.cc: Improved verification procedure for
+	conjunction, disjunction, implication, and path formulae.
+
+	* formulas.h: Added support for sequential single sampling plans.
+	Added estimated effort heuristic.
+
+	* distributions.h: Added memoryless method to Distribution class.
+
 2004-03-11  Håkan L. S. Younes  <lorens@younes.pc.cs.cmu.edu>
 
 	* README: Release 2.1.
