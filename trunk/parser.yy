@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parser.yy,v 1.1 2003-08-10 01:52:58 lorens Exp $
+ * $Id: parser.yy,v 1.2 2003-08-10 19:45:07 lorens Exp $
  */
 %{
 #include <config.h>
@@ -49,6 +49,8 @@ extern std::string current_file;
 const Model* global_model = NULL;
 /* Number of bits required by binary encoding of state space. */
 int num_model_bits;
+/* Parsed properties. */
+FormulaList properties;
 
 /* Current model. */
 static Model* model;
@@ -108,6 +110,8 @@ static Range make_range(const Expression* l, const Expression* h);
 static const Value* make_value(int n);
 /* Returns a value expression. */
 static const Value* make_value(const Rational* q); 
+/* Returns a constant value or a variable for the given identifier. */
+static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
 static const Variable* find_variable(const std::string* ident);
 /* Returns a conjunction. */
@@ -116,6 +120,13 @@ static Conjunction* make_conjunction(StateFormula& f1,
 /* Returns a disjunction. */
 static Disjunction* make_disjunction(StateFormula& f1,
 				     const StateFormula& f2);
+/* Returns a probabilistic path quantification. */
+static StateFormula* make_probabilistic(const Rational* p,
+					bool strict, bool negate,
+					const PathFormula& f);
+/* Returns an until formula. */
+static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+			       const Rational* t1, const Rational* t2);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression& expr);
 /* Returns the value of the given synchronization. */
@@ -151,20 +162,23 @@ static void compile_model();
 
 %token STOCHASTIC
 %token CONST RATE GLOBAL INIT
+%token TRUE_TOKEN FALSE_TOKEN
 %token MODULE ENDMODULE
 %token PNAME NAME NUMBER
 %token ARROW DOTDOT
 %token ILLEGAL_TOKEN
 
+%left IMPLY
+%left '&' '|'
+%left '!'
+%left '<' LTE GTE '>' EQ NEQ
 %left '+' '-'
 %left '*' '/'
-%left '<' LTE GTE '>' EQ NEQ
-%left '!'
-%left '&' '|'
 
 %union {
   size_t synch;
   StateFormula* formula;
+  const PathFormula* path;
   const Expression* expr;
   Range range;
   int nat;
@@ -173,8 +187,9 @@ static void compile_model();
 }
 
 %type <synch> synchronization
-%type <formula> formula
-%type <expr> expr rate_expr const_expr
+%type <formula> formula csl_formula
+%type <path> path_formula
+%type <expr> expr rate_expr const_expr csl_expr
 %type <range> range
 %type <nat> integer
 %type <str> PNAME NAME
@@ -182,9 +197,14 @@ static void compile_model();
 
 %%
 
-file : { success = true; line_number = 1; } model
+file : { success = true; line_number = 1; } model_or_properties
          { check_undeclared(); if (!success) YYERROR; }
      ;
+
+model_or_properties : model
+                    | properties
+                    ;
+
 
 /* ====================================================================== */
 /* Model files. */
@@ -314,6 +334,54 @@ const_expr : integer { $$ = make_value($1); }
 integer : NUMBER { $$ = integer_value($1); }
         ;
 
+
+/* ====================================================================== */
+/* Properties. */
+
+properties : /* empty */
+           | properties csl_formula
+               { properties.push_back($2); StateFormula::register_use($2); }
+           ;
+
+csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
+            | FALSE_TOKEN { $$ = new Disjunction(); }
+            | 'P' '<' NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, true, true, *$5); }
+            | 'P' LTE NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, false, true, *$5); }
+            | 'P' GTE NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, false, false, *$5); }
+            | 'P' '>' NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, true, false, *$5); }
+            | csl_formula IMPLY csl_formula { $$ = new Implication(*$1, *$3); }
+            | csl_formula '&' csl_formula { $$ = make_conjunction(*$1, *$3); }
+            | csl_formula '|' csl_formula { $$ = make_disjunction(*$1, *$3); }
+            | '!' csl_formula { $$ = new Negation(*$2); }
+            | csl_expr '<' csl_expr { $$ = new LessThan(*$1, *$3); }
+            | csl_expr LTE csl_expr { $$ = new LessThanOrEqual(*$1, *$3); }
+            | csl_expr GTE csl_expr { $$ = new GreaterThanOrEqual(*$1, *$3); }
+            | csl_expr '>' csl_expr { $$ = new GreaterThan(*$1, *$3); }
+            | csl_expr '=' csl_expr %prec EQ { $$ = new Equality(*$1, *$3); }
+            | csl_expr NEQ csl_expr { $$ = new Inequality(*$1, *$3); }
+            | '(' csl_formula ')' { $$ = $2; }
+            ;
+
+path_formula : csl_formula 'U' LTE NUMBER csl_formula
+                 { $$ = make_until(*$1, *$5, NULL, $4); }
+             | csl_formula 'U' '[' NUMBER ',' NUMBER ']' csl_formula
+                 { $$ = make_until(*$1, *$8, $4, $6); }
+//             | 'X' csl_formula
+             ;
+
+csl_expr : integer { $$ = make_value($1); }
+         | NAME { $$ = value_or_variable($1); }
+         | csl_expr '+' csl_expr { $$ = new Addition(*$1, *$3); }
+         | csl_expr '-' csl_expr { $$ = new Subtraction(*$1, *$3); }
+         | csl_expr '*' csl_expr { $$ = new Multiplication(*$1, *$3); }
+         | '(' csl_expr ')' { $$ = $2; }
+         ;
+
+
 %%
 
 /* Clears all previously parsed declarations. */
@@ -364,16 +432,19 @@ static void check_undeclared() {
        vi != variable_lows.end(); vi++) {
     Expression::unregister_use((*vi).second);
   }
+  variable_lows.clear();
   for (hashing::hash_map<const Variable*,
 	 const Expression*>::const_iterator vi = variable_highs.begin();
        vi != variable_highs.end(); vi++) {
     Expression::unregister_use((*vi).second);
   }
+  variable_highs.clear();
   for (hashing::hash_map<const Variable*,
 	 const Expression*>::const_iterator vi = variable_starts.begin();
        vi != variable_starts.end(); vi++) {
     Expression::unregister_use((*vi).second);
   }
+  variable_starts.clear();
 }
 
 
@@ -452,6 +523,30 @@ static const Value* make_value(const Rational* q) {
 }
 
 
+/* Returns a constant value or a variable for the given identifier. */
+static const Expression* value_or_variable(const std::string* ident) {
+  std::map<std::string, const Variable*>::const_iterator ci =
+    constants.find(*ident);
+  if (ci != constants.end()) {
+    delete ident;
+    return new Value(constant_values[(*ci).second]);
+  } else {
+    Variable* v;
+    std::map<std::string, Variable*>::const_iterator vi =
+      variables.find(*ident);
+    if (vi == variables.end()) {
+      v = new Variable();
+      variables.insert(std::make_pair(*ident, v));
+      undeclared.insert(*ident);
+    } else {
+      v = (*vi).second;
+    }
+    delete ident;
+    return v;
+  }
+}
+
+
 /* Returns a variable for the given identifier. */
 static const Variable* find_variable(const std::string* ident) {
   std::map<std::string, const Variable*>::const_iterator ci =
@@ -499,6 +594,34 @@ static Disjunction* make_disjunction(StateFormula& f1,
   }
   disj->add_disjunct(f2);
   return disj;
+}
+
+
+/* Returns a probabilistic path quantification. */
+static StateFormula* make_probabilistic(const Rational* p,
+					bool strict, bool negate,
+					const PathFormula& f) {
+  bool s = (strict && !negate) || (!strict && negate);
+  StateFormula* pr = new Probabilistic(*p, s, f);
+  if (negate) {
+    pr = new Negation(*pr);
+  }
+  delete p;
+  return pr;
+}
+
+
+/* Returns an until formula. */
+static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+			       const Rational* t1, const Rational* t2) {
+  const Until* until;
+  if (t1 == NULL) {
+    until = new Until(f1, f2, 0, *t2);
+  } else {
+    until = new Until(f1, f2, *t1, *t2);
+  }
+  delete t2;
+  return until;
 }
 
 
@@ -672,11 +795,12 @@ static const Variable* declare_variable(const std::string* ident,
       }
     }
   } else {
-    delete range.l;
-    delete range.h;
-    if (start != NULL) {
-      delete start;
-    }
+    Expression::register_use(range.l);
+    Expression::unregister_use(range.l);
+    Expression::register_use(range.h);
+    Expression::unregister_use(range.h);
+    Expression::register_use(start);
+    Expression::unregister_use(start);
   }
   delete ident;
   return v;
@@ -799,6 +923,11 @@ static void prepare_module(const std::string* ident) {
 /* Prepares a model for parsing. */
 static void prepare_model() {
   clear_declarations();
+  for (FormulaList::const_iterator fi = properties.begin();
+       fi != properties.end(); fi++) {
+    StateFormula::unregister_use(*fi);
+  }
+  properties.clear();
   if (model != NULL) {
     delete model;
   }
