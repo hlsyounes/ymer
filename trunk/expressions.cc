@@ -17,10 +17,20 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: expressions.cc,v 1.5 2003-11-07 22:00:00 lorens Exp $
+ * $Id: expressions.cc,v 1.6 2003-11-12 03:39:27 lorens Exp $
  */
 #include "expressions.h"
 #include <stdexcept>
+
+
+/* ====================================================================== */
+/* Expression */
+
+/* Output operator for expressions. */
+std::ostream& operator<<(std::ostream& os, const Expression& e) {
+  e.print(os);
+  return os;
+}
 
 
 /* ====================================================================== */
@@ -83,11 +93,11 @@ const Expression& Addition::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Expression& Addition::substitution(const SubstitutionMap& subst) const {
+const Addition& Addition::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
+    return *new Addition(e1, e2);
   } else {
     return *this;
   }
@@ -108,11 +118,7 @@ DdNode* Addition::mtbdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Addition::print(std::ostream& os) const {
-  os << '(';
-  operand1().print(os);
-  os << '+';
-  operand2().print(os);
-  os << ')';
+  os << operand1() << '+' << operand2();
 }
 
 
@@ -157,12 +163,12 @@ const Expression& Subtraction::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Expression&
+const Subtraction&
 Subtraction::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
+    return *new Subtraction(e1, e2);
   } else {
     return *this;
   }
@@ -183,11 +189,16 @@ DdNode* Subtraction::mtbdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Subtraction::print(std::ostream& os) const {
-  os << '(';
-  operand1().print(os);
-  os << '-';
-  operand2().print(os);
-  os << ')';
+  os << operand1() << '-';
+  bool par = (typeid(operand2()) == typeid(Addition)
+	      || typeid(operand2()) == typeid(Subtraction));
+  if (par) {
+    os << '(';
+  }
+  os << operand2();
+  if (par) {
+    os << ')';
+  }
 }
 
 
@@ -232,12 +243,12 @@ const Expression& Multiplication::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Expression&
+const Multiplication&
 Multiplication::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
+    return *new Multiplication(e1, e2);
   } else {
     return *this;
   }
@@ -258,11 +269,25 @@ DdNode* Multiplication::mtbdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Multiplication::print(std::ostream& os) const {
-  os << '(';
-  operand1().print(os);
+  bool par = (typeid(operand1()) == typeid(Addition)
+	      || typeid(operand1()) == typeid(Subtraction));
+  if (par) {
+    os << '(';
+  }
+  os << operand1();
+  if (par) {
+    os << ')';
+  }
   os << '*';
-  operand2().print(os);
-  os << ')';
+  par = (typeid(operand2()) == typeid(Addition)
+	 || typeid(operand2()) == typeid(Subtraction));
+  if (par) {
+    os << '(';
+  }
+  os << operand2();
+  if (par) {
+    os << ')';
+  }
 }
 
 
@@ -310,11 +335,11 @@ const Expression& Division::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Expression& Division::substitution(const SubstitutionMap& subst) const {
+const Division& Division::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
+    return *new Division(e1, e2);
   } else {
     return *this;
   }
@@ -335,11 +360,27 @@ DdNode* Division::mtbdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Division::print(std::ostream& os) const {
-  os << '(';
-  operand1().print(os);
+  bool par = (typeid(operand1()) == typeid(Addition)
+	      || typeid(operand1()) == typeid(Subtraction));
+  if (par) {
+    os << '(';
+  }
+  os << operand1();
+  if (par) {
+    os << ')';
+  }
   os << '/';
-  operand2().print(os);
-  os << ')';
+  par = (typeid(operand2()) == typeid(Addition)
+	 || typeid(operand2()) == typeid(Subtraction)
+	 || typeid(operand2()) == typeid(Multiplication)
+	 || typeid(operand2()) == typeid(Division));
+  if (par) {
+    os << '(';
+  }
+  os << operand2();
+  if (par) {
+    os << ')';
+  }
 }
 
 
