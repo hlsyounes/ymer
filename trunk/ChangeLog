@@ -1,7 +1,41 @@
-2004-01-25  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+2004-03-11  Håkan L. S. Younes  <lorens@younes.pc.cs.cmu.edu>
 
-	* Added support for non-exponential distributions and distributed
-	sampling.
+	* README: Release 2.1.
+
+	* NEWS: Announcing release 2.1.
+
+	* configure.ac: Release 2.1.
+
+	* ymer.cc, sampling.cc, comm.h: Changes due to transition to
+	TCP-based communication.
+
+2004-01-25  Håkan L. S. Younes  <lorens@younes.pc.cs.cmu.edu>
+
+	* ymer.cc: Added support for GSMP models and distributed
+	acceptance sampling.
+
+	* tokenizer.ll, states.h, states.cc: Added support for
+	non-exponential distributions.
+
+	* sampling.cc: Added support for distributed acceptance sampling.
+
+	* rng.h: Added support for dynamic creation of random number
+	generators.
+
+	* parser.yy: Added support for non-exponential distributions.
+
+	* models.h, models.cc: Added support for GSMP models through the
+	use of phase-type distributions.
+
+	* formulas.h, formulas.cc: Added primed_bdd method to all
+	formulas.
+
+	* expressions.h, expressions.cc: Added primed_mtbdd method to all
+	expressions.
+
+	* distributions.h, distributions.cc: Added support for
+	non-exponential distributions.
+
 
 2003-11-11  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
