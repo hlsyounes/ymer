@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokenizer.ll,v 1.1 2003-08-10 01:53:03 lorens Exp $
+ * $Id: tokenizer.ll,v 1.2 2003-08-10 19:45:23 lorens Exp $
  */
 %{
 #include <config.h>
@@ -24,6 +24,7 @@
 #include <string>
 
 struct StateFormula;
+struct PathFormula;
 struct Expression;
 /* An integer range (duplicated from parser.yy). */
 struct Range { int l, h; };
@@ -55,10 +56,14 @@ global			return GLOBAL;
 module			return MODULE;
 endmodule		return ENDMODULE;
 init			return INIT;
+true			return TRUE_TOKEN;
+false			return FALSE_TOKEN;
+[PUX]			return yytext[0];
 {IDENT}\'		return make_string(yytext, PNAME);
 {IDENT}			return make_string(yytext, NAME);
 [0-9]*[./]?[0-9]+	return make_number(yytext);
 ->			return ARROW;
+=>			return IMPLY;
 \<=			return LTE;
 >=			return GTE;
 !=			return NEQ;
