@@ -17,14 +17,31 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: models.cc,v 1.7 2003-11-07 22:00:05 lorens Exp $
+ * $Id: models.cc,v 1.8 2003-11-12 03:48:54 lorens Exp $
  */
 #include "models.h"
+#include "distributions.h"
 #include "formulas.h"
+#include <stdexcept>
 
 
 /* Verbosity level. */
 extern int verbosity;
+
+
+/* ====================================================================== */
+/* SynchronizationMap */
+
+/*
+ * A synchronization map.
+ */
+struct SynchronizationMap
+  : public std::multimap<std::pair<const Module*, size_t>, const Command*> {
+};
+
+/* Range for synchronization map. */
+typedef std::pair<SynchronizationMap::const_iterator,
+		  SynchronizationMap::const_iterator> SynchronizationMapRange;
 
 
 /* ====================================================================== */
@@ -36,7 +53,7 @@ static DdNode* reachability_bdd(DdManager* dd_man,
 				DdNode* init, DdNode* rates,
 				DdNode** row_variables) {
   if (verbosity > 0) {
-    std::cout << "Computing reachable states...";
+    std::cout << "Computing reachable states";
   }
   /*
    * Precompute variable permutations and cubes.
@@ -63,13 +80,19 @@ static DdNode* reachability_bdd(DdManager* dd_man,
   Cudd_Ref(trans);
   DdNode* solr = init;
   Cudd_Ref(solr);
-  // NOTE: use bddSwapVariables instead!
   DdNode* solc = Cudd_bddPermute(dd_man, solr, row_to_col);
   Cudd_Ref(solc);
   bool done = false;
-  size_t iter = 0;
+  size_t iters = 0;
   while (!done) {
-    iter++;
+    iters++;
+    if (verbosity > 0) {
+      if (iters % 1000 == 0) {
+	std::cout << ':';
+      } else if (iters % 100 == 0) {
+	std::cout << '.';
+      }
+    }
     DdNode* dda = Cudd_bddAnd(dd_man, trans, solr);
     Cudd_Ref(dda);
     Cudd_RecursiveDeref(dd_man, solr);
@@ -94,7 +117,7 @@ static DdNode* reachability_bdd(DdManager* dd_man,
   delete row_to_col;
   delete col_to_row;
   if (verbosity > 0) {
-    std::cout << iter << " iterations." << std::endl;
+    std::cout << iters << " iterations." << std::endl;
   }
   return solr;
 }
@@ -160,9 +183,22 @@ void Model::add_module(const Module& module) {
 }
 
 
-/* Caches commands for this model. */
-void Model::cache_commands() const {
+/* Compiles the commands of this model. */
+void Model::compile() {
+  /*
+   * Clear currently compiled commands.
+   */
+  for (CommandList::const_iterator ci = commands().begin();
+       ci != commands().end(); ci++) {
+    if ((*ci)->synch() != 0) {
+      delete *ci;
+    }
+  }
   commands_.clear();
+  command_modules_.clear();
+  /*
+   * Process the commands of each module.
+   */
   std::set<size_t> synchs;
   SynchronizationMap synch_commands;
   for (ModuleList::const_reverse_iterator mi = modules().rbegin();
@@ -178,6 +214,8 @@ void Model::cache_commands() const {
       } else { /* synch == 0 */
 	/* Command is not synchronized. */
 	commands_.push_back(*ci);
+	command_modules_.push_back(ModuleSet());
+	command_modules_.back().insert(*mi);
       }
     }
   }
@@ -206,9 +244,15 @@ void Model::cache_commands() const {
 	    Conjunction& guard = *new Conjunction();
 	    guard.add_conjunct(ci.guard());
 	    guard.add_conjunct(cj.guard());
-	    Command* c =
-	      new Command(*si, guard,
-			  Multiplication::make(ci.rate(), cj.rate()));
+	    Command* c;
+	    if (&ci.delay() == &Distribution::EXP1) {
+	      c = new Command(*si, guard, cj.delay());
+	    } else if (&cj.delay() == &Distribution::EXP1) {
+	      c = new Command(*si, guard, ci.delay());
+	    } else {
+	      throw std::logic_error("at least one command in a"
+				     " synchronization pair must have rate 1");
+	    }
 	    for (UpdateList::const_iterator ui = ci.updates().begin();
 		 ui != ci.updates().end(); ui++) {
 	      const Update& u = **ui;
@@ -220,6 +264,9 @@ void Model::cache_commands() const {
 	      c->add_update(*new Update(u.variable(), u.expr()));
 	    }
 	    commands_.push_back(c);
+	    command_modules_.push_back(ModuleSet());
+	    command_modules_.back().insert(*mi);
+	    command_modules_.back().insert(*mj);
 	  }
 	}
       }
@@ -276,166 +323,62 @@ void Model::cache_dds(DdManager* dd_man) const {
     /* BDD for variable ranges. */
     DdNode* range = range_bdd(dd_man);
     /*
-     * Compute rate matrix for non-synchronized commands.
+     * Compute rate matrix for all commands.
      */
     DdNode* ddR = Cudd_ReadZero(dd_man);
     Cudd_Ref(ddR);
-    SynchronizationMap synch_commands;
-    std::set<size_t> synchs;
-    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-	 mi != modules().rend(); mi++) {
-      const VariableList& mod_variables = (*mi)->variables();
-      const CommandList& mod_commands = (*mi)->commands();
-      for (CommandList::const_iterator ci = mod_commands.begin();
-	   ci != mod_commands.end(); ci++) {
-	const Command& command = **ci;
-	size_t synch = command.synch();
-	if (synch != 0) {
-	  /* Command is synchronized so store it for later processing. */
-	  synch_commands.insert(std::make_pair(std::make_pair(*mi, synch),
-					       *ci));
-	  synchs.insert(synch);
-	} else { /* Command is not synchronized. */
-	  /* BDD for command. */
-	  VariableSet updated_variables;
-	  DdNode* ddu = command.bdd(updated_variables, dd_man);
-	  /* Conjunction with identity BDD for untouched global variables. */
-	  ddu = variable_identities(dd_man, ddu, variables(),
-				    updated_variables);
-	  /* Conjunction with identity BDD for untouched module variables. */
-	  ddu = variable_identities(dd_man, ddu, mod_variables,
-				    updated_variables);
-	  /*
-	   * Conjunction with identity BDD for other modules.
-	   */
-	  for (ModuleList::const_reverse_iterator mj = modules().rbegin();
-	       mj != modules().rend(); mj++) {
-	    if (*mj != *mi) {
-	      DdNode* ddm = (*mj)->identity_bdd(dd_man);
-	      DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
-	      Cudd_Ref(dda);
-	      Cudd_RecursiveDeref(dd_man, ddm);
-	      Cudd_RecursiveDeref(dd_man, ddu);
-	      ddu = dda;
-	    }
-	  }
-	  /*
-	   * Conjunction with BDD for variable ranges.
-	   */
-	  DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
-	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  ddu = dda;
-	  /*
-	   * Multiply BDD with MTBDD for rate.
-	   */
-	  DdNode* ddU = Cudd_BddToAdd(dd_man, ddu);
-	  Cudd_Ref(ddU);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  DdNode* ddL = command.rate().mtbdd(dd_man);
-	  DdNode* ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
-	  Cudd_Ref(ddC);
-	  Cudd_RecursiveDeref(dd_man, ddL);
-	  Cudd_RecursiveDeref(dd_man, ddU);
-	  /*
-	   * Add MTBDD for command to MTBDD for model.
-	   */
-	  DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
-	  Cudd_Ref(ddT);
-	  Cudd_RecursiveDeref(dd_man, ddC);
-	  Cudd_RecursiveDeref(dd_man, ddR);
-	  ddR = ddT;
-	}
-      }
-    }
-    /*
-     * Add MTBDDs for synchronized commands.
-     */
-    for (std::set<size_t>::const_iterator si = synchs.begin();
-	 si != synchs.end(); si++) {
+    for (int i = commands().size() - 1; i >= 0; i--) {
+      const Command& command = *commands_[i];
+      /* BDD for command. */
+      VariableSet updated_variables;
+      DdNode* ddu = command.bdd(updated_variables, dd_man);
+      /*
+       * Conjunction with identity BDD for untouched module variables.
+       */
       for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	   mi != modules().rend(); mi++) {
-	SynchronizationMapRange sri =
-	  synch_commands.equal_range(std::make_pair(*mi, *si));
-	for (SynchronizationMap::const_iterator smi = sri.first;
-	     smi != sri.second; smi++) {
-	  const Command& ci = *(*smi).second;
-	  for (ModuleList::const_reverse_iterator mj = mi + 1;
-	       mj != modules().rend(); mj++) {
-	    SynchronizationMapRange srj =
-	      synch_commands.equal_range(std::make_pair(*mj, *si));
-	    for (SynchronizationMap::const_iterator smj = srj.first;
-		 smj != srj.second; smj++) {
-	      const Command& cj = *(*smj).second;
-	      /*
-	       * Synchronize ci with cj.
-	       */
-	      VariableSet updated_variables;
-	      DdNode* dd1 = ci.bdd(updated_variables, dd_man);
-	      DdNode* dd2 = cj.bdd(updated_variables, dd_man);
-	      DdNode* ddu = Cudd_bddAnd(dd_man, dd1, dd2);
-	      Cudd_Ref(ddu);
-	      Cudd_RecursiveDeref(dd_man, dd1);
-	      Cudd_RecursiveDeref(dd_man, dd2);
-	      /* Conjunction with identity BDD for untouched global
-		 variables. */
-	      ddu = variable_identities(dd_man, ddu, variables(),
-					updated_variables);
-	      /* Conjunction with identity BDD for untouched module
-		 variables. */
-	      ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
-					updated_variables);
-	      ddu = variable_identities(dd_man, ddu, (*mj)->variables(),
-					updated_variables);
-	      /*
-	       * Conjunction with identity BDD for other modules.
-	       */
-	      for (ModuleList::const_reverse_iterator mk = modules().rbegin();
-		   mk != modules().rend(); mk++) {
-		if (*mk != *mi && *mk != *mj) {
-		  DdNode* ddm = (*mk)->identity_bdd(dd_man);
-		  DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
-		  Cudd_Ref(dda);
-		  Cudd_RecursiveDeref(dd_man, ddm);
-		  Cudd_RecursiveDeref(dd_man, ddu);
-		  ddu = dda;
-		}
-	      }
-	      /*
-	       * Conjunction with BDD for variable ranges.
-	       */
-	      DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
-	      Cudd_Ref(dda);
-	      Cudd_RecursiveDeref(dd_man, ddu);
-	      ddu = dda;
-	      /*
-	       * Multiply BDD with MTBDD for rate.
-	       */
-	      DdNode* ddC = Cudd_BddToAdd(dd_man, ddu);
-	      Cudd_Ref(ddC);
-	      Cudd_RecursiveDeref(dd_man, ddu);
-	      DdNode* ddL = ci.rate().mtbdd(dd_man);
-	      DdNode* ddU = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddC);
-	      Cudd_Ref(ddU);
-	      Cudd_RecursiveDeref(dd_man, ddL);
-	      Cudd_RecursiveDeref(dd_man, ddC);
-	      ddL = cj.rate().mtbdd(dd_man);
-	      ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
-	      Cudd_Ref(ddC);
-	      Cudd_RecursiveDeref(dd_man, ddL);
-	      Cudd_RecursiveDeref(dd_man, ddU);
-	      /*
-	       * Add MTBDD for command to MTBDD for model.
-	       */
-	      DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
-	      Cudd_Ref(ddT);
-	      Cudd_RecursiveDeref(dd_man, ddC);
-	      Cudd_RecursiveDeref(dd_man, ddR);
-	      ddR = ddT;
-	    }
-	  }
+	if (command_modules_[i].find(*mi) != command_modules_[i].end()) {
+	  ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
+				    updated_variables);
+	} else {
+	  DdNode* ddm = (*mi)->identity_bdd(dd_man);
+	  DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
+	  Cudd_Ref(dda);
+	  Cudd_RecursiveDeref(dd_man, ddm);
+	  Cudd_RecursiveDeref(dd_man, ddu);
+	  ddu = dda;
 	}
       }
+      /* Conjunction with identity BDD for untouched global variables. */
+      ddu = variable_identities(dd_man, ddu, variables(), updated_variables);
+      /*
+       * Conjunction with BDD for variable ranges.
+       */
+      DdNode* dda = Cudd_bddAnd(dd_man, range, ddu);
+      Cudd_Ref(dda);
+      Cudd_RecursiveDeref(dd_man, ddu);
+      ddu = dda;
+      /*
+       * Multiply BDD with MTBDD for rate.
+       */
+      DdNode* ddU = Cudd_BddToAdd(dd_man, ddu);
+      Cudd_Ref(ddU);
+      Cudd_RecursiveDeref(dd_man, ddu);
+      const Exponential& delay =
+	dynamic_cast<const Exponential&>(command.delay());
+      DdNode* ddL = delay.rate().mtbdd(dd_man);
+      DdNode* ddC = Cudd_addApply(dd_man, Cudd_addTimes, ddL, ddU);
+      Cudd_Ref(ddC);
+      Cudd_RecursiveDeref(dd_man, ddL);
+      Cudd_RecursiveDeref(dd_man, ddU);
+      /*
+       * Add MTBDD for command to MTBDD for model.
+       */
+      DdNode* ddT = Cudd_addApply(dd_man, Cudd_addPlus, ddC, ddR);
+      Cudd_Ref(ddT);
+      Cudd_RecursiveDeref(dd_man, ddC);
+      Cudd_RecursiveDeref(dd_man, ddR);
+      ddR = ddT;
     }
     /* Release BDD for variable ranges. */
     Cudd_RecursiveDeref(dd_man, range);
@@ -667,8 +610,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
     os << std::endl;
     for (; vi != m.variables().end(); vi++) {
       const Variable& v = **vi;
-      os << std::endl << "global ";
-      v.print(os);
+      os << std::endl << "global " << v;
       os << " : [" << v.low() << ".." << v.high() << "]";
       if (v.low() != v.start()) {
 	os << " init " << v.start();
@@ -685,8 +627,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << std::endl;
       for (; vi != module.variables().end(); vi++) {
 	const Variable& v = **vi;
-	os << std::endl << "  ";
-	v.print(os);
+	os << std::endl << "  " << v;
 	os << " : [" << v.low() << ".." << v.high() << "]";
 	if (v.low() != v.start()) {
 	  os << " init " << v.start();
@@ -703,23 +644,14 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
 	if (c.synch() != 0) {
 	  os << 's' << c.synch();
 	}
-	os << "] ";
-	c.guard().print(os);
-	os << " -> ";
-	c.rate().print(os);
-	os << " : ";
+	os << "] " << c.guard() << " -> " << c.delay() << " : ";
 	UpdateList::const_iterator ui = c.updates().begin();
 	if (ui != c.updates().end()) {
 	  const Update* u = *ui;
-	  u->variable().print(os);
-	  os << "\'=";
-	  u->expr().print(os);
+	  os << u->variable() << "\'=" << u->expr();
 	  for (ui++; ui != c.updates().end(); ui++) {
 	    u = *ui;
-	    os << " & ";
-	    u->variable().print(os);
-	    os << "\'=";
-	    u->expr().print(os);
+	    os << " & " << u->variable() << "\'=" << u->expr();
 	  }
 	}
 	os << ';';
