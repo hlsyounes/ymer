@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: tokenizer.ll,v 1.3 2003-11-07 04:26:40 lorens Exp $
+ * $Id: tokenizer.ll,v 1.4 2003-11-12 03:54:58 lorens Exp $
  */
 %{
 #include <config.h>
@@ -29,6 +29,7 @@
 
 struct StateFormula;
 struct PathFormula;
+struct Distribution;
 struct Expression;
 /* An integer range (duplicated from parser.yy). */
 struct Range { int l, h; };
@@ -62,6 +63,8 @@ endmodule		return ENDMODULE;
 init			return INIT;
 true			return TRUE_TOKEN;
 false			return FALSE_TOKEN;
+Exp			return EXP;
+W			return W;
 [PUX]			return yytext[0];
 {IDENT}\'		return make_string(yytext, PNAME);
 {IDENT}			return make_string(yytext, NAME);
