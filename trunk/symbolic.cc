@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: symbolic.cc,v 1.1 2003-08-13 18:48:25 lorens Exp $
+ * $Id: symbolic.cc,v 1.2 2003-08-13 21:47:46 lorens Exp $
  */
 #include "formulas.h"
 #include "models.h"
@@ -38,8 +38,7 @@ static size_t formula_level = 0;
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Conjunction::verify(DdManager* dd_man, const Model& model,
 			    double epsilon) const {
-  DdNode* sol = Cudd_ReadOne(dd_man);
-  Cudd_Ref(sol);
+  DdNode* sol = model.reachability_bdd(dd_man);
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->verify(dd_man, model, epsilon);
@@ -70,7 +69,12 @@ DdNode* Disjunction::verify(DdManager* dd_man, const Model& model,
     Cudd_RecursiveDeref(dd_man, sol);
     sol = ddo;
   }
-  return sol;
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* dda = Cudd_bddAnd(dd_man, ddr, sol);
+  Cudd_Ref(dda);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man, sol);
+  return dda;
 }
 
 
@@ -84,7 +88,12 @@ DdNode* Negation::verify(DdManager* dd_man, const Model& model,
   DdNode* sol = Cudd_Not(ddf);
   Cudd_Ref(sol);
   Cudd_RecursiveDeref(dd_man, ddf);
-  return sol;
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* dda = Cudd_bddAnd(dd_man, ddr, sol);
+  Cudd_Ref(dda);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man, sol);
+  return dda;
 }
 
 
@@ -99,10 +108,15 @@ DdNode* Implication::verify(DdManager* dd_man, const Model& model,
   Cudd_Ref(ddn);
   Cudd_RecursiveDeref(dd_man, dda);
   DdNode* ddc = consequent().verify(dd_man, model, epsilon);
-  DdNode* sol = Cudd_bddOr(dd_man, ddn, ddc);
-  Cudd_Ref(sol);
+  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
+  Cudd_Ref(ddi);
   Cudd_RecursiveDeref(dd_man, ddn);
   Cudd_RecursiveDeref(dd_man, ddc);
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* sol = Cudd_bddAnd(dd_man, ddr, ddi);
+  Cudd_Ref(sol);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man, ddi);
   return sol;
 }
 
@@ -171,7 +185,6 @@ static double* mtbdd_to_double_vector(DdManager* ddman, DdNode* dd,
   for (size_t i = 0; i < n; i++) {
     res[i] = 0.0;
   }
-
   mtbdd_to_double_vector_rec(ddman, dd, vars, num_vars, 0, odd, 0, res);
 
   return res;
@@ -517,7 +530,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
     return model.reachability_bdd(dd_man);
   } else if (p == 1 && strict) {
     /* Not satisfied by any states. */
-    DdNode* sol = Cudd_ReadOne(dd_man);
+    DdNode* sol = Cudd_ReadLogicZero(dd_man);
     Cudd_Ref(sol);
     return sol;
   }
@@ -678,6 +691,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   }
   int iters;
   bool done = false;
+  bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
     if (verbosity > 0) {
       if (iters % 1000 == 0) {
@@ -708,6 +722,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
       }
     }
     if (done) {
+      steady = true;
       if (init >= 0) {
 	sum[0] = soln2[init];
       } else {
@@ -731,7 +746,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   if (verbosity > 1) {
     std::cout << std::endl;
   }
-  for (iters = left; iters <= right && !done; iters++) {
+  for (; iters <= right && !done; iters++) {
     if (verbosity == 1) {
       if (iters % 1000 == 0) {
 	std::cout << ':';
@@ -762,6 +777,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
 	}
       }
       if (done) {
+	steady = true;
 	double weight = 0.0;
 	for (int i = iters; i <= right; i++) {
 	  weight += weights[i - left]/weight_sum;
@@ -825,6 +841,9 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   }
   if (verbosity > 0) {
     std::cout << iters << " iterations." << std::endl;
+  }
+  if (verbosity > 0 && steady) {
+    std::cout << "Steady state detected." << std::endl;
   }
   /*
    * Free memory.
