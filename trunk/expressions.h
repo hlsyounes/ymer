@@ -5,9 +5,9 @@
  * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This software may be distributed under the terms of the GNU General
+ * Public License.  A copy of the license is available in the file
+ * `COPYING' that comes with this software.
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
  * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
@@ -16,16 +16,17 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: expressions.h,v 1.2 2003-08-10 19:45:53 lorens Exp $
+ * $Id: expressions.h,v 1.3 2003-11-07 03:42:42 lorens Exp $
  */
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
 
 #include <config.h>
 #include "rational.h"
-#include "hashing.h"
 #include <util.h>
 #include <cudd.h>
+#include <map>
+#include <set>
 #include <vector>
 
 
@@ -333,7 +334,7 @@ struct VariableList : public std::vector<const Variable*> {
 /*
  * A set of variables.
  */
-struct VariableSet : public hashing::hash_set<const Variable*> {
+struct VariableSet : public std::set<const Variable*> {
 };
 
 
@@ -343,7 +344,7 @@ struct VariableSet : public hashing::hash_set<const Variable*> {
 /*
  * A mapping from variables to values.
  */
-struct ValueMap : public hashing::hash_map<const Variable*, Rational> {
+struct ValueMap : public std::map<const Variable*, Rational> {
 };
 
 
@@ -353,8 +354,7 @@ struct ValueMap : public hashing::hash_map<const Variable*, Rational> {
 /*
  * A variable substitution map.
  */
-struct SubstitutionMap
-  : public hashing::hash_map<const Variable*, const Variable*> {
+struct SubstitutionMap : public std::map<const Variable*, const Variable*> {
 };
 
 
