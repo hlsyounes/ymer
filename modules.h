@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: modules.h,v 1.2 2003-11-07 04:25:45 lorens Exp $
+ * $Id: modules.h,v 1.3 2003-11-12 03:58:23 lorens Exp $
  */
 #ifndef MODULES_H
 #define MODULES_H
@@ -29,6 +29,7 @@
 #include "expressions.h"
 
 struct StateFormula;
+struct Distribution;
 
 
 /* ====================================================================== */
@@ -92,7 +93,7 @@ struct SynchSubstitutionMap : public std::map<size_t, size_t> {
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, const StateFormula& guard, const Expression& rate);
+  Command(size_t synch, const StateFormula& guard, const Distribution& delay);
 
   /* Deletes this command. */
   ~Command();
@@ -107,8 +108,8 @@ struct Command {
   /* Returns the guard for this command. */
   const StateFormula& guard() const { return *guard_; }
 
-  /* Returns the rate for this command. */
-  const Expression& rate() const { return *rate_; }
+  /* Returns the delay distribution for this command. */
+  const Distribution& delay() const { return *delay_; }
 
   /* Returns the updates for this command. */
   const UpdateList& updates() const { return updates_; }
@@ -132,7 +133,7 @@ private:
   /* The guard for this command. */
   const StateFormula* guard_;
   /* The rate for this command. */
-  const Expression* rate_;
+  const Distribution* delay_;
   /* The updates for this command. */
   UpdateList updates_;
 };
@@ -180,8 +181,8 @@ struct Module {
   Module& substitution(const SubstitutionMap& subst,
 		       const SynchSubstitutionMap& synchs) const;
 
-  /* Returns a BDD representing the identity between the module
-     variables and their primed versions. */
+  /* Returns a BDD representing the identity between the `current
+     state' and `next state' variables of this module. */
   DdNode* identity_bdd(DdManager* dd_man) const;
 
   /* Releases any cached DDs for this module. */
@@ -205,6 +206,16 @@ private:
  * A list of modules.
  */
 struct ModuleList : public std::vector<const Module*> {
+};
+
+
+/* ====================================================================== */
+/* ModuleSet */
+
+/*
+ * A set of modules.
+ */
+struct ModuleSet : public std::set<const Module*> {
 };
 
 
