@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 1.2 2003-08-10 19:44:41 lorens Exp $
+ * $Id: formulas.h,v 1.3 2003-08-13 18:43:53 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -26,6 +26,9 @@
 #include <deque>
 #include <util.h>
 #include <cudd.h>
+
+struct Model;
+struct State;
 
 
 /* ====================================================================== */
@@ -57,6 +60,9 @@ struct StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const = 0;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const = 0;
 
@@ -66,6 +72,14 @@ struct StateFormula {
 
   /* Returns a BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const = 0;
+
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const = 0;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const = 0;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
@@ -107,12 +121,24 @@ struct PathFormula {
   /* Deletes this path formula. */
   virtual ~PathFormula() {}
 
+  /* Tests if this path formula contains probabilistic elements. */
+  virtual bool probabilistic() const = 0;
+
   /* Returns this path formula subject to the given substitutions. */
   virtual const PathFormula& substitution(const ValueMap& values) const = 0;
 
   /* Returns this path formula subject to the given substitutions. */
   virtual const PathFormula&
   substitution(const SubstitutionMap& subst) const = 0;
+
+  /* Generates a sample for this path formula. */
+  virtual bool sample(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const = 0;
+
+  /* Verifies this path formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 const Rational& p, bool strict,
+			 double epsilon) const = 0;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
@@ -153,6 +179,9 @@ struct Conjunction : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -161,6 +190,14 @@ struct Conjunction : public StateFormula {
 
   /* Returns a BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -187,6 +224,9 @@ struct Disjunction : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -195,6 +235,14 @@ struct Disjunction : public StateFormula {
 
   /* Returns a BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -224,6 +272,9 @@ struct Negation : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -232,6 +283,14 @@ struct Negation : public StateFormula {
 
   /* Returns a BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -264,6 +323,9 @@ struct Implication : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -272,6 +334,14 @@ struct Implication : public StateFormula {
 
   /* Returns a BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -310,6 +380,9 @@ struct Probabilistic : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -319,6 +392,14 @@ struct Probabilistic : public StateFormula {
 
   /* Returns a BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -352,6 +433,14 @@ struct Comparison : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
+  /* Verifies this state formula using acceptance sampling. */
+  virtual bool verify(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 double epsilon) const;
+
 protected:
   /* Constructs a comparison. */
   Comparison(const Expression& expr1, const Expression& expr2);
@@ -373,6 +462,9 @@ private:
 struct LessThan : public Comparison {
   /* Constructs a less-than comparison. */
   LessThan(const Expression& expr1, const Expression& expr2);
+
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
@@ -397,6 +489,9 @@ struct LessThan : public Comparison {
 struct LessThanOrEqual : public Comparison {
   /* Constructs a less-than-or-equal comparison. */
   LessThanOrEqual(const Expression& expr1, const Expression& expr2);
+
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
@@ -423,6 +518,9 @@ struct GreaterThanOrEqual : public Comparison {
   /* Constructs a greater-than-or-equal comparison. */
   GreaterThanOrEqual(const Expression& expr1, const Expression& expr2);
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -448,6 +546,9 @@ struct GreaterThan : public Comparison {
   /* Constructs a greater-than comparison. */
   GreaterThan(const Expression& expr1, const Expression& expr2);
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -472,6 +573,9 @@ struct Equality : public Comparison {
   /* Constructs an equality comparison. */
   Equality(const Expression& expr1, const Expression& expr2);
 
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
+
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
 
@@ -495,6 +599,9 @@ struct Equality : public Comparison {
 struct Inequality : public Comparison {
   /* Constructs an inequality comparison. */
   Inequality(const Expression& expr1, const Expression& expr2);
+
+  /* Tests if this state formula holds in the given state. */
+  virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula& substitution(const ValueMap& values) const;
@@ -536,11 +643,23 @@ struct Until : public PathFormula {
   /* Returns the upper time bound. */
   const Rational& max_time() const { return max_time_; }
 
+  /* Tests if this path formula contains probabilistic elements. */
+  virtual bool probabilistic() const;
+
   /* Returns this path formula subject to the given substitutions. */
   virtual const PathFormula& substitution(const ValueMap& values) const;
 
   /* Returns this path formula subject to the given substitutions. */
   virtual const Until& substitution(const SubstitutionMap& subst) const;
+
+  /* Generates a sample for this path formula. */
+  virtual bool sample(const Model& model, const State& state,
+		      double delta, double alpha, double beta) const;
+
+  /* Verifies this path formula using the hybrid engine. */
+  virtual DdNode* verify(DdManager* dd_man, const Model& model,
+			 const Rational& p, bool strict,
+			 double epsilon) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
