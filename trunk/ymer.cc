@@ -19,12 +19,13 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: ymer.cc,v 1.6 2003-11-07 21:59:53 lorens Exp $
+ * $Id: ymer.cc,v 1.7 2003-11-12 03:56:52 lorens Exp $
  */
 #include <config.h>
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
+#include "rng.h"
 #include <util.h>
 #include <cudd.h>
 #include <sys/time.h>
@@ -297,7 +298,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout.setf(std::ios::unitbuf);
     if (engine == SAMPLING_ENGINE) {
-      srand(seed);
+      init_genrand(seed);
       std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", seed=" << seed << std::endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
@@ -306,7 +307,6 @@ int main(int argc, char* argv[]) {
 #else
       setitimer(ITIMER_PROF, &timer, NULL);
 #endif
-      global_model->cache_commands();
       const State init_state(*global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
@@ -326,9 +326,8 @@ int main(int argc, char* argv[]) {
       }
       for (FormulaList::const_iterator fi = properties.begin();
 	   fi != properties.end(); fi++) {
-	std::cout << std::endl << "Model checking ";
-	(*fi)->print(std::cout);
-	std::cout << " ..." << std::endl;
+	std::cout << std::endl << "Model checking " << **fi << " ..."
+		  << std::endl;
 	size_t accepts = 0;
 	std::vector<double> times;
 	double total_time = 0.0;
@@ -438,9 +437,8 @@ int main(int argc, char* argv[]) {
       DdNode* init = global_model->init_bdd(dd_man);
       for (FormulaList::const_iterator fi = properties.begin();
 	   fi != properties.end(); fi++) {
-	std::cout << std::endl << "Model checking ";
-	(*fi)->print(std::cout);
-	std::cout << " ..." << std::endl;
+	std::cout << std::endl << "Model checking " << **fi << " ..."
+		  << std::endl;
 	struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 #ifdef PROFILING
 	setitimer(ITIMER_VIRTUAL, &timer, NULL);
@@ -478,7 +476,7 @@ int main(int argc, char* argv[]) {
       }
       Cudd_Quit(dd_man);
     } else if (engine == MIXED_ENGINE) {
-      srand(seed);
+      init_genrand(seed);
       std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", epsilon=" << epsilon
 		<< ", seed=" << seed << std::endl;
@@ -492,7 +490,6 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, NULL);
 #endif
       global_model->cache_dds(dd_man);
-      global_model->cache_commands();
       const State init_state(*global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
@@ -522,9 +519,8 @@ int main(int argc, char* argv[]) {
       }
       for (FormulaList::const_iterator fi = properties.begin();
 	   fi != properties.end(); fi++) {
-	std::cout << std::endl << "Model checking ";
-	(*fi)->print(std::cout);
-	std::cout << " ..." << std::endl;
+	std::cout << std::endl << "Model checking " << **fi << " ..."
+		  << std::endl;
 	size_t accepts = 0;
 	std::vector<double> times;
 	double total_time = 0.0;
