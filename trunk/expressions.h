@@ -2,7 +2,7 @@
 /*
  * Expressions.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: expressions.h,v 1.6 2003-11-12 03:39:58 lorens Exp $
+ * $Id: expressions.h,v 2.1 2004-01-25 12:22:13 lorens Exp $
  */
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
@@ -44,15 +44,23 @@ struct SubstitutionMap;
  * An abstract expression.
  */
 struct Expression {
-  /* Register use of the given expression. */
-  static void register_use(const Expression* e) {
+  /* Increases the reference count for the given expression. */
+  static void ref(const Expression* e) {
     if (e != NULL) {
       e->ref_count_++;
     }
   }
 
-  /* Unregister use of the given expression. */
-  static void unregister_use(const Expression* e) {
+  /* Decreases the reference count for the given expression. */
+  static void deref(const Expression* e) {
+    if (e != NULL) {
+      e->ref_count_--;
+    }
+  }
+
+  /* Decreases the reference count for the given expression and
+     deletes it if the the reference count becomes zero. */
+  static void destructive_deref(const Expression* e) {
     if (e != NULL) {
       e->ref_count_--;
       if (e->ref_count_ == 0) {
@@ -76,6 +84,9 @@ struct Expression {
 
   /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const = 0;
+
+  /* Returns the `next state' MTBDD representation for this expression. */
+  virtual DdNode* primed_mtbdd(DdManager* dd_man) const = 0;
 
 protected:
   /* Constructs an expression. */
@@ -146,6 +157,9 @@ struct Addition : public Computation {
   /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
+  /* Returns the `next state' MTBDD representation for this expression. */
+  virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
+
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -179,6 +193,9 @@ struct Subtraction : public Computation {
 
   /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' MTBDD representation for this expression. */
+  virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -215,6 +232,9 @@ struct Multiplication : public Computation {
   /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
+  /* Returns the `next state' MTBDD representation for this expression. */
+  virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
+
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -248,6 +268,9 @@ struct Division : public Computation {
 
   /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' MTBDD representation for this expression. */
+  virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -377,6 +400,9 @@ struct Value : public Expression {
 
   /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' MTBDD representation for this expression. */
+  virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
