@@ -17,10 +17,30 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: formulas.cc,v 1.6 2003-11-07 21:59:58 lorens Exp $
+ * $Id: formulas.cc,v 1.7 2003-11-12 03:41:10 lorens Exp $
  */
 #include "formulas.h"
 #include <stdexcept>
+
+
+/* ====================================================================== */
+/* StateFormula */
+
+/* Output operator for state formulas. */
+std::ostream& operator<<(std::ostream& os, const StateFormula& f) {
+  f.print(os);
+  return os;
+}
+
+
+/* ====================================================================== */
+/* PathFormula */
+
+/* Output operator for path formulas. */
+std::ostream& operator<<(std::ostream& os, const PathFormula& f) {
+  f.print(os);
+  return os;
+}
 
 
 /* ====================================================================== */
@@ -129,16 +149,30 @@ void Conjunction::print(std::ostream& os) const {
   if (conjuncts().empty()) {
     os << "true";
   } else if (conjuncts().size() == 1) {
-    conjuncts().front()->print(os);
+    os << *conjuncts().front();
   } else {
-    os << '(';
     FormulaList::const_iterator fi = conjuncts().begin();
-    (*fi)->print(os);
+    bool par = (typeid(**fi) == typeid(Disjunction)
+		|| typeid(**fi) == typeid(Implication));
+    if (par) {
+      os << '(';
+    }
+    os << **fi;
+    if (par) {
+      os << ')';
+    }
     for (fi++; fi != conjuncts().end(); fi++) {
       os << " & ";
-      (*fi)->print(os);
+      par = (typeid(**fi) == typeid(Disjunction)
+	     || typeid(**fi) == typeid(Implication));
+      if (par) {
+	os << '(';
+      }
+      os << **fi;
+      if (par) {
+	os << ')';
+      }
     }
-    os << ')';
   }
 }
 
@@ -249,16 +283,30 @@ void Disjunction::print(std::ostream& os) const {
   if (disjuncts().empty()) {
     os << "false";
   } else if (disjuncts().size() == 1) {
-    disjuncts().front()->print(os);
+    os << *disjuncts().front();
   } else {
-    os << '(';
     FormulaList::const_iterator fi = disjuncts().begin();
-    (*fi)->print(os);
+    bool par = (typeid(**fi) == typeid(Conjunction)
+		|| typeid(**fi) == typeid(Implication));
+    if (par) {
+      os << '(';
+    }
+    os << **fi;
+    if (par) {
+      os << ')';
+    }
     for (fi++; fi != disjuncts().end(); fi++) {
       os << " | ";
-      (*fi)->print(os);
+      par = (typeid(**fi) == typeid(Conjunction)
+	     || typeid(**fi) == typeid(Implication));
+      if (par) {
+	os << '(';
+      }
+      os << **fi;
+      if (par) {
+	os << ')';
+      }
     }
-    os << ')';
   }
 }
 
@@ -326,7 +374,16 @@ DdNode* Negation::bdd(DdManager* dd_man) const {
 /* Prints this object on the given stream. */
 void Negation::print(std::ostream& os) const {
   os << '!';
-  negand().print(os);
+  bool par = (typeid(negand()) == typeid(Conjunction)
+	      || typeid(negand()) == typeid(Disjunction)
+	      || typeid(negand()) == typeid(Implication));
+  if (par) {
+    os << '(';
+  }
+  os << negand();
+  if (par) {
+    os << ')';
+  }
 }
 
 
@@ -403,11 +460,15 @@ DdNode* Implication::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Implication::print(std::ostream& os) const {
-  os << '(';
-  antecedent().print(os);
-  os << " => ";
-  consequent().print(os);
-  os << ')';
+  os << antecedent() << " => ";
+  bool par = typeid(consequent()) == typeid(Implication);
+  if (par) {
+    os << '(';
+  }
+  os << consequent();
+  if (par) {
+    os << ')';
+  }
 }
 
 
@@ -471,9 +532,8 @@ DdNode* Probabilistic::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Probabilistic::print(std::ostream& os) const {
-  os << 'P' << (strict() ? ">" : ">=") << threshold() << " [ ";
-  formula().print(os);
-  os << " ]";
+  os << 'P' << (strict() ? ">" : ">=") << threshold()
+     << " [ " << formula() << " ]";
 }
 
 
@@ -581,11 +641,7 @@ DdNode* LessThan::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void LessThan::print(std::ostream& os) const {
-  os << '(';
-  expr1().print(os);
-  os << '<';
-  expr2().print(os);
-  os << ')';
+  os << expr1() << '<' << expr2();
 }
 
 
@@ -672,11 +728,7 @@ DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void LessThanOrEqual::print(std::ostream& os) const {
-  os << '(';
-  expr1().print(os);
-  os << "<=";
-  expr2().print(os);
-  os << ')';
+  os << expr1() << "<="<< expr2();
 }
 
 
@@ -763,11 +815,7 @@ DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void GreaterThanOrEqual::print(std::ostream& os) const {
-  os << '(';
-  expr1().print(os);
-  os << ">=";
-  expr2().print(os);
-  os << ')';
+  os << expr1() << ">=" << expr2();
 }
 
 
@@ -852,11 +900,7 @@ DdNode* GreaterThan::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void GreaterThan::print(std::ostream& os) const {
-  os << '(';
-  expr1().print(os);
-  os << '>';
-  expr2().print(os);
-  os << ')';
+  os << expr1() << '>' << expr2();
 }
 
 
@@ -937,11 +981,7 @@ DdNode* Equality::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Equality::print(std::ostream& os) const {
-  os << '(';
-  expr1().print(os);
-  os << '=';
-  expr2().print(os);
-  os << ')';
+  os << expr1() << '=' << expr2();
 }
 
 
@@ -1026,11 +1066,7 @@ DdNode* Inequality::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Inequality::print(std::ostream& os) const {
-  os << '(';
-  expr1().print(os);
-  os << "!=";
-  expr2().print(os);
-  os << ')';
+  os << expr1() << "!=" << expr2();
 }
 
 
@@ -1085,7 +1121,5 @@ const Until& Until::substitution(const SubstitutionMap& subst) const {
 
 /* Prints this object on the given stream. */
 void Until::print(std::ostream& os) const {
-  pre().print(os);
-  os << " U[" << min_time() << ',' << max_time() << "] ";
-  post().print(os);
+  os << pre() << " U[" << min_time() << ',' << max_time() << "] " << post();
 }
