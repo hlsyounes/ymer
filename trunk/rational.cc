@@ -1,6 +1,8 @@
 /* -*-C++-*- */
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Rational numbers.
+ *
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -18,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: rational.cc,v 1.3 2003-11-07 22:00:19 lorens Exp $
+ * $Id: rational.cc,v 2.1 2004-01-25 12:40:22 lorens Exp $
  */
 #include "rational.h"
 #include <stdexcept>
@@ -167,6 +169,12 @@ Rational operator-(const Rational& q, const Rational& p) {
     Rational::multipliers(q.denominator(), p.denominator());
   return Rational(q.numerator()*m.first - p.numerator()*m.second,
 		  q.denominator()*m.first);
+}
+
+
+/* Unary minus operator for rational numbers. */
+Rational operator-(const Rational& q) {
+  return Rational(-q.numerator(), q.denominator());
 }
 
 

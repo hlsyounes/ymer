@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -17,7 +17,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: modules.cc,v 1.4 2003-11-12 03:58:03 lorens Exp $
+ * $Id: modules.cc,v 2.1 2004-01-25 12:37:53 lorens Exp $
  */
 #include "modules.h"
 #include "distributions.h"
@@ -31,15 +31,15 @@
 /* Constructs a variable update. */
 Update::Update(const Variable& variable, const Expression& expr)
   : variable_(&variable), expr_(&expr) {
-  Expression::register_use(variable_);
-  Expression::register_use(expr_);
+  Expression::ref(variable_);
+  Expression::ref(expr_);
 }
 
 
 /* Deletes this variable update. */
 Update::~Update() {
-  Expression::unregister_use(variable_);
-  Expression::unregister_use(expr_);
+  Expression::destructive_deref(variable_);
+  Expression::destructive_deref(expr_);
 }
 
 
@@ -89,15 +89,15 @@ DdNode* Update::bdd(DdManager* dd_man) const {
 Command::Command(size_t synch, const StateFormula& guard,
 		 const Distribution& delay)
   : synch_(synch), guard_(&guard), delay_(&delay) {
-  StateFormula::register_use(guard_);
-  Distribution::register_use(delay_);
+  StateFormula::ref(guard_);
+  Distribution::ref(delay_);
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  StateFormula::unregister_use(guard_);
-  Distribution::unregister_use(delay_);
+  StateFormula::destructive_deref(guard_);
+  Distribution::destructive_deref(delay_);
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     delete *ui;
@@ -176,6 +176,26 @@ DdNode* Command::bdd(VariableSet& updated, DdManager* dd_man) const {
 }
 
 
+/* Output operator for commands. */
+std::ostream& operator<<(std::ostream& os, const Command& c) {
+  os << "[";
+  if (c.synch() != 0) {
+    os << 's' << c.synch();
+  }
+  os << "] " << c.guard() << " -> " << c.delay() << " : ";
+  UpdateList::const_iterator ui = c.updates().begin();
+  if (ui != c.updates().end()) {
+    const Update* u = *ui;
+    os << u->variable() << "\'=" << u->expr();
+    for (ui++; ui != c.updates().end(); ui++) {
+      u = *ui;
+      os << " & " << u->variable() << "\'=" << u->expr();
+    }
+  }
+  return os;
+}
+
+
 /* ====================================================================== */
 /* Module */
 
@@ -188,7 +208,7 @@ Module::Module()
 Module::~Module() {
   for (VariableList::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
-    Expression::unregister_use(*vi);
+    Expression::destructive_deref(*vi);
   }
   for (CommandList::const_iterator ci = commands().begin();
        ci != commands().end(); ci++) {
@@ -200,7 +220,7 @@ Module::~Module() {
 /* Adds a variable to this module. */
 void Module::add_variable(const Variable& variable) {
   variables_.push_back(&variable);
-  Expression::register_use(&variable);
+  Expression::ref(&variable);
 }
 
 
