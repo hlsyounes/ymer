@@ -18,10 +18,10 @@
 ## along with Ymer; if not, write to the Free Software Foundation,
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 ##
-## $Id: configure.ac,v 2.1 2004-01-25 13:16:49 lorens Exp $
+## $Id: configure.ac,v 3.1 2004-03-11 20:20:49 lorens Exp $
 
 AC_PREREQ(2.57)
-AC_INIT(Ymer, 2.0, lorens@cs.cmu.edu)
+AC_INIT(Ymer, 2.1, lorens@cs.cmu.edu)
 AC_CONFIG_SRCDIR(ymer.cc)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
