@@ -2,7 +2,7 @@
 /*
  * Models.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: models.h,v 1.4 2003-11-12 03:50:03 lorens Exp $
+ * $Id: models.h,v 2.1 2004-01-25 12:36:58 lorens Exp $
  */
 #ifndef MODELS_H
 #define MODELS_H
@@ -28,7 +28,22 @@
 #include <config.h>
 #include "modules.h"
 #include "odd.h"
+#include "distributions.h"
 #include <map>
+
+
+/* ====================================================================== */
+/* PHData */
+
+/*
+ * Data for phase-type distribution.
+ */
+struct PHData {
+  ECParameters params;
+  ACPH2Parameters params2;
+  Variable* s;
+  DdNode* update_bdd;
+};
 
 
 /* ====================================================================== */
@@ -63,7 +78,7 @@ struct Model {
   const CommandList& commands() const { return commands_; }
 
   /* Caches DDs for this model. */
-  void cache_dds(DdManager* dd_man) const;
+  void cache_dds(DdManager* dd_man, size_t moments) const;
 
   /* Returns an MTBDD representing the rate matrix for this model. */
   DdNode* rate_mtbdd(DdManager* dd_man) const;
@@ -121,6 +136,14 @@ private:
 
   /* Returns a BDD representing the range for all model variables. */
   DdNode* range_bdd(DdManager* dd_man) const;
+
+  /* Returns a BDD representing the conjunction of dd_start with the
+     BDDs for updates of all variables not explicitly mentioned. */
+  DdNode* variable_updates(DdManager* dd_man, DdNode* dd_start,
+			   const ModuleSet& touched_modules,
+			   const VariableSet& updated_variables,
+			   const Variable* phase_variable,
+			   const std::map<size_t, PHData>& ph_commands) const;
 };
 
 /* Output operator for models. */
