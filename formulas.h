@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: formulas.h,v 1.7 2003-11-12 03:49:31 lorens Exp $
+ * $Id: formulas.h,v 2.1 2004-01-25 12:23:47 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -42,16 +42,25 @@ struct State;
  * A state formula.
  */
 struct StateFormula {
-  /* Register use of the given state formula. */
-  static void register_use(const StateFormula* f) {
+  /* Increases the reference count for the given state formula. */
+  static void ref(const StateFormula* f) {
     if (f != NULL) {
       f->ref_count_++;
     }
   }
 
-  /* Unregister use of the given state formula. */
-  static void unregister_use(const StateFormula* f) {
+  /* Decreases the reference count for the given state formula. */
+  static void deref(const StateFormula* f) {
     if (f != NULL) {
+      f->ref_count_--;
+    }
+  }
+
+  /* Decreases the reference count for the given state formula and
+     deletes it if the the reference count becomes zero. */
+  static void destructive_deref(const StateFormula* f) {
+    if (f != NULL) {
+      f->ref_count_--;
       if (f->ref_count_ == 0) {
 	delete f;
       }
@@ -79,6 +88,9 @@ struct StateFormula {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const = 0;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const = 0;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -121,15 +133,23 @@ std::ostream& operator<<(std::ostream& os, const StateFormula& f);
  * A path formula.
  */
 struct PathFormula {
-  /* Register use of the given path formula. */
-  static void register_use(const PathFormula* f) {
+  /* Increases the reference count for the given path formula. */
+  static void ref(const PathFormula* f) {
     if (f != NULL) {
       f->ref_count_++;
     }
   }
 
-  /* Unregister use of the given path formula. */
-  static void unregister_use(const PathFormula* f) {
+  /* Decreases the reference count for the given path formula. */
+  static void deref(const PathFormula* f) {
+    if (f != NULL) {
+      f->ref_count_--;
+    }
+  }
+
+  /* Decreases the reference count for the given path formula and
+     deletes it if the the reference count becomes zero. */
+  static void destructive_deref(const PathFormula* f) {
     if (f != NULL) {
       f->ref_count_--;
       if (f->ref_count_ == 0) {
@@ -227,6 +247,9 @@ struct Conjunction : public StateFormula {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
@@ -277,6 +300,9 @@ struct Disjunction : public StateFormula {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -331,6 +357,9 @@ struct Negation : public StateFormula {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -388,6 +417,9 @@ struct Implication : public StateFormula {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -452,6 +484,9 @@ struct Probabilistic : public StateFormula {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -546,6 +581,9 @@ struct LessThan : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -574,6 +612,9 @@ struct LessThanOrEqual : public Comparison {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -604,6 +645,9 @@ struct GreaterThanOrEqual : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -631,6 +675,9 @@ struct GreaterThan : public Comparison {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -660,6 +707,9 @@ struct Equality : public Comparison {
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -687,6 +737,9 @@ struct Inequality : public Comparison {
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
+
+  /* Returns the `next state' BDD representation for this state formula. */
+  virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
