@@ -20,11 +20,12 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: parser.yy,v 1.5 2003-11-07 22:00:08 lorens Exp $
+ * $Id: parser.yy,v 1.6 2003-11-12 03:51:35 lorens Exp $
  */
 %{
 #include <config.h>
 #include "models.h"
+#include "distributions.h"
 #include "formulas.h"
 #include <map>
 #include <set>
@@ -106,7 +107,7 @@ static int integer_value(const Rational* q);
 /* Returns a variable representing an integer constant. */
 static const Variable* find_constant(const std::string* ident);
 /* Returns a variable representing a rate constant. */
-static const Variable* find_rate(const std::string* ident);
+static const Variable* find_rate(const std::string* ident, bool constant);
 /* Returns a range with the given bounds, signaling an error if the
    range is empty. */
 static Range make_range(const Expression* l, const Expression* h);
@@ -151,7 +152,7 @@ static const Variable* declare_variable(const std::string* ident,
 static void add_command();
 /* Prepares a command for parsing. */
 static void prepare_command(int synch, const StateFormula& guard,
-			    const Expression& rate);
+			    const Distribution& delay);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
 /* Adds a module to the current model. */
@@ -167,6 +168,7 @@ static void compile_model();
 %token STOCHASTIC
 %token CONST RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
+%token EXP W
 %token MODULE ENDMODULE
 %token PNAME NAME NUMBER
 %token ARROW DOTDOT
@@ -183,6 +185,7 @@ static void compile_model();
   size_t synch;
   StateFormula* formula;
   const PathFormula* path;
+  const Distribution* dist;
   const Expression* expr;
   Range range;
   int nat;
@@ -193,7 +196,8 @@ static void compile_model();
 %type <synch> synchronization
 %type <formula> formula csl_formula
 %type <path> path_formula
-%type <expr> expr rate_expr const_expr csl_expr
+%type <dist> distribution
+%type <expr> expr rate_expr const_rate_expr const_expr csl_expr
 %type <range> range
 %type <nat> integer
 %type <str> PNAME NAME
@@ -272,7 +276,7 @@ commands : /* empty */
          | commands command
          ;
 
-command : synchronization formula ARROW rate_expr ':'
+command : synchronization formula ARROW distribution ':'
             { prepare_command($1, *$2, *$4); } update ';' { add_command(); }
         ;
 
@@ -303,6 +307,15 @@ formula : formula '&' formula { $$ = make_conjunction(*$1, *$3); }
 
 
 /* ====================================================================== */
+/* Distributions. */
+
+distribution : rate_expr { $$ = &Exponential::make(*$1); }
+             | EXP '(' rate_expr ')' { $$ = &Exponential::make(*$3); }
+             | W '(' const_rate_expr ',' const_rate_expr ')'
+                 { $$ = &Weibull::make(*$3, *$5); }
+             ;
+
+/* ====================================================================== */
 /* Expressions. */
 
 expr : integer { $$ = make_value($1); }
@@ -314,11 +327,20 @@ expr : integer { $$ = make_value($1); }
      ;
 
 rate_expr : NUMBER { $$ = make_value($1); }
-          | NAME { $$ = find_rate($1); }
+          | NAME { $$ = find_rate($1, false); }
           | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
           | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
+
+const_rate_expr : NUMBER { $$ = make_value($1); }
+                | NAME { $$ = find_rate($1, true); }
+                | const_rate_expr '*' const_rate_expr
+                    { $$ = &Multiplication::make(*$1, *$3); }
+                | const_rate_expr '/' const_rate_expr
+                    { $$ = &Division::make(*$1, *$3); }
+                | '(' const_rate_expr ')' { $$ = $2; }
+                ;
 
 
 /* ====================================================================== */
@@ -495,13 +517,17 @@ static const Variable* find_constant(const std::string* ident) {
 
 
 /* Returns a variable representing a rate constant. */
-static const Variable* find_rate(const std::string* ident) {
+static const Variable* find_rate(const std::string* ident, bool constant) {
   std::map<std::string, const Variable*>::const_iterator ri =
     rates.find(*ident);
   if (ri != rates.end()) {
     delete ident;
     return (*ri).second;
   } else {
+    if (constant) {
+      yyerror("variable parameters only permitted for exponential"
+	      " distribution");
+    }
     return find_variable(ident);
   }
 }
@@ -831,8 +857,8 @@ static void add_command() {
 
 /* Prepares a command for parsing. */
 static void prepare_command(int synch, const StateFormula& guard,
-			    const Expression& rate) {
-  command = new Command(synch, guard, rate);
+			    const Distribution& delay) {
+  command = new Command(synch, guard, delay);
 }
 
 
@@ -958,5 +984,6 @@ static void compile_model() {
        mi != modules.end(); mi++) {
     (*mi).second->compile(constant_values, rate_values);
   }
+  model->compile();
   global_model = model;
 }
