@@ -1,6 +1,6 @@
 ## Process this file with autoconf to produce a configure script.
 ##
-## Copyright (C) 2003, 2004 Carnegie Mellon University
+## Copyright (C) 2003--2005 Carnegie Mellon University
 ##
 ## This file is part of Ymer.
 ##
@@ -18,10 +18,10 @@
 ## along with Ymer; if not, write to the Free Software Foundation,
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 ##
-## $Id: configure.ac,v 3.1 2004-03-11 20:20:49 lorens Exp $
+## $Id: configure.ac,v 4.1 2005-02-01 14:26:14 lorens Exp $
 
 AC_PREREQ(2.57)
-AC_INIT(Ymer, 2.1, lorens@cs.cmu.edu)
+AC_INIT(Ymer, 3.0, lorens@cs.cmu.edu)
 AC_CONFIG_SRCDIR(ymer.cc)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
@@ -55,7 +55,6 @@ AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
 # Checks for library functions.
-AC_FUNC_MALLOC
 AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror])
 AC_CHECK_FUNCS(getopt_long, , [AC_LIBOBJ(getopt) AC_LIBOBJ(getopt1)])

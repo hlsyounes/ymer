@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 ##
-## Copyright (C) 2003, 2004 Carnegie Mellon University
+## Copyright (C) 2003--2005 Carnegie Mellon University
 ##
 ## This file is part of Ymer.
 ##
@@ -18,7 +18,7 @@
 ## along with Ymer; if not, write to the Free Software Foundation,
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 ##
-## $Id: Makefile.am,v 2.1 2004-01-25 13:16:54 lorens Exp $
+## $Id: Makefile.am,v 4.1 2005-02-01 14:25:41 lorens Exp $
 
 bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h rational.cc rational.h expressions.cc expressions.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
@@ -27,7 +27,9 @@ ymer_LDADD =  -lcudd -lepd -lmtr -lst -lutil @LIBOBJS@
 MAINTAINERCLEANFILES = parser.cc tokenizer.cc config.h.in~
 EXTRA_DIST = getopt.c getopt1.c getopt.h examples scripts
 
-CPPFLAGS = @CPPFLAGS@ -I@CUDDDIR@
-LDFLAGS = @LDFLAGS@ -L@CUDDDIR@
+AM_CPPFLAGS = -I@CUDDDIR@
+AM_CFLAGS = -malign-double
+AM_CXXFLAGS = -malign-double
+AM_LDFLAGS = -L@CUDDDIR@
 
-YFLAGS = -d
+AM_YFLAGS = -d
