@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: sampling.cc,v 1.2 2003-11-07 04:26:24 lorens Exp $
+ * $Id: sampling.cc,v 1.3 2003-11-07 21:59:49 lorens Exp $
  */
 #include "formulas.h"
 #include "states.h"
@@ -42,7 +42,7 @@ size_t StateFormula::formula_level_ = 0;
 /* ====================================================================== */
 /* Conjunction */
 
-/* Verifies this state formula using acceptance sampling. */
+/* Verifies this state formula using the statistical engine. */
 bool Conjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta) const {
   size_t n = conjuncts().size();
@@ -84,7 +84,7 @@ bool Conjunction::verify(const Model& model, const State& state,
 /* ====================================================================== */
 /* Disjunction */
 
-/* Verifies this state formula using acceptance sampling. */
+/* Verifies this state formula using the statistical engine. */
 bool Disjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta) const {
   size_t n = disjuncts().size();
@@ -126,7 +126,7 @@ bool Disjunction::verify(const Model& model, const State& state,
 /* ====================================================================== */
 /* Negation */
 
-/* Verifies this state formula using acceptance sampling. */
+/* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const {
   return !negand().verify(model, state, delta, beta, alpha);
@@ -136,7 +136,7 @@ bool Negation::verify(const Model& model, const State& state,
 /* ====================================================================== */
 /* Implication */
 
-/* Verifies this state formula using acceptance sampling. */
+/* Verifies this state formula using the statistical engine. */
 bool Implication::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta) const {
   bool prob1 = antecedent().probabilistic();
@@ -180,7 +180,7 @@ bool Implication::verify(const Model& model, const State& state,
 /* ====================================================================== */
 /* Probabilistic */
 
-/* Verifies this state formula using acceptance sampling. */
+/* Verifies this state formula using the statistical engine. */
 bool Probabilistic::verify(const Model& model, const State& state,
 			   double delta, double alpha, double beta) const {
   double p0, p1;
@@ -264,7 +264,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 /* ====================================================================== */
 /* Comparison */
 
-/* Verifies this state formula using acceptance sampling. */
+/* Verifies this state formula using the statistical engine. */
 bool Comparison::verify(const Model& model, const State& state,
 			double delta, double alpha, double beta) const {
   return holds(state.values());
@@ -445,6 +445,7 @@ bool Until::sample(const Model& model, const State& state,
   double t = 0.0;
   std::vector<const State*> path;
   path.push_back(&state);
+  size_t path_length = 1;
   bool prob1 = pre().probabilistic();
   bool prob2 = post().probabilistic();
   bool result = false;
@@ -460,7 +461,15 @@ bool Until::sample(const Model& model, const State& state,
     const State& next_state = curr_state.next(model);
     t += next_state.dt();
     if (t <= t_max) {
-      path.push_back(&next_state);
+      if (prob1 || prob2) {
+	path.push_back(&next_state);
+      } else {
+	if (path.back() != &state) {
+	  delete path.back();
+	}
+	path[0] = &next_state;
+      }
+      path_length++;
     } else {
       delete &next_state;
     }
@@ -476,7 +485,7 @@ bool Until::sample(const Model& model, const State& state,
     }
   }
   if (StateFormula::formula_level() == 1) {
-    total_path_lengths += path.size();
+    total_path_lengths += path_length;
   }
   for (size_t i = 1; i < path.size(); i++) {
     delete path[i];

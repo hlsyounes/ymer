@@ -17,7 +17,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: models.cc,v 1.6 2003-11-07 04:25:27 lorens Exp $
+ * $Id: models.cc,v 1.7 2003-11-07 22:00:05 lorens Exp $
  */
 #include "models.h"
 #include "formulas.h"
@@ -63,6 +63,7 @@ static DdNode* reachability_bdd(DdManager* dd_man,
   Cudd_Ref(trans);
   DdNode* solr = init;
   Cudd_Ref(solr);
+  // NOTE: use bddSwapVariables instead!
   DdNode* solc = Cudd_bddPermute(dd_man, solr, row_to_col);
   Cudd_Ref(solc);
   bool done = false;
@@ -207,7 +208,7 @@ void Model::cache_commands() const {
 	    guard.add_conjunct(cj.guard());
 	    Command* c =
 	      new Command(*si, guard,
-			  *new Multiplication(ci.rate(), cj.rate()));
+			  Multiplication::make(ci.rate(), cj.rate()));
 	    for (UpdateList::const_iterator ui = ci.updates().begin();
 		 ui != ci.updates().end(); ui++) {
 	      const Update& u = **ui;

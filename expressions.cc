@@ -17,7 +17,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: expressions.cc,v 1.4 2003-11-07 04:23:13 lorens Exp $
+ * $Id: expressions.cc,v 1.5 2003-11-07 22:00:00 lorens Exp $
  */
 #include "expressions.h"
 #include <stdexcept>
@@ -45,9 +45,23 @@ Computation::~Computation() {
 /* ====================================================================== */
 /* Addition */
 
-/* Constructs an addition. */
-Addition::Addition(const Expression& term1, const Expression& term2)
-  : Computation(term1, term2) {}
+/* Returns an addition of the two expressions. */
+const Expression& Addition::make(const Expression& term1,
+				 const Expression& term2) {
+  const Value* v1 = dynamic_cast<const Value*>(&term1);
+  if (v1 != NULL) {
+    const Value* v2 = dynamic_cast<const Value*>(&term2);
+    if (v2 != NULL) {
+      const Value& value = *new Value(v1->value() + v2->value());
+      register_use(v1);
+      register_use(v2);
+      unregister_use(v1);
+      unregister_use(v2);
+      return value;
+    }
+  }
+  return *new Addition(term1, term2);
+}
 
 
 /* Returns the value of this expression. */
@@ -61,7 +75,7 @@ const Expression& Addition::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Addition(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
@@ -69,18 +83,18 @@ const Expression& Addition::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Addition& Addition::substitution(const SubstitutionMap& subst) const {
+const Expression& Addition::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Addition(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
 }
 
 
-/* Returns an MTBDD representation for this expression. */
+/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Addition::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -105,9 +119,23 @@ void Addition::print(std::ostream& os) const {
 /* ====================================================================== */
 /* Subtraction */
 
-/* Constructs a subtraction. */
-Subtraction::Subtraction(const Expression& term1, const Expression& term2)
-  : Computation(term1, term2) {}
+/* Returns a subtraction of the two expressions. */
+const Expression& Subtraction::make(const Expression& term1,
+				    const Expression& term2) {
+  const Value* v1 = dynamic_cast<const Value*>(&term1);
+  if (v1 != NULL) {
+    const Value* v2 = dynamic_cast<const Value*>(&term2);
+    if (v2 != NULL) {
+      const Value& value = *new Value(v1->value() - v2->value());
+      register_use(v1);
+      register_use(v2);
+      unregister_use(v1);
+      unregister_use(v2);
+      return value;
+    }
+  }
+  return *new Subtraction(term1, term2);
+}
 
 
 /* Returns the value of this expression. */
@@ -121,7 +149,7 @@ const Expression& Subtraction::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Subtraction(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
@@ -129,19 +157,19 @@ const Expression& Subtraction::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Subtraction&
+const Expression&
 Subtraction::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Subtraction(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
 }
 
 
-/* Returns an MTBDD representation for this expression. */
+/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Subtraction::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -166,10 +194,23 @@ void Subtraction::print(std::ostream& os) const {
 /* ====================================================================== */
 /* Multiplication */
 
-/* Constructs a multiplication. */
-Multiplication::Multiplication(const Expression& factor1,
-			       const Expression& factor2)
-  : Computation(factor1, factor2) {}
+/* Returns a multiplication of the two expressions. */
+const Expression& Multiplication::make(const Expression& factor1,
+				       const Expression& factor2) {
+  const Value* v1 = dynamic_cast<const Value*>(&factor1);
+  if (v1 != NULL) {
+    const Value* v2 = dynamic_cast<const Value*>(&factor2);
+    if (v2 != NULL) {
+      const Value& value = *new Value(v1->value() * v2->value());
+      register_use(v1);
+      register_use(v2);
+      unregister_use(v1);
+      unregister_use(v2);
+      return value;
+    }
+  }
+  return *new Multiplication(factor1, factor2);
+}
 
 
 /* Returns the value of this expression. */
@@ -183,7 +224,7 @@ const Expression& Multiplication::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Multiplication(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
@@ -191,19 +232,19 @@ const Expression& Multiplication::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Multiplication&
+const Expression&
 Multiplication::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Multiplication(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
 }
 
 
-/* Returns an MTBDD representation for this expression. */
+/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Multiplication::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -228,9 +269,26 @@ void Multiplication::print(std::ostream& os) const {
 /* ====================================================================== */
 /* Division */
 
-/* Constructs a division. */
-Division::Division(const Expression& factor1, const Expression& factor2)
-  : Computation(factor1, factor2) {}
+/* Returns a division of the two expressions. */
+const Expression& Division::make(const Expression& factor1,
+				 const Expression& factor2) {
+  const Value* v1 = dynamic_cast<const Value*>(&factor1);
+  if (v1 != NULL) {
+    const Value* v2 = dynamic_cast<const Value*>(&factor2);
+    if (v2 != NULL) {
+      if (v2->value() == 0) {
+	throw std::invalid_argument("division by zero");
+      }
+      const Value& value = *new Value(v1->value() / v2->value());
+      register_use(v1);
+      register_use(v2);
+      unregister_use(v1);
+      unregister_use(v2);
+      return value;
+    }
+  }
+  return *new Division(factor1, factor2);
+}
 
 
 /* Returns the value of this expression. */
@@ -244,7 +302,7 @@ const Expression& Division::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Division(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
@@ -252,18 +310,18 @@ const Expression& Division::substitution(const ValueMap& values) const {
 
 
 /* Returns this expression subject to the given substitutions. */
-const Division& Division::substitution(const SubstitutionMap& subst) const {
+const Expression& Division::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Division(e1, e2);
+    return make(e1, e2);
   } else {
     return *this;
   }
 }
 
 
-/* Returns an MTBDD representation for this expression. */
+/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Division::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -366,7 +424,7 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns an MTBDD representation of this expression. */
+/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Variable::mtbdd(DdManager* dd_man) const {
   if (mtbdd_ == NULL) {
     DdNode* ddv = Cudd_ReadZero(dd_man);
@@ -403,8 +461,7 @@ DdNode* Variable::mtbdd(DdManager* dd_man) const {
 }
 
 
-/* Returns an MTBDD representation for the primed version of this
-   variable. */
+/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
   if (primed_mtbdd_ == NULL) {
     DdNode* ddv = Cudd_ReadZero(dd_man);
@@ -441,8 +498,8 @@ DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
 }
 
 
-/* Returns a BDD representing identity between this variable and the
-   primed version of this variable. */
+/* Returns a BDD representing identity between the `current state'
+   and `next state' versions of this variable. */
 DdNode* Variable::identity_bdd(DdManager* dd_man) const {
   if (identity_bdd_ == NULL) {
     mtbdd(dd_man);
@@ -532,7 +589,7 @@ const Value& Value::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns an MTBDD representation of this expression. */
+/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Value::mtbdd(DdManager* dd_man) const {
   DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
   Cudd_Ref(ddv);

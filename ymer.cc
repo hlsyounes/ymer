@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: ymer.cc,v 1.5 2003-11-07 04:26:45 lorens Exp $
+ * $Id: ymer.cc,v 1.6 2003-11-07 21:59:53 lorens Exp $
  */
 #include <config.h>
 #include "states.h"
@@ -50,6 +50,7 @@ extern FILE* yyin;
 extern const Model* global_model;
 /* Number of bits required by binary encoding of state space. */
 extern int num_model_bits;
+/* Parsed properties. */
 extern FormulaList properties;
 /* Clears all previously parsed declarations. */
 extern void clear_declarations();

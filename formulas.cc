@@ -17,7 +17,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: formulas.cc,v 1.5 2003-11-07 04:24:24 lorens Exp $
+ * $Id: formulas.cc,v 1.6 2003-11-07 21:59:58 lorens Exp $
  */
 #include "formulas.h"
 #include <stdexcept>
@@ -107,7 +107,7 @@ Conjunction::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Conjunction::bdd(DdManager* dd_man) const {
   DdNode* dd = Cudd_ReadOne(dd_man);
   Cudd_Ref(dd);
@@ -227,7 +227,7 @@ Disjunction::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Disjunction::bdd(DdManager* dd_man) const {
   DdNode* dd = Cudd_ReadLogicZero(dd_man);
   Cudd_Ref(dd);
@@ -313,7 +313,7 @@ const Negation& Negation::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Negation::bdd(DdManager* dd_man) const {
   DdNode* ddn = negand().bdd(dd_man);
   DdNode* dd = Cudd_Not(ddn);
@@ -386,7 +386,7 @@ Implication::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Implication::bdd(DdManager* dd_man) const {
   DdNode* dda = antecedent().bdd(dd_man);
   DdNode* ddn = Cudd_Not(dda);
@@ -463,7 +463,7 @@ Probabilistic::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Probabilistic::bdd(DdManager* dd_man) const {
   throw std::logic_error("Probabilistic::bdd not implemented");
 }
@@ -539,7 +539,7 @@ const LessThan& LessThan::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* LessThan::bdd(DdManager* dd_man) const {
   DdNode* dd;
   const Value* value = dynamic_cast<const Value*>(&expr1());
@@ -630,7 +630,7 @@ LessThanOrEqual::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
   DdNode* dd;
   const Value* value = dynamic_cast<const Value*>(&expr1());
@@ -721,7 +721,7 @@ GreaterThanOrEqual::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
   DdNode* dd;
   const Value* value = dynamic_cast<const Value*>(&expr2());
@@ -810,7 +810,7 @@ GreaterThan::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* GreaterThan::bdd(DdManager* dd_man) const {
   DdNode* dd;
   const Value* value = dynamic_cast<const Value*>(&expr2());
@@ -898,7 +898,7 @@ const Equality& Equality::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Equality::bdd(DdManager* dd_man) const {
   DdNode* dd;
   const Value* value = dynamic_cast<const Value*>(&expr2());
@@ -984,7 +984,7 @@ Inequality::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation for this state formula. */
+/* Returns the `current state' BDD representation for this state formula. */
 DdNode* Inequality::bdd(DdManager* dd_man) const {
   const Value* value = dynamic_cast<const Value*>(&expr2());
   DdNode* ddf;

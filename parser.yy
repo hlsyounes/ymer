@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: parser.yy,v 1.4 2003-11-07 04:26:06 lorens Exp $
+ * $Id: parser.yy,v 1.5 2003-11-07 22:00:08 lorens Exp $
  */
 %{
 #include <config.h>
@@ -307,16 +307,16 @@ formula : formula '&' formula { $$ = make_conjunction(*$1, *$3); }
 
 expr : integer { $$ = make_value($1); }
      | NAME { $$ = find_variable($1); }
-     | expr '+' expr { $$ = new Addition(*$1, *$3); }
-     | expr '-' expr { $$ = new Subtraction(*$1, *$3); }
-     | expr '*' expr { $$ = new Multiplication(*$1, *$3); }
+     | expr '+' expr { $$ = &Addition::make(*$1, *$3); }
+     | expr '-' expr { $$ = &Subtraction::make(*$1, *$3); }
+     | expr '*' expr { $$ = &Multiplication::make(*$1, *$3); }
      | '(' expr ')' { $$ = $2; }
      ;
 
 rate_expr : NUMBER { $$ = make_value($1); }
           | NAME { $$ = find_rate($1); }
-          | rate_expr '*' rate_expr { $$ = new Multiplication(*$1, *$3); }
-          | rate_expr '/' rate_expr { $$ = new Division(*$1, *$3); }
+          | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
+          | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
 
@@ -329,9 +329,10 @@ range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
 
 const_expr : integer { $$ = make_value($1); }
            | NAME { $$ = find_constant($1); }
-           | const_expr '+' const_expr { $$ = new Addition(*$1, *$3); }
-           | const_expr '-' const_expr { $$ = new Subtraction(*$1, *$3); }
-           | const_expr '*' const_expr { $$ = new Multiplication(*$1, *$3); }
+           | const_expr '+' const_expr { $$ = &Addition::make(*$1, *$3); }
+           | const_expr '-' const_expr { $$ = &Subtraction::make(*$1, *$3); }
+           | const_expr '*' const_expr
+               { $$ = &Multiplication::make(*$1, *$3); }
            | '(' const_expr ')' { $$ = $2; }
 	   ;
 
@@ -379,9 +380,9 @@ path_formula : csl_formula 'U' LTE NUMBER csl_formula
 
 csl_expr : integer { $$ = make_value($1); }
          | NAME { $$ = value_or_variable($1); }
-         | csl_expr '+' csl_expr { $$ = new Addition(*$1, *$3); }
-         | csl_expr '-' csl_expr { $$ = new Subtraction(*$1, *$3); }
-         | csl_expr '*' csl_expr { $$ = new Multiplication(*$1, *$3); }
+         | csl_expr '+' csl_expr { $$ = &Addition::make(*$1, *$3); }
+         | csl_expr '-' csl_expr { $$ = &Subtraction::make(*$1, *$3); }
+         | csl_expr '*' csl_expr { $$ = &Multiplication::make(*$1, *$3); }
          | '(' csl_expr ')' { $$ = $2; }
          ;
 

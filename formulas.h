@@ -20,16 +20,16 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: formulas.h,v 1.5 2003-11-07 04:24:28 lorens Exp $
+ * $Id: formulas.h,v 1.6 2003-11-07 21:59:56 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
 #include <config.h>
 #include "expressions.h"
-#include <deque>
 #include <util.h>
 #include <cudd.h>
+#include <deque>
 
 struct Model;
 struct State;
@@ -77,10 +77,10 @@ struct StateFormula {
   virtual const StateFormula&
   substitution(const SubstitutionMap& subst) const = 0;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const = 0;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const = 0;
 
@@ -214,10 +214,10 @@ struct Conjunction : public StateFormula {
   /* Returns this state formula subject to the given substitutions. */
   virtual const Conjunction& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
@@ -264,10 +264,10 @@ struct Disjunction : public StateFormula {
   /* Returns this state formula subject to the given substitutions. */
   virtual const Disjunction& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
@@ -317,10 +317,10 @@ struct Negation : public StateFormula {
   /* Returns this state formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
@@ -373,10 +373,10 @@ struct Implication : public StateFormula {
   /* Returns this state formula subject to the given substitutions. */
   virtual const Implication& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
@@ -436,10 +436,10 @@ struct Probabilistic : public StateFormula {
   virtual const Probabilistic&
   substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
@@ -484,7 +484,7 @@ struct Comparison : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Verifies this state formula using acceptance sampling. */
+  /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
@@ -528,7 +528,7 @@ struct LessThan : public Comparison {
   /* Returns this state formula subject to the given substitutions. */
   virtual const LessThan& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
@@ -556,7 +556,7 @@ struct LessThanOrEqual : public Comparison {
   virtual const LessThanOrEqual&
   substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
@@ -584,7 +584,7 @@ struct GreaterThanOrEqual : public Comparison {
   virtual const GreaterThanOrEqual&
   substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
@@ -611,7 +611,7 @@ struct GreaterThan : public Comparison {
   /* Returns this state formula subject to the given substitutions. */
   virtual const GreaterThan& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
@@ -638,7 +638,7 @@ struct Equality : public Comparison {
   /* Returns this state formula subject to the given substitutions. */
   virtual const Equality& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
@@ -665,7 +665,7 @@ struct Inequality : public Comparison {
   /* Returns this state formula subject to the given substitutions. */
   virtual const Inequality& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation for this state formula. */
+  /* Returns the `current state' BDD representation for this state formula. */
   virtual DdNode* bdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */

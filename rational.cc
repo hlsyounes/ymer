@@ -18,7 +18,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: rational.cc,v 1.2 2003-11-07 04:26:11 lorens Exp $
+ * $Id: rational.cc,v 1.3 2003-11-07 22:00:19 lorens Exp $
  */
 #include "rational.h"
 #include <stdexcept>
@@ -57,14 +57,13 @@ std::pair<int, int> Rational::multipliers(int n, int m) {
 Rational::Rational(int n, int m) {
   if (m == 0) {
     throw std::invalid_argument("division by zero");
-  } else {
-    int d = gcd(n, m);
-    numerator_ = n/d;
-    denominator_ = m/d;
-    if (denominator_ < 0) {
-      numerator_ *= -1;
-      denominator_ *= -1;
-    }
+  }
+  int d = gcd(n, m);
+  numerator_ = n/d;
+  denominator_ = m/d;
+  if (denominator_ < 0) {
+    numerator_ *= -1;
+    denominator_ *= -1;
   }
 }
 
