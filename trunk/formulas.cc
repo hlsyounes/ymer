@@ -13,12 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 1.1 2003-08-10 01:52:34 lorens Exp $
+ * $Id: formulas.cc,v 1.2 2003-08-10 19:44:34 lorens Exp $
  */
 #include "formulas.h"
-#include "expressions.h"
-#include "util.h"
-#include "cudd.h"
+#include "exceptions.h"
 
 
 /* ====================================================================== */
@@ -112,16 +110,20 @@ DdNode* Conjunction::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Conjunction::print(std::ostream& os) const {
-  os << '(';
-  FormulaList::const_iterator fi = conjuncts().begin();
-  if (fi != conjuncts().end()) {
+  if (conjuncts().empty()) {
+    os << "true";
+  } else if (conjuncts().size() == 1) {
+    conjuncts().front()->print(os);
+  } else {
+    os << '(';
+    FormulaList::const_iterator fi = conjuncts().begin();
     (*fi)->print(os);
     for (fi++; fi != conjuncts().end(); fi++) {
       os << " & ";
       (*fi)->print(os);
     }
+    os << ')';
   }
-  os << ')';
 }
 
 
@@ -134,6 +136,23 @@ Disjunction::~Disjunction() {
        fi != disjuncts().end(); fi++) {
     unregister_use(*fi);
   }
+}
+
+
+/* Adds a disjunct to this disjunction. */
+void Disjunction::add_disjunct(const StateFormula& disjunct) {
+  if (disjunct.probabilistic()) {
+    disjuncts_.push_front(&disjunct);
+  } else {
+    disjuncts_.push_back(&disjunct);
+  }
+  register_use(&disjunct);
+}
+
+
+/* Tests if this state formula contains probabilistic elements. */
+bool Disjunction::probabilistic() const {
+  return !disjuncts().empty() && disjuncts().front()->probabilistic();
 }
 
 
@@ -180,23 +199,6 @@ Disjunction::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Adds a disjunct to this disjunction. */
-void Disjunction::add_disjunct(const StateFormula& disjunct) {
-  if (disjunct.probabilistic()) {
-    disjuncts_.push_front(&disjunct);
-  } else {
-    disjuncts_.push_back(&disjunct);
-  }
-  register_use(&disjunct);
-}
-
-
-/* Tests if this state formula contains probabilistic elements. */
-bool Disjunction::probabilistic() const {
-  return !disjuncts().empty() && disjuncts().front()->probabilistic();
-}
-
-
 /* Returns a BDD representation for this state formula. */
 DdNode* Disjunction::bdd(DdManager* dd_man) const {
   DdNode* dd = Cudd_ReadLogicZero(dd_man);
@@ -216,16 +218,20 @@ DdNode* Disjunction::bdd(DdManager* dd_man) const {
 
 /* Prints this object on the given stream. */
 void Disjunction::print(std::ostream& os) const {
-  os << '(';
-  FormulaList::const_iterator fi = disjuncts().begin();
-  if (fi != disjuncts().end()) {
+  if (disjuncts().empty()) {
+    os << "false";
+  } else if (disjuncts().size() == 1) {
+    disjuncts().front()->print(os);
+  } else {
+    os << '(';
+    FormulaList::const_iterator fi = disjuncts().begin();
     (*fi)->print(os);
     for (fi++; fi != disjuncts().end(); fi++) {
       os << " | ";
       (*fi)->print(os);
     }
+    os << ')';
   }
-  os << ')';
 }
 
 
@@ -287,6 +293,141 @@ DdNode* Negation::bdd(DdManager* dd_man) const {
 void Negation::print(std::ostream& os) const {
   os << '!';
   negand().print(os);
+}
+
+
+/* ====================================================================== */
+/* Implication */
+
+/* Constructs an implication. */
+Implication::Implication(const StateFormula& antecedent,
+			 const StateFormula& consequent)
+  : antecedent_(&antecedent), consequent_(&consequent) {
+  register_use(antecedent_);
+  register_use(consequent_);
+}
+
+
+/* Deletes this implication. */
+Implication::~Implication() {
+  unregister_use(antecedent_);
+  unregister_use(consequent_);
+}
+
+
+/* Tests if this state formula contains probabilistic elements. */
+bool Implication::probabilistic() const {
+  return antecedent().probabilistic() || consequent().probabilistic();
+}
+
+
+/* Returns this state formula subject to the given substitutions. */
+const StateFormula& Implication::substitution(const ValueMap& values) const {
+  const StateFormula& f1 = antecedent().substitution(values);
+  const StateFormula& f2 = consequent().substitution(values);
+  if (&f1 != &antecedent() || &f2 != &consequent()) {
+    return *new Implication(f1, f2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this state formula subject to the given substitutions. */
+const Implication&
+Implication::substitution(const SubstitutionMap& subst) const {
+  const StateFormula& f1 = antecedent().substitution(subst);
+  const StateFormula& f2 = consequent().substitution(subst);
+  if (&f1 != &antecedent() || &f2 != &consequent()) {
+    return *new Implication(f1, f2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns a BDD representation for this state formula. */
+DdNode* Implication::bdd(DdManager* dd_man) const {
+  DdNode* dda = antecedent().bdd(dd_man);
+  DdNode* ddn = Cudd_Not(dda);
+  Cudd_Ref(ddn);
+  Cudd_RecursiveDeref(dd_man, dda);
+  DdNode* ddc = consequent().bdd(dd_man);
+  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
+  Cudd_Ref(ddi);
+  Cudd_RecursiveDeref(dd_man, ddn);
+  Cudd_RecursiveDeref(dd_man, ddc);
+  return ddi;
+}
+
+
+/* Prints this object on the given stream. */
+void Implication::print(std::ostream& os) const {
+  os << '(';
+  antecedent().print(os);
+  os << " => ";
+  consequent().print(os);
+  os << ')';
+}
+
+
+/* ====================================================================== */
+/* Probabilistic */
+
+/* Constructs a probabilistic path quantification. */
+Probabilistic::Probabilistic(const Rational& threshold, bool strict,
+			     const PathFormula& formula)
+  : threshold_(threshold), strict_(strict), formula_(&formula) {
+  PathFormula::register_use(formula_);
+}
+
+
+/* Deletes this probabilistic path quantification. */
+Probabilistic::~Probabilistic() {
+  PathFormula::unregister_use(formula_);
+}
+
+
+/* Tests if this state formula contains probabilistic elements. */
+bool Probabilistic::probabilistic() const {
+  return true;
+}
+
+
+/* Returns this state formula subject to the given substitutions. */
+const StateFormula& Probabilistic::substitution(const ValueMap& values) const {
+  const PathFormula& f = formula().substitution(values);
+  if (&f != &formula()) {
+    return *new Probabilistic(threshold(), strict(), f);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this state formula subject to the given substitutions. */
+const Probabilistic&
+Probabilistic::substitution(const SubstitutionMap& subst) const {
+  const PathFormula& f = formula().substitution(subst);
+  if (&f != &formula()) {
+    return *new Probabilistic(threshold(), strict(), f);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns a BDD representation for this state formula. */
+DdNode* Probabilistic::bdd(DdManager* dd_man) const {
+  throw Exception("Probabilistic::bdd not implemented");
+}
+
+
+/* Prints this object on the given stream. */
+void Probabilistic::print(std::ostream& os) const {
+  os << 'P' << (strict() ? ">" : ">=") << threshold() << " [ ";
+  formula().print(os);
+  os << " ]";
 }
 
 
@@ -808,4 +949,55 @@ void Inequality::print(std::ostream& os) const {
   os << "!=";
   expr2().print(os);
   os << ')';
+}
+
+
+/* ====================================================================== */
+/* Until */
+
+/* Constructs an until formula. */
+Until::Until(const StateFormula& pre, const StateFormula& post,
+	     const Rational& min_time, const Rational& max_time)
+  : pre_(&pre), post_(&post), min_time_(min_time), max_time_(max_time) {
+  StateFormula::register_use(pre_);
+  StateFormula::register_use(post_);
+}
+
+
+/* Deletes this until formula. */
+Until::~Until() {
+  StateFormula::unregister_use(pre_);
+  StateFormula::unregister_use(post_);
+}
+
+
+/* Returns this path formula subject to the given substitutions. */
+const PathFormula& Until::substitution(const ValueMap& values) const {
+  const StateFormula& f1 = pre().substitution(values);
+  const StateFormula& f2 = post().substitution(values);
+  if (&f1 != &pre() || &f2 != &post()) {
+    return *new Until(f1, f2, min_time(), max_time());
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this path formula subject to the given substitutions. */
+const Until& Until::substitution(const SubstitutionMap& subst) const {
+  const StateFormula& f1 = pre().substitution(subst);
+  const StateFormula& f2 = post().substitution(subst);
+  if (&f1 != &pre() || &f2 != &post()) {
+    return *new Until(f1, f2, min_time(), max_time());
+  } else {
+    return *this;
+  }
+}
+
+
+/* Prints this object on the given stream. */
+void Until::print(std::ostream& os) const {
+  pre().print(os);
+  os << " U[" << min_time() << ',' << max_time() << "] ";
+  post().print(os);
 }
