@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parser.yy,v 1.2 2003-08-10 19:45:07 lorens Exp $
+ * $Id: parser.yy,v 1.3 2003-08-11 03:44:08 lorens Exp $
  */
 %{
 #include <config.h>
@@ -601,6 +601,9 @@ static Disjunction* make_disjunction(StateFormula& f1,
 static StateFormula* make_probabilistic(const Rational* p,
 					bool strict, bool negate,
 					const PathFormula& f) {
+  if (*p < 0 || *p > 1) {
+    yyerror("probability bound outside the interval [0,1]");
+  }
   bool s = (strict && !negate) || (!strict && negate);
   StateFormula* pr = new Probabilistic(*p, s, f);
   if (negate) {
@@ -616,8 +619,16 @@ static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
 			       const Rational* t1, const Rational* t2) {
   const Until* until;
   if (t1 == NULL) {
+    if (*t2 < 0) {
+      yyerror("negative time bound");
+    }
     until = new Until(f1, f2, 0, *t2);
   } else {
+    if (*t1 < 0) {
+      yyerror("negative time bound");
+    } else if (*t2 < *t1) {
+      yyerror("empty time interval");
+    }
     until = new Until(f1, f2, *t1, *t2);
   }
   delete t2;
