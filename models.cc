@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: models.cc,v 1.4 2003-08-15 15:55:20 lorens Exp $
+ * $Id: models.cc,v 1.5 2003-08-21 17:07:59 lorens Exp $
  */
 #include "models.h"
 #include "formulas.h"
@@ -125,6 +125,12 @@ Model::Model()
 
 /* Deletes this model. */
 Model::~Model() {
+  for (CommandList::const_iterator ci = commands().begin();
+       ci != commands().end(); ci++) {
+    if ((*ci)->synch() != 0) {
+      delete *ci;
+    }
+  }
   for (VariableList::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
     Expression::unregister_use(*vi);
@@ -132,12 +138,6 @@ Model::~Model() {
   for (ModuleList::const_iterator mi = modules().begin();
        mi != modules().end(); mi++) {
     delete *mi;
-  }
-  for (CommandList::const_iterator ci = commands().begin();
-       ci != commands().end(); ci++) {
-    if ((*ci)->synch() != 0) {
-      delete *ci;
-    }
   }
 }
 
@@ -206,11 +206,13 @@ void Model::cache_commands() const {
 			  *new Multiplication(ci.rate(), cj.rate()));
 	    for (UpdateList::const_iterator ui = ci.updates().begin();
 		 ui != ci.updates().end(); ui++) {
-	      c->add_update(**ui);
+	      const Update& u = **ui;
+	      c->add_update(*new Update(u.variable(), u.expr()));
 	    }
 	    for (UpdateList::const_iterator uj = cj.updates().begin();
 		 uj != cj.updates().end(); uj++) {
-	      c->add_update(**uj);
+	      const Update& u = **uj;
+	      c->add_update(*new Update(u.variable(), u.expr()));
 	    }
 	    commands_.push_back(c);
 	  }
