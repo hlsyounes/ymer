@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: models.cc,v 1.3 2003-08-13 18:47:29 lorens Exp $
+ * $Id: models.cc,v 1.4 2003-08-15 15:55:20 lorens Exp $
  */
 #include "models.h"
 #include "formulas.h"
@@ -433,22 +433,11 @@ void Model::cache_dds(DdManager* dd_man) const {
     /* Release BDD for variable ranges. */
     Cudd_RecursiveDeref(dd_man, range);
     /*
-     * Release DDs for variables and modules.
+     * Release DDs for modules.
      */
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
-      const Module& mod = **mi;
-      mod.uncache_dds(dd_man);
-      for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
-	   vi != mod.variables().rend(); vi++) {
-	const Variable& v = **vi;
-	v.uncache_dds(dd_man);
-      }
-    }
-    for (VariableList::const_reverse_iterator vi = variables().rbegin();
-	 vi != variables().rend(); vi++) {
-      const Variable& v = **vi;
-      v.uncache_dds(dd_man);
+      (*mi)->uncache_dds(dd_man);
     }
     if (verbosity > 0) {
       std::cout << Cudd_ReadSize(dd_man) << " variables." << std::endl;
@@ -597,6 +586,20 @@ void Model::uncache_dds(DdManager* dd_man) const {
   if (rate_mtbdd_ != NULL) {
     Cudd_RecursiveDeref(dd_man, rate_mtbdd_);
     rate_mtbdd_ = NULL;
+    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
+	 mi != modules().rend(); mi++) {
+      const Module& mod = **mi;
+      for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
+	   vi != mod.variables().rend(); vi++) {
+	const Variable& v = **vi;
+	v.uncache_dds(dd_man);
+      }
+    }
+    for (VariableList::const_reverse_iterator vi = variables().rbegin();
+	 vi != variables().rend(); vi++) {
+      const Variable& v = **vi;
+      v.uncache_dds(dd_man);
+    }
   }
   if (reach_bdd_ != NULL) {
     Cudd_RecursiveDeref(dd_man, reach_bdd_);
