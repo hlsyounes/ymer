@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: expressions.h,v 1.4 2003-11-07 04:23:19 lorens Exp $
+ * $Id: expressions.h,v 1.5 2003-11-07 22:00:02 lorens Exp $
  */
 #ifndef EXPRESSIONS_H
 #define EXPRESSIONS_H
@@ -74,7 +74,7 @@ struct Expression {
   virtual const Expression&
   substitution(const SubstitutionMap& subst) const = 0;
 
-  /* Returns an MTBDD representation for this expression. */
+  /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const = 0;
 
   /* Prints this object on the given stream. */
@@ -125,8 +125,9 @@ private:
  * An addition expression.
  */
 struct Addition : public Computation {
-  /* Constructs an addition. */
-  Addition(const Expression& term1, const Expression& term2);
+  /* Returns an addition of the two expressions. */
+  static const Expression& make(const Expression& term1,
+				const Expression& term2);
 
   /* Returns the value of this expression. */
   virtual Rational value(const ValueMap& values) const;
@@ -135,13 +136,18 @@ struct Addition : public Computation {
   virtual const Expression& substitution(const ValueMap& values) const;
 
   /* Returns this expression subject to the given substitutions. */
-  virtual const Addition& substitution(const SubstitutionMap& subst) const;
+  virtual const Expression& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns an MTBDD representation for this expression. */
+  /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
+
+private:
+  /* Constructs an addition. */
+  Addition(const Expression& term1, const Expression& term2)
+    : Computation(term1, term2) {}
 };
 
 
@@ -152,8 +158,9 @@ struct Addition : public Computation {
  * A subtraction expression.
  */
 struct Subtraction : public Computation {
-  /* Constructs a subtraction. */
-  Subtraction(const Expression& term1, const Expression& term2);
+  /* Returns a subtraction of the two expressions. */
+  static const Expression& make(const Expression& term1,
+				const Expression& term2);
 
   /* Returns the value of this expression. */
   virtual Rational value(const ValueMap& values) const;
@@ -162,13 +169,18 @@ struct Subtraction : public Computation {
   virtual const Expression& substitution(const ValueMap& values) const;
 
   /* Returns this expression subject to the given substitutions. */
-  virtual const Subtraction& substitution(const SubstitutionMap& subst) const;
+  virtual const Expression& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns an MTBDD representation for this expression. */
+  /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
+
+private:
+  /* Constructs a subtraction. */
+  Subtraction(const Expression& term1, const Expression& term2)
+    : Computation(term1, term2) {}
 };
 
 
@@ -179,8 +191,9 @@ struct Subtraction : public Computation {
  * A multiplication expression.
  */
 struct Multiplication : public Computation {
-  /* Constructs a multiplication. */
-  Multiplication(const Expression& factor1, const Expression& factor2);
+  /* Returns a multiplication of the two expressions. */
+  static const Expression& make(const Expression& factor1,
+				const Expression& factor2);
 
   /* Returns the value of this expression. */
   virtual Rational value(const ValueMap& values) const;
@@ -189,14 +202,18 @@ struct Multiplication : public Computation {
   virtual const Expression& substitution(const ValueMap& values) const;
 
   /* Returns this expression subject to the given substitutions. */
-  virtual const Multiplication&
-  substitution(const SubstitutionMap& subst) const;
+  virtual const Expression& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns an MTBDD representation for this expression. */
+  /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
+
+private:
+  /* Constructs a multiplication. */
+  Multiplication(const Expression& factor1, const Expression& factor2)
+    : Computation(factor1, factor2) {}
 };
 
 
@@ -207,8 +224,9 @@ struct Multiplication : public Computation {
  * A division expression.
  */
 struct Division : public Computation {
-  /* Constructs a division. */
-  Division(const Expression& factor1, const Expression& factor2);
+  /* Returns a division of the two expressions. */
+  static const Expression& make(const Expression& factor1,
+				const Expression& factor2);
 
   /* Returns the value of this expression. */
   virtual Rational value(const ValueMap& values) const;
@@ -217,13 +235,18 @@ struct Division : public Computation {
   virtual const Expression& substitution(const ValueMap& values) const;
 
   /* Returns this expression subject to the given substitutions. */
-  virtual const Division& substitution(const SubstitutionMap& subst) const;
+  virtual const Expression& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns an MTBDD representation for this expression. */
+  /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
+
+private:
+  /* Constructs a division. */
+  Division(const Expression& factor1, const Expression& factor2)
+    : Computation(factor1, factor2) {}
 };
 
 
@@ -279,15 +302,14 @@ struct Variable : public Expression {
   /* Returns this expression subject to the given substitutions. */
   virtual const Variable& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns an MTBDD representation for this expression. */
+  /* Returns the `current state' MTBDD representation for this expression. */
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns an MTBDD representation for the primed version of this
-     variable. */
+  /* Returns the `next state' MTBDD representation for this expression. */
   DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-  /* Returns a BDD representing identity between this variable and the
-     primed version of this variable. */
+  /* Returns a BDD representing identity between the `current state'
+     and `next state' versions of this variable. */
   DdNode* identity_bdd(DdManager* dd_man) const;
 
   /* Returns a BDD representing the range for this variable. */
@@ -306,19 +328,51 @@ private:
   int high_;
   /* The initial value for this variable. */
   int start_;
-  /* Index of the first DD variable used to represent this
-     variable. */
+  /* Index of the first DD variable used to represent this variable. */
   int low_bit_;
   /* Index of the last DD variable used to represent this variable. */
   int high_bit_;
-  /* Cached MTBDD representation for this variable. */
+  /* Cached `current state' MTBDD representation for this variable. */
   mutable DdNode* mtbdd_;
-  /* Cached MTBDD representation for the primed version of this
-     variable. */
+  /* Cached `next state' MTBDD representation for this variable. */
   mutable DdNode* primed_mtbdd_;
-  /* Cached BDD representing identity between this variable and the
-     primed version of this variable. */
+  /* Cached BDD representing identity between the `current state' and
+     `next state' versions of this variable. */
   mutable DdNode* identity_bdd_;
+};
+
+
+/* ====================================================================== */
+/* Value */
+
+/*
+ * A value expression.
+ */
+struct Value : public Expression {
+  /* Constructs a value. */
+  Value(const Rational& value) : value_(value) {}
+
+  /* Returns the rational value for this value. */
+  const Rational& value() const { return value_; }
+
+  /* Returns the value of this expression. */
+  virtual Rational value(const ValueMap& values) const;
+
+  /* Returns this expression subject to the given substitutions. */
+  virtual const Value& substitution(const ValueMap& values) const;
+
+  /* Returns this expression subject to the given substitutions. */
+  virtual const Value& substitution(const SubstitutionMap& subst) const;
+
+  /* Returns the `current state' MTBDD representation for this expression. */
+  virtual DdNode* mtbdd(DdManager* dd_man) const;
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
+private:
+  /* The value. */
+  Rational value_;
 };
 
 
@@ -359,40 +413,6 @@ struct ValueMap : public std::map<const Variable*, Rational> {
  * A variable substitution map.
  */
 struct SubstitutionMap : public std::map<const Variable*, const Variable*> {
-};
-
-
-/* ====================================================================== */
-/* Value */
-
-/*
- * A value expression.
- */
-struct Value : public Expression {
-  /* Constructs a value. */
-  Value(const Rational& value) : value_(value) {}
-
-  /* Returns the rational value for this value. */
-  const Rational& value() const { return value_; }
-
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
-
-  /* Returns this expression subject to the given substitutions. */
-  virtual const Value& substitution(const ValueMap& values) const;
-
-  /* Returns this expression subject to the given substitutions. */
-  virtual const Value& substitution(const SubstitutionMap& subst) const;
-
-  /* Returns an MTBDD representation for this expression. */
-  virtual DdNode* mtbdd(DdManager* dd_man) const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
-private:
-  /* The value. */
-  Rational value_;
 };
 
 
