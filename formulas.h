@@ -5,9 +5,9 @@
  * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This software may be distributed under the terms of the GNU General
+ * Public License.  A copy of the license is available in the file
+ * `COPYING' that comes with this software.
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
  * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 1.3 2003-08-13 18:43:53 lorens Exp $
+ * $Id: formulas.h,v 1.4 2003-11-07 03:44:56 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -54,6 +54,9 @@ struct StateFormula {
     }
   }
 
+  /* Returns the current formula level. */
+  static size_t formula_level() { return formula_level_; }
+
   /* Deletes this state formula. */
   virtual ~StateFormula() {}
 
@@ -77,6 +80,11 @@ struct StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const = 0;
 
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const = 0;
+
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const = 0;
@@ -85,6 +93,9 @@ struct StateFormula {
   virtual void print(std::ostream& os) const = 0;
 
 protected:
+  /* Nesting level of formula just being verified. */
+  static size_t formula_level_;
+
   /* Constructs a state formula. */
   StateFormula() : ref_count_(0) {}
 
@@ -134,6 +145,17 @@ struct PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const = 0;
+
+  /* Generates a sample for this path formula. */
+  virtual bool sample(DdManager* dd_man, const Model& model,
+		      const State& state, double epsilon,
+		      DdNode* dd1, DdNode* dd2) const = 0;
+
+  /* Verifies this path formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, const Rational& p, bool strict,
+		      double delta, double alpha, double beta,
+		      double epsilon) const = 0;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
@@ -195,6 +217,11 @@ struct Conjunction : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
+
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
@@ -239,6 +266,11 @@ struct Disjunction : public StateFormula {
   /* Verifies this state formula using acceptance sampling. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
@@ -287,6 +319,11 @@ struct Negation : public StateFormula {
   /* Verifies this state formula using acceptance sampling. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
@@ -338,6 +375,11 @@ struct Implication : public StateFormula {
   /* Verifies this state formula using acceptance sampling. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
@@ -397,6 +439,11 @@ struct Probabilistic : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
 
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
+
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 double epsilon) const;
@@ -436,6 +483,11 @@ struct Comparison : public StateFormula {
   /* Verifies this state formula using acceptance sampling. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
+
+  /* Verifies this state formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
@@ -655,6 +707,17 @@ struct Until : public PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta) const;
+
+  /* Generates a sample for this path formula. */
+  virtual bool sample(DdManager* dd_man, const Model& model,
+		      const State& state, double epsilon,
+		      DdNode* dd1, DdNode* dd2) const;
+
+  /* Verifies this path formula using the mixed engine. */
+  virtual bool verify(DdManager* dd_man, const Model& model,
+		      const State& state, const Rational& p, bool strict,
+		      double delta, double alpha, double beta,
+		      double epsilon) const;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
