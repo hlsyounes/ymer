@@ -2,9 +2,9 @@
  * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This software may be distributed under the terms of the GNU General
+ * Public License.  A copy of the license is available in the file
+ * `COPYING' that comes with this software.
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
  * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
@@ -13,10 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: expressions.cc,v 1.2 2003-08-10 19:45:36 lorens Exp $
+ * $Id: expressions.cc,v 1.3 2003-11-07 03:41:21 lorens Exp $
  */
 #include "expressions.h"
-#include "exceptions.h"
+#include <stdexcept>
 
 
 /* ====================================================================== */
@@ -335,7 +335,7 @@ Rational Variable::value(const ValueMap& values) const {
   if (vi != values.end()) {
     return (*vi).second;
   } else {
-    throw Exception("unbound variable");
+    throw std::logic_error("unbound variable");
   }
 }
 

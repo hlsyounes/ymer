@@ -2,9 +2,9 @@
  * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This software may be distributed under the terms of the GNU General
+ * Public License.  A copy of the license is available in the file
+ * `COPYING' that comes with this software.
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
  * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
@@ -13,10 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 1.3 2003-08-13 18:43:01 lorens Exp $
+ * $Id: formulas.cc,v 1.4 2003-11-07 03:43:55 lorens Exp $
  */
 #include "formulas.h"
-#include "exceptions.h"
+#include <stdexcept>
 
 
 /* ====================================================================== */
@@ -432,7 +432,7 @@ bool Probabilistic::probabilistic() const {
 
 /* Tests if this state formula holds in the given state. */
 bool Probabilistic::holds(const ValueMap& values) const {
-  throw Exception("Probabilistic::holds not implemented");
+  throw std::logic_error("Probabilistic::holds not implemented");
 }
 
 
@@ -461,7 +461,7 @@ Probabilistic::substitution(const SubstitutionMap& subst) const {
 
 /* Returns a BDD representation for this state formula. */
 DdNode* Probabilistic::bdd(DdManager* dd_man) const {
-  throw Exception("Probabilistic::bdd not implemented");
+  throw std::logic_error("Probabilistic::bdd not implemented");
 }
 
 
