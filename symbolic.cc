@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: symbolic.cc,v 2.1 2004-01-25 13:07:03 lorens Exp $
+ * $Id: symbolic.cc,v 4.1 2005-02-01 14:20:43 lorens Exp $
  */
 #include "formulas.h"
 #include "models.h"
@@ -39,11 +39,11 @@ extern int verbosity;
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Conjunction::verify(DdManager* dd_man, const Model& model,
-			    double epsilon) const {
+			    double epsilon, bool estimate) const {
   DdNode* sol = model.reachability_bdd(dd_man);
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon);
+    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
     DdNode* dda = Cudd_bddAnd(dd_man, ddf, sol);
     Cudd_Ref(dda);
     Cudd_RecursiveDeref(dd_man, ddf);
@@ -59,12 +59,12 @@ DdNode* Conjunction::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Disjunction::verify(DdManager* dd_man, const Model& model,
-			    double epsilon) const {
+			    double epsilon, bool estimate) const {
   DdNode* sol = Cudd_ReadLogicZero(dd_man);
   Cudd_Ref(sol);
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon);
+    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
     DdNode* ddo = Cudd_bddOr(dd_man, ddf, sol);
     Cudd_Ref(ddo);
     Cudd_RecursiveDeref(dd_man, ddf);
@@ -85,8 +85,8 @@ DdNode* Disjunction::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Negation::verify(DdManager* dd_man, const Model& model,
-			 double epsilon) const {
-  DdNode* ddf = negand().verify(dd_man, model, epsilon);
+			 double epsilon, bool estimate) const {
+  DdNode* ddf = negand().verify(dd_man, model, epsilon, estimate);
   DdNode* sol = Cudd_Not(ddf);
   Cudd_Ref(sol);
   Cudd_RecursiveDeref(dd_man, ddf);
@@ -104,12 +104,12 @@ DdNode* Negation::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Implication::verify(DdManager* dd_man, const Model& model,
-			    double epsilon) const {
-  DdNode* dda = antecedent().verify(dd_man, model, epsilon);
+			    double epsilon, bool estimate) const {
+  DdNode* dda = antecedent().verify(dd_man, model, epsilon, estimate);
   DdNode* ddn = Cudd_Not(dda);
   Cudd_Ref(ddn);
   Cudd_RecursiveDeref(dd_man, dda);
-  DdNode* ddc = consequent().verify(dd_man, model, epsilon);
+  DdNode* ddc = consequent().verify(dd_man, model, epsilon, estimate);
   DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
   Cudd_Ref(ddi);
   Cudd_RecursiveDeref(dd_man, ddn);
@@ -128,10 +128,10 @@ DdNode* Implication::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Probabilistic::verify(DdManager* dd_man, const Model& model,
-			      double epsilon) const {
+			      double epsilon, bool estimate) const {
   formula_level_++;
   DdNode* res = formula().verify(dd_man, model, threshold(), strict(),
-				 epsilon);
+				 epsilon, estimate);
   formula_level_--;
   return res;
 }
@@ -142,7 +142,7 @@ DdNode* Probabilistic::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Comparison::verify(DdManager* dd_man, const Model& model,
-			   double epsilon) const {
+			   double epsilon, bool estimate) const {
   DdNode* ddc = bdd(dd_man);
   DdNode* ddr = model.reachability_bdd(dd_man);
   DdNode* sol = Cudd_bddAnd(dd_man, ddc, ddr);
@@ -580,7 +580,8 @@ void compute_weights(int& left, int& right, double*& weights,
 
 /* Verifies this path formula using the hybrid engine. */
 DdNode* Until::verify(DdManager* dd_man, const Model& model,
-		      const Rational& p, bool strict, double epsilon) const {
+		      const Rational& p, bool strict, double epsilon,
+		      bool estimate) const {
   /*
    * Detect trivial cases.
    */
@@ -597,7 +598,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   /*
    * Verify postcondition formula.
    */
-  DdNode* dd2 = post().verify(dd_man, model, epsilon);
+  DdNode* dd2 = post().verify(dd_man, model, epsilon, false);
   if (max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
     return dd2;
@@ -606,7 +607,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   /*
    * Verify precondition formula.
    */
-  DdNode* dd1 = pre().verify(dd_man, model, epsilon);
+  DdNode* dd1 = pre().verify(dd_man, model, epsilon, false);
 
   if (min_time() > 0) {
     // TODO
@@ -764,27 +765,29 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
     /*
      * Check for steady state convergence.
      */
-    done = true;
-    double sqnorm = 0.0;
-    double sqbound = epsilon*epsilon/64.0;
-    for (size_t i = 0; i < nstates; i++) {
-      double diff = soln2[i] - soln[i];
-      sqnorm += diff*diff;
-      if (sqnorm > sqbound) {
-	done = false;
-	break;
+    if (!estimate) {
+      done = true;
+      double sqnorm = 0.0;
+      double sqbound = epsilon*epsilon/64.0;
+      for (size_t i = 0; i < nstates; i++) {
+	double diff = soln2[i] - soln[i];
+	sqnorm += diff*diff;
+	if (sqnorm > sqbound) {
+	  done = false;
+	  break;
+	}
       }
-    }
-    if (done) {
-      steady = true;
-      if (init >= 0) {
-	sum[0] = soln2[init];
-      } else {
+      if (done) {
+	steady = true;
+	if (init >= 0) {
+	  sum[0] = soln2[init];
+	} else {
 	for (size_t i = 0; i < nstates; i++) {
 	  sum[i] = soln2[i];
 	}
+	}
+	break;
       }
-      break;
     }
     /*
      * Prepare for next iteration.
@@ -819,31 +822,33 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
       /*
        * Check for steady state convergence.
        */
-      done = true;
-      double sqnorm = 0.0;
-      double sqbound = epsilon*epsilon/64.0;
-      for (size_t i = 0; i < nstates; i++) {
-	double diff = soln2[i] - soln[i];
-	sqnorm += diff*diff;
-	if (sqnorm > sqbound) {
-	  done = false;
-	  break;
-	}
-      }
-      if (done) {
-	steady = true;
-	double weight = 0.0;
-	for (int i = iters; i <= right; i++) {
-	  weight += weights[i - left]/weight_sum;
-	}
-	if (init >= 0) {
-	  sum[0] += weight*soln2[init];
-	} else {
-	  for (size_t i = 0; i < nstates; i++) {
-	    sum[i] += weight*soln2[i];
+      if (!estimate) {
+	done = true;
+	double sqnorm = 0.0;
+	double sqbound = epsilon*epsilon/64.0;
+	for (size_t i = 0; i < nstates; i++) {
+	  double diff = soln2[i] - soln[i];
+	  sqnorm += diff*diff;
+	  if (sqnorm > sqbound) {
+	    done = false;
+	    break;
 	  }
 	}
-	break;
+	if (done) {
+	  steady = true;
+	  double weight = 0.0;
+	  for (int i = iters; i <= right; i++) {
+	    weight += weights[i - left]/weight_sum;
+	  }
+	  if (init >= 0) {
+	    sum[0] += weight*soln2[init];
+	  } else {
+	    for (size_t i = 0; i < nstates; i++) {
+	      sum[i] += weight*soln2[i];
+	    }
+	  }
+	  break;
+	}
       }
       /*
        * Prepare for next iteration.
@@ -869,17 +874,19 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
 		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"
 		  << "; threshold = " << threshold << std::endl;
       }
-      bool pass = false;
-      if (strict) {
-	pass = (sum[i] + slack <= threshold || sum[i] > threshold);
-      } else {
-	pass = (sum[i] + slack < threshold || sum[i] >= threshold);
-      }
-      if (pass) {
-	num_pass++;
-	if (init >= 0 || num_pass == nstates) {
-	  done = true;
-	  break;
+      if (!estimate) {
+	bool pass = false;
+	if (strict) {
+	  pass = (sum[i] + slack <= threshold || sum[i] > threshold);
+	} else {
+	  pass = (sum[i] + slack < threshold || sum[i] >= threshold);
+	}
+	if (pass) {
+	  num_pass++;
+	  if (init >= 0 || num_pass == nstates) {
+	    done = true;
+	    break;
+	  }
 	}
       }
       if (init >= 0) {
@@ -895,6 +902,11 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   }
   if (verbosity > 0) {
     std::cout << ' ' << iters << " iterations." << std::endl;
+    if (estimate) {
+      std::cout.precision(10);
+      std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
+      std::cout.precision(6);
+    }
   }
   if (verbosity > 0 && steady) {
     std::cout << "Steady state detected." << std::endl;
