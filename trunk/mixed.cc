@@ -1,7 +1,7 @@
 /*
  * Mixed model checking of CSL formulas.
  *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003--2005 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: mixed.cc,v 4.1 2005-02-01 14:08:13 lorens Exp $
+ * $Id: mixed.cc,v 4.2 2005-02-01 14:15:09 lorens Exp $
  */
 #include "formulas.h"
 #include "states.h"
