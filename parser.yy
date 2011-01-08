@@ -2,7 +2,7 @@
 /*
  * Parser.
  *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,14 +20,12 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: parser.yy,v 2.1 2004-01-25 12:39:50 lorens Exp $
+ * $Id: parser.yy,v 1.5 2003-11-07 22:00:08 lorens Exp $
  */
 %{
 #include <config.h>
 #include "models.h"
-#include "distributions.h"
 #include "formulas.h"
-#include <algorithm>
 #include <map>
 #include <set>
 #include <string>
@@ -108,7 +106,7 @@ static int integer_value(const Rational* q);
 /* Returns a variable representing an integer constant. */
 static const Variable* find_constant(const std::string* ident);
 /* Returns a variable representing a rate constant. */
-static const Variable* find_rate(const std::string* ident, bool constant);
+static const Variable* find_rate(const std::string* ident);
 /* Returns a range with the given bounds, signaling an error if the
    range is empty. */
 static Range make_range(const Expression* l, const Expression* h);
@@ -153,7 +151,7 @@ static const Variable* declare_variable(const std::string* ident,
 static void add_command();
 /* Prepares a command for parsing. */
 static void prepare_command(int synch, const StateFormula& guard,
-			    const Distribution& delay);
+			    const Expression& rate);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
 /* Adds a module to the current model. */
@@ -169,7 +167,6 @@ static void compile_model();
 %token STOCHASTIC
 %token CONST RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
-%token EXP
 %token MODULE ENDMODULE
 %token PNAME NAME NUMBER
 %token ARROW DOTDOT
@@ -186,7 +183,6 @@ static void compile_model();
   size_t synch;
   StateFormula* formula;
   const PathFormula* path;
-  const Distribution* dist;
   const Expression* expr;
   Range range;
   int nat;
@@ -197,8 +193,7 @@ static void compile_model();
 %type <synch> synchronization
 %type <formula> formula csl_formula
 %type <path> path_formula
-%type <dist> distribution
-%type <expr> expr rate_expr const_rate_expr const_expr csl_expr
+%type <expr> expr rate_expr const_expr csl_expr
 %type <range> range
 %type <nat> integer
 %type <str> PNAME NAME
@@ -277,7 +272,7 @@ commands : /* empty */
          | commands command
          ;
 
-command : synchronization formula ARROW distribution ':'
+command : synchronization formula ARROW rate_expr ':'
             { prepare_command($1, *$2, *$4); } update ';' { add_command(); }
         ;
 
@@ -308,19 +303,6 @@ formula : formula '&' formula { $$ = make_conjunction(*$1, *$3); }
 
 
 /* ====================================================================== */
-/* Distributions. */
-
-distribution : rate_expr { $$ = &Exponential::make(*$1); }
-             | EXP '(' rate_expr ')' { $$ = &Exponential::make(*$3); }
-             | 'W' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = &Weibull::make(*$3, *$5); }
-             | 'L' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = &Lognormal::make(*$3, *$5); }
-             | 'U' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = &Uniform::make(*$3, *$5); }
-             ;
-
-/* ====================================================================== */
 /* Expressions. */
 
 expr : integer { $$ = make_value($1); }
@@ -332,20 +314,11 @@ expr : integer { $$ = make_value($1); }
      ;
 
 rate_expr : NUMBER { $$ = make_value($1); }
-          | NAME { $$ = find_rate($1, false); }
+          | NAME { $$ = find_rate($1); }
           | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
           | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
-
-const_rate_expr : NUMBER { $$ = make_value($1); }
-                | NAME { $$ = find_rate($1, true); }
-                | const_rate_expr '*' const_rate_expr
-                    { $$ = &Multiplication::make(*$1, *$3); }
-                | const_rate_expr '/' const_rate_expr
-                    { $$ = &Division::make(*$1, *$3); }
-                | '(' const_rate_expr ')' { $$ = $2; }
-                ;
 
 
 /* ====================================================================== */
@@ -372,7 +345,7 @@ integer : NUMBER { $$ = integer_value($1); }
 
 properties : /* empty */
            | properties csl_formula
-               { properties.push_back($2); StateFormula::ref($2); }
+               { properties.push_back($2); StateFormula::register_use($2); }
            ;
 
 csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
@@ -462,19 +435,19 @@ static void check_undeclared() {
   for (std::map<const Variable*, const Expression*>::const_iterator vi =
 	 variable_lows.begin();
        vi != variable_lows.end(); vi++) {
-    Expression::destructive_deref((*vi).second);
+    Expression::unregister_use((*vi).second);
   }
   variable_lows.clear();
   for (std::map<const Variable*, const Expression*>::const_iterator vi =
 	 variable_highs.begin();
        vi != variable_highs.end(); vi++) {
-    Expression::destructive_deref((*vi).second);
+    Expression::unregister_use((*vi).second);
   }
   variable_highs.clear();
   for (std::map<const Variable*, const Expression*>::const_iterator vi =
 	 variable_starts.begin();
        vi != variable_starts.end(); vi++) {
-    Expression::destructive_deref((*vi).second);
+    Expression::unregister_use((*vi).second);
   }
   variable_starts.clear();
 }
@@ -522,17 +495,13 @@ static const Variable* find_constant(const std::string* ident) {
 
 
 /* Returns a variable representing a rate constant. */
-static const Variable* find_rate(const std::string* ident, bool constant) {
+static const Variable* find_rate(const std::string* ident) {
   std::map<std::string, const Variable*>::const_iterator ri =
     rates.find(*ident);
   if (ri != rates.end()) {
     delete ident;
     return (*ri).second;
   } else {
-    if (constant) {
-      yyerror("variable parameters only permitted for exponential"
-	      " distribution");
-    }
     return find_variable(ident);
   }
 }
@@ -827,11 +796,11 @@ static const Variable* declare_variable(const std::string* ident,
   }
   if (v != NULL) {
     variable_lows.insert(std::make_pair(v, range.l));
-    Expression::ref(range.l);
+    Expression::register_use(range.l);
     variable_highs.insert(std::make_pair(v, range.h));
-    Expression::ref(range.h);
+    Expression::register_use(range.h);
     variable_starts.insert(std::make_pair(v, start));
-    Expression::ref(start);
+    Expression::register_use(start);
     num_model_bits = v->high_bit() + 1;
     variables.insert(std::make_pair(*ident, v));
     if (!delayed_addition) {
@@ -842,12 +811,12 @@ static const Variable* declare_variable(const std::string* ident,
       }
     }
   } else {
-    Expression::ref(range.l);
-    Expression::destructive_deref(range.l);
-    Expression::ref(range.h);
-    Expression::destructive_deref(range.h);
-    Expression::ref(start);
-    Expression::destructive_deref(start);
+    Expression::register_use(range.l);
+    Expression::unregister_use(range.l);
+    Expression::register_use(range.h);
+    Expression::unregister_use(range.h);
+    Expression::register_use(start);
+    Expression::unregister_use(start);
   }
   delete ident;
   return v;
@@ -862,8 +831,8 @@ static void add_command() {
 
 /* Prepares a command for parsing. */
 static void prepare_command(int synch, const StateFormula& guard,
-			    const Distribution& delay) {
-  command = new Command(synch, guard, delay);
+			    const Expression& rate) {
+  command = new Command(synch, guard, rate);
 }
 
 
@@ -972,7 +941,7 @@ static void prepare_model() {
   clear_declarations();
   for (FormulaList::const_iterator fi = properties.begin();
        fi != properties.end(); fi++) {
-    StateFormula::destructive_deref(*fi);
+    StateFormula::unregister_use(*fi);
   }
   properties.clear();
   if (model != NULL) {
@@ -989,6 +958,5 @@ static void compile_model() {
        mi != modules.end(); mi++) {
     (*mi).second->compile(constant_values, rate_values);
   }
-  model->compile();
   global_model = model;
 }

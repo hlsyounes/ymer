@@ -2,7 +2,7 @@
 /*
  * Rational numbers.
  *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: rational.h,v 2.1 2004-01-25 12:40:25 lorens Exp $
+ * $Id: rational.h,v 1.2 2003-11-07 04:26:15 lorens Exp $
  */
 #ifndef RATIONAL_H
 #define RATIONAL_H
@@ -88,9 +88,6 @@ Rational operator+(const Rational& q, const Rational& p);
 
 /* Subtraction operator for rational numbers. */
 Rational operator-(const Rational& q, const Rational& p);
-
-/* Unary minus operator for rational numbers. */
-Rational operator-(const Rational& q);
 
 /* Multiplication operator for rational numbers. */
 Rational operator*(const Rational& q, const Rational& p);

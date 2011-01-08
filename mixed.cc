@@ -1,7 +1,7 @@
 /*
  * Mixed model checking of CSL formulas.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: mixed.cc,v 4.2 2005-02-01 14:15:09 lorens Exp $
+ * $Id: mixed.cc,v 1.1 2003-11-07 04:25:16 lorens Exp $
  */
 #include "formulas.h"
 #include "states.h"
@@ -42,14 +42,39 @@ extern double total_path_lengths;
 
 /* Verifies this state formula using the mixed engine. */
 bool Conjunction::verify(DdManager* dd_man, const Model& model,
-			 const State& state, DeltaFun delta,
-			 double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-			 double epsilon) const {
+			 const State& state, double delta, double alpha,
+			 double beta, double epsilon) const {
+  size_t n = conjuncts().size();
   for (FormulaList::const_reverse_iterator fi = conjuncts().rbegin();
-       fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(dd_man, model, state,
-		       delta, alpha, beta, algorithm, epsilon)) {
+       fi != conjuncts().rend(); fi++, n--) {
+    const StateFormula& f = **fi;
+    if (f.probabilistic()) {
+      /*
+       * Fast reject.
+       */
+      double beta1 = std::min(2.0*beta, 0.49);
+      for (FormulaList::const_reverse_iterator fj = fi;
+	   fj != conjuncts().rend(); fj++) {
+	if (!(*fj)->verify(dd_man, model, state, delta, alpha, beta1,
+			   epsilon)) {
+	  return false;
+	}
+      }
+      /*
+       * Rigorous accept.
+       */
+      double beta2 = beta/n;
+      if (beta1 > beta2) {
+	for (FormulaList::const_reverse_iterator fj = fi;
+	     fj != conjuncts().rend(); fj++) {
+	  if (!(*fi)->verify(dd_man, model, state, delta, alpha, beta2,
+			     epsilon)) {
+	    return false;
+	  }
+	}
+      }
+      return true;
+    } else if (!f.holds(state.values())) {
       return false;
     }
   }
@@ -62,14 +87,39 @@ bool Conjunction::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the mixed engine. */
 bool Disjunction::verify(DdManager* dd_man, const Model& model,
-			 const State& state, DeltaFun delta,
-			 double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-			 double epsilon) const {
+			 const State& state, double delta, double alpha,
+			 double beta, double epsilon) const {
+  size_t n = disjuncts().size();
   for (FormulaList::const_reverse_iterator fi = disjuncts().rbegin();
-       fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(dd_man, model, state,
-		      delta, alpha, beta, algorithm, epsilon)) {
+       fi != disjuncts().rend(); fi++, n--) {
+    const StateFormula& f = **fi;
+    if (f.probabilistic()) {
+      /*
+       * Fast accept.
+       */
+      double alpha1 = std::min(2.0*alpha, 0.49);
+      for (FormulaList::const_reverse_iterator fj = fi;
+	   fj != disjuncts().rend(); fj++) {
+	if ((*fj)->verify(dd_man, model, state, delta, alpha1, beta,
+			  epsilon)) {
+	  return true;
+	}
+      }
+      /*
+       * Rigorous reject.
+       */
+      double alpha2 = alpha/n;
+      if (alpha1 > alpha2) {
+	for (FormulaList::const_reverse_iterator fj = fi;
+	     fj != disjuncts().rend(); fj++) {
+	  if ((*fi)->verify(dd_man, model, state, delta, alpha2, beta,
+			    epsilon)) {
+	    return true;
+	  }
+	}
+      }
+      return false;
+    } else if (f.holds(state.values())) {
       return true;
     }
   }
@@ -82,11 +132,9 @@ bool Disjunction::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the mixed engine. */
 bool Negation::verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const {
-  return !negand().verify(dd_man, model, state,
-			  delta, beta, alpha, algorithm, epsilon);
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const {
+  return !negand().verify(dd_man, model, state, delta, beta, alpha, epsilon);
 }
 
 
@@ -95,16 +143,50 @@ bool Negation::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the mixed engine. */
 bool Implication::verify(DdManager* dd_man, const Model& model,
-			 const State& state, DeltaFun delta,
-			 double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-			 double epsilon) const {
-  if (!antecedent().verify(dd_man, model, state,
-			   delta, beta, alpha, algorithm, epsilon)) {
+			 const State& state, double delta, double alpha,
+			 double beta, double epsilon) const {
+  bool prob1 = antecedent().probabilistic();
+  if (!prob1 && !antecedent().verify(dd_man, model, state, delta, beta, alpha,
+				     epsilon)) {
     return true;
+  }
+  bool prob2 = consequent().probabilistic();
+  if (!prob2 && consequent().verify(dd_man, model, state, delta, alpha, beta,
+				    epsilon)) {
+    return true;
+  }
+  if (prob1) {
+    if (prob2) {
+      double alpha1 = std::min(2.0*alpha, 0.49);
+      if (!antecedent().verify(dd_man, model, state, delta, beta, alpha1,
+			       epsilon)) {
+	return true;
+      }
+      if (consequent().verify(dd_man, model, state, delta, alpha1, beta,
+			      epsilon)) {
+	return true;
+      }
+      double alpha2 = alpha/2.0;
+      if (alpha1 > alpha2) {
+	if (!antecedent().verify(dd_man, model, state, delta, beta, alpha2,
+				 epsilon)) {
+	  return true;
+	}
+	if (consequent().verify(dd_man, model, state, delta, alpha2, beta,
+				epsilon)) {
+	  return true;
+	}
+      }
+      return false;
+    } else {
+      return !antecedent().verify(dd_man, model, state, delta, beta, alpha,
+				  epsilon);
+    }
+  } else if (prob2) {
+    return consequent().verify(dd_man, model, state, delta, alpha, beta,
+			       epsilon);
   } else {
-    return consequent().verify(dd_man, model, state,
-			       delta, alpha, beta, algorithm, epsilon);
+    return false;
   }
 }
 
@@ -114,13 +196,11 @@ bool Implication::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the mixed engine. */
 bool Probabilistic::verify(DdManager* dd_man, const Model& model,
-			   const State& state, DeltaFun delta,
-			   double alpha, double beta,
-			   SamplingAlgorithm algorithm,
-			   double epsilon) const {
+			   const State& state, double delta, double alpha,
+			   double beta, double epsilon) const {
   formula_level_++;
   bool res = formula().verify(dd_man, model, state, threshold(), strict(),
-			      delta, alpha, beta, algorithm, epsilon);
+			      delta, alpha, beta, epsilon);
   formula_level_--;
   return res;
 }
@@ -131,9 +211,8 @@ bool Probabilistic::verify(DdManager* dd_man, const Model& model,
 
 /* Verifies this state formula using the mixed engine. */
 bool Comparison::verify(DdManager* dd_man, const Model& model,
-			const State& state, DeltaFun delta,
-			double alpha, double beta, SamplingAlgorithm algorithm,
-			double epsilon) const {
+			const State& state, double delta, double alpha,
+			double beta, double epsilon) const {
   return holds(state.values());
 }
 
@@ -250,4 +329,90 @@ bool Until::sample(DdManager* dd_man, const Model& model, const State& state,
     delete curr_state;
   }
   return result;
+}
+
+
+/* Verifies this path formula using the mixed engine. */
+bool Until::verify(DdManager* dd_man, const Model& model,
+		   const State& state, const Rational& p, bool strict,
+		   double delta, double alpha, double beta,
+		   double epsilon) const {
+  double theta = p.double_value();
+  double p0 = std::min(1.0, theta + delta);
+  double p1 = std::max(0.0, theta - delta);
+  double logA = -log(alpha);
+  /* If p1 is 0, then a beta of 0 can always be guaranteed. */
+  if (p1 > 0.0) {
+    logA += log(1.0 - beta);
+  }
+  double logB = log(beta);
+  /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
+  if (p0 < 1.0) {
+    logB -= log(1.0 - alpha);
+  }
+  if (StateFormula::formula_level() == 1) {
+    if (verbosity > 0) {
+      std::cout << "Acceptance sampling";
+    }
+    if (verbosity > 1) {
+      std::cout << std::endl;
+    }
+  }
+  size_t n = 0;
+  size_t np = 0;
+  double logf = 0.0;
+  DdNode* dd1 = (pre().probabilistic()
+		 ? pre().verify(dd_man, model, epsilon) : NULL);
+  if (dd1 != NULL) {
+    DdNode* ddr = model.reachability_bdd(dd_man);
+    if (dd1 == ddr) {
+      Cudd_RecursiveDeref(dd_man, dd1);
+      dd1 = Cudd_ReadOne(dd_man);
+      Cudd_Ref(dd1);
+    }
+    Cudd_RecursiveDeref(dd_man, ddr);
+  }
+  DdNode* dd2 = (post().probabilistic()
+		 ? post().verify(dd_man, model, epsilon) : NULL);
+  while (logB < logf && logf < logA) {
+    if (sample(dd_man, model, state, epsilon, dd1, dd2)) {
+      np++;
+      if (p1 > 0.0) {
+	logf += log(p1) - log(p0);
+      } else {
+	logf = -HUGE_VAL;
+      }
+    } else {
+      if (p0 < 1.0) {
+	logf += log(1.0 - p1) - log(1.0 - p0);
+      } else {
+	logf = HUGE_VAL;
+      }
+    }
+    n++;
+    if (verbosity == 1) {
+      if (n % 1000 == 0) {
+	std::cout << ':';
+      } else if (n % 100 == 0) {
+	std::cout << '.';
+      }
+    } else if (verbosity > 1) {
+      std::cout << n << '\t' << np << '\t' << logf << '\t' << logB << '\t' << logA
+		<< std::endl;
+    }
+  }
+  if (dd1 != NULL) {
+    Cudd_RecursiveDeref(dd_man, dd1);
+  }
+  if (dd2 != NULL) {
+    Cudd_RecursiveDeref(dd_man, dd2);
+  }
+  if (StateFormula::formula_level() == 1) {
+    if (verbosity > 0) {
+      std::cout << n << " samples." << std::endl;
+    }
+    total_samples += n;
+    samples.push_back(n);
+  }
+  return logf <= logB;
 }

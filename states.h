@@ -2,7 +2,7 @@
 /*
  * States.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: states.h,v 4.1 2005-02-01 14:19:47 lorens Exp $
+ * $Id: states.h,v 1.2 2003-11-07 04:26:32 lorens Exp $
  */
 #ifndef STATES_H
 #define STATES_H
@@ -42,34 +42,26 @@ struct State {
   /* Constructs an initial state for the given model. */
   explicit State(const Model& model);
 
-  /* Deletes this state. */
-  virtual ~State() {}
+  /* Constructs a successor state for the given state. */
+  State(const State& state, const Command* command, double dt);
 
   /* Returns the variable values for this state. */
   const ValueMap& values() const { return values_; }
 
   /* Returns the time spent in the preceding state. */
-  virtual double dt() const { return 0.0; }
+  double dt() const { return dt_; }
 
   /* Returns a sampled successor of this state. */
-  virtual const State& next(const Model& model) const;
-
-  /* Returns a copy of this state with resampled trigger times. */
-  virtual const State& resampled(const Model& model) const;
+  const State& next(const Model& model) const;
 
   /* Prints this object on the given stream. */
   void print(std::ostream& os) const;
 
-protected:
-  /* Constructs a state. */
-  explicit State(const ValueMap& values) : values_(values) {}
-
-  /* Returns the variable values for this state. */
-  ValueMap& values() { return values_; }
-
 private:
   /* Variables values for this state. */
   ValueMap values_;
+  /* Time spent in the preceding state. */
+  double dt_;
 };
 
 

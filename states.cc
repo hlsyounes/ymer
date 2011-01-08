@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -17,62 +17,38 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: states.cc,v 4.1 2005-02-01 14:18:09 lorens Exp $
+ * $Id: states.cc,v 1.2 2003-11-07 04:26:28 lorens Exp $
  */
 #include "states.h"
 #include "models.h"
-#include "distributions.h"
 #include "formulas.h"
-#include "rng.h"
 #include <cmath>
 
 
-/* Verbosity level. */
-extern int verbosity;
+/* Generates a random number in the interval [0,1). */
+static double rand01ex() {
+  return rand()/(RAND_MAX + 1.0);
+}
+
+
+/* Generates a random number in the interval (0,1). */
+static double rand0ex1ex() {
+  return (rand() + 1.0)/(RAND_MAX + 2.0);
+}
+
+
+/* Generates an exponentially distributed random number. */
+static double rand_exp() {
+  return -log(rand0ex1ex());
+}
 
 
 /* ====================================================================== */
 /* State */
 
-/*
- * An extended state.
- */
-struct ExtendedState : public State {
-  /* Constructs an extended state. */
-  ExtendedState(const ValueMap& values, double dt);
-
-  /* Returns the time spent in the previous state. */
-  virtual double dt() const { return dt_; }
-
-  /* Returns a sampled successor of this state. */
-  virtual const State& next(const Model& model) const;
-
-  /* Returns a copy of this state with resampled trigger times. */
-  virtual const State& resampled(const Model& model) const;
-
-private:
-  /* A mapping from commands to times. */
-  struct CommandTimeMap : public std::map<const Command*, double> {
-  };
-
-  /* Time spent in the previous state. */
-  double dt_;
-  /* Lifetimes for currently enabled commands. */
-  CommandTimeMap lifetimes_;
-  /* Sampled trigger times for enabled commands. */
-  CommandTimeMap trigger_times_;
-  /* Command with earliest sampled trigger time. */
-  const Command* trigger_;
-  /* The earliest sampled trigger time. */
-  double trigger_time_;
-
-  friend const State& State::next(const Model& model) const;
-  friend const State& State::resampled(const Model& model) const;
-};
-
-
 /* Constructs an initial state for the given model. */
-State::State(const Model& model) {
+State::State(const Model& model)
+  : dt_(0.0) {
   for (VariableList::const_iterator vi = model.variables().begin();
        vi != model.variables().end(); vi++) {
     values_.insert(std::make_pair(*vi, (*vi)->start()));
@@ -87,202 +63,64 @@ State::State(const Model& model) {
 }
 
 
-/* Returns a sampled successor of this state. */
-const State& State::next(const Model& model) const {
-  CommandList commands;
-  for (CommandList::const_iterator ci = model.commands().begin();
-       ci != model.commands().end(); ci++) {
-    const Command* c = *ci;
-    if (c->guard().holds(values())) {
-      commands.push_back(c);
+/* Constructs a successor state for the given state. */
+State::State(const State& state, const Command* command, double dt)
+  : values_(state.values()), dt_(dt) {
+  if (command != NULL) {
+    for (UpdateList::const_iterator ui = command->updates().begin();
+	 ui != command->updates().end(); ui++) {
+      values_[&(*ui)->variable()] = (*ui)->expr().value(state.values());
     }
   }
-  ExtendedState* next_state = new ExtendedState(values(), 0.0);
-  int streak = 1;
-  double tie_breaker = -1.0;
-  for (CommandList::const_iterator ci = commands.begin();
-       ci != commands.end(); ci++) {
-    const Command* c = *ci;
-    double t = c->delay().sample(values());
-    if (!c->delay().memoryless()) {
-      next_state->lifetimes_.insert(std::make_pair(c, 0.0));
-      next_state->trigger_times_.insert(std::make_pair(c, t));
-    }
-    if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
-      streak++;
-      if (tie_breaker < 0.0) {
-	tie_breaker = genrand_real2_id(Distribution::mts);
-      }
-    } else if (t < next_state->trigger_time_) {
-      streak = 1;
-    }
-    if (t < next_state->trigger_time_
-	|| (t == next_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      next_state->trigger_ = c;
-      next_state->trigger_time_ = t;
-    }
-  }
-  const State& result = next_state->next(model);
-  delete next_state;
-  return result;
 }
 
 
-/* Returns a copy of this state with resampled trigger times. */
-const State& State::resampled(const Model& model) const {
-  CommandList commands;
+/* Returns a sampled successor of this state. */
+const State& State::next(const Model& model) const {
+  /* The earliest command. */
+  const Command* first_command = NULL;
+  /* Time of the earliest command. */
+  double first_time = HUGE_VAL;
+  /* Number of commands with the same trigger time. */
+  int streak = 1;
+  /* Random number used to break ties (only set if needed). */
+  double tie_breaker = -1.0;
   for (CommandList::const_iterator ci = model.commands().begin();
        ci != model.commands().end(); ci++) {
-    const Command* c = *ci;
-    if (c->guard().holds(values())) {
-      commands.push_back(c);
-    }
-  }
-  ExtendedState* new_state = new ExtendedState(values(), 0.0);
-  int streak = 1;
-  double tie_breaker = -1.0;
-  for (CommandList::const_iterator ci = commands.begin();
-       ci != commands.end(); ci++) {
-    const Command* c = *ci;
-    double t = c->delay().sample(values());
-    if (!c->delay().memoryless()) {
-      new_state->lifetimes_.insert(std::make_pair(c, 0.0));
-      new_state->trigger_times_.insert(std::make_pair(c, t));
-    }
-    if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
-      streak++;
-      if (tie_breaker < 0.0) {
-	tie_breaker = genrand_real2_id(Distribution::mts);
+    const Command& command = **ci;
+    if (command.guard().holds(values())) {
+      double rate = command.rate().value(values()).double_value();
+      double t = rand_exp()/rate;
+      if (first_command != NULL && t == first_time) {
+	streak++;
+	if (tie_breaker < 0.0) {
+	  tie_breaker = rand01ex();
+	}
+      } else {
+	streak = 1;
       }
-    } else if (t < new_state->trigger_time_) {
-      streak = 1;
-    }
-    if (t < new_state->trigger_time_
-	|| (t == new_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      new_state->trigger_ = c;
-      new_state->trigger_time_ = t;
+      if (t < first_time || (t == first_time && tie_breaker < 1.0/streak)) {
+	first_command = &command;
+	first_time = t;
+      }
     }
   }
-  return *new_state;
+  if (first_command != NULL) {
+    return *new State(*this, first_command, first_time);
+  } else {
+    return *new State(*this, NULL, HUGE_VAL);
+  }
 }
 
 
 /* Prints this object on the given stream. */
 void State::print(std::ostream& os) const {
   ValueMap::const_iterator vi = values().begin();
-  os << *(*vi).first << '=' << (*vi).second;
+  (*vi).first->print(os);
+  os << '=' << (*vi).second;
   for (vi++; vi != values().end(); vi++) {
-    os << " & " << *(*vi).first << '=' << (*vi).second;
+    os << " & ";
+    (*vi).first->print(os);
+    os << '=' << (*vi).second;
   }
-}
-
-
-/* Constructs an extended state. */
-ExtendedState::ExtendedState(const ValueMap& values, double dt)
-  : State(values), dt_(dt), trigger_(NULL), trigger_time_(HUGE_VAL) {}
-
-
-/* Returns a sampled successor of this state. */
-const State& ExtendedState::next(const Model& model) const {
-  if (verbosity > 2 && StateFormula::formula_level() == 1) {
-    for (CommandTimeMap::const_iterator ti = trigger_times_.begin();
-	 ti != trigger_times_.end(); ti++) {
-      std::cout << "  " << *(*ti).first << " @ " << (*ti).second << std::endl;
-    }
-  }
-  ExtendedState* next_state = new ExtendedState(values(), trigger_time_);
-  if (trigger_ != NULL) {
-    for (UpdateList::const_iterator ui = trigger_->updates().begin();
-	 ui != trigger_->updates().end(); ui++) {
-      next_state->values()[&(*ui)->variable()] = (*ui)->expr().value(values());
-    }
-    CommandList commands;
-    for (CommandList::const_iterator ci = model.commands().begin();
-	 ci != model.commands().end(); ci++) {
-      const Command* c = *ci;
-      if (c->guard().holds(next_state->values())) {
-	commands.push_back(c);
-      }
-    }
-    int streak = 1;
-    double tie_breaker = -1.0;
-    for (CommandList::const_iterator ci = commands.begin();
-	 ci != commands.end(); ci++) {
-      const Command* c = *ci;
-      double l, t;
-      if (c == trigger_) {
-	l = 0.0;
-	t = c->delay().sample(next_state->values());
-      } else {
-	CommandTimeMap::const_iterator li = lifetimes_.find(c);
-	if (li != lifetimes_.end()) {
-	  l = (*li).second + trigger_time_;
-	} else {
-	  l = 0.0;
-	}
-	CommandTimeMap::const_iterator ti = trigger_times_.find(c);
-	if (ti != trigger_times_.end()) {
-	  t = (*ti).second - trigger_time_;
-	} else {
-	  t = c->delay().sample(next_state->values());
-	}
-      }
-      if (!c->delay().memoryless()) {
-	next_state->lifetimes_.insert(std::make_pair(c, l));
-	next_state->trigger_times_.insert(std::make_pair(c, t));
-      }
-      if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
-	streak++;
-	if (tie_breaker < 0.0) {
-	  tie_breaker = genrand_real2_id(Distribution::mts);
-	}
-      } else if (t < next_state->trigger_time_) {
-	streak = 1;
-      }
-      if (t < next_state->trigger_time_
-	  || (t == next_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-	next_state->trigger_ = c;
-	next_state->trigger_time_ = t;
-      }
-    }
-  }
-  return *next_state;
-}
-
-
-/* Returns a copy of this state with resampled trigger times. */
-const State& ExtendedState::resampled(const Model& model) const {
-  ExtendedState* new_state = new ExtendedState(values(), dt());
-  new_state->lifetimes_ = lifetimes_;
-  int streak = 1;
-  double tie_breaker = -1.0;
-  for (CommandTimeMap::const_iterator ti = trigger_times_.begin();
-       ti != trigger_times_.end(); ti++) {
-    const Command* c = (*ti).first;
-    double t;
-    CommandTimeMap::const_iterator li = lifetimes_.find(c);
-    if (li != lifetimes_.end()) {
-      double l = (*li).second;
-      do {
-	t = c->delay().sample(values()) - l;
-      } while (t <= 0.0);
-    } else {
-      t = c->delay().sample(values());
-    }
-    new_state->trigger_times_.insert(std::make_pair(c, t));
-    if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
-      streak++;
-      if (tie_breaker < 0.0) {
-	tie_breaker = genrand_real2_id(Distribution::mts);
-      }
-    } else if (t < new_state->trigger_time_) {
-      streak = 1;
-    }
-    if (t < new_state->trigger_time_
-	|| (t == new_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      new_state->trigger_ = c;
-      new_state->trigger_time_ = t;
-    }
-  }
-  return *new_state;
 }

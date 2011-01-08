@@ -2,7 +2,7 @@
 /*
  * Tokenizer.
  *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: tokenizer.ll,v 2.1 2004-01-25 12:44:37 lorens Exp $
+ * $Id: tokenizer.ll,v 1.3 2003-11-07 04:26:40 lorens Exp $
  */
 %{
 #include <config.h>
@@ -29,7 +29,6 @@
 
 struct StateFormula;
 struct PathFormula;
-struct Distribution;
 struct Expression;
 /* An integer range (duplicated from parser.yy). */
 struct Range { int l, h; };
@@ -63,8 +62,7 @@ endmodule		return ENDMODULE;
 init			return INIT;
 true			return TRUE_TOKEN;
 false			return FALSE_TOKEN;
-Exp			return EXP;
-[WLPUX]			return yytext[0];
+[PUX]			return yytext[0];
 {IDENT}\'		return make_string(yytext, PNAME);
 {IDENT}			return make_string(yytext, NAME);
 [0-9]*[./]?[0-9]+	return make_number(yytext);

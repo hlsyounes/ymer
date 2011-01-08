@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -17,10 +17,9 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: modules.cc,v 2.1 2004-01-25 12:37:53 lorens Exp $
+ * $Id: modules.cc,v 1.3 2003-11-07 04:25:40 lorens Exp $
  */
 #include "modules.h"
-#include "distributions.h"
 #include "formulas.h"
 #include "expressions.h"
 
@@ -31,15 +30,15 @@
 /* Constructs a variable update. */
 Update::Update(const Variable& variable, const Expression& expr)
   : variable_(&variable), expr_(&expr) {
-  Expression::ref(variable_);
-  Expression::ref(expr_);
+  Expression::register_use(variable_);
+  Expression::register_use(expr_);
 }
 
 
 /* Deletes this variable update. */
 Update::~Update() {
-  Expression::destructive_deref(variable_);
-  Expression::destructive_deref(expr_);
+  Expression::unregister_use(variable_);
+  Expression::unregister_use(expr_);
 }
 
 
@@ -58,9 +57,9 @@ const Update& Update::substitution(const SubstitutionMap& subst) const {
 
 /* Returns a BDD representation of this update. */
 DdNode* Update::bdd(DdManager* dd_man) const {
+  const Value* value = dynamic_cast<const Value*>(&expr());
   DdNode* ddu;
   DdNode* ddv = variable().primed_mtbdd(dd_man);
-  const Value* value = dynamic_cast<const Value*>(&expr());
   if (value != NULL) {
     /* variable' == value  <==>  variable' in [value,value] */
     double threshold = value->value().double_value();
@@ -87,17 +86,17 @@ DdNode* Update::bdd(DdManager* dd_man) const {
 
 /* Constructs a command. */
 Command::Command(size_t synch, const StateFormula& guard,
-		 const Distribution& delay)
-  : synch_(synch), guard_(&guard), delay_(&delay) {
-  StateFormula::ref(guard_);
-  Distribution::ref(delay_);
+		 const Expression& rate)
+  : synch_(synch), guard_(&guard), rate_(&rate) {
+  StateFormula::register_use(guard_);
+  Expression::register_use(rate_);
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  StateFormula::destructive_deref(guard_);
-  Distribution::destructive_deref(delay_);
+  StateFormula::unregister_use(guard_);
+  Expression::unregister_use(rate_);
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     delete *ui;
@@ -115,7 +114,7 @@ void Command::add_update(const Update& update) {
 const Command& Command::substitution(const ValueMap& constants,
 				     const ValueMap& rates) const {
   Command* subst_comm = new Command(synch(), guard().substitution(constants),
-				    delay().substitution(rates));
+				    rate().substitution(rates));
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     subst_comm->add_update((*ui)->substitution(constants));
@@ -136,7 +135,7 @@ Command::substitution(const SubstitutionMap& subst,
     s = (*si).second;
   }
   Command* subst_comm = new Command(s, guard().substitution(subst),
-				    delay().substitution(subst));
+				    rate().substitution(subst));
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     subst_comm->add_update((*ui)->substitution(subst));
@@ -176,26 +175,6 @@ DdNode* Command::bdd(VariableSet& updated, DdManager* dd_man) const {
 }
 
 
-/* Output operator for commands. */
-std::ostream& operator<<(std::ostream& os, const Command& c) {
-  os << "[";
-  if (c.synch() != 0) {
-    os << 's' << c.synch();
-  }
-  os << "] " << c.guard() << " -> " << c.delay() << " : ";
-  UpdateList::const_iterator ui = c.updates().begin();
-  if (ui != c.updates().end()) {
-    const Update* u = *ui;
-    os << u->variable() << "\'=" << u->expr();
-    for (ui++; ui != c.updates().end(); ui++) {
-      u = *ui;
-      os << " & " << u->variable() << "\'=" << u->expr();
-    }
-  }
-  return os;
-}
-
-
 /* ====================================================================== */
 /* Module */
 
@@ -208,7 +187,7 @@ Module::Module()
 Module::~Module() {
   for (VariableList::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
-    Expression::destructive_deref(*vi);
+    Expression::unregister_use(*vi);
   }
   for (CommandList::const_iterator ci = commands().begin();
        ci != commands().end(); ci++) {
@@ -220,7 +199,7 @@ Module::~Module() {
 /* Adds a variable to this module. */
 void Module::add_variable(const Variable& variable) {
   variables_.push_back(&variable);
-  Expression::ref(&variable);
+  Expression::register_use(&variable);
 }
 
 
@@ -258,8 +237,8 @@ Module& Module::substitution(const SubstitutionMap& subst,
 }
 
 
-/* Returns a BDD representing the identity between the `current
-   state' and `next state' variables of this module. */
+/* Returns a BDD representing the identity between the module
+   variables and their primed versions. */
 DdNode* Module::identity_bdd(DdManager* dd_man) const {
   if (identity_bdd_ == NULL) {
     DdNode* dd = Cudd_ReadOne(dd_man);
