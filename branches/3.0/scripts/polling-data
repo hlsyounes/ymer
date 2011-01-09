@@ -1,0 +1,101 @@
+#! /bin/sh
+
+if (test ! -e plots/data) then
+    mkdir plots/data
+fi
+
+stkey='Average model checking time: '
+tdkey='Time standard deviation: '
+skey='Average number of samples: '
+sdkey='Samples standard deviation: '
+akey=' accepted, '
+pkey='Average path lengths: '
+htkey='Model checking completed in '
+ikey='Computing probabilities'
+
+function sampling-data {
+    src=data/polling$n-$T-sampling-$i-$d
+    if (test -f $src) then
+	t=`grep "$stkey" $src | sed -e "s/$stkey//g" -e 's/ seconds//g'`
+	if (test "$t" = "0") then
+	    t=1e-3
+	fi
+	td=`grep "$tdkey" $src | sed -e "s/$tdkey//g"`
+	s=`grep "$skey" $src | sed -e "s/$skey//g"`
+	sd=`grep "$sdkey" $src | sed -e "s/$sdkey//g"`
+	p=`grep "$pkey" $src | sed -e "s/$pkey//g"`
+	a=`grep "$akey" $src | sed -e "s/$akey.*//g"`
+	if (test "$t") then
+	    echo $1 $t $td $s $sd $p $a >> $sdst
+	fi
+    fi
+}
+
+function hybrid-data {
+    src=data/polling$n-$T-hybrid
+    if (test -f $src) then
+	t=`grep "$htkey" $src | sed -e "s/$htkey//g" -e 's/ seconds.//g'`
+	if (test "$t" = "0") then
+	    t=1e-3
+	fi
+	j=`grep "$ikey" $src | sed -e "s/$ikey[.:]*//g" -e 's/ iterations.//g'`
+	s=`grep 'Steady state' $src`
+	if (test "$s") then
+	    s=1
+	else
+	    s=0
+	fi
+	a=`grep 'Property is true' $src`
+	if (test "$a") then
+	    a=1
+	else
+	    a=0
+	fi
+	if (test "$t") then
+	    echo $1 $t $j $s $a >> $hdst
+	fi
+    fi
+}
+
+i=2
+d=005
+for T in 10 20 40; do
+    echo pollingN-$T
+    sdst=plots/data/pollingN-$T-sampling-$i-$d
+    hdst=plots/data/pollingN-$T-hybrid
+    touch $sdst
+    touch $hdst
+    for n in 2 4 6 8 9 10 11 12 13 14 16 18 19 20 21 22 24 26 28 30 32 34 36 38 39 40; do
+	echo $n
+        sampling-data $n
+        hybrid-data $n
+    done
+done
+for n in 10 15 18; do
+    echo polling$n-T
+    sdst=plots/data/polling$n-T-sampling-$i-$d
+    hdst=plots/data/polling$n-T-hybrid
+    touch $sdst
+    touch $hdst
+    for T in 2 5 7 8 9 10 11 12 13 14 15 16 17 18 19 20 22 25 31 41 47 50 100 250 500 1000; do
+	echo $T
+	if (test $T -ne 20 -o $n -ne 10) then
+	    sampling-data $T
+	fi
+	if (test $T -ne 20) then
+	    hybrid-data $T
+	fi
+    done
+done
+
+n=10
+T=40
+for i in 2 4 6 8 10; do
+    echo polling-$i-D
+    sdst=plots/data/polling$n-$T-sampling-$i-D
+    touch $sdst
+    for d in 05 025 01 005 0025 001 0005 00025 0001 00005; do
+	echo $d
+	sampling-data 0.$d
+    done
+done
