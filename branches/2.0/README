@@ -1,0 +1,38 @@
+Copyright (C) 2003, 2004 Carnegie Mellon University
+
+   This file is free documentation; the copyright holders give
+unlimited permission to copy, distribute and modify it.
+
+Ymer 2.0
+========
+
+Ymer is a tool for verifying probabilistic transient properties of
+continuous-time Markov chains (CTMCs) and generalized semi-Markov
+processes (GSMPs).  Properties are expressed using the Continuous
+Stochastic Logic (CSL).
+
+To handle the full generality of GSMPs, Ymer implements statistical
+techniques, based on discrete event simulation and sequential
+acceptance sampling, for CSL model checking.  Ymer includes support
+for distributed acceptance sampling, i.e. the use of multiple machines
+to generate samples, which can result in significant speedup as each
+sample can be generated independently.
+
+Ymer can also use numerical techniques based on uniformization by
+approximating a GSMP with a CTMC using phase-type distributions .
+Ymer includes the hybrid engine from the PRISM tool for CTMC model
+checking.  Numerical and statistical techniques can be used in
+combination to solve nested CSL queries.
+
+
+Installation
+============
+
+Installation instructions are available in INSTALL.
+
+
+Running Ymer
+============
+
+Ymer is controlled by a command line interface.  Run `./ymer --help'
+for details on available command line options.
