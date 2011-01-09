@@ -1,0 +1,8 @@
+#! /bin/sh
+
+T=$1
+if (test -z "$T") then
+    exit -1
+fi
+
+echo "(s1=1) => P>=0.5[ true U<=$T (s=1 & a=0) ]"
