@@ -1,17 +1,3 @@
-Version 3.0 (Feb 1, 2005):
-
-* Added support for sequential single sampling plans and probability
-estimation.
-
-* Improved verification procedure for conjunction, disjunction,
-implication, and path formulae.
-
-* Made statistical verification of nested probabilistic operators work
-in practice through the use of memoization and heuristics for
-selecting observation error.
-
-* Fixed several bugs in the simulation of sample trajectories.
-
 Version 2.1 (Mar 11, 2004):
 
 * Simplified setup of client/server mode.  To run Ymer in server mode,

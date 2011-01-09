@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: formulas.h,v 4.1 2005-02-01 14:03:19 lorens Exp $
+ * $Id: formulas.h,v 2.1 2004-01-25 12:23:47 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -33,13 +33,6 @@
 
 struct Model;
 struct State;
-
-
-/* Delta function determining half-width of indifference region. */
-typedef double (*DeltaFun)(double theta);
-
-/* Sampling algorithm. */
-enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT };
 
 
 /* ====================================================================== */
@@ -99,30 +92,18 @@ struct StateFormula {
   /* Returns the `next state' BDD representation for this state formula. */
   virtual DdNode* primed_bdd(DdManager* dd_man) const = 0;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const = 0;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const = 0;
+		      double delta, double alpha, double beta) const = 0;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const = 0;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const = 0;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const = 0;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const = 0;
+			 double epsilon) const = 0;
 
 protected:
   /* Nesting level of formula just being verified. */
@@ -190,16 +171,9 @@ struct PathFormula {
   virtual const PathFormula&
   substitution(const SubstitutionMap& subst) const = 0;
 
-  /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const = 0;
-
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const = 0;
+		      double delta, double alpha, double beta) const = 0;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(DdManager* dd_man, const Model& model,
@@ -209,17 +183,13 @@ struct PathFormula {
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
 		      const State& state, const Rational& p, bool strict,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm,
+		      double delta, double alpha, double beta,
 		      double epsilon) const = 0;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 const Rational& p, bool strict,
-			 double epsilon, bool estimate) const = 0;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const = 0;
+			 double epsilon) const = 0;
 
 protected:
   /* Constructs a path formula. */
@@ -280,30 +250,18 @@ struct Conjunction : public StateFormula {
   /* Returns the `next state' BDD representation for this state formula. */
   virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -346,30 +304,18 @@ struct Disjunction : public StateFormula {
   /* Returns the `next state' BDD representation for this state formula. */
   virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -415,30 +361,18 @@ struct Negation : public StateFormula {
   /* Returns the `next state' BDD representation for this state formula. */
   virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -487,30 +421,18 @@ struct Implication : public StateFormula {
   /* Returns the `next state' BDD representation for this state formula. */
   virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -566,30 +488,18 @@ struct Probabilistic : public StateFormula {
   /* Returns the `next state' BDD representation for this state formula. */
   virtual DdNode* primed_bdd(DdManager* dd_man) const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -602,8 +512,6 @@ private:
   bool strict_;
   /* The path formula. */
   const PathFormula* formula_;
-  /* Cached acceptance sampling results. */
-  mutable std::map<ValueMap, std::pair<size_t, double> > cache_;
 };
 
 
@@ -626,30 +534,18 @@ struct Comparison : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      const State& state, double delta, double alpha,
+		      double beta, double epsilon) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Constructs a comparison. */
@@ -886,16 +782,9 @@ struct Until : public PathFormula {
   /* Returns this path formula subject to the given substitutions. */
   virtual const Until& substitution(const SubstitutionMap& subst) const;
 
-  /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      double delta, double alpha, double beta) const;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(DdManager* dd_man, const Model& model,
@@ -905,17 +794,13 @@ struct Until : public PathFormula {
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
 		      const State& state, const Rational& p, bool strict,
-		      DeltaFun delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm,
+		      double delta, double alpha, double beta,
 		      double epsilon) const;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
 			 const Rational& p, bool strict,
-			 double epsilon, bool estimate) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
+			 double epsilon) const;
 
 protected:
   /* Prints this object on the given stream. */
