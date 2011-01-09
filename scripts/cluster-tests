@@ -1,0 +1,53 @@
+#! /usr/local/bin/bash
+
+ulimit -v `expr 700 '*' 1024`
+echo memory limit: `ulimit -v` kbytes
+
+if (test ! -e data) then
+    mkdir data
+fi
+
+trials=10
+
+function sampling-test {
+    dst=data/cluster$n-$T-sampling-$i-$d
+    echo $dst
+    if (test ! -e $dst) then
+	scripts/cluster-property $T | ./ymer -v1  -e sampling -T $trials -S 0 -A 1e-$i -B 1e-$i -D 0.$d models/cluster$n.sm /dev/stdin > $dst
+    fi
+}
+
+function hybrid-test {
+    if (test $n -lt 864) then
+	dst=data/cluster$n-$T-hybrid
+	echo $dst
+	if (test ! -e $dst) then
+	    scripts/cluster-property $T | ./ymer -v1 -e hybrid -E 1e-6 models/cluster$n.sm /dev/stdin > $dst
+	fi
+    fi
+}
+
+i=2
+d=005
+for T in 20 40 80; do
+    for n in 1 2 3 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536; do
+	sampling-test
+    done
+    for n in 1 2 3 4 8 16 32 64 128 256 512 856; do
+	hybrid-test
+    done
+done
+for n in 4 16 64; do
+    for T in 2 5 10 25 50 100 250 500 1000 2500 5000 10000; do
+	sampling-test
+	hybrid-test
+    done
+done
+
+n=64
+T=80
+for i in 2 4 6 8 10; do
+    for d in 05 025 01 005 0025 001 0005 00025 0001 00005; do
+	sampling-test
+    done
+done
