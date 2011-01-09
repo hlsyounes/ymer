@@ -1,0 +1,8 @@
+#! /bin/sh
+
+params='-v1 -S1 -D0.005'
+./ymer $params -h 128.2.205.180 -p 5000 $1 $2 &
+
+ssh sweden "cd ~/ymer-2.0; ./ymer $params -i 0 -I 128.2.205.180 -h 128.2.205.180 -p 5000 $1 $2" &
+ssh gs146 "cd /home/lorens/ymer-2.0; ./ymer $params -i 1 -I 128.2.203.158 -h 128.2.205.180 -p 5000 $1 $2" &
+ssh gs222 "cd /usr1/research/ymer-2.0; ./ymer $params -i 2 -I 128.2.198.177 -h 128.2.205.180 -p 5000 $1 $2" &

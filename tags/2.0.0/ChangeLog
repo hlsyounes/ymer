@@ -1,0 +1,53 @@
+2004-01-25  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Added support for non-exponential distributions and distributed
+	sampling.
+
+2003-11-11  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Indicating progress of reachability analysis with ':' for every
+	1000 iterations and '.' for every 100 iterations.
+
+	* Changed print methods of formulas and expressions to minimize
+	use of parentheses.
+
+2003-11-06  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Using standard C++ exceptions instead of custom Exception class.
+
+	* Removed all use of hashing.
+
+	* Added support for mixed engine.
+
+2003-08-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed bug that caused segmentation fault on some systems when
+	deleting a model with cached commands.
+
+2003-08-15  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Release variable DDs at the very end instead of after rate
+	matrix has been computed to avoid problem with reference counts.
+
+2003-08-14  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Make sure fox_glynn_weighter is called even when verbosity is 0.
+
+2003-08-13  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Making sure BDD returned by verify only is for reachable states.
+
+	* Added holds method to state formulas.
+
+2003-08-10  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Added sanity checks for probability and time bounds.
+
+	* Added unregistering of rate for command.
+
+	* Added tokens needed for CSL properties.
+
+	* Added grammar for CSL properties.
+
+	* Added Implication, Probabilistic, PathFormula, and Until
+	classes.
