@@ -1,0 +1,87 @@
+#! /usr/local/bin/bash
+
+ulimit -v `expr 700 '*' 1024`
+echo memory limit: `ulimit -v` kbytes
+
+if (test ! -e data) then
+    mkdir data
+fi
+
+trials=10
+
+function sampling-test {
+    dst=data/polling$n-$T-sampling-$i-$d
+    echo $dst
+    if (test ! -e $dst) then
+	scripts/polling-property $T | ./ymer -v1  -e sampling -T $trials -S 0 -A 1e-$i -B 1e-$i -D 0.$d models/polling$n.sm /dev/stdin > $dst
+    fi
+}
+
+function hybrid-test {
+    if (test $n -lt 20) then
+	dst=data/polling$n-$T-hybrid
+	echo $dst
+	if (test ! -e $dst) then
+	    scripts/polling-property $T | ./ymer -v1 -e hybrid -E 1e-6 models/polling$n.sm /dev/stdin > $dst
+	fi
+    fi
+}
+
+i=2
+d=005
+for T in 10 20 40; do
+    for n in 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40; do
+        sampling-test
+    done
+    for n in 2 4 6 8 10 12 14 16 18 19; do
+        hybrid-test
+    done
+done
+T=10
+for n in 9 11 13; do
+    sampling-test
+done
+T=20
+for n in 19 21; do
+    sampling-test
+done
+T=40
+for n in 39; do
+    sampling-test
+done
+
+for n in 10 15 18; do
+    for T in 2 5 10 25 50 100 250 500 1000; do
+	sampling-test
+	hybrid-test
+    done
+done
+n=10
+for T in 7 8 9 11 12 15; do
+    sampling-test
+done
+for T in 31; do
+    hybrid-test
+done
+n=15
+for T in 12 13 14 15 16 18 20; do
+    sampling-test
+done
+for T in 41; do
+    hybrid-test
+done
+n=18
+for T in 12 15 16 17 18 19 20 22; do
+    sampling-test
+done
+for T in 47; do
+    hybrid-test
+done
+
+n=10
+T=40
+for i in 2 4 6 8 10; do
+    for d in 05 025 01 005 0025 001 0005 00025 0001 00005; do
+	sampling-test
+    done
+done

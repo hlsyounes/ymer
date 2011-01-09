@@ -1,0 +1,37 @@
+#! /bin/sh
+
+n=$1
+if (test -z "$n") then
+    exit -1
+fi
+
+echo "stochastic"
+echo 
+echo "const c = $n;"
+echo
+echo "rate lambda = `expr 4 '*' $n`;"
+echo "rate mu1a = 0.2;"
+echo "rate mu1b = 1.8;"
+echo "rate mu2 = 2;"
+echo "rate kappa = 4;"
+echo
+echo "module serverC"
+echo
+echo "  sc : [0..c];"
+echo "  ph : [1..2];"
+echo
+echo "  [] (sc<c) -> lambda : sc'=sc+1;"
+echo "  [route] (sc>0) & (ph=1) -> mu1b: sc'=sc-1;"
+echo "  [] (sc>0) & (ph=1) -> mu1a : ph'=2;"
+echo "  [route] (sc>0) & (ph=2) -> mu2 : ph'=1 & sc'=sc-1;"
+echo
+echo "endmodule"
+echo
+echo "module severM"
+echo
+echo "  sm : [0..c];"
+echo
+echo "  [route] (sm<c) -> 1 : sm'=sm+1;"
+echo "  [] (sm>0) -> kappa : sm'=sm-1;"
+echo
+echo "endmodule"
