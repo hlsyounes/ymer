@@ -1,0 +1,12 @@
+#! /bin/sh
+
+if (test ! -d models) then
+    mkdir models
+fi
+
+for n in 5 10 15 20 25 30 35 40 45 50; do
+    echo $n
+    if (test ! -f models/robot$n.sm) then
+	scripts/robot-model $n > models/robot$n.sm
+    fi
+done
