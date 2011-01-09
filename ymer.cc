@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,7 +19,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: ymer.cc,v 4.1 2005-02-01 14:24:49 lorens Exp $
+ * $Id: ymer.cc,v 2.1 2004-01-25 12:45:47 lorens Exp $
  */
 #include <config.h>
 #include "comm.h"
@@ -30,8 +30,7 @@
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#include <arpa/inet.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -63,10 +62,6 @@ extern void clear_declarations();
 std::string current_file;
 /* Verbosity level. */
 int verbosity;
-/* Whether memoization is enabled. */
-bool memoization = false;
-/* Fixed nested error. */
-double nested_error = -1.0;
 /* Total number of samples (for statistics). */
 size_t total_samples;
 /* Number of samples per trial (for statistics). */
@@ -75,37 +70,34 @@ std::vector<size_t> samples;
 double total_path_lengths;
 /* Sockets for communication. */
 int server_socket = -1;
+int client_socket = -1;
+/* Base port. */
+int port = -1;
+/* Registered clients. */
+ClientTable registered_clients;
 /* Current property. */
 size_t current_property;
 
-/* Set default delta. */
-static double delta = 1e-2;
-/* Whether delta is relative or not. */
-static bool relative_delta = false;
-
 /* Program options. */
 static option long_options[] = {
-  { "alpha", required_argument, 0, 'A' },
-  { "beta", required_argument, 0, 'B' },
-  { "delta", required_argument, 0, 'D' },
-  { "relative-delta", required_argument, 0, 'd' },
-  { "epsilon", required_argument, 0, 'E' },
-  { "engine", required_argument, 0, 'e' },
-  { "host", required_argument, 0, 'H' },
-  { "memoization", no_argument, 0, 'M' },
-  { "matching-moments", required_argument, 0, 'm' },
-  { "nested-error", required_argument, 0, 'n' },
-  { "estimate-probabilities", no_argument, 0, 'p' },
-  { "port", required_argument, 0, 'P' },
-  { "sampling-algorithm", required_argument, 0, 's' },
-  { "seed", required_argument, 0, 'S' },
-  { "trials", required_argument, 0, 'T' },
-  { "verbose", optional_argument, 0, 'v' },
-  { "version", no_argument, 0, 'V' },
-  { "help", no_argument, 0, '?' },
+  { "alpha", required_argument, NULL, 'A' },
+  { "beta", required_argument, NULL, 'B' },
+  { "delta", required_argument, NULL, 'D' },
+  { "epsilon", required_argument, NULL, 'E' },
+  { "engine", required_argument, NULL, 'e' },
+  { "host", required_argument, NULL, 'h' },
+  { "ip-address", required_argument, NULL, 'I' },
+  { "client-id", required_argument, NULL, 'i' },
+  { "matching-moments", required_argument, NULL, 'm' },
+  { "port", required_argument, NULL, 'p' },
+  { "seed", required_argument, NULL, 'S' },
+  { "trials", required_argument, NULL, 'T' },
+  { "verbose", optional_argument, NULL, 'v' },
+  { "version", no_argument, NULL, 'V' },
+  { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:D:d:E:e:H:Mm:n:pP:s:S:T:v::V?";
+static const char OPTION_STRING[] = "A:B:D:E:e:h:I:i:m:p:S:T:v::V?";
 
 
 /* Displays help. */
@@ -123,9 +115,6 @@ static void display_help() {
 	    << "  -D d,  --delta=d\t"
 	    << "use indifference region of width 2*d with sampling"
 	    << std::endl
-	    << "  -d d,  --relative-delta=d\t"
-	    << "use indifference region of relative with sampling"
-	    << std::endl
 	    << "\t\t\t  engine (default is 1e-2)" << std::endl
 	    << "  -E e,  --epsilon=e\t"
 	    << "use precision e with hybrid engine (default is 1e-6)"
@@ -134,21 +123,17 @@ static void display_help() {
 	    << "use engine e; can be `sampling' (default), `hybrid',"
 	    << std::endl
 	    << "\t\t\t  or `mixed'" << std::endl
-	    << "  -H h,  --host=h\t"
+	    << "  -h h,  --host=h\t"
 	    << "connect to server on host h" << std::endl
-	    << "  -M,    --memoization\t"
-	    << "use memoization for sampling engine" << std::endl
+	    << "  -I i,  --ip-address=i\t"
+	    << "IP address of machine running program" << std::endl
+	    << "  -i i,  --client-id=i\t"
+	    << "start as client with id i" << std::endl
 	    << "  -m m,  --matching-moments=m" << std::endl
 	    << "\t\t\tmatch the first m moments of general distributions"
 	    << std::endl
-	    << "  -p,    --estimate-probabilities" << std::endl
-	    << "\t\t\testimates probabilities of path formulae holding"
-	    << std::endl
-	    << "  -P p,  --port=p\t"
+	    << "  -p p,  --port=p\t"
 	    << "communicate using port p" << std::endl
-	    << "  -s s,  --sampling-algorithm=s" << std::endl
-	    << "\t\t\tuse sampling algorithm s"
-	    << std::endl
 	    << "  -S s,  --seed=s\t"
 	    << "use seed s with random number generator" << std::endl
 	    << "\t\t\t  (sampling engine only)" << std::endl
@@ -177,7 +162,7 @@ static void display_help() {
 /* Displays version information. */
 static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
-	    << "Copyright (C) 2003--2005 Carnegie Mellon University"
+	    << "Copyright (C) 2003, 2004 Carnegie Mellon University"
 	    << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
@@ -194,7 +179,7 @@ static void display_version() {
 /* Parses the given file, and returns true on success. */
 static bool read_file(const char* name) {
   yyin = fopen(name, "r");
-  if (yyin == 0) {
+  if (yyin == NULL) {
     std::cerr << PACKAGE << ':' << name << ": " << strerror(errno)
 	      << std::endl;
     return false;
@@ -208,10 +193,10 @@ static bool read_file(const char* name) {
 
 
 /* Extracts a path formula from the given state formula. */
-static bool extract_path_formula(const PathFormula*& pf, double& theta,
+bool extract_path_formula(const PathFormula*& pf, double& theta,
 			  const StateFormula& f) {
   const Conjunction* cf = dynamic_cast<const Conjunction*>(&f);
-  if (cf != 0) {
+  if (cf != NULL) {
     for (FormulaList::const_iterator fi = cf->conjuncts().begin();
 	 fi != cf->conjuncts().end(); fi++) {
       if (!extract_path_formula(pf, theta, **fi)) {
@@ -221,7 +206,7 @@ static bool extract_path_formula(const PathFormula*& pf, double& theta,
     return true;
   }
   const Disjunction* df = dynamic_cast<const Disjunction*>(&f);
-  if (df != 0) {
+  if (df != NULL) {
     for (FormulaList::const_iterator fi = df->disjuncts().begin();
 	 fi != df->disjuncts().end(); fi++) {
       if (!extract_path_formula(pf, theta, **fi)) {
@@ -231,35 +216,26 @@ static bool extract_path_formula(const PathFormula*& pf, double& theta,
     return true;
   }
   const Negation* nf = dynamic_cast<const Negation*>(&f);
-  if (nf != 0) {
+  if (nf != NULL) {
     return extract_path_formula(pf, theta, nf->negand());
   }
   const Implication* wf = dynamic_cast<const Implication*>(&f);
-  if (wf != 0) {
+  if (wf != NULL) {
     return (extract_path_formula(pf, theta, wf->antecedent())
 	    && extract_path_formula(pf, theta, wf->consequent()));
   }
   const Probabilistic* qf = dynamic_cast<const Probabilistic*>(&f);
-  if (qf != 0) {
-    if (pf == 0) {
+  if (qf != NULL) {
+    if (pf == NULL) {
       pf = &qf->formula();
       theta = qf->threshold().double_value();
       return true;
     } else {
-      pf = 0;
+      pf = NULL;
       return false;
     }
   }
   return true;
-}
-
-
-double indifference_region(double theta) {
-  if (relative_delta) {
-    return 2*delta*((theta <= 0.5) ? theta : 1.0 - theta);
-  } else {
-    return delta;
-  }
 }
 
 
@@ -269,27 +245,27 @@ int main(int argc, char* argv[]) {
   double alpha = 1e-2;
   /* Set default beta. */
   double beta = 1e-2;
+  /* Set default delta. */
+  double delta = 1e-2;
   /* Set default epsilon. */
   double epsilon = 1e-6;
-  /* Verification without estimation by default. */
-  bool estimate = false;
   /* Set default engine. */
   enum { SAMPLING_ENGINE, HYBRID_ENGINE, MIXED_ENGINE } engine =
 							  SAMPLING_ENGINE;
-  /* Sampling algorithm. */
-  SamplingAlgorithm algorithm = SPRT;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */
-  size_t seed = time(0);
+  size_t seed = time(NULL);
   /* Set default number of trials. */
   size_t trials = 1;
   /* Set default verbosity. */
   verbosity = 0;
   /* Sever hostname */
-  std::string hostname;
-  /* Server port. */
-  int port = -1;
+  std::string hostname = "localhost";
+  /* Local ip-address */
+  std::string ip_address = "127.0.0.1";
+  /* Client id. */
+  int client_id = -1;
 
   try {
     /*
@@ -321,16 +297,6 @@ int main(int argc, char* argv[]) {
 	break;
       case 'D':
 	delta = atof(optarg);
-	relative_delta = false;
-	if (delta < 1e-10) {
-	  throw std::invalid_argument("delta < 1e-10");
-	} else if (delta > 0.5) {
-	  throw std::invalid_argument("delta > 0.5");
-	}
-	break;
-      case 'd':
-	delta = atof(optarg);
-	relative_delta = true;
 	if (delta < 1e-10) {
 	  throw std::invalid_argument("delta < 1e-10");
 	} else if (delta > 0.5) {
@@ -357,11 +323,17 @@ int main(int argc, char* argv[]) {
 				      + std::string(optarg) + "'");
 	}
 	break;
-      case 'H':
+      case 'h':
 	hostname = optarg;
 	break;
-      case 'M':
-	memoization = true;
+      case 'I':
+	ip_address = optarg;
+	break;
+      case 'i':
+	client_id = atoi(optarg);
+	if (client_id < 0 || client_id > 0xffff) {
+	  throw std::invalid_argument("invalid client id");
+	}
 	break;
       case 'm':
 	moments = atoi(optarg);
@@ -371,27 +343,10 @@ int main(int argc, char* argv[]) {
 	  throw std::invalid_argument("cannot match more than three moments");
 	}
 	break;
-      case 'n':
-	nested_error = atof(optarg);
-	break;
       case 'p':
-	estimate = true;
-	algorithm = ESTIMATE;
-	break;
-      case 'P':
 	port = atoi(optarg);
 	if (port < 0 || port > 0xffff) {
 	  throw std::invalid_argument("invalid port number");
-	}
-	break;
-      case 's':
-	if (strcasecmp(optarg, "sequential") == 0) {
-	  algorithm = SEQUENTIAL;
-	} else if (strcasecmp(optarg, "sprt") == 0) {
-	  algorithm = SPRT;
-	} else {
-	  throw std::invalid_argument("unsupported sampling algorithm `"
-				      + std::string(optarg) + "'");
 	}
 	break;
       case 'S':
@@ -401,7 +356,7 @@ int main(int argc, char* argv[]) {
 	trials = atoi(optarg);
 	break;
       case 'v':
-	verbosity = (optarg != 0) ? atoi(optarg) : 1;
+	verbosity = (optarg != NULL) ? atoi(optarg) : 1;
 	break;
       case 'V':
 	display_version();
@@ -415,7 +370,7 @@ int main(int argc, char* argv[]) {
       default:
 	std::cerr << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
-	return 1;
+	return -1;
       }
     }
 
@@ -428,7 +383,7 @@ int main(int argc, char* argv[]) {
        */
       while (optind < argc) {
 	if (!read_file(argv[optind++])) {
-	  return 1;
+	  return -1;
 	}
       }
     } else {
@@ -437,11 +392,11 @@ int main(int argc, char* argv[]) {
        */
       yyin = stdin;
       if (yyparse() != 0) {
-	return 1;
+	return -1;
       }
     }
     clear_declarations();
-    if (global_model == 0) {
+    if (global_model == NULL) {
       std::cout << "no model" << std::endl;
       return 0;
     }
@@ -451,82 +406,81 @@ int main(int argc, char* argv[]) {
 
     std::cout.setf(std::ios::unitbuf);
     if (port >= 0) {
+      client_socket = socket(PF_INET, SOCK_DGRAM, 0);
+      if (client_socket == -1) {
+	perror(PACKAGE);
+	return -1;
+      }
+      server_socket = socket(PF_INET, SOCK_DGRAM, 0);
+      if (server_socket == -1) {
+	perror(PACKAGE);
+	return -1;
+      }
+      hostent* host = gethostbyname(hostname.c_str());
+      if (host == NULL) {
+	herror(PACKAGE);
+	return -1;
+      }
       sockaddr_in srvaddr;
       srvaddr.sin_family = AF_INET;
       srvaddr.sin_port = htons(port);
-      if (!hostname.empty()) {
+      srvaddr.sin_addr = *(in_addr*) host->h_addr;
+      if (client_id >= 0) {
 	/* Client mode. */
-	hostent* host = gethostbyname(hostname.c_str());
-	if (host == 0) {
-	  herror(PACKAGE);
-	  return 1;
-	}
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd == -1) {
+	if (-1 == connect(client_socket,
+			  (sockaddr*) &srvaddr, sizeof srvaddr)) {
 	  perror(PACKAGE);
-	  return 1;
+	  return -1;
 	}
-	srvaddr.sin_addr = *(in_addr*) host->h_addr;
-	if (-1 == connect(sockfd, (sockaddr*) &srvaddr, sizeof srvaddr)) {
+	sockaddr_in locaddr;
+	locaddr.sin_family = AF_INET;
+	locaddr.sin_port = htons(port + client_id + 1);
+	inet_aton(ip_address.c_str(), &locaddr.sin_addr);
+	if (-1 == bind(server_socket, (sockaddr*) &locaddr, sizeof locaddr)) {
 	  perror(PACKAGE);
-	  return 1;
+	  return -1;
 	}
-	ServerMsg smsg;
-	int nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
-	if (nbytes == -1) {
-	  perror(PACKAGE);
-	  return 1;
-	} else if (nbytes == 0) {
-	  if (verbosity > 0) {
-	    std::cout << "Shutting down (server unavailable)" << std::endl;
-	  }
-	  return 0;
-	}
-	if (smsg.id != ServerMsg::REGISTER) {
-	  throw std::logic_error("expecting register message");
-	}
-	int client_id = smsg.value;
+	unsigned long caddr = ntohl(locaddr.sin_addr.s_addr);
 	if (verbosity > 0) {
-	  std::cout << "Client " << client_id << std::endl;
+	  std::cout << "Client " << client_id << " at "
+		    << ((caddr >> 24UL)&0xffUL) << '.'
+		    << ((caddr >> 16UL)&0xffUL) << '.'
+		    << ((caddr >> 8UL)&0xffUL) << '.'
+		    << (caddr&0xffUL) << std::endl;
 	  std::cout << "Initializing random number generator...";
-	}
-	Distribution::mts = get_mt_parameter_id(client_id);
-	init_genrand_id(seed, Distribution::mts);
-	if (verbosity > 0) {
+	  Distribution::mts = get_mt_parameter_id(client_id);
 	  std::cout << "done" << std::endl;
 	}
-	fd_set master_fds;
-	FD_ZERO(&master_fds);
-	FD_SET(sockfd, &master_fds);
+ 	ClientMsg msg = { ClientMsg::REGISTER, client_id, caddr };
+	if (-1 == send(client_socket, &msg, sizeof msg, 0)) {
+	  perror(PACKAGE);
+	  return -1;
+	}
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(server_socket, &rfds);
 	const State init_state(*global_model);
-	const PathFormula* pf = 0;
+	const PathFormula* pf = NULL;
 	double alphap = alpha, betap = beta;
-	timeval timeout;
-	timeval* to = 0;
+	timeval timeout = { 0, 0 };
+	timeval* to = NULL;
 	while (true) {
-	  if (to != 0) {
-	    to->tv_sec = 0;
-	    to->tv_usec = 0;
-	  }
-	  fd_set read_fds = master_fds;
-	  int result = select(sockfd + 1, &read_fds, 0, 0, to);
+	  timeout.tv_sec = 0;
+	  timeout.tv_usec = 0;
+	  int result = select(server_socket + 1, &rfds, NULL, NULL, to);
 	  if (result == -1) {
 	    perror(PACKAGE);
 	    exit(-1);
 	  } else if (result == 0) {
-	    if (pf != 0) {
-	      ClientMsg msg = { ClientMsg::SAMPLE };
-	      msg.value = pf->sample(*global_model, init_state,
-				     indifference_region, alphap, betap,
-				     algorithm);
-	      if (verbosity > 1) {
-		std::cout << "Sending sample " << msg.value << std::endl;
+	    if (pf != NULL) {
+	      ClientMsg msg = { ClientMsg::SAMPLE, client_id };
+	      if (pf->sample(*global_model, init_state,
+			     delta, alphap, betap)) {
+		msg.value = 1;
+	      } else {
+		msg.value = 0;
 	      }
-	      nbytes = send(sockfd, &msg, sizeof msg, 0);
-	      if (nbytes == -1) {
-		perror(PACKAGE);
-		return 1;
-	      } else if (nbytes == 0) {
+	      if (-1 == send(client_socket, &msg, sizeof msg, 0)) {
 		if (verbosity > 0) {
 		  std::cout << "Shutting down (server unavailable)"
 			    << std::endl;
@@ -535,24 +489,19 @@ int main(int argc, char* argv[]) {
 	      }
 	    }
 	  } else {
-	    nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
-	    if (nbytes == -1) {
+	    ServerMsg smsg;
+	    if (-1 == recv(server_socket, &smsg, sizeof smsg, 0)) {
 	      perror(PACKAGE);
-	      return 1;
-	    } else if (nbytes == 0) {
-	      if (verbosity > 0) {
-		std::cout << "Shutting down (server unavailable)" << std::endl;
-	      }
-	      return 0;
+	      return -1;
 	    }
 	    if (smsg.id == ServerMsg::START) {
 	      double theta;
 	      if (!extract_path_formula(pf, theta, *properties[smsg.value])) {
 		std::cerr << PACKAGE << ": multiple path formulae"
 			  << std::endl;
-		return 1;
+		return -1;
 	      }
-	      if (pf != 0) {
+	      if (pf != NULL) {
 		alphap = alpha;
 		betap = beta;
 		if (pf->probabilistic()) {
@@ -576,10 +525,15 @@ int main(int argc, char* argv[]) {
 			  << smsg.value << std::endl;
 	      }
 	    } else if (smsg.id == ServerMsg::STOP) {
-	      to = 0;
+	      to = NULL;
 	      if (verbosity > 0) {
 		std::cout << "Sampling stopped." << std::endl;
 	      }
+	    } else if (smsg.id == ServerMsg::QUIT) {
+	      if (verbosity > 0) {
+		std::cout << "Client terminated by sever." << std::endl;
+	      }
+	      return 0;
 	    } else {
 	      std::cerr << "Message with bad id (" << smsg.id << ") ignored."
 			<< std::endl;
@@ -588,44 +542,25 @@ int main(int argc, char* argv[]) {
 	}
       } else {
 	/* Server mode. */
-	server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (server_socket == -1) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	int yes = 1;
-	if (-1 == setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
-			     sizeof yes)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	srvaddr.sin_addr.s_addr = INADDR_ANY;
-	if (-1 == bind(server_socket, (sockaddr*) &srvaddr, sizeof srvaddr)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	if (-1 == listen(server_socket, 100)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
 	if (verbosity > 0) {
 	  std::cout << "Server at port " << port << std::endl;
+	}
+	if (-1 == bind(client_socket, (sockaddr*) &srvaddr, sizeof srvaddr)) {
+	  perror(PACKAGE);
+	  return -1;
 	}
       }
     }
 
     if (engine == SAMPLING_ENGINE) {
-      init_genrand(seed);
+      init_genrand_id(seed, Distribution::mts);
       std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", seed=" << seed << std::endl;
-      itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-      itimerval stimer;
+      itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
 #ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
+      setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-      setitimer(ITIMER_PROF, &timer, 0);
-      getitimer(ITIMER_PROF, &stimer);
+      setitimer(ITIMER_PROF, &timer, NULL);
 #endif
       const State init_state(*global_model);
 #ifdef PROFILING
@@ -633,8 +568,11 @@ int main(int argc, char* argv[]) {
 #else
       getitimer(ITIMER_PROF, &timer);
 #endif
-      long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-      long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+      long sec = 40000000L - timer.it_value.tv_sec;
+      long usec = 1000000L - timer.it_value.tv_usec;
+      if (usec < 1000000) {
+	sec--;
+      }
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       if (verbosity > 0) {
@@ -653,30 +591,26 @@ int main(int argc, char* argv[]) {
 	total_samples = 0;
 	samples.clear();
 	total_path_lengths = 0.0;
-	double total_cached = 0.0;
 	for (size_t i = 0; i < trials; i++) {
 	  timeval start_time;
+	  gettimeofday(&start_time, NULL);
 	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
-	  itimerval stimer;
-	  if (server_socket != -1) {
-	    gettimeofday(&start_time, 0);
-	  } else {
 #ifdef PROFILING
-	    setitimer(ITIMER_VIRTUAL, &timer, 0);
-	    getitimer(ITIMER_VIRTUAL, &stimer);
+	  setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-	    setitimer(ITIMER_PROF, &timer, 0);
-	    getitimer(ITIMER_PROF, &stimer);
+	  setitimer(ITIMER_PROF, &timer, NULL);
 #endif
-	  }
 	  bool sol = (*fi)->verify(*global_model, init_state,
-				   indifference_region, alpha, beta,
-				   algorithm);
-	  total_cached += (*fi)->clear_cache();
+				   delta, alpha, beta);
+#ifdef PROFILING
+	  getitimer(ITIMER_VIRTUAL, &timer);
+#else
+	  getitimer(ITIMER_PROF, &timer);
+#endif
+	  timeval end_time;
+	  gettimeofday(&end_time, NULL);
 	  double t;
-	  if (server_socket != -1) {
-	    timeval end_time;
-	    gettimeofday(&end_time, 0);
+	  if (client_socket != -1) {
 	    long sec = end_time.tv_sec - start_time.tv_sec;
 	    long usec = end_time.tv_usec - start_time.tv_usec;
 	    if (usec < 0) {
@@ -685,13 +619,11 @@ int main(int argc, char* argv[]) {
 	    }
 	    t = std::max(0.0, sec + usec*1e-6);
 	  } else {
-#ifdef PROFILING
-	    getitimer(ITIMER_VIRTUAL, &timer);
-#else
-	    getitimer(ITIMER_PROF, &timer);
-#endif
-	    long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-	    long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+	    long sec = 40000000L - timer.it_value.tv_sec;
+	    long usec = 1000000 - timer.it_value.tv_usec;
+	    if (usec < 1000000) {
+	      sec--;
+	    }
 	    t = std::max(0.0, sec + usec*1e-6);
 	  }
 	  if (trials == 1) {
@@ -726,7 +658,6 @@ int main(int argc, char* argv[]) {
 	  }
 	  time_var /= trials - 1;
 	  sample_var /= trials - 1;
-	  double cached_avg = total_cached/trials;
 	  std::cout << "Average model checking time: " << time_avg
 		    << " seconds" << std::endl
 		    << "Time standard deviation: " << sqrt(time_var)
@@ -736,8 +667,7 @@ int main(int argc, char* argv[]) {
 		    << std::endl
 		    << "Average path lengths: " << path_avg << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
-		    << " rejected" << std::endl
-		    << "Average cached: " << cached_avg << std::endl;
+		    << " rejected" << std::endl;
 	}
       }
     } else if (engine == HYBRID_ENGINE) {
@@ -746,13 +676,10 @@ int main(int argc, char* argv[]) {
 				    CUDD_CACHE_SLOTS, 0);
       Cudd_SetEpsilon(dd_man, 1e-15);
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-      itimerval stimer;
 #ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
+      setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-      setitimer(ITIMER_PROF, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
+      setitimer(ITIMER_PROF, &timer, NULL);
 #endif
       global_model->cache_dds(dd_man, moments);
 #ifdef PROFILING
@@ -760,8 +687,11 @@ int main(int argc, char* argv[]) {
 #else
       getitimer(ITIMER_PROF, &timer);
 #endif
-      long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-      long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+      long sec = 40000000L - timer.it_value.tv_sec;
+      long usec = 1000000L - timer.it_value.tv_usec;
+      if (usec < 1000000) {
+	sec--;
+      }
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       if (verbosity > 0) {
@@ -782,51 +712,35 @@ int main(int argc, char* argv[]) {
 	   fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
-	double total_time = 0.0;
-	bool accepted = false;
-	int old_verbosity = verbosity;
-	for (size_t i = 0; i < trials; i++) {
-	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-	  itimerval stimer;
+	itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
 #ifdef PROFILING
-	  setitimer(ITIMER_VIRTUAL, &timer, 0);
-	  getitimer(ITIMER_VIRTUAL, &stimer);
+	setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-	  setitimer(ITIMER_PROF, &timer, 0);
-	  getitimer(ITIMER_PROF, &stimer);
+	setitimer(ITIMER_PROF, &timer, NULL);
 #endif
-	  DdNode* ddf = (*fi)->verify(dd_man, *global_model, epsilon,
-				      estimate);
-	  DdNode* sol = Cudd_bddAnd(dd_man, ddf, init);
-	  Cudd_Ref(sol);
-	  Cudd_RecursiveDeref(dd_man, ddf);
+	DdNode* ddf = (*fi)->verify(dd_man, *global_model, epsilon);
+	DdNode* sol = Cudd_bddAnd(dd_man, ddf, init);
+	Cudd_Ref(sol);
+	Cudd_RecursiveDeref(dd_man, ddf);
 #ifdef PROFILING
-	  getitimer(ITIMER_VIRTUAL, &timer);
+	getitimer(ITIMER_VIRTUAL, &timer);
 #else
-	  getitimer(ITIMER_PROF, &timer);
+	getitimer(ITIMER_PROF, &timer);
 #endif
-	  long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-	  double t = std::max(0.0, sec + usec*1e-6);
-	  total_time += t;
-	  accepted = (sol != Cudd_ReadLogicZero(dd_man));
-	  Cudd_RecursiveDeref(dd_man, sol);
-	  if (t > 1.0) {
-	    total_time *= trials;
-	    break;
-	  }
-	  if (trials > 1) {
-	    verbosity = 0;
-	  }
+	long sec = 40000000L - timer.it_value.tv_sec;
+	long usec = 1000000 - timer.it_value.tv_usec;
+	if (usec < 1000000) {
+	  sec--;
 	}
-	verbosity = old_verbosity;
-	std::cout << "Model checking completed in " << total_time/trials
-		  << " seconds." << std::endl;
-	if (accepted) {
+	double t = std::max(0.0, sec + usec*1e-6);
+	std::cout << "Model checking completed in " << t << " seconds."
+		  << std::endl;
+	if (sol != Cudd_ReadLogicZero(dd_man)) {
 	  std::cout << "Property is true in the initial state." << std::endl;
 	} else {
 	  std::cout << "Property is false in the initial state." << std::endl;
 	}
+	Cudd_RecursiveDeref(dd_man, sol);
       }
       Cudd_RecursiveDeref(dd_man, init);
       global_model->uncache_dds(dd_man);
@@ -843,14 +757,11 @@ int main(int argc, char* argv[]) {
       DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
 				    CUDD_CACHE_SLOTS, 0);
       Cudd_SetEpsilon(dd_man, 1e-15);
-      itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-      itimerval stimer;
+      itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
 #ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
+      setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-      setitimer(ITIMER_PROF, &timer, 0);
-      getitimer(ITIMER_PROF, &stimer);
+      setitimer(ITIMER_PROF, &timer, NULL);
 #endif
       global_model->cache_dds(dd_man, moments);
       const State init_state(*global_model);
@@ -859,8 +770,11 @@ int main(int argc, char* argv[]) {
 #else
       getitimer(ITIMER_PROF, &timer);
 #endif
-      long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-      long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+      long sec = 40000000L - timer.it_value.tv_sec;
+      long usec = 1000000 - timer.it_value.tv_usec;
+      if (usec < 1000000) {
+	sec--;
+      }
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       if (verbosity > 0) {
@@ -889,26 +803,24 @@ int main(int argc, char* argv[]) {
 	samples.clear();
 	total_path_lengths = 0.0;
 	for (size_t i = 0; i < trials; i++) {
-	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-	  itimerval stimer;
+	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
 #ifdef PROFILING
-	  setitimer(ITIMER_VIRTUAL, &timer, 0);
-	  getitimer(ITIMER_VIRTUAL, &stimer);
+	  setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
-	  setitimer(ITIMER_PROF, &timer, 0);
-	  getitimer(ITIMER_PROF, &stimer);
+	  setitimer(ITIMER_PROF, &timer, NULL);
 #endif
 	  bool sol = (*fi)->verify(dd_man, *global_model, init_state,
-				   indifference_region, alpha, beta, algorithm,
-				   epsilon);
-	  (*fi)->clear_cache();
+				   delta, alpha, beta, epsilon);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else
 	  getitimer(ITIMER_PROF, &timer);
 #endif
-	  long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+	  long sec = 40000000L - timer.it_value.tv_sec;
+	  long usec = 1000000 - timer.it_value.tv_usec;
+	  if (usec < 1000000) {
+	    sec--;
+	  }
 	  double t = std::max(0.0, sec + usec*1e-6);
 	  if (trials == 1) {
 	    std::cout << "Model checking completed in " << t << " seconds."
@@ -970,14 +882,33 @@ int main(int argc, char* argv[]) {
     properties.clear();
   } catch (const std::exception& e) {
     std::cerr << std::endl << PACKAGE ": " << e.what() << std::endl;
-    return 1;
+    return -1;
   } catch (...) {
     std::cerr << std::endl << PACKAGE ": fatal error" << std::endl;
-    return 1;
+    return -1;
   }
-  if (Distribution::mts != 0) {
+  if (Distribution::mts != NULL) {
     free_mt_struct(Distribution::mts);
   }
+  for (ClientTable::const_iterator ci = registered_clients.begin();
+       ci != registered_clients.end(); ci++) {
+    std::cout << "terminating client " << (*ci).first << std::endl;
+    ServerMsg smsg = { ServerMsg::QUIT };
+    const sockaddr* addr = (sockaddr*) &(*ci).second;
+    if (-1 == sendto(server_socket, &smsg, sizeof smsg, 0,
+		     addr, sizeof *addr)) {
+      perror(PACKAGE);
+      return -1;
+    }
+  }
+#if 0
+  if (client_socket != -1) {
+    close(client_socket);
+  }
+  if (server_socket != -1) {
+    close(server_socket);
+  }
+#endif
 
   return 0;
 }

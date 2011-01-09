@@ -2,7 +2,7 @@
 /*
  * States.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,7 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: states.h,v 4.1 2005-02-01 14:19:47 lorens Exp $
+ * $Id: states.h,v 2.1 2004-01-25 12:43:56 lorens Exp $
  */
 #ifndef STATES_H
 #define STATES_H
@@ -53,9 +53,6 @@ struct State {
 
   /* Returns a sampled successor of this state. */
   virtual const State& next(const Model& model) const;
-
-  /* Returns a copy of this state with resampled trigger times. */
-  virtual const State& resampled(const Model& model) const;
 
   /* Prints this object on the given stream. */
   void print(std::ostream& os) const;

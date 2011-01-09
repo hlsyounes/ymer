@@ -20,22 +20,25 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: comm.h,v 3.1 2004-03-11 20:19:01 lorens Exp $
+ * $Id: comm.h,v 2.1 2004-01-25 12:17:37 lorens Exp $
  */
 #ifndef COMM_H
 #define COMM_H
 
-#include <cstdlib>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <map>
 
 
 /*
  * A client message.
  */
 struct ClientMsg {
-  typedef enum { SAMPLE } MsgId;
+  typedef enum { REGISTER, SAMPLE } MsgId;
 
   MsgId id;
-  bool value;
+  short client_id;
+  unsigned long value;
 };
 
 
@@ -43,15 +46,26 @@ struct ClientMsg {
  * A server message.
  */
 struct ServerMsg {
-  typedef enum { REGISTER, START, STOP } MsgId;
+  typedef enum { START, STOP, QUIT } MsgId;
 
   MsgId id;
   int value;
 };
 
 
+/*
+ * A client table.
+ */
+struct ClientTable : public std::map<short, sockaddr_in> {
+};
+
+
 /* Sockets for communication. */
-extern int server_socket;
+extern int client_socket, server_socket;
+/* Base port. */
+extern int port;
+/* Registered clients. */
+extern ClientTable registered_clients;
 /* Current property. */
 extern size_t current_property;
 
