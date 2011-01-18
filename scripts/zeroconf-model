@@ -1,0 +1,38 @@
+#! /bin/sh
+
+n=$1
+if test -z "$n"; then
+    exit -1
+fi
+if test $n -lt 1; then
+    exit -1
+fi
+
+q=$2
+if test -z "$q"; then
+    exit -1
+fi
+
+r=$3
+if test -z "$r"; then
+    exit -1
+fi
+
+echo "stochastic"
+echo
+echo "const n = "`expr $n + 2`";"
+echo "rate q = $q;"
+echo "rate nq = "`perl -e "print 1-$q"`";"
+echo "rate r = $r;"
+echo "rate nr = "`perl -e "print 1-$r"`";"
+echo
+echo "module M"
+echo
+echo "  s : [0..n];"
+echo
+echo "  [] (s=0) -> q : (s'=1);"
+echo "  [] (s=0) -> nq : (s'=n);"
+echo "  [] (s>0) & (s<n-1) -> r : (s'=s+1);"
+echo "  [] (s>0) & (s<n-1) -> nr : (s'=0);"
+echo
+echo "endmodule"
