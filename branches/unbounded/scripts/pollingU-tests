@@ -1,0 +1,58 @@
+#! /bin/bash
+
+ulimit -t `expr 24 '*' 60 '*' 60`
+echo time limit: `ulimit -t` seconds
+
+if [[ ! -e data ]]; then
+  mkdir data
+fi
+
+trials=20
+
+function nonparametric-test {
+  dst=data/pollingU$alt$n-$s-$i-$d-$p-$pt
+  echo $dst
+  if [[ ! -e $dst ]]; then
+    nice -n -20 ./ymer -A 1e-$i -B 1e-$i -D 0.$d -s $s -t 1e-$pt -T $trials models/pollingU$alt$n.sm examples/pollingU$alt.csl > $dst
+  fi
+}
+
+i=1
+d=01
+alt=alt
+p=0.4
+for n in `seq 3 3 42`; do
+  for pt in 4; do
+    for s in nonparametric sen; do
+      nonparametric-test
+    done
+  done
+done
+
+a=05
+d=01
+p=0.4
+n=20
+for pt in 3 4 5; do
+  dst=data/pollingUalt$n-nonparametric-$a-$d-$p-$pt
+  echo $dst
+  if [[ ! -e $dst ]]; then
+    nice -n -20 ./ymer -A 0.$a -B 0.$a -D 0.$d -s nonparametric -t 1e-$pt -T $trials models/pollingUalt$n.sm examples/pollingUalt.csl > $dst
+  fi
+done
+
+#for n in 12 alt12; do
+#  for s in nonparametric sen; do
+#    for pt in 5 4 3; do
+#      nonparametric-test
+#    done
+#  done
+#done
+
+#i=1
+#d=01
+#for n in alt3 alt6 alt9 alt12 alt15 alt18; do
+#  for pt in 5 4 3; do
+#    nonparametric-test
+#  done
+#done

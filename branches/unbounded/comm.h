@@ -2,7 +2,8 @@
 /*
  * Client/Server communication.
  *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -19,41 +20,35 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: comm.h,v 3.1 2004-03-11 20:19:01 lorens Exp $
  */
 #ifndef COMM_H
 #define COMM_H
 
-#include <cstdlib>
+#include <config.h>
+#include <stdexcept>
 
 
-/*
- * A client message.
- */
-struct ClientMsg {
-  typedef enum { SAMPLE } MsgId;
-
-  MsgId id;
-  bool value;
+/* Exception raised when server is unavailable. */
+struct server_unavailable : public std::runtime_error {
+  server_unavailable() : std::runtime_error("server unavailable") {}
 };
 
 
-/*
- * A server message.
- */
-struct ServerMsg {
-  typedef enum { REGISTER, START, STOP } MsgId;
+/* Establishes a server. */
+void establish_server(int port);
 
-  MsgId id;
-  int value;
-};
-
-
-/* Sockets for communication. */
-extern int server_socket;
-/* Current property. */
-extern size_t current_property;
+/* Connects to a server. */
+int connect_to_server(const std::string& hostname, int port);
+/* Receives a register message from a server. */
+void recv_register(int& client_id, unsigned long& seed, int sockfd);
+/* Receives an init message from a server. */
+void recv_init(int sockfd);
+/* Receives a start message from a server. */
+void recv_start(double& alpha, double& beta, double& gamma, int sockfd);
+/* Receives a stop message from a server. */
+bool recv_stop(int sockfd);
+/* Sends a sample message to a server. */
+void send_sample(int sockfd, int sample);
 
 
 #endif /* COMM_H */
