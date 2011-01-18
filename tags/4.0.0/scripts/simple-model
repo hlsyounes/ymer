@@ -1,0 +1,22 @@
+#! /bin/sh
+
+p=$1
+if (test -z "$p") then
+    exit -1
+fi
+
+q=`perl -e "print 1-$p"`
+
+echo "stochastic"
+echo
+echo "rate p = $p;"
+echo "rate q = $q;"
+echo
+echo "module M"
+echo
+echo "  s : [1..3];"
+echo
+echo "  [] (s=1) -> p : (s'=3);"
+echo "  [] (s=1) -> q : (s'=2);"
+echo
+echo "endmodule"
