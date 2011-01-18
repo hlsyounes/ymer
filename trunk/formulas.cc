@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Formulas.
+ *
+ * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -16,8 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: formulas.cc,v 2.1 2004-01-25 12:23:03 lorens Exp $
  */
 #include "formulas.h"
 #include <stdexcept>
@@ -51,30 +52,32 @@ std::ostream& operator<<(std::ostream& os, const PathFormula& f) {
 Conjunction::~Conjunction() {
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    destructive_deref(*fi);
+    deref(*fi);
   }
 }
 
 
 /* Adds a conjunct to this conjunction. */
 void Conjunction::add_conjunct(const StateFormula& conjunct) {
-  if (conjunct.probabilistic()) {
-    conjuncts_.push_front(&conjunct);
-  } else {
-    conjuncts_.push_back(&conjunct);
-  }
+  conjuncts_.push_back(&conjunct);
   ref(&conjunct);
 }
 
 
 /* Tests if this state formula contains probabilistic elements. */
 bool Conjunction::probabilistic() const {
-  return !conjuncts().empty() && conjuncts().front()->probabilistic();
+  for (FormulaList::const_iterator fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    if ((*fi)->probabilistic()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
 /* Tests if this state formula holds in the given state. */
-bool Conjunction::holds(const ValueMap& values) const {
+bool Conjunction::holds(const Values& values) const {
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     if (!(*fi)->holds(values)) {
@@ -86,29 +89,8 @@ bool Conjunction::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Conjunction::substitution(const ValueMap& values) const {
-  Conjunction* subst_conj = new Conjunction();
-  bool changed = false;
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    const StateFormula& f = (*fi)->substitution(values);
-    if (!changed && &f != *fi) {
-      changed = true;
-    }
-    subst_conj->add_conjunct(f);
-  }
-  if (changed) {
-    return *subst_conj;
-  } else {
-    delete subst_conj;
-    return *this;
-  }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
 const Conjunction&
-Conjunction::substitution(const SubstitutionMap& subst) const {
+Conjunction::substitution(const Substitutions& subst) const {
   Conjunction* subst_conj = new Conjunction();
   bool changed = false;
   for (FormulaList::const_iterator fi = conjuncts().begin();
@@ -122,43 +104,10 @@ Conjunction::substitution(const SubstitutionMap& subst) const {
   if (changed) {
     return *subst_conj;
   } else {
-    delete subst_conj;
+    ref(subst_conj);
+    deref(subst_conj);
     return *this;
   }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Conjunction::bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadOne(dd_man);
-  Cudd_Ref(dd);
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddAnd(dd_man, ddf, dd);
-    Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
-    dd = dd_tmp;
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Conjunction::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadOne(dd_man);
-  Cudd_Ref(dd);
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->primed_bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddAnd(dd_man, ddf, dd);
-    Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
-    dd = dd_tmp;
-  }
-  return dd;
 }
 
 
@@ -170,8 +119,7 @@ void Conjunction::print(std::ostream& os) const {
     os << *conjuncts().front();
   } else {
     FormulaList::const_iterator fi = conjuncts().begin();
-    bool par = (typeid(**fi) == typeid(Disjunction)
-		|| typeid(**fi) == typeid(Implication));
+    bool par = typeid(**fi) == typeid(Disjunction);
     if (par) {
       os << '(';
     }
@@ -181,8 +129,7 @@ void Conjunction::print(std::ostream& os) const {
     }
     for (fi++; fi != conjuncts().end(); fi++) {
       os << " & ";
-      par = (typeid(**fi) == typeid(Disjunction)
-	     || typeid(**fi) == typeid(Implication));
+      par = typeid(**fi) == typeid(Disjunction);
       if (par) {
 	os << '(';
       }
@@ -202,30 +149,32 @@ void Conjunction::print(std::ostream& os) const {
 Disjunction::~Disjunction() {
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
-    destructive_deref(*fi);
+    deref(*fi);
   }
 }
 
 
 /* Adds a disjunct to this disjunction. */
 void Disjunction::add_disjunct(const StateFormula& disjunct) {
-  if (disjunct.probabilistic()) {
-    disjuncts_.push_front(&disjunct);
-  } else {
-    disjuncts_.push_back(&disjunct);
-  }
+  disjuncts_.push_back(&disjunct);
   ref(&disjunct);
 }
 
 
 /* Tests if this state formula contains probabilistic elements. */
 bool Disjunction::probabilistic() const {
-  return !disjuncts().empty() && disjuncts().front()->probabilistic();
+  for (FormulaList::const_iterator fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    if ((*fi)->probabilistic()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
 /* Tests if this state formula holds in the given state. */
-bool Disjunction::holds(const ValueMap& values) const {
+bool Disjunction::holds(const Values& values) const {
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     if ((*fi)->holds(values)) {
@@ -237,29 +186,8 @@ bool Disjunction::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Disjunction::substitution(const ValueMap& values) const {
-  Disjunction* subst_disj = new Disjunction();
-  bool changed = false;
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    const StateFormula& f = (*fi)->substitution(values);
-    if (!changed && &f != *fi) {
-      changed = true;
-    }
-    subst_disj->add_disjunct(f);
-  }
-  if (changed) {
-    return *subst_disj;
-  } else {
-    delete subst_disj;
-    return *this;
-  }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
 const Disjunction&
-Disjunction::substitution(const SubstitutionMap& subst) const {
+Disjunction::substitution(const Substitutions& subst) const {
   Disjunction* subst_disj = new Disjunction();
   bool changed = false;
   for (FormulaList::const_iterator fi = disjuncts().begin();
@@ -273,43 +201,10 @@ Disjunction::substitution(const SubstitutionMap& subst) const {
   if (changed) {
     return *subst_disj;
   } else {
-    delete subst_disj;
+    ref(subst_disj);
+    deref(subst_disj);
     return *this;
   }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Disjunction::bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadLogicZero(dd_man);
-  Cudd_Ref(dd);
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddOr(dd_man, ddf, dd);
-    Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
-    dd = dd_tmp;
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Disjunction::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadLogicZero(dd_man);
-  Cudd_Ref(dd);
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->primed_bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddOr(dd_man, ddf, dd);
-    Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
-    dd = dd_tmp;
-  }
-  return dd;
 }
 
 
@@ -321,8 +216,7 @@ void Disjunction::print(std::ostream& os) const {
     os << *disjuncts().front();
   } else {
     FormulaList::const_iterator fi = disjuncts().begin();
-    bool par = (typeid(**fi) == typeid(Conjunction)
-		|| typeid(**fi) == typeid(Implication));
+    bool par = typeid(**fi) == typeid(Conjunction);
     if (par) {
       os << '(';
     }
@@ -332,8 +226,7 @@ void Disjunction::print(std::ostream& os) const {
     }
     for (fi++; fi != disjuncts().end(); fi++) {
       os << " | ";
-      par = (typeid(**fi) == typeid(Conjunction)
-	     || typeid(**fi) == typeid(Implication));
+      par = typeid(**fi) == typeid(Conjunction);
       if (par) {
 	os << '(';
       }
@@ -347,205 +240,20 @@ void Disjunction::print(std::ostream& os) const {
 
 
 /* ====================================================================== */
-/* Negation */
-
-/* Constructs a negation. */
-Negation::Negation(const StateFormula& negand)
-  : negand_(&negand) {
-  ref(negand_);
-}
-
-
-/* Deletes this negation. */
-Negation::~Negation() {
-  destructive_deref(negand_);
-}
-
-
-/* Tests if this state formula contains probabilistic elements. */
-bool Negation::probabilistic() const {
-  return negand().probabilistic();
-}
-
-
-/* Tests if this state formula holds in the given state. */
-bool Negation::holds(const ValueMap& values) const {
-  return !negand().holds(values);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const StateFormula& Negation::substitution(const ValueMap& values) const {
-  const StateFormula& f = negand().substitution(values);
-  if (&f != &negand()) {
-    return *new Negation(f);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const Negation& Negation::substitution(const SubstitutionMap& subst) const {
-  const StateFormula& f = negand().substitution(subst);
-  if (&f != &negand()) {
-    return *new Negation(f);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Negation::bdd(DdManager* dd_man) const {
-  DdNode* ddn = negand().bdd(dd_man);
-  DdNode* dd = Cudd_Not(ddn);
-  Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Negation::primed_bdd(DdManager* dd_man) const {
-  DdNode* ddn = negand().primed_bdd(dd_man);
-  DdNode* dd = Cudd_Not(ddn);
-  Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  return dd;
-}
-
-
-/* Prints this object on the given stream. */
-void Negation::print(std::ostream& os) const {
-  os << '!';
-  bool par = (typeid(negand()) == typeid(Conjunction)
-	      || typeid(negand()) == typeid(Disjunction)
-	      || typeid(negand()) == typeid(Implication));
-  if (par) {
-    os << '(';
-  }
-  os << negand();
-  if (par) {
-    os << ')';
-  }
-}
-
-
-/* ====================================================================== */
-/* Implication */
-
-/* Constructs an implication. */
-Implication::Implication(const StateFormula& antecedent,
-			 const StateFormula& consequent)
-  : antecedent_(&antecedent), consequent_(&consequent) {
-  ref(antecedent_);
-  ref(consequent_);
-}
-
-
-/* Deletes this implication. */
-Implication::~Implication() {
-  destructive_deref(antecedent_);
-  destructive_deref(consequent_);
-}
-
-
-/* Tests if this state formula contains probabilistic elements. */
-bool Implication::probabilistic() const {
-  return antecedent().probabilistic() || consequent().probabilistic();
-}
-
-
-/* Tests if this state formula holds in the given state. */
-bool Implication::holds(const ValueMap& values) const {
-  return !antecedent().holds(values) || consequent().holds(values);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const StateFormula& Implication::substitution(const ValueMap& values) const {
-  const StateFormula& f1 = antecedent().substitution(values);
-  const StateFormula& f2 = consequent().substitution(values);
-  if (&f1 != &antecedent() || &f2 != &consequent()) {
-    return *new Implication(f1, f2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const Implication&
-Implication::substitution(const SubstitutionMap& subst) const {
-  const StateFormula& f1 = antecedent().substitution(subst);
-  const StateFormula& f2 = consequent().substitution(subst);
-  if (&f1 != &antecedent() || &f2 != &consequent()) {
-    return *new Implication(f1, f2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Implication::bdd(DdManager* dd_man) const {
-  DdNode* dda = antecedent().bdd(dd_man);
-  DdNode* ddn = Cudd_Not(dda);
-  Cudd_Ref(ddn);
-  Cudd_RecursiveDeref(dd_man, dda);
-  DdNode* ddc = consequent().bdd(dd_man);
-  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
-  Cudd_Ref(ddi);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  Cudd_RecursiveDeref(dd_man, ddc);
-  return ddi;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Implication::primed_bdd(DdManager* dd_man) const {
-  DdNode* dda = antecedent().primed_bdd(dd_man);
-  DdNode* ddn = Cudd_Not(dda);
-  Cudd_Ref(ddn);
-  Cudd_RecursiveDeref(dd_man, dda);
-  DdNode* ddc = consequent().primed_bdd(dd_man);
-  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
-  Cudd_Ref(ddi);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  Cudd_RecursiveDeref(dd_man, ddc);
-  return ddi;
-}
-
-
-/* Prints this object on the given stream. */
-void Implication::print(std::ostream& os) const {
-  os << antecedent() << " => ";
-  bool par = typeid(consequent()) == typeid(Implication);
-  if (par) {
-    os << '(';
-  }
-  os << consequent();
-  if (par) {
-    os << ')';
-  }
-}
-
-
-/* ====================================================================== */
 /* Probabilistic */
 
 /* Constructs a probabilistic path quantification. */
-Probabilistic::Probabilistic(const Rational& threshold, bool strict,
+Probabilistic::Probabilistic(bool negated, double threshold, bool strict,
 			     const PathFormula& formula)
-  : threshold_(threshold), strict_(strict), formula_(&formula) {
-  PathFormula::ref(formula_);
+  : negated_(negated), threshold_(threshold), strict_(strict),
+    formula_(&formula) {
+  ref(formula_);
 }
 
 
 /* Deletes this probabilistic path quantification. */
 Probabilistic::~Probabilistic() {
-  PathFormula::destructive_deref(formula_);
+  deref(formula_);
 }
 
 
@@ -556,50 +264,32 @@ bool Probabilistic::probabilistic() const {
 
 
 /* Tests if this state formula holds in the given state. */
-bool Probabilistic::holds(const ValueMap& values) const {
+bool Probabilistic::holds(const Values& values) const {
   throw std::logic_error("Probabilistic::holds not implemented");
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Probabilistic::substitution(const ValueMap& values) const {
-  const PathFormula& f = formula().substitution(values);
-  if (&f != &formula()) {
-    return *new Probabilistic(threshold(), strict(), f);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
 const Probabilistic&
-Probabilistic::substitution(const SubstitutionMap& subst) const {
+Probabilistic::substitution(const Substitutions& subst) const {
   const PathFormula& f = formula().substitution(subst);
   if (&f != &formula()) {
-    return *new Probabilistic(threshold(), strict(), f);
+    return *new Probabilistic(negated(), threshold(), strict(), f);
   } else {
     return *this;
   }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Probabilistic::bdd(DdManager* dd_man) const {
-  throw std::logic_error("Probabilistic::bdd not implemented");
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Probabilistic::primed_bdd(DdManager* dd_man) const {
-  throw std::logic_error("Probabilistic::primed_bdd not implemented");
 }
 
 
 /* Prints this object on the given stream. */
 void Probabilistic::print(std::ostream& os) const {
-  os << 'P' << (strict() ? ">" : ">=") << threshold()
-     << " [ " << formula() << " ]";
+  os << 'P';
+  if (negated()) {
+    os << (strict() ? "<=" : "<");
+  } else {
+    os << (strict() ? ">" : ">=");
+  }
+  os << threshold() << " [ " << formula() << " ]";
 }
 
 
@@ -607,22 +297,26 @@ void Probabilistic::print(std::ostream& os) const {
 /* Comparison */
 
 /* Constructs a comparison. */
-Comparison::Comparison(const Expression& expr1, const Expression& expr2)
-  : expr1_(&expr1), expr2_(&expr2) {
-  Expression::ref(expr1_);
-  Expression::ref(expr2_);
+template<typename T>
+Comparison<T>::Comparison(const Expression<T>& expr1,
+			  const Expression<T>& expr2, bool negated)
+  : expr1_(&expr1), expr2_(&expr2), negated_(negated) {
+  ref(expr1_);
+  ref(expr2_);
 }
 
 
 /* Deletes this comparison. */
-Comparison::~Comparison() {
-  Expression::destructive_deref(expr1_);
-  Expression::destructive_deref(expr2_);
+template<typename T>
+Comparison<T>::~Comparison() {
+  deref(expr1_);
+  deref(expr2_);
 }
 
 
 /* Tests if this state formula contains probabilistic elements. */
-bool Comparison::probabilistic() const {
+template<typename T>
+bool Comparison<T>::probabilistic() const {
   return false;
 }
 
@@ -631,746 +325,141 @@ bool Comparison::probabilistic() const {
 /* LessThan */
 
 /* Constructs a less-than comparison. */
-LessThan::LessThan(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+template<typename T>
+LessThan<T>::LessThan(const Expression<T>& expr1, const Expression<T>& expr2,
+		      bool negated)
+  : Comparison<T>(expr1, expr2, negated) {}
 
 
 /* Tests if this state formula holds in the given state. */
-bool LessThan::holds(const ValueMap& values) const {
-  return expr1().value(values) < expr2().value(values);
+template<typename T>
+bool LessThan<T>::holds(const Values& values) const {
+  bool result = this->expr1().value(values) < this->expr2().value(values);
+  return this->negated() ? !result : result;
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& LessThan::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new LessThan(e1, e2);
+template<typename T>
+const LessThan<T>&
+LessThan<T>::substitution(const Substitutions& subst) const {
+  const Expression<T>& e1 = this->expr1().substitution(subst);
+  const Expression<T>& e2 = this->expr2().substitution(subst);
+  if (&e1 != &this->expr1() || &e2 != &this->expr2()) {
+    return *new LessThan(e1, e2, this->negated());
   } else {
     return *this;
   }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const LessThan& LessThan::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = expr1().substitution(subst);
-  const Expression& e2 = expr2().substitution(subst);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new LessThan(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* LessThan::bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
-  if (value != NULL) {
-    /* value < expr2  <==>  expr2 > value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr2().mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr2());
-    if (value != NULL) {
-      /* expr1 < value  <==>  !(expr1 >= value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr1().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 < expr2  <==>  expr2 - expr1 > 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* LessThan::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
-  if (value != NULL) {
-    /* value < expr2  <==>  expr2 > value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr2().primed_mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr2());
-    if (value != NULL) {
-      /* expr1 < value  <==>  !(expr1 >= value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr1().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 < expr2  <==>  expr2 - expr1 > 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
 }
 
 
 /* Prints this object on the given stream. */
-void LessThan::print(std::ostream& os) const {
-  os << expr1() << '<' << expr2();
-}
-
-
-/* ====================================================================== */
-/* LessThanOrEqual */
-
-/* Constructs a less-than-or-equal comparison. */
-LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
-				 const Expression& expr2)
-  : Comparison(expr1, expr2) {}
-
-
-/* Tests if this state formula holds in the given state. */
-bool LessThanOrEqual::holds(const ValueMap& values) const {
-  return expr1().value(values) <= expr2().value(values);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const StateFormula&
-LessThanOrEqual::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new LessThanOrEqual(e1, e2);
+template<typename T>
+void LessThan<T>::print(std::ostream& os) const {
+  if (this->negated()) {
+    os << this->expr1() << ">=" << this->expr2();
   } else {
-    return *this;
+    os << this->expr1() << "<" << this->expr2();
   }
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const LessThanOrEqual&
-LessThanOrEqual::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = expr1().substitution(subst);
-  const Expression& e2 = expr2().substitution(subst);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new LessThanOrEqual(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
-  if (value != NULL) {
-    /* value <= expr2  <==>  expr2 >= value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr2().mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr2());
-    if (value != NULL) {
-      /* expr1 <= value  <==>  !(expr1 > value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr1().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 <= expr2  <==>  expr2 - expr1 >= 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* LessThanOrEqual::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
-  if (value != NULL) {
-    /* value <= expr2  <==>  expr2 >= value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr2().primed_mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr2());
-    if (value != NULL) {
-      /* expr1 <= value  <==>  !(expr1 > value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr1().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 <= expr2  <==>  expr2 - expr1 >= 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Prints this object on the given stream. */
-void LessThanOrEqual::print(std::ostream& os) const {
-  os << expr1() << "<="<< expr2();
-}
-
-
-/* ====================================================================== */
-/* GreaterThanOrEqual */
-
-/* Constructs a greater-than-or-equal comparison. */
-GreaterThanOrEqual::GreaterThanOrEqual(const Expression& expr1,
-				       const Expression& expr2)
-  : Comparison(expr1, expr2) {}
-
-
-/* Tests if this state formula holds in the given state. */
-bool GreaterThanOrEqual::holds(const ValueMap& values) const {
-  return expr1().value(values) >= expr2().value(values);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const StateFormula&
-GreaterThanOrEqual::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new GreaterThanOrEqual(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const GreaterThanOrEqual&
-GreaterThanOrEqual::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = expr1().substitution(subst);
-  const Expression& e2 = expr2().substitution(subst);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new GreaterThanOrEqual(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  if (value != NULL) {
-    /* expr1 >= value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value >= expr2  <==>  !(expr2 > value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 >= expr2  <==>  expr1 - expr2 >= 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* GreaterThanOrEqual::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  if (value != NULL) {
-    /* expr1 >= value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value >= expr2  <==>  !(expr2 > value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 >= expr2  <==>  expr1 - expr2 >= 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Prints this object on the given stream. */
-void GreaterThanOrEqual::print(std::ostream& os) const {
-  os << expr1() << ">=" << expr2();
-}
+/* Explicit instantiations. */
+template struct LessThan<int>;
 
 
 /* ====================================================================== */
 /* GreaterThan */
 
 /* Constructs a greater-than comparison. */
-GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+template<typename T>
+GreaterThan<T>::GreaterThan(const Expression<T>& expr1,
+			    const Expression<T>& expr2, bool negated)
+  : Comparison<T>(expr1, expr2, negated) {}
 
 
 /* Tests if this state formula holds in the given state. */
-bool GreaterThan::holds(const ValueMap& values) const {
-  return expr1().value(values) > expr2().value(values);
+template<typename T>
+bool GreaterThan<T>::holds(const Values& values) const {
+  bool result = this->expr1().value(values) > this->expr2().value(values);
+  return this->negated() ? !result : result;
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& GreaterThan::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new GreaterThan(e1, e2);
+template<typename T>
+const GreaterThan<T>&
+GreaterThan<T>::substitution(const Substitutions& subst) const {
+  const Expression<T>& e1 = this->expr1().substitution(subst);
+  const Expression<T>& e2 = this->expr2().substitution(subst);
+  if (&e1 != &this->expr1() || &e2 != &this->expr2()) {
+    return *new GreaterThan(e1, e2, this->negated());
   } else {
     return *this;
   }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const GreaterThan&
-GreaterThan::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = expr1().substitution(subst);
-  const Expression& e2 = expr2().substitution(subst);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new GreaterThan(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* GreaterThan::bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  if (value != NULL) {
-    /* expr1 > value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value > expr2  <==>  !(expr2 >= value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 > expr2  <==>  expr1 - expr2 > 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* GreaterThan::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  if (value != NULL) {
-    /* expr1 > value */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value > expr2  <==>  !(expr2 >= value) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-      dd = Cudd_Not(ddf);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
-    } else {
-      /* expr1 > expr2  <==>  expr1 - expr2 > 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
 }
 
 
 /* Prints this object on the given stream. */
-void GreaterThan::print(std::ostream& os) const {
-  os << expr1() << '>' << expr2();
+template<typename T>
+void GreaterThan<T>::print(std::ostream& os) const {
+  if (this->negated()) {
+    os << this->expr1() << "<=" << this->expr2();
+  } else {
+    os << this->expr1() << ">" << this->expr2();
+  }
 }
+
+
+/* Explicit instantiations. */
+template struct GreaterThan<int>;
 
 
 /* ====================================================================== */
 /* Equality */
 
 /* Constructs an equality comparison. */
-Equality::Equality(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+template<typename T>
+Equality<T>::Equality(const Expression<T>& expr1, const Expression<T>& expr2,
+		      bool negated)
+  : Comparison<T>(expr1, expr2, negated) {}
 
 
 /* Tests if this state formula holds in the given state. */
-bool Equality::holds(const ValueMap& values) const {
-  return expr1().value(values) == expr2().value(values);
+template<typename T>
+bool Equality<T>::holds(const Values& values) const {
+  bool result = this->expr1().value(values) == this->expr2().value(values);
+  return this->negated() ? !result : result;
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Equality::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new Equality(e1, e2);
+template<typename T>
+const Equality<T>&
+Equality<T>::substitution(const Substitutions& subst) const {
+  const Expression<T>& e1 = this->expr1().substitution(subst);
+  const Expression<T>& e2 = this->expr2().substitution(subst);
+  if (&e1 != &this->expr1() || &e2 != &this->expr2()) {
+    return *new Equality(e1, e2, this->negated());
   } else {
     return *this;
   }
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const Equality& Equality::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = expr1().substitution(subst);
-  const Expression& e2 = expr2().substitution(subst);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new Equality(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Equality::bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  if (value != NULL) {
-    /* expr1 == value  <==>  expr1 in [value,value] */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().mtbdd(dd_man);
-    dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value == expr2  <==>  expr2 in [value,value] */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().mtbdd(dd_man);
-      dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    } else {
-      /* expr1 == expr2  <==>  expr1 - expr2 in [0,0] */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddInterval(dd_man, dde, 0, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Equality::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  if (value != NULL) {
-    /* expr1 == value  <==>  expr1 in [value,value] */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
-    dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-    Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value == expr2  <==>  expr2 in [value,value] */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
-      dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    } else {
-      /* expr1 == expr2  <==>  expr1 - expr2 in [0,0] */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddInterval(dd_man, dde, 0, 0);
-      Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  return dd;
 }
 
 
 /* Prints this object on the given stream. */
-void Equality::print(std::ostream& os) const {
-  os << expr1() << '=' << expr2();
-}
-
-
-/* ====================================================================== */
-/* Inequality */
-
-/* Constructs an inequality comparison. */
-Inequality::Inequality(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
-
-
-/* Tests if this state formula holds in the given state. */
-bool Inequality::holds(const ValueMap& values) const {
-  return expr1().value(values) != expr2().value(values);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const StateFormula& Inequality::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new Inequality(e1, e2);
+template<typename T>
+void Equality<T>::print(std::ostream& os) const {
+  if (this->negated()) {
+    os << this->expr1() << "!=" << this->expr2();
   } else {
-    return *this;
+    os << this->expr1() << '=' << this->expr2();
   }
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const Inequality&
-Inequality::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = expr1().substitution(subst);
-  const Expression& e2 = expr2().substitution(subst);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new Inequality(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-DdNode* Inequality::bdd(DdManager* dd_man) const {
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  DdNode* ddf;
-  if (value != NULL) {
-    /* expr1 != value  <==>  !(expr1 in [value,value]) */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().mtbdd(dd_man);
-    ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-    Cudd_Ref(ddf);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value != expr2  <==>  !(expr2 in [value,value]) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().mtbdd(dd_man);
-      ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-    } else {
-      /* expr1 != expr2  <==>  !(expr1 - expr2 in [0,0]) */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      ddf = Cudd_addBddInterval(dd_man, dde, 0, 0);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  DdNode* dd = Cudd_Not(ddf);
-  Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddf);
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-DdNode* Inequality::primed_bdd(DdManager* dd_man) const {
-  const Value* value = dynamic_cast<const Value*>(&expr2());
-  DdNode* ddf;
-  if (value != NULL) {
-    /* expr1 != value  <==>  !(expr1 in [value,value]) */
-    double threshold = value->value().double_value();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
-    ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-    Cudd_Ref(ddf);
-    Cudd_RecursiveDeref(dd_man, dde);
-  } else {
-    value = dynamic_cast<const Value*>(&expr1());
-    if (value != NULL) {
-      /* value != expr2  <==>  !(expr2 in [value,value]) */
-      double threshold = value->value().double_value();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
-      ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-    } else {
-      /* expr1 != expr2  <==>  !(expr1 - expr2 in [0,0]) */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
-      Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      ddf = Cudd_addBddInterval(dd_man, dde, 0, 0);
-      Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
-    }
-  }
-  DdNode* dd = Cudd_Not(ddf);
-  Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddf);
-  return dd;
-}
-
-
-/* Prints this object on the given stream. */
-void Inequality::print(std::ostream& os) const {
-  os << expr1() << "!=" << expr2();
-}
+/* Explicit instantiations. */
+template struct Equality<int>;
 
 
 /* ====================================================================== */
@@ -1378,17 +467,17 @@ void Inequality::print(std::ostream& os) const {
 
 /* Constructs an until formula. */
 Until::Until(const StateFormula& pre, const StateFormula& post,
-	     const Rational& min_time, const Rational& max_time)
+	     double min_time, double max_time)
   : pre_(&pre), post_(&post), min_time_(min_time), max_time_(max_time) {
-  StateFormula::ref(pre_);
-  StateFormula::ref(post_);
+  ref(pre_);
+  ref(post_);
 }
 
 
 /* Deletes this until formula. */
 Until::~Until() {
-  StateFormula::destructive_deref(pre_);
-  StateFormula::destructive_deref(post_);
+  deref(pre_);
+  deref(post_);
 }
 
 
@@ -1399,19 +488,7 @@ bool Until::probabilistic() const {
 
 
 /* Returns this path formula subject to the given substitutions. */
-const PathFormula& Until::substitution(const ValueMap& values) const {
-  const StateFormula& f1 = pre().substitution(values);
-  const StateFormula& f2 = post().substitution(values);
-  if (&f1 != &pre() || &f2 != &post()) {
-    return *new Until(f1, f2, min_time(), max_time());
-  } else {
-    return *this;
-  }
-}
-
-
-/* Returns this path formula subject to the given substitutions. */
-const Until& Until::substitution(const SubstitutionMap& subst) const {
+const Until& Until::substitution(const Substitutions& subst) const {
   const StateFormula& f1 = pre().substitution(subst);
   const StateFormula& f2 = post().substitution(subst);
   if (&f1 != &pre() || &f2 != &post()) {
