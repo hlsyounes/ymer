@@ -1,0 +1,33 @@
+#! /bin/sh
+
+n=$1
+if test -z "$n"; then
+    exit -1
+fi
+if test $n -lt 2; then
+    exit -1
+fi
+
+echo "stochastic"
+echo
+echo "global fork : [0..2];"
+echo
+echo "module Phil1"
+echo
+echo "  s1 : [0..3];"
+echo
+echo "  [] (s1=0) -> 0.50 : (s1'=1);"
+echo "  [] (s1=0) -> 0.50 : (s1'=0);"
+echo "  [] (s1=1) & (fork=0) -> 1 : (s1'=2) & (fork'=1);"
+echo "  [] (s1=1) & !(fork=0) -> 1 : (s1'=1);"
+echo "  [] (s1=2) -> 0.5 : (s1'=3);"
+echo "  [] (s1=2) -> 0.5 : (s1'=2);"
+echo "  [] (s1=3) -> 0.9 : (s1'=0) & (fork'=0);"
+echo "  [] (s1=3) -> 0.1 : (s1'=0) & (fork'=2);"
+echo
+echo "endmodule"
+echo
+for i in `seq 2 $n`; do
+    j=`expr $i - 1`
+    echo "module Phil$i = Phil1 [s1=s$i] endmodule"
+done
