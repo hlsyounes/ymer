@@ -892,7 +892,7 @@ CPP
 CXXCPP
 YACC
 YFLAGS'
-ac_subdirs_all='gsl'
+ac_subdirs_all='gflags gsl'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -15255,7 +15255,7 @@ ac_config_files="$ac_config_files Makefile"
 
 
 
-subdirs="$subdirs gsl"
+subdirs="$subdirs gflags gsl"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
