@@ -130,9 +130,16 @@ cudd_st_libst_la_DEPENDENCIES = cudd/util/libutil.la
 am_cudd_st_libst_la_OBJECTS = cudd_st_libst_la-st.lo
 cudd_st_libst_la_OBJECTS = $(am_cudd_st_libst_la_OBJECTS)
 cudd_util_libutil_la_LIBADD =
-am_cudd_util_libutil_la_OBJECTS = cpu_time.lo cpu_stats.lo getopt.lo \
-	safe_mem.lo strsav.lo texpand.lo ptime.lo prtime.lo \
-	pipefork.lo pathsearch.lo stub.lo tmpfile.lo datalimit.lo
+am_cudd_util_libutil_la_OBJECTS = cudd_util_libutil_la-cpu_time.lo \
+	cudd_util_libutil_la-cpu_stats.lo \
+	cudd_util_libutil_la-getopt.lo \
+	cudd_util_libutil_la-safe_mem.lo \
+	cudd_util_libutil_la-strsav.lo cudd_util_libutil_la-texpand.lo \
+	cudd_util_libutil_la-ptime.lo cudd_util_libutil_la-prtime.lo \
+	cudd_util_libutil_la-pipefork.lo \
+	cudd_util_libutil_la-pathsearch.lo \
+	cudd_util_libutil_la-stub.lo cudd_util_libutil_la-tmpfile.lo \
+	cudd_util_libutil_la-datalimit.lo
 cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
@@ -356,6 +363,16 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 SUBDIRS = gsl
+
+# The main CUDD library.
+
+# CUDD library for extended double precision arithmetic.
+
+# CUDD library for multiway-branch tree manipulation.
+
+# CUDD library for symbol tables.
+
+# CUDD utility library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
@@ -383,30 +400,33 @@ cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
 cudd_cudd_libcudd_la_LIBADD = cudd/epd/libepd.la cudd/mtr/libmtr.la \
     cudd/st/libst.la cudd/util/libutil.la
 
-cudd_cudd_libcudd_la_CPPFLAGS = -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
+cudd_cudd_libcudd_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/epd \
+    -I$(srcdir)/cudd/mtr -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
 
 cudd_epd_libepd_la_SOURCES = cudd/epd/epd.c
 cudd_epd_libepd_la_LIBADD = cudd/util/libutil.la
-cudd_epd_libepd_la_CPPFLAGS = -I$(srcdir)/cudd/util
+cudd_epd_libepd_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/util
 cudd_mtr_libmtr_la_SOURCES = cudd/mtr/mtrBasic.c cudd/mtr/mtrGroup.c
 cudd_mtr_libmtr_la_LIBADD = cudd/st/libst.la cudd/util/libutil.la
-cudd_mtr_libmtr_la_CPPFLAGS = -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
+cudd_mtr_libmtr_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/st \
+    -I$(srcdir)/cudd/util
+
 cudd_st_libst_la_SOURCES = cudd/st/st.c
 cudd_st_libst_la_LIBADD = cudd/util/libutil.la
-cudd_st_libst_la_CPPFLAGS = -I$(srcdir)/cudd/util
+cudd_st_libst_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/util
 cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/getopt.c cudd/util/safe_mem.c cudd/util/strsav.c \
     cudd/util/texpand.c cudd/util/ptime.c cudd/util/prtime.c \
     cudd/util/pipefork.c cudd/util/pathsearch.c cudd/util/stub.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 
+cudd_util_libutil_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 	gsl/cblas/libgslcblas.la
 EXTRA_DIST = cudd examples scripts
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/cudd/epd -Igsl
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd \
+    -I$(srcdir)/cudd/mtr -Igsl
 
 AM_YFLAGS = -d
 all: config.h
@@ -558,8 +578,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/comm.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cpu_stats.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cpu_time.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Plo@am__quote@
@@ -625,11 +643,22 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_mtr_libmtr_la-mtrGroup.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_st_libst_la-st.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/datalimit.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-cpu_stats.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-cpu_time.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-datalimit.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-getopt.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-pathsearch.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-pipefork.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-prtime.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-ptime.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-safe_mem.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-strsav.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-stub.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-texpand.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-tmpfile.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/distributions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expressions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/formulas.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/getopt.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/learning.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lexer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
@@ -637,19 +666,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modules.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mtbdd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pathsearch.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pipefork.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/prtime.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ptime.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rngdc.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/safe_mem.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simulator.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strsav.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stub.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/texpand.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tmpfile.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -1127,96 +1147,96 @@ cudd_st_libst_la-st.lo: cudd/st/st.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_st_libst_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_st_libst_la-st.lo `test -f 'cudd/st/st.c' || echo '$(srcdir)/'`cudd/st/st.c
 
-cpu_time.lo: cudd/util/cpu_time.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cpu_time.lo -MD -MP -MF $(DEPDIR)/cpu_time.Tpo -c -o cpu_time.lo `test -f 'cudd/util/cpu_time.c' || echo '$(srcdir)/'`cudd/util/cpu_time.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cpu_time.Tpo $(DEPDIR)/cpu_time.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/cpu_time.c' object='cpu_time.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-cpu_time.lo: cudd/util/cpu_time.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-cpu_time.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-cpu_time.Tpo -c -o cudd_util_libutil_la-cpu_time.lo `test -f 'cudd/util/cpu_time.c' || echo '$(srcdir)/'`cudd/util/cpu_time.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-cpu_time.Tpo $(DEPDIR)/cudd_util_libutil_la-cpu_time.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/cpu_time.c' object='cudd_util_libutil_la-cpu_time.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cpu_time.lo `test -f 'cudd/util/cpu_time.c' || echo '$(srcdir)/'`cudd/util/cpu_time.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-cpu_time.lo `test -f 'cudd/util/cpu_time.c' || echo '$(srcdir)/'`cudd/util/cpu_time.c
 
-cpu_stats.lo: cudd/util/cpu_stats.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cpu_stats.lo -MD -MP -MF $(DEPDIR)/cpu_stats.Tpo -c -o cpu_stats.lo `test -f 'cudd/util/cpu_stats.c' || echo '$(srcdir)/'`cudd/util/cpu_stats.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cpu_stats.Tpo $(DEPDIR)/cpu_stats.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/cpu_stats.c' object='cpu_stats.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-cpu_stats.lo: cudd/util/cpu_stats.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-cpu_stats.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-cpu_stats.Tpo -c -o cudd_util_libutil_la-cpu_stats.lo `test -f 'cudd/util/cpu_stats.c' || echo '$(srcdir)/'`cudd/util/cpu_stats.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-cpu_stats.Tpo $(DEPDIR)/cudd_util_libutil_la-cpu_stats.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/cpu_stats.c' object='cudd_util_libutil_la-cpu_stats.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cpu_stats.lo `test -f 'cudd/util/cpu_stats.c' || echo '$(srcdir)/'`cudd/util/cpu_stats.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-cpu_stats.lo `test -f 'cudd/util/cpu_stats.c' || echo '$(srcdir)/'`cudd/util/cpu_stats.c
 
-getopt.lo: cudd/util/getopt.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT getopt.lo -MD -MP -MF $(DEPDIR)/getopt.Tpo -c -o getopt.lo `test -f 'cudd/util/getopt.c' || echo '$(srcdir)/'`cudd/util/getopt.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/getopt.Tpo $(DEPDIR)/getopt.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/getopt.c' object='getopt.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-getopt.lo: cudd/util/getopt.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-getopt.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-getopt.Tpo -c -o cudd_util_libutil_la-getopt.lo `test -f 'cudd/util/getopt.c' || echo '$(srcdir)/'`cudd/util/getopt.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-getopt.Tpo $(DEPDIR)/cudd_util_libutil_la-getopt.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/getopt.c' object='cudd_util_libutil_la-getopt.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o getopt.lo `test -f 'cudd/util/getopt.c' || echo '$(srcdir)/'`cudd/util/getopt.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-getopt.lo `test -f 'cudd/util/getopt.c' || echo '$(srcdir)/'`cudd/util/getopt.c
 
-safe_mem.lo: cudd/util/safe_mem.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT safe_mem.lo -MD -MP -MF $(DEPDIR)/safe_mem.Tpo -c -o safe_mem.lo `test -f 'cudd/util/safe_mem.c' || echo '$(srcdir)/'`cudd/util/safe_mem.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/safe_mem.Tpo $(DEPDIR)/safe_mem.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/safe_mem.c' object='safe_mem.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-safe_mem.lo: cudd/util/safe_mem.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-safe_mem.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-safe_mem.Tpo -c -o cudd_util_libutil_la-safe_mem.lo `test -f 'cudd/util/safe_mem.c' || echo '$(srcdir)/'`cudd/util/safe_mem.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-safe_mem.Tpo $(DEPDIR)/cudd_util_libutil_la-safe_mem.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/safe_mem.c' object='cudd_util_libutil_la-safe_mem.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o safe_mem.lo `test -f 'cudd/util/safe_mem.c' || echo '$(srcdir)/'`cudd/util/safe_mem.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-safe_mem.lo `test -f 'cudd/util/safe_mem.c' || echo '$(srcdir)/'`cudd/util/safe_mem.c
 
-strsav.lo: cudd/util/strsav.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT strsav.lo -MD -MP -MF $(DEPDIR)/strsav.Tpo -c -o strsav.lo `test -f 'cudd/util/strsav.c' || echo '$(srcdir)/'`cudd/util/strsav.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/strsav.Tpo $(DEPDIR)/strsav.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/strsav.c' object='strsav.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-strsav.lo: cudd/util/strsav.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-strsav.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-strsav.Tpo -c -o cudd_util_libutil_la-strsav.lo `test -f 'cudd/util/strsav.c' || echo '$(srcdir)/'`cudd/util/strsav.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-strsav.Tpo $(DEPDIR)/cudd_util_libutil_la-strsav.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/strsav.c' object='cudd_util_libutil_la-strsav.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o strsav.lo `test -f 'cudd/util/strsav.c' || echo '$(srcdir)/'`cudd/util/strsav.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-strsav.lo `test -f 'cudd/util/strsav.c' || echo '$(srcdir)/'`cudd/util/strsav.c
 
-texpand.lo: cudd/util/texpand.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT texpand.lo -MD -MP -MF $(DEPDIR)/texpand.Tpo -c -o texpand.lo `test -f 'cudd/util/texpand.c' || echo '$(srcdir)/'`cudd/util/texpand.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/texpand.Tpo $(DEPDIR)/texpand.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/texpand.c' object='texpand.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-texpand.lo: cudd/util/texpand.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-texpand.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-texpand.Tpo -c -o cudd_util_libutil_la-texpand.lo `test -f 'cudd/util/texpand.c' || echo '$(srcdir)/'`cudd/util/texpand.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-texpand.Tpo $(DEPDIR)/cudd_util_libutil_la-texpand.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/texpand.c' object='cudd_util_libutil_la-texpand.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o texpand.lo `test -f 'cudd/util/texpand.c' || echo '$(srcdir)/'`cudd/util/texpand.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-texpand.lo `test -f 'cudd/util/texpand.c' || echo '$(srcdir)/'`cudd/util/texpand.c
 
-ptime.lo: cudd/util/ptime.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ptime.lo -MD -MP -MF $(DEPDIR)/ptime.Tpo -c -o ptime.lo `test -f 'cudd/util/ptime.c' || echo '$(srcdir)/'`cudd/util/ptime.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/ptime.Tpo $(DEPDIR)/ptime.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/ptime.c' object='ptime.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-ptime.lo: cudd/util/ptime.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-ptime.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-ptime.Tpo -c -o cudd_util_libutil_la-ptime.lo `test -f 'cudd/util/ptime.c' || echo '$(srcdir)/'`cudd/util/ptime.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-ptime.Tpo $(DEPDIR)/cudd_util_libutil_la-ptime.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/ptime.c' object='cudd_util_libutil_la-ptime.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ptime.lo `test -f 'cudd/util/ptime.c' || echo '$(srcdir)/'`cudd/util/ptime.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-ptime.lo `test -f 'cudd/util/ptime.c' || echo '$(srcdir)/'`cudd/util/ptime.c
 
-prtime.lo: cudd/util/prtime.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT prtime.lo -MD -MP -MF $(DEPDIR)/prtime.Tpo -c -o prtime.lo `test -f 'cudd/util/prtime.c' || echo '$(srcdir)/'`cudd/util/prtime.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/prtime.Tpo $(DEPDIR)/prtime.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/prtime.c' object='prtime.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-prtime.lo: cudd/util/prtime.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-prtime.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-prtime.Tpo -c -o cudd_util_libutil_la-prtime.lo `test -f 'cudd/util/prtime.c' || echo '$(srcdir)/'`cudd/util/prtime.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-prtime.Tpo $(DEPDIR)/cudd_util_libutil_la-prtime.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/prtime.c' object='cudd_util_libutil_la-prtime.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o prtime.lo `test -f 'cudd/util/prtime.c' || echo '$(srcdir)/'`cudd/util/prtime.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-prtime.lo `test -f 'cudd/util/prtime.c' || echo '$(srcdir)/'`cudd/util/prtime.c
 
-pipefork.lo: cudd/util/pipefork.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT pipefork.lo -MD -MP -MF $(DEPDIR)/pipefork.Tpo -c -o pipefork.lo `test -f 'cudd/util/pipefork.c' || echo '$(srcdir)/'`cudd/util/pipefork.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/pipefork.Tpo $(DEPDIR)/pipefork.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/pipefork.c' object='pipefork.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-pipefork.lo: cudd/util/pipefork.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-pipefork.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-pipefork.Tpo -c -o cudd_util_libutil_la-pipefork.lo `test -f 'cudd/util/pipefork.c' || echo '$(srcdir)/'`cudd/util/pipefork.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-pipefork.Tpo $(DEPDIR)/cudd_util_libutil_la-pipefork.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/pipefork.c' object='cudd_util_libutil_la-pipefork.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o pipefork.lo `test -f 'cudd/util/pipefork.c' || echo '$(srcdir)/'`cudd/util/pipefork.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-pipefork.lo `test -f 'cudd/util/pipefork.c' || echo '$(srcdir)/'`cudd/util/pipefork.c
 
-pathsearch.lo: cudd/util/pathsearch.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT pathsearch.lo -MD -MP -MF $(DEPDIR)/pathsearch.Tpo -c -o pathsearch.lo `test -f 'cudd/util/pathsearch.c' || echo '$(srcdir)/'`cudd/util/pathsearch.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/pathsearch.Tpo $(DEPDIR)/pathsearch.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/pathsearch.c' object='pathsearch.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-pathsearch.lo: cudd/util/pathsearch.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-pathsearch.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-pathsearch.Tpo -c -o cudd_util_libutil_la-pathsearch.lo `test -f 'cudd/util/pathsearch.c' || echo '$(srcdir)/'`cudd/util/pathsearch.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-pathsearch.Tpo $(DEPDIR)/cudd_util_libutil_la-pathsearch.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/pathsearch.c' object='cudd_util_libutil_la-pathsearch.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o pathsearch.lo `test -f 'cudd/util/pathsearch.c' || echo '$(srcdir)/'`cudd/util/pathsearch.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-pathsearch.lo `test -f 'cudd/util/pathsearch.c' || echo '$(srcdir)/'`cudd/util/pathsearch.c
 
-stub.lo: cudd/util/stub.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT stub.lo -MD -MP -MF $(DEPDIR)/stub.Tpo -c -o stub.lo `test -f 'cudd/util/stub.c' || echo '$(srcdir)/'`cudd/util/stub.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/stub.Tpo $(DEPDIR)/stub.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/stub.c' object='stub.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-stub.lo: cudd/util/stub.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-stub.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-stub.Tpo -c -o cudd_util_libutil_la-stub.lo `test -f 'cudd/util/stub.c' || echo '$(srcdir)/'`cudd/util/stub.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-stub.Tpo $(DEPDIR)/cudd_util_libutil_la-stub.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/stub.c' object='cudd_util_libutil_la-stub.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stub.lo `test -f 'cudd/util/stub.c' || echo '$(srcdir)/'`cudd/util/stub.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-stub.lo `test -f 'cudd/util/stub.c' || echo '$(srcdir)/'`cudd/util/stub.c
 
-tmpfile.lo: cudd/util/tmpfile.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tmpfile.lo -MD -MP -MF $(DEPDIR)/tmpfile.Tpo -c -o tmpfile.lo `test -f 'cudd/util/tmpfile.c' || echo '$(srcdir)/'`cudd/util/tmpfile.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tmpfile.Tpo $(DEPDIR)/tmpfile.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/tmpfile.c' object='tmpfile.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-tmpfile.lo: cudd/util/tmpfile.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-tmpfile.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-tmpfile.Tpo -c -o cudd_util_libutil_la-tmpfile.lo `test -f 'cudd/util/tmpfile.c' || echo '$(srcdir)/'`cudd/util/tmpfile.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-tmpfile.Tpo $(DEPDIR)/cudd_util_libutil_la-tmpfile.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/tmpfile.c' object='cudd_util_libutil_la-tmpfile.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tmpfile.lo `test -f 'cudd/util/tmpfile.c' || echo '$(srcdir)/'`cudd/util/tmpfile.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-tmpfile.lo `test -f 'cudd/util/tmpfile.c' || echo '$(srcdir)/'`cudd/util/tmpfile.c
 
-datalimit.lo: cudd/util/datalimit.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT datalimit.lo -MD -MP -MF $(DEPDIR)/datalimit.Tpo -c -o datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/datalimit.Tpo $(DEPDIR)/datalimit.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/datalimit.c' object='datalimit.lo' libtool=yes @AMDEPBACKSLASH@
+cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
+@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-datalimit.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-datalimit.Tpo -c -o cudd_util_libutil_la-datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-datalimit.Tpo $(DEPDIR)/cudd_util_libutil_la-datalimit.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/datalimit.c' object='cudd_util_libutil_la-datalimit.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
+@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
