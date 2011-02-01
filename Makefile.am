@@ -86,7 +86,16 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 
 #
-# Binaries.
+# Ymer libraries.
+#
+
+# Expression library.
+noinst_LTLIBRARIES += src/libexpression.la
+src_libexpression_la_SOURCES = src/expression.h src/expression.cc
+src_libexpression_la_LIBADD = glog/libglog.la
+
+#
+# Ymer binaries.
 #
 
 bin_PROGRAMS = ymer
@@ -95,7 +104,7 @@ ymer_LDADD = cudd/cudd/libcudd.la
 ymer_LDADD += gsl/libgsl.la gsl/cblas/libgslcblas.la
 
 #
-# Tests.  Requires gtest library.
+# Ymer tests.  Requires gtest library.
 #
 if HAVE_LIBGTEST
 
@@ -106,10 +115,22 @@ check_LTLIBRARIES += src/libtest-main.la
 src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = gflags/libgflags.la glog/libglog.la -lgtest
 
+check_PROGRAMS =
+
+# Test for expression library.
+check_PROGRAMS += src/expression_test
+src_expression_test_SOURCES = src/expression_test.cc
+src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+
+# Note: heap checking is enabled only if tests were linked with tcmalloc.
+TESTS_ENVIRONMENT = HEAPCHECK=normal
+TESTS = $(check_PROGRAMS)
+
 endif  # HAVE_LIBGTEST
 
 EXTRA_DIST = cudd examples scripts
 
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/gflags/src -I$(srcdir)/glog/src -Igsl
+AM_CXXFLAGS = -std=c++0x
 AM_YFLAGS = -d
