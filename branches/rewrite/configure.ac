@@ -37,6 +37,20 @@ AC_PROG_YACC
 # Set the language.
 AC_LANG(C++)
 
+# Whether to use tcmalloc.
+AC_ARG_WITH([tcmalloc],
+            [AS_HELP_STRING([--with-tcmalloc],
+                            [a faster malloc @<:@default=check@:>@])],
+            [],
+            [with_tcmalloc=check])
+AS_IF([test "x$with_tcmalloc" != xno],
+      [AC_CHECK_LIB(
+          [tcmalloc], [tc_malloc], ,
+          [AS_IF([test "x$with_tcmalloc" != xcheck],
+                 [AC_MSG_FAILURE(
+                     [--with-tcmalloc was given, but test for tcmalloc failed])
+                 ])])])
+
 # Checks for libraries.
 AC_SEARCH_LIBS(gettext, intl)
 

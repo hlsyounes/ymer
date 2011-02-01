@@ -23,6 +23,8 @@ SUBDIRS = gflags glog gsl
 
 noinst_LTLIBRARIES =
 
+CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
+
 # The main CUDD library.
 noinst_LTLIBRARIES += cudd/cudd/libcudd.la
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
@@ -48,27 +50,27 @@ cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddZddSymm.c cudd/cudd/cuddZddUtil.c
 cudd_cudd_libcudd_la_LIBADD = cudd/epd/libepd.la cudd/mtr/libmtr.la \
     cudd/st/libst.la cudd/util/libutil.la
-cudd_cudd_libcudd_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/epd \
+cudd_cudd_libcudd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/epd \
     -I$(srcdir)/cudd/mtr -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
 
 # CUDD library for extended double precision arithmetic.
 noinst_LTLIBRARIES += cudd/epd/libepd.la
 cudd_epd_libepd_la_SOURCES = cudd/epd/epd.c
 cudd_epd_libepd_la_LIBADD = cudd/util/libutil.la
-cudd_epd_libepd_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/util
+cudd_epd_libepd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/util
 
 # CUDD library for multiway-branch tree manipulation.
 noinst_LTLIBRARIES += cudd/mtr/libmtr.la
 cudd_mtr_libmtr_la_SOURCES = cudd/mtr/mtrBasic.c cudd/mtr/mtrGroup.c
 cudd_mtr_libmtr_la_LIBADD = cudd/st/libst.la cudd/util/libutil.la
-cudd_mtr_libmtr_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/st \
+cudd_mtr_libmtr_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/st \
     -I$(srcdir)/cudd/util
 
 # CUDD library for symbol tables.
 noinst_LTLIBRARIES += cudd/st/libst.la
 cudd_st_libst_la_SOURCES = cudd/st/st.c
 cudd_st_libst_la_LIBADD = cudd/util/libutil.la
-cudd_st_libst_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754 -I$(srcdir)/cudd/util
+cudd_st_libst_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/util
 
 # CUDD utility library.
 noinst_LTLIBRARIES += cudd/util/libutil.la
@@ -77,7 +79,7 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/texpand.c cudd/util/ptime.c cudd/util/prtime.c \
     cudd/util/pipefork.c cudd/util/pathsearch.c cudd/util/stub.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
-cudd_util_libutil_la_CPPFLAGS = -DBSD -DHAVE_IEEE_754
+cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 
 bin_PROGRAMS = ymer
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
