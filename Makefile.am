@@ -23,6 +23,10 @@ SUBDIRS = gflags glog gsl
 
 noinst_LTLIBRARIES =
 
+#
+# CUDD libraries.
+#
+
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 
 # The main CUDD library.
@@ -81,13 +85,31 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 
+#
+# Binaries.
+#
+
 bin_PROGRAMS = ymer
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
 ymer_LDADD = cudd/cudd/libcudd.la
 ymer_LDADD += gsl/libgsl.la gsl/cblas/libgslcblas.la
 
+#
+# Tests.  Requires gtest library.
+#
+if HAVE_LIBGTEST
+
+check_LTLIBRARIES =
+
+# Library with main function for tests.
+check_LTLIBRARIES += src/libtest-main.la
+src_libtest_main_la_SOURCES = src/test-main.cc
+src_libtest_main_la_LIBADD = gflags/libgflags.la glog/libglog.la -lgtest
+
+endif  # HAVE_LIBGTEST
+
 EXTRA_DIST = cudd examples scripts
 
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd \
-    -I$(srcdir)/cudd/mtr -Igsl
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
+    -I$(srcdir)/gflags/src -I$(srcdir)/glog/src -Igsl
 AM_YFLAGS = -d

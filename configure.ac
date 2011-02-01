@@ -51,6 +51,10 @@ AS_IF([test "x$with_tcmalloc" != xno],
                      [--with-tcmalloc was given, but test for tcmalloc failed])
                  ])])])
 
+# Whether gtest is available.
+AC_CHECK_PROG([have_gtest_config], [gtest-config], [yes])
+AM_CONDITIONAL([HAVE_LIBGTEST], [test "x$have_gtest_config" = xyes])
+
 # Checks for libraries.
 AC_SEARCH_LIBS(gettext, intl)
 
