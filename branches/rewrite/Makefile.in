@@ -141,6 +141,12 @@ am_cudd_util_libutil_la_OBJECTS = cudd_util_libutil_la-cpu_time.lo \
 	cudd_util_libutil_la-stub.lo cudd_util_libutil_la-tmpfile.lo \
 	cudd_util_libutil_la-datalimit.lo
 cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
+@HAVE_LIBGTEST_TRUE@src_libtest_main_la_DEPENDENCIES =  \
+@HAVE_LIBGTEST_TRUE@	gflags/libgflags.la glog/libglog.la
+am__src_libtest_main_la_SOURCES_DIST = src/test-main.cc
+@HAVE_LIBGTEST_TRUE@am_src_libtest_main_la_OBJECTS = test-main.lo
+src_libtest_main_la_OBJECTS = $(am_src_libtest_main_la_OBJECTS)
+@HAVE_LIBGTEST_TRUE@am_src_libtest_main_la_rpath =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_ymer_OBJECTS = main.$(OBJEXT) rng.$(OBJEXT) rngdc.$(OBJEXT) \
@@ -184,11 +190,11 @@ LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_libtest_main_la_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(ymer_SOURCES)
+	$(am__src_libtest_main_la_SOURCES_DIST) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -332,6 +338,7 @@ datarootdir = @datarootdir@
 docdir = @docdir@
 dvidir = @dvidir@
 exec_prefix = @exec_prefix@
+have_gtest_config = @have_gtest_config@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
@@ -375,6 +382,10 @@ SUBDIRS = gflags glog gsl
 # CUDD utility library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la
+
+#
+# CUDD libraries.
+#
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -425,9 +436,18 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 	gsl/cblas/libgslcblas.la
+
+#
+# Tests.  Requires gtest library.
+#
+
+# Library with main function for tests.
+@HAVE_LIBGTEST_TRUE@check_LTLIBRARIES = src/libtest-main.la
+@HAVE_LIBGTEST_TRUE@src_libtest_main_la_SOURCES = src/test-main.cc
+@HAVE_LIBGTEST_TRUE@src_libtest_main_la_LIBADD = gflags/libgflags.la glog/libglog.la -lgtest
 EXTRA_DIST = cudd examples scripts
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd \
-    -I$(srcdir)/cudd/mtr -Igsl
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
+    -I$(srcdir)/gflags/src -I$(srcdir)/glog/src -Igsl
 
 AM_YFLAGS = -d
 all: config.h
@@ -487,6 +507,15 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 distclean-hdr:
 	-rm -f config.h stamp-h1
 
+clean-checkLTLIBRARIES:
+	-test -z "$(check_LTLIBRARIES)" || rm -f $(check_LTLIBRARIES)
+	@list='$(check_LTLIBRARIES)'; for p in $$list; do \
+	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
+	  test "$$dir" != "$$p" || dir=.; \
+	  echo "rm -f \"$${dir}/so_locations\""; \
+	  rm -f "$${dir}/so_locations"; \
+	done
+
 clean-noinstLTLIBRARIES:
 	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
 	@list='$(noinst_LTLIBRARIES)'; for p in $$list; do \
@@ -520,6 +549,11 @@ cudd/util/$(am__dirstamp):
 	@: > cudd/util/$(am__dirstamp)
 cudd/util/libutil.la: $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_DEPENDENCIES) cudd/util/$(am__dirstamp)
 	$(LINK)  $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_LIBADD) $(LIBS)
+src/$(am__dirstamp):
+	@$(MKDIR_P) src
+	@: > src/$(am__dirstamp)
+src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK) $(am_src_libtest_main_la_rpath) $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
@@ -671,6 +705,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rngdc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simulator.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-main.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -1260,6 +1295,13 @@ cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
 
+test-main.lo: src/test-main.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT test-main.lo -MD -MP -MF $(DEPDIR)/test-main.Tpo -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/test-main.Tpo $(DEPDIR)/test-main.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/test-main.cc' object='test-main.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc
+
 .ll.cc:
 	$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
 
@@ -1276,6 +1318,7 @@ clean-libtool:
 	-rm -rf cudd/mtr/.libs cudd/mtr/_libs
 	-rm -rf cudd/st/.libs cudd/st/_libs
 	-rm -rf cudd/util/.libs cudd/util/_libs
+	-rm -rf src/.libs src/_libs
 
 distclean-libtool:
 	-rm -f libtool config.lt
@@ -1591,6 +1634,7 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_LTLIBRARIES)
 check: check-recursive
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) config.h
 installdirs: installdirs-recursive
@@ -1624,6 +1668,7 @@ distclean-generic:
 	-rm -f cudd/mtr/$(am__dirstamp)
 	-rm -f cudd/st/$(am__dirstamp)
 	-rm -f cudd/util/$(am__dirstamp)
+	-rm -f src/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -1633,8 +1678,8 @@ maintainer-clean-generic:
 	-rm -f parser.h
 clean: clean-recursive
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstLTLIBRARIES mostlyclean-am
+clean-am: clean-binPROGRAMS clean-checkLTLIBRARIES clean-generic \
+	clean-libtool clean-noinstLTLIBRARIES mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -1705,27 +1750,27 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS
 
-.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all \
+.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all check-am \
 	ctags-recursive install-am install-strip tags-recursive
 
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
 	all all-am am--refresh check check-am clean clean-binPROGRAMS \
-	clean-generic clean-libtool clean-noinstLTLIBRARIES ctags \
-	ctags-recursive dist dist-all dist-bzip2 dist-gzip dist-lzma \
-	dist-shar dist-tarZ dist-xz dist-zip distcheck distclean \
-	distclean-compile distclean-generic distclean-hdr \
-	distclean-libtool distclean-tags distcleancheck distdir \
-	distuninstallcheck dvi dvi-am html html-am info info-am \
-	install install-am install-binPROGRAMS install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-recursive uninstall uninstall-am \
-	uninstall-binPROGRAMS
+	clean-checkLTLIBRARIES clean-generic clean-libtool \
+	clean-noinstLTLIBRARIES ctags ctags-recursive dist dist-all \
+	dist-bzip2 dist-gzip dist-lzma dist-shar dist-tarZ dist-xz \
+	dist-zip distcheck distclean distclean-compile \
+	distclean-generic distclean-hdr distclean-libtool \
+	distclean-tags distcleancheck distdir distuninstallcheck dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
+	uninstall uninstall-am uninstall-binPROGRAMS
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
