@@ -36,7 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-@HAVE_LIBGTEST_TRUE@check_PROGRAMS = src/expression_test$(EXEEXT)
+@HAVE_LIBGTEST_TRUE@check_PROGRAMS = src/expression_test$(EXEEXT) \
+@HAVE_LIBGTEST_TRUE@	src/process-algebra_test$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
@@ -145,6 +146,10 @@ cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
 src_libexpression_la_DEPENDENCIES = glog/libglog.la
 am_src_libexpression_la_OBJECTS = expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
+src_libprocess_algebra_la_DEPENDENCIES = glog/libglog.la
+am_src_libprocess_algebra_la_OBJECTS = process-algebra.lo
+src_libprocess_algebra_la_OBJECTS =  \
+	$(am_src_libprocess_algebra_la_OBJECTS)
 @HAVE_LIBGTEST_TRUE@src_libtest_main_la_DEPENDENCIES =  \
 @HAVE_LIBGTEST_TRUE@	gflags/libgflags.la glog/libglog.la
 am__src_libtest_main_la_SOURCES_DIST = src/test-main.cc
@@ -159,6 +164,15 @@ am__src_expression_test_SOURCES_DIST = src/expression_test.cc
 src_expression_test_OBJECTS = $(am_src_expression_test_OBJECTS)
 @HAVE_LIBGTEST_TRUE@src_expression_test_DEPENDENCIES =  \
 @HAVE_LIBGTEST_TRUE@	src/libexpression.la src/libtest-main.la
+am__src_process_algebra_test_SOURCES_DIST =  \
+	src/process-algebra_test.cc
+@HAVE_LIBGTEST_TRUE@am_src_process_algebra_test_OBJECTS =  \
+@HAVE_LIBGTEST_TRUE@	process-algebra_test.$(OBJEXT)
+src_process_algebra_test_OBJECTS =  \
+	$(am_src_process_algebra_test_OBJECTS)
+@HAVE_LIBGTEST_TRUE@src_process_algebra_test_DEPENDENCIES =  \
+@HAVE_LIBGTEST_TRUE@	src/libprocess-algebra.la \
+@HAVE_LIBGTEST_TRUE@	src/libtest-main.la
 am_ymer_OBJECTS = main.$(OBJEXT) rng.$(OBJEXT) rngdc.$(OBJEXT) \
 	expressions.$(OBJEXT) formulas.$(OBJEXT) \
 	distributions.$(OBJEXT) modules.$(OBJEXT) models.$(OBJEXT) \
@@ -200,14 +214,18 @@ LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libexpression_la_SOURCES) $(src_libtest_main_la_SOURCES) \
-	$(src_expression_test_SOURCES) $(ymer_SOURCES)
+	$(src_libexpression_la_SOURCES) \
+	$(src_libprocess_algebra_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) $(src_expression_test_SOURCES) \
+	$(src_process_algebra_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) \
+	$(src_libprocess_algebra_la_SOURCES) \
 	$(am__src_libtest_main_la_SOURCES_DIST) \
-	$(am__src_expression_test_SOURCES_DIST) $(ymer_SOURCES)
+	$(am__src_expression_test_SOURCES_DIST) \
+	$(am__src_process_algebra_test_SOURCES_DIST) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -401,9 +419,11 @@ SUBDIRS = gflags glog gsl
 #
 
 # Expression library.
+
+# Process algebra library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
-	src/libexpression.la
+	src/libexpression.la src/libprocess-algebra.la
 
 #
 # CUDD libraries.
@@ -457,6 +477,8 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = glog/libglog.la
+src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
+src_libprocess_algebra_la_LIBADD = glog/libglog.la
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 	gsl/cblas/libgslcblas.la
@@ -471,6 +493,8 @@ ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 @HAVE_LIBGTEST_TRUE@src_libtest_main_la_LIBADD = gflags/libgflags.la glog/libglog.la -lgtest
 @HAVE_LIBGTEST_TRUE@src_expression_test_SOURCES = src/expression_test.cc
 @HAVE_LIBGTEST_TRUE@src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+@HAVE_LIBGTEST_TRUE@src_process_algebra_test_SOURCES = src/process-algebra_test.cc
+@HAVE_LIBGTEST_TRUE@src_process_algebra_test_LDADD = src/libprocess-algebra.la src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 @HAVE_LIBGTEST_TRUE@TESTS_ENVIRONMENT = HEAPCHECK=normal
@@ -585,6 +609,8 @@ src/$(am__dirstamp):
 	@: > src/$(am__dirstamp)
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
+src/libprocess-algebra.la: $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK) $(am_src_libtest_main_la_rpath) $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
@@ -642,6 +668,9 @@ clean-checkPROGRAMS:
 src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/expression_test$(EXEEXT)
 	$(CXXLINK) $(src_expression_test_OBJECTS) $(src_expression_test_LDADD) $(LIBS)
+src/process-algebra_test$(EXEEXT): $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/process-algebra_test$(EXEEXT)
+	$(CXXLINK) $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_LDADD) $(LIBS)
 parser.h: parser.cc
 	@if test ! -f $@; then \
 	  rm -f parser.cc; \
@@ -748,6 +777,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modules.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mtbdd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process-algebra.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process-algebra_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rngdc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
@@ -1349,6 +1380,13 @@ expression.lo: src/expression.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression.lo `test -f 'src/expression.cc' || echo '$(srcdir)/'`src/expression.cc
 
+process-algebra.lo: src/process-algebra.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT process-algebra.lo -MD -MP -MF $(DEPDIR)/process-algebra.Tpo -c -o process-algebra.lo `test -f 'src/process-algebra.cc' || echo '$(srcdir)/'`src/process-algebra.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/process-algebra.Tpo $(DEPDIR)/process-algebra.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/process-algebra.cc' object='process-algebra.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o process-algebra.lo `test -f 'src/process-algebra.cc' || echo '$(srcdir)/'`src/process-algebra.cc
+
 test-main.lo: src/test-main.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT test-main.lo -MD -MP -MF $(DEPDIR)/test-main.Tpo -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc
 @am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/test-main.Tpo $(DEPDIR)/test-main.Plo
@@ -1369,6 +1407,20 @@ expression_test.obj: src/expression_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression_test.cc' object='expression_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression_test.obj `if test -f 'src/expression_test.cc'; then $(CYGPATH_W) 'src/expression_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/expression_test.cc'; fi`
+
+process-algebra_test.o: src/process-algebra_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT process-algebra_test.o -MD -MP -MF $(DEPDIR)/process-algebra_test.Tpo -c -o process-algebra_test.o `test -f 'src/process-algebra_test.cc' || echo '$(srcdir)/'`src/process-algebra_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/process-algebra_test.Tpo $(DEPDIR)/process-algebra_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/process-algebra_test.cc' object='process-algebra_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o process-algebra_test.o `test -f 'src/process-algebra_test.cc' || echo '$(srcdir)/'`src/process-algebra_test.cc
+
+process-algebra_test.obj: src/process-algebra_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT process-algebra_test.obj -MD -MP -MF $(DEPDIR)/process-algebra_test.Tpo -c -o process-algebra_test.obj `if test -f 'src/process-algebra_test.cc'; then $(CYGPATH_W) 'src/process-algebra_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/process-algebra_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/process-algebra_test.Tpo $(DEPDIR)/process-algebra_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/process-algebra_test.cc' object='process-algebra_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o process-algebra_test.obj `if test -f 'src/process-algebra_test.cc'; then $(CYGPATH_W) 'src/process-algebra_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/process-algebra_test.cc'; fi`
 
 .ll.cc:
 	$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
