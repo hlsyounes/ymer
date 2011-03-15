@@ -155,6 +155,25 @@ TEST(ArgumentListTest, PushBackAddsArgument) {
   EXPECT_EQ(raw_arguments[2], &arguments[2]);
 }
 
+TEST(ArgumentListTest, Iterator) {
+  std::unique_ptr<const Expression> argument0(IntLiteral::Create(17));
+  std::unique_ptr<const Expression> argument1(DoubleLiteral::Create(3.14159));
+  const Expression* const raw_arguments[] = {
+    argument0.get(), argument1.get()
+  };
+  const ArgumentList arguments(std::move(argument0), std::move(argument1));
+  ArgumentList::Iterator i = arguments.begin();
+  EXPECT_EQ(raw_arguments[0], &(*i));
+  ++i;
+  EXPECT_EQ(raw_arguments[1], &(*i));
+  ArgumentList::Iterator j = i++;
+  EXPECT_EQ(raw_arguments[1], &(*j));
+  EXPECT_EQ(arguments.end(), i);
+  TestExpressionVisitor visitor;
+  j->Accept(&visitor);
+  EXPECT_EQ(ExpressionType::DOUBLE_LITERAL, visitor.type());
+}
+
 TEST(ExpressionTest, FunctionName) {
   EXPECT_EQ("min", Function_Name(Function::MIN));
   EXPECT_EQ("max", Function_Name(Function::MAX));
