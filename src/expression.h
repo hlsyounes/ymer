@@ -22,6 +22,7 @@
 #ifndef EXPRESSION_H_
 #define EXPRESSION_H_
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -142,6 +143,44 @@ class Identifier : public Expression {
 // An argument list for a function call.
 class ArgumentList {
  public:
+  // An iterator for ArgumentList.
+  class Iterator : public std::iterator<std::input_iterator_tag, Expression> {
+   public:
+    // Copy and assign for argument list iterator.
+    Iterator(const Iterator&) = default;
+    Iterator& operator=(const Iterator&) = default;
+
+    // Equality operator for argument list iterator.
+    bool operator==(const Iterator& rhs) const { return i_ == rhs.i_; }
+
+    // Inequality operator for argument list iterator.
+    bool operator!=(const Iterator& rhs) const { return i_ != rhs.i_; }
+
+    // Dereference operator for argument list iterator.
+    const Expression& operator*() const { return **i_; }
+
+    // Pointer operator for argument list iterator.
+    const Expression* operator->() const { return i_->get(); }
+
+    // Pre-increment operator for argument list iterator.
+    Iterator& operator++() { ++i_; return *this; }
+
+    // Post-increment operator for argument list iterator.
+    Iterator operator++(int) { Iterator tmp(*this); ++i_; return tmp; }
+
+   private:
+    // Constructs an argument list iterator from the given iterator for the
+    // underlying container of an argument list.
+    Iterator(std::vector<std::unique_ptr<const Expression> >::const_iterator i)
+        : i_(i) {
+    }
+
+    // Iterator for the underlying container of an argument list.
+    std::vector<std::unique_ptr<const Expression> >::const_iterator i_;
+
+    friend class ArgumentList;
+  };
+
   // Constructs an argument list.
   ArgumentList();
   template<typename... Args>
@@ -159,6 +198,12 @@ class ArgumentList {
 
   // Returns the size of this argument list.
   int size() const { return arguments_.size(); }
+
+  // Returns an iterator for the beginning of this argument list.
+  Iterator begin() const { return arguments_.begin(); }
+
+  // Returns an iterator for the end of this argument list.
+  Iterator end() const { return arguments_.end(); }
 
   // Returns the ith argument.
   const Expression& operator[](int i) const;
