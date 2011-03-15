@@ -115,8 +115,7 @@ TEST(ProcessAlgebraTest, ConstructsActionRenaming) {
   std::unique_ptr<const ProcessAlgebra> operand(
       ModuleIdentifier::Create("foo"));
   const ProcessAlgebra* const raw_operand = operand.get();
-  const std::map<std::string, std::string> substitutions(
-      { std::make_pair("a", "b") });
+  const std::map<std::string, std::string> substitutions({ { "a", "b" } });
   const ActionRenaming proc_algebra(substitutions, std::move(operand));
   EXPECT_EQ(substitutions, proc_algebra.substitutions());
   EXPECT_EQ(raw_operand, &proc_algebra.operand());
@@ -155,7 +154,7 @@ TEST(ProcessAlgebraTest, AcceptVisitsActionHiding) {
 
 TEST(ProcessAlgebraTest, AcceptVisitsActionRenaming) {
   TestProcessAlgebraVisitor visitor;
-  ActionRenaming({ std::make_pair("a", "b") }, ModuleIdentifier::Create("foo"))
+  ActionRenaming({ { "a", "b" } }, ModuleIdentifier::Create("foo"))
       .Accept(&visitor);
   EXPECT_EQ(ProcessAlgebraType::ACTION_RENAMING, visitor.type());
 }
