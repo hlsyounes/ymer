@@ -99,6 +99,12 @@ noinst_LTLIBRARIES += src/libprocess-algebra.la
 src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
 src_libprocess_algebra_la_LIBADD = glog/libglog.la
 
+# Model library.
+noinst_LTLIBRARIES += src/libmodel.la
+src_libmodel_la_SOURCES = src/model.h src/model.cc
+src_libmodel_la_LIBADD = src/libexpression.la src/libprocess-algebra.la \
+    glog/libglog.la
+
 #
 # Ymer binaries.
 #
@@ -131,6 +137,12 @@ src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
 check_PROGRAMS += src/process-algebra_test
 src_process_algebra_test_SOURCES = src/process-algebra_test.cc
 src_process_algebra_test_LDADD = src/libprocess-algebra.la src/libtest-main.la
+
+# Test for model library.
+check_PROGRAMS += src/model_test
+src_model_test_SOURCES = src/model_test.cc
+src_model_test_LDADD = src/libmodel.la src/libexpression.la \
+    src/libprocess-algebra.la src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal
