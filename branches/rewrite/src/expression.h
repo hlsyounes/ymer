@@ -286,7 +286,7 @@ class UnaryOperation : public Expression {
 
 // Supported binary operators.
 enum class BinaryOperator {
-  MULTIPLY, DIVIDE, ADD, SUBTRACT,
+  MULTIPLY, DIVIDE, PLUS, MINUS,
   LESS, LESS_EQUAL, GREATER_EQUAL, GREATER, EQUAL, NOT_EQUAL,
   AND, OR, IMPLY
 };

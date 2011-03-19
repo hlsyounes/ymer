@@ -207,9 +207,9 @@ TEST(ExpressionTest, ConstructsBinaryOperation) {
   const Expression* const raw_operand1 = operand1.get();
   std::unique_ptr<const Expression> operand2(IntLiteral::Create(42));
   const Expression* const raw_operand2 = operand2.get();
-  const BinaryOperation expr(BinaryOperator::ADD,
+  const BinaryOperation expr(BinaryOperator::PLUS,
                              std::move(operand1), std::move(operand2));
-  EXPECT_EQ(BinaryOperator::ADD, expr.op());
+  EXPECT_EQ(BinaryOperator::PLUS, expr.op());
   EXPECT_EQ(raw_operand1, &expr.operand1());
   EXPECT_EQ(raw_operand2, &expr.operand2());
 }
@@ -268,7 +268,7 @@ TEST(ExpressionTest, AcceptVisitsUnaryOperation) {
 
 TEST(ExpressionTest, AcceptVisitsBinaryOperation) {
   TestExpressionVisitor visitor;
-  BinaryOperation(BinaryOperator::ADD,
+  BinaryOperation(BinaryOperator::PLUS,
                   IntLiteral::Create(17), IntLiteral::Create(42))
       .Accept(&visitor);
   EXPECT_EQ(ExpressionType::BINARY_OPERATION, visitor.type());
