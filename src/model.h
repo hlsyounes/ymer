@@ -348,10 +348,14 @@ class Model {
   // Ends the current module.  Requires that a module is currently open.
   void EndModule();
 
-  // Adds a label for the given expression.  Returns false if a label with the
-  // given name has already been added.
-  bool AddLabel(const std::string& name,
+  // Adds a label for the given expression.  Returns false if the given label
+  // has already been added to this model.
+  bool AddLabel(const std::string& label,
                 std::unique_ptr<const Expression>&& expr);
+
+  // Returns the expression for the given label; null if the given label has
+  // not been added to this model.
+  const Expression* GetLabelExpr(const std::string& label) const;
 
   // Sets the init expression for this model.  Returns false if this model
   // already has an init expression.
