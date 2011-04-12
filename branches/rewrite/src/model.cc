@@ -217,7 +217,7 @@ bool Model::AddConstant(const std::string& name, Type type,
   }
   constant_types_.push_back(type);
   if (init) {
-    constant_inits_.insert(std::make_pair(index, init.release()));
+    constant_inits_.insert(std::make_pair(index, std::move(init)));
   }
   return true;
 }
@@ -252,7 +252,7 @@ bool Model::AddVariable(const std::string& name, Type type, Range* range,
     CHECK(type == Type::BOOL);
   }
   if (init) {
-    variable_inits_.insert(std::make_pair(index, init.release()));
+    variable_inits_.insert(std::make_pair(index, std::move(init)));
   }
   if (current_module_ != kNoModule) {
     module_variables_[current_module_].insert(index);
@@ -620,10 +620,15 @@ void Model::EndModule() {
   current_module_ = kNoModule;
 }
 
-bool Model::AddLabel(const std::string& name,
+bool Model::AddLabel(const std::string& label,
                      std::unique_ptr<const Expression>&& expr) {
   CHECK(expr);
-  return labels_.insert(std::make_pair(name, expr.release())).second;
+  return labels_.insert(std::make_pair(label, std::move(expr))).second;
+}
+
+const Expression* Model::GetLabelExpr(const std::string& label) const {
+  auto i = labels_.find(label);
+  return (i != labels_.end()) ? i->second.get() : nullptr;
 }
 
 bool Model::SetInit(std::unique_ptr<const Expression>&& init) {

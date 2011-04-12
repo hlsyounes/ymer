@@ -265,6 +265,7 @@ TEST(ModelTest, AddsModuleVariables) {
 }
 
 TEST(ModelTest, AddsModuleCommands) {
+  Model model;
   std::unique_ptr<std::string> action1(new std::string("foo"));
   const std::string* const raw_action1 = action1.get();
   std::unique_ptr<const Expression> guard1(BoolLiteral::Create(true));
@@ -277,7 +278,6 @@ TEST(ModelTest, AddsModuleCommands) {
   const std::string* const raw_action3 = action3.get();
   std::unique_ptr<const Expression> guard3(BoolLiteral::Create(true));
   const Expression* const raw_guard3 = guard3.get();
-  Model model;
   EXPECT_TRUE(model.StartModule("M1"));
   model.AddCommand(Command(std::move(action1), std::move(guard1), {}));
   model.AddCommand(Command(std::move(action2), std::move(guard2), {}));
@@ -513,6 +513,21 @@ TEST(ModelTest, RejectsDuplicateModules) {
   EXPECT_TRUE(model.StartModule("m"));
   model.EndModule();
   EXPECT_FALSE(model.StartModule("m"));
+}
+
+TEST(ModelTest, AddsLabel) {
+  Model model;
+  std::unique_ptr<const Expression> expr(BoolLiteral::Create(true));
+  const Expression* const raw_expr = expr.get();
+  EXPECT_EQ(nullptr, model.GetLabelExpr("foo"));
+  EXPECT_TRUE(model.AddLabel("foo", std::move(expr)));
+  EXPECT_EQ(raw_expr, model.GetLabelExpr("foo"));
+}
+
+TEST(ModelTest, RelectsDuplicateLabel) {
+  Model model;
+  EXPECT_TRUE(model.AddLabel("foo", BoolLiteral::Create(true)));
+  EXPECT_FALSE(model.AddLabel("foo", BoolLiteral::Create(true)));
 }
 
 TEST(ModelTest, InitializesInit) {
