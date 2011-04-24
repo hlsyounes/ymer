@@ -154,10 +154,10 @@ src_libmodel_la_DEPENDENCIES = src/libexpression.la \
 	src/libprocess-algebra.la glog/libglog.la
 am_src_libmodel_la_OBJECTS = model.lo
 src_libmodel_la_OBJECTS = $(am_src_libmodel_la_OBJECTS)
-src_libparser_la_DEPENDENCIES = src/libexpression.la src/libmodel.la \
+src_libparse_la_DEPENDENCIES = src/libexpression.la src/libmodel.la \
 	src/libprocess-algebra.la glog/libglog.la
-am_src_libparser_la_OBJECTS = parse.lo grammar.lo tokens.lo
-src_libparser_la_OBJECTS = $(am_src_libparser_la_OBJECTS)
+am_src_libparse_la_OBJECTS = parse.lo grammar.lo tokens.lo
+src_libparse_la_OBJECTS = $(am_src_libparse_la_OBJECTS)
 src_libprocess_algebra_la_DEPENDENCIES = glog/libglog.la
 am_src_libprocess_algebra_la_OBJECTS = process-algebra.lo
 src_libprocess_algebra_la_OBJECTS =  \
@@ -172,7 +172,7 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
 am_parser_OBJECTS = parser-main.$(OBJEXT)
 parser_OBJECTS = $(am_parser_OBJECTS)
-parser_DEPENDENCIES = src/libparser.la
+parser_DEPENDENCIES = src/libparse.la
 am__src_expression_test_SOURCES_DIST = src/expression_test.cc
 @HAVE_LIBGTEST_TRUE@am_src_expression_test_OBJECTS =  \
 @HAVE_LIBGTEST_TRUE@	expression_test.$(OBJEXT)
@@ -189,7 +189,7 @@ src_model_test_OBJECTS = $(am_src_model_test_OBJECTS)
 am__src_parse_test_SOURCES_DIST = src/parse_test.cc
 @HAVE_LIBGTEST_TRUE@am_src_parse_test_OBJECTS = parse_test.$(OBJEXT)
 src_parse_test_OBJECTS = $(am_src_parse_test_OBJECTS)
-@HAVE_LIBGTEST_TRUE@src_parse_test_DEPENDENCIES = src/libparser.la \
+@HAVE_LIBGTEST_TRUE@src_parse_test_DEPENDENCIES = src/libparse.la \
 @HAVE_LIBGTEST_TRUE@	src/libexpression.la src/libmodel.la \
 @HAVE_LIBGTEST_TRUE@	src/libprocess-algebra.la \
 @HAVE_LIBGTEST_TRUE@	src/libtest-main.la
@@ -244,7 +244,7 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_libparser_la_SOURCES) \
+	$(src_libparse_la_SOURCES) \
 	$(src_libprocess_algebra_la_SOURCES) \
 	$(src_libtest_main_la_SOURCES) $(parser_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
@@ -254,7 +254,7 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_libparser_la_SOURCES) \
+	$(src_libparse_la_SOURCES) \
 	$(src_libprocess_algebra_la_SOURCES) \
 	$(am__src_libtest_main_la_SOURCES_DIST) $(parser_SOURCES) \
 	$(am__src_expression_test_SOURCES_DIST) \
@@ -459,11 +459,11 @@ SUBDIRS = gflags glog gsl
 
 # Model library.
 
-# Parser library.
+# Parse library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
 	src/libexpression.la src/libprocess-algebra.la src/libmodel.la \
-	src/libparser.la
+	src/libparse.la
 
 #
 # CUDD libraries.
@@ -523,10 +523,10 @@ src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libexpression.la src/libprocess-algebra.la \
     glog/libglog.la
 
-src_libparser_la_SOURCES = src/parse.h src/parse.cc src/parser-state.h \
+src_libparse_la_SOURCES = src/parse.h src/parse.cc src/parser-state.h \
     src/grammar.yy src/tokens.ll
 
-src_libparser_la_LIBADD = src/libexpression.la src/libmodel.la \
+src_libparse_la_LIBADD = src/libexpression.la src/libmodel.la \
     src/libprocess-algebra.la glog/libglog.la
 
 BUILT_SOURCES = grammar.h
@@ -534,7 +534,7 @@ ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h 
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 	gsl/cblas/libgslcblas.la
 parser_SOURCES = src/parser-main.cc
-parser_LDADD = src/libparser.la
+parser_LDADD = src/libparse.la
 
 #
 # Ymer tests.  Requires gtest library.
@@ -553,7 +553,7 @@ parser_LDADD = src/libparser.la
 @HAVE_LIBGTEST_TRUE@    src/libprocess-algebra.la src/libtest-main.la
 
 @HAVE_LIBGTEST_TRUE@src_parse_test_SOURCES = src/parse_test.cc
-@HAVE_LIBGTEST_TRUE@src_parse_test_LDADD = src/libparser.la src/libexpression.la src/libmodel.la \
+@HAVE_LIBGTEST_TRUE@src_parse_test_LDADD = src/libparse.la src/libexpression.la src/libmodel.la \
 @HAVE_LIBGTEST_TRUE@    src/libprocess-algebra.la src/libtest-main.la
 
 
@@ -677,8 +677,8 @@ grammar.h: grammar.cc
 	  rm -f grammar.cc; \
 	  $(MAKE) $(AM_MAKEFLAGS) grammar.cc; \
 	else :; fi
-src/libparser.la: $(src_libparser_la_OBJECTS) $(src_libparser_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(CXXLINK)  $(src_libparser_la_OBJECTS) $(src_libparser_la_LIBADD) $(LIBS)
+src/libparse.la: $(src_libparse_la_OBJECTS) $(src_libparse_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libparse_la_OBJECTS) $(src_libparse_la_LIBADD) $(LIBS)
 src/libprocess-algebra.la: $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
