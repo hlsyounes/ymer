@@ -105,6 +105,14 @@ src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libexpression.la src/libprocess-algebra.la \
     glog/libglog.la
 
+# Parser library.
+noinst_LTLIBRARIES += src/libparser.la
+src_libparser_la_SOURCES = src/parse.h src/parse.cc src/parser-state.h \
+    src/grammar.yy src/tokens.ll
+src_libparser_la_LIBADD = src/libexpression.la src/libmodel.la \
+    src/libprocess-algebra.la glog/libglog.la
+BUILT_SOURCES = grammar.h
+
 #
 # Ymer binaries.
 #
@@ -113,6 +121,13 @@ bin_PROGRAMS = ymer
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
 ymer_LDADD = cudd/cudd/libcudd.la
 ymer_LDADD += gsl/libgsl.la gsl/cblas/libgslcblas.la
+
+noinst_PROGRAMS =
+
+# Simple parser binary.
+noinst_PROGRAMS += parser
+parser_SOURCES = src/parser-main.cc
+parser_LDADD = src/libparser.la
 
 #
 # Ymer tests.  Requires gtest library.
@@ -144,9 +159,15 @@ src_model_test_SOURCES = src/model_test.cc
 src_model_test_LDADD = src/libmodel.la src/libexpression.la \
     src/libprocess-algebra.la src/libtest-main.la
 
+# Test for parser library.
+check_PROGRAMS += src/parse_test
+src_parse_test_SOURCES = src/parse_test.cc
+src_parse_test_LDADD = src/libparser.la src/libexpression.la src/libmodel.la \
+    src/libprocess-algebra.la src/libtest-main.la
+
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal
-TESTS = $(check_PROGRAMS)
+TESTS = $(check_PROGRAMS) src/parser_test.sh
 
 endif  # HAVE_LIBGTEST
 
