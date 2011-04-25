@@ -127,7 +127,7 @@ noinst_PROGRAMS =
 # Simple parser binary.
 noinst_PROGRAMS += parser
 parser_SOURCES = src/parser-main.cc
-parser_LDADD = src/libparse.la
+parser_LDADD = src/libparse.la gflags/libgflags.la glog/libglog.la
 
 #
 # Ymer tests.  Requires gtest library.
