@@ -89,6 +89,11 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 # Ymer libraries.
 #
 
+# Decision diagram utility library.
+noinst_LTLIBRARIES += src/libddutil.la
+src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
+src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
+
 # Expression library.
 noinst_LTLIBRARIES += src/libexpression.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
@@ -142,6 +147,11 @@ src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = gflags/libgflags.la glog/libglog.la -lgtest
 
 check_PROGRAMS =
+
+# Test for decision diagram utility library.
+check_PROGRAMS += src/ddutil_test
+src_ddutil_test_SOURCES = src/ddutil_test.cc
+src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
 
 # Test for expression library.
 check_PROGRAMS += src/expression_test
