@@ -183,7 +183,7 @@ class ArgumentList {
 
   // Constructs an argument list.
   ArgumentList();
-  template<typename... Args>
+  template <typename... Args>
   ArgumentList(Args&&... args) {
     Init(std::forward<Args>(args)...);
   }
@@ -211,7 +211,7 @@ class ArgumentList {
  private:
   // Initializes argument list from variable number of arguments.
   void Init();
-  template<typename... Args>
+  template <typename... Args>
   void Init(std::unique_ptr<const Expression>&& argument, Args&&... args) {
     push_back(std::move(argument));
     Init(std::forward<Args>(args)...);
@@ -257,6 +257,9 @@ class FunctionCall : public Expression {
 // Supported unary operators.
 enum class UnaryOperator { NEGATE, NOT };
 
+// Returns the name of the given unary operator.
+std::string UnaryOperator_Name(UnaryOperator op);
+
 // A unary operation.
 class UnaryOperation : public Expression {
  public:
@@ -290,6 +293,9 @@ enum class BinaryOperator {
   LESS, LESS_EQUAL, GREATER_EQUAL, GREATER, EQUAL, NOT_EQUAL,
   AND, OR, IMPLY
 };
+
+// Returns the name of the given binary operator.
+std::string BinaryOperator_Name(BinaryOperator op);
 
 // A binary operation.
 class BinaryOperation : public Expression {

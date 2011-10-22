@@ -104,11 +104,16 @@ noinst_LTLIBRARIES += src/libprocess-algebra.la
 src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
 src_libprocess_algebra_la_LIBADD = glog/libglog.la
 
+# Type library.
+noinst_LTLIBRARIES += src/libtype.la
+src_libtype_la_SOURCES = src/type.h src/type.cc
+src_libtype_la_LIBADD = glog/libglog.la
+
 # Model library.
 noinst_LTLIBRARIES += src/libmodel.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libexpression.la src/libprocess-algebra.la \
-    glog/libglog.la
+    src/libtype.la glog/libglog.la
 
 # Parse library.
 noinst_LTLIBRARIES += src/libparse.la
@@ -117,6 +122,13 @@ src_libparse_la_SOURCES = src/parse.h src/parse.cc src/parser-state.h \
 src_libparse_la_LIBADD = src/libexpression.la src/libmodel.la \
     src/libprocess-algebra.la glog/libglog.la
 BUILT_SOURCES = grammar.h
+
+# Expression compiler library.
+noinst_LTLIBRARIES += src/libexpression-compiler.la
+src_libexpression_compiler_la_SOURCES = src/expression-compiler.h \
+    src/expression-compiler.cc
+src_libexpression_compiler_la_LIBADD = src/libddutil.la src/libexpression.la \
+    src/libtype.la glog/libglog.la
 
 #
 # Ymer binaries.
@@ -163,6 +175,11 @@ check_PROGRAMS += src/process-algebra_test
 src_process_algebra_test_SOURCES = src/process-algebra_test.cc
 src_process_algebra_test_LDADD = src/libprocess-algebra.la src/libtest-main.la
 
+# Test for type library.
+check_PROGRAMS += src/type_test
+src_type_test_SOURCES = src/type_test.cc
+src_type_test_LDADD = src/libtype.la src/libtest-main.la
+
 # Test for model library.
 check_PROGRAMS += src/model_test
 src_model_test_SOURCES = src/model_test.cc
@@ -175,6 +192,12 @@ src_parse_test_SOURCES = src/parse_test.cc
 src_parse_test_LDADD = src/libparse.la src/libexpression.la src/libmodel.la \
     src/libprocess-algebra.la src/libtest-main.la
 
+# Test for expression compiler library.
+check_PROGRAMS += src/expression-compiler_test
+src_expression_compiler_test_SOURCES = src/expression-compiler_test.cc
+src_expression_compiler_test_LDADD = src/libexpression-compiler.la \
+    src/libddutil.la src/libexpression.la src/libtype.la src/libtest-main.la
+
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal
 TESTS = $(check_PROGRAMS) src/parser_test.sh
@@ -182,6 +205,8 @@ TESTS = $(check_PROGRAMS) src/parser_test.sh
 endif  # HAVE_LIBGTEST
 
 EXTRA_DIST = cudd examples scripts
+
+CLEANFILES = core
 
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/gflags/src -I$(srcdir)/glog/src -Igsl

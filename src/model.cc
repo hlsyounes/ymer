@@ -29,18 +29,7 @@
 
 #include "expression.h"
 #include "process-algebra.h"
-
-std::string Type_Name(Type type) {
-  switch (type) {
-    case Type::INT:
-      return "int";
-    case Type::DOUBLE:
-      return "double";
-    case Type::BOOL:
-      return "bool";
-  }
-  LOG(FATAL) << "bad type";
-}
+#include "type.h"
 
 Range::Range(std::unique_ptr<const Expression>&& min,
              std::unique_ptr<const Expression>&& max)

@@ -149,6 +149,16 @@ void FunctionCall::Accept(ExpressionVisitor* visitor) const {
   visitor->VisitFunctionCall(*this);
 }
 
+std::string UnaryOperator_Name(UnaryOperator op) {
+  switch (op) {
+    case UnaryOperator::NEGATE:
+      return "-";
+    case UnaryOperator::NOT:
+      return "!";
+  }
+  LOG(FATAL) << "bad unary operator";
+}
+
 UnaryOperation::UnaryOperation(UnaryOperator op,
                                std::unique_ptr<const Expression>&& operand)
     : op_(op), operand_(std::move(operand)) {
@@ -166,6 +176,38 @@ std::unique_ptr<const UnaryOperation> UnaryOperation::Create(
 void UnaryOperation::Accept(ExpressionVisitor* visitor) const {
   CHECK(visitor);
   visitor->VisitUnaryOperation(*this);
+}
+
+std::string BinaryOperator_Name(BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::MULTIPLY:
+      return "*";
+    case BinaryOperator::DIVIDE:
+      return "/";
+    case BinaryOperator::PLUS:
+      return "+";
+    case BinaryOperator::MINUS:
+      return "-";
+    case BinaryOperator::LESS:
+      return "<";
+    case BinaryOperator::LESS_EQUAL:
+      return "<=";
+    case BinaryOperator::GREATER_EQUAL:
+      return ">=";
+    case BinaryOperator::GREATER:
+      return ">";
+    case BinaryOperator::EQUAL:
+      return "=";
+    case BinaryOperator::NOT_EQUAL:
+      return "!=";
+    case BinaryOperator::AND:
+      return "&";
+    case BinaryOperator::OR:
+      return "|";
+    case BinaryOperator::IMPLY:
+      return "=>";
+  }
+  LOG(FATAL) << "bad binary operator";
 }
 
 BinaryOperation::BinaryOperation(BinaryOperator op,

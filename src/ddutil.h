@@ -74,10 +74,12 @@ class BDD : public DecisionDiagram {
   BDD(const BDD& dd);
   BDD& operator=(const BDD& dd);
 
+  explicit BDD(const ADD& dd);
+
   ~BDD() {}
 
-  // Returns the value of BDD.  Requires that this BDD is constant.
-  bool BoolValue() const;
+  // Returns the value of this BDD.  Requires that this BDD is constant.
+  bool Value() const;
 
   // Returns the BDD for !(*this).
   BDD operator!() const;
@@ -132,10 +134,12 @@ class ADD : public DecisionDiagram {
   ADD(const ADD& dd);
   ADD& operator=(const ADD& dd);
 
+  explicit ADD(const BDD& dd);
+
   ~ADD() {}
 
   // Returns the value of this ADD.  Requires that this ADD is constant.
-  double DoubleValue() const;
+  double Value() const;
 
   // Returns the ADD for -(*this).
   ADD operator-() const;
@@ -198,6 +202,7 @@ class ADD : public DecisionDiagram {
   static ADD MonadicApply(MonadicOp op, const ADD& dd);
 
   friend class DecisionDiagramManager;
+  friend class BDD;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
   friend ADD min(const ADD& dd1, const ADD& dd2);
   friend ADD max(const ADD& dd1, const ADD& dd2);
@@ -285,5 +290,13 @@ class DecisionDiagramManager {
  private:
   DdManager* const dd_manager_;
 };
+
+// Returns the value of dd for a given variable assignment.
+bool GetValue(const DecisionDiagramManager& dd_manager,
+              const BDD& dd, const std::vector<bool>& bits);
+
+// Returns the value of dd for a given variable assignment.
+double GetValue(const DecisionDiagramManager& dd_manager,
+                const ADD& dd, const std::vector<bool>& bits);
 
 #endif  // DDUTIL_H_
