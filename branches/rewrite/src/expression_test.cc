@@ -174,7 +174,7 @@ TEST(ArgumentListTest, Iterator) {
   EXPECT_EQ(ExpressionType::DOUBLE_LITERAL, visitor.type());
 }
 
-TEST(ExpressionTest, FunctionName) {
+TEST(FunctionTest, Name) {
   EXPECT_EQ("min", Function_Name(Function::MIN));
   EXPECT_EQ("max", Function_Name(Function::MAX));
   EXPECT_EQ("floor", Function_Name(Function::FLOOR));
@@ -194,12 +194,33 @@ TEST(ExpressionTest, ConstructsFunctionCall) {
   EXPECT_EQ(raw_arguments[0], &expr.arguments()[0]);
 }
 
+TEST(UnaryOperatorTest, Name) {
+  EXPECT_EQ("-", UnaryOperator_Name(UnaryOperator::NEGATE));
+  EXPECT_EQ("!", UnaryOperator_Name(UnaryOperator::NOT));
+}
+
 TEST(ExpressionTest, ConstructsUnaryOperation) {
   std::unique_ptr<const Expression> operand(IntLiteral::Create(17));
   const Expression* const raw_operand = operand.get();
   const UnaryOperation expr(UnaryOperator::NEGATE, std::move(operand));
   EXPECT_EQ(UnaryOperator::NEGATE, expr.op());
   EXPECT_EQ(raw_operand, &expr.operand());
+}
+
+TEST(BinaryOperatorTest, Name) {
+  EXPECT_EQ("*", BinaryOperator_Name(BinaryOperator::MULTIPLY));
+  EXPECT_EQ("/", BinaryOperator_Name(BinaryOperator::DIVIDE));
+  EXPECT_EQ("+", BinaryOperator_Name(BinaryOperator::PLUS));
+  EXPECT_EQ("-", BinaryOperator_Name(BinaryOperator::MINUS));
+  EXPECT_EQ("<", BinaryOperator_Name(BinaryOperator::LESS));
+  EXPECT_EQ("<=", BinaryOperator_Name(BinaryOperator::LESS_EQUAL));
+  EXPECT_EQ(">=", BinaryOperator_Name(BinaryOperator::GREATER_EQUAL));
+  EXPECT_EQ(">", BinaryOperator_Name(BinaryOperator::GREATER));
+  EXPECT_EQ("=", BinaryOperator_Name(BinaryOperator::EQUAL));
+  EXPECT_EQ("!=", BinaryOperator_Name(BinaryOperator::NOT_EQUAL));
+  EXPECT_EQ("&", BinaryOperator_Name(BinaryOperator::AND));
+  EXPECT_EQ("|", BinaryOperator_Name(BinaryOperator::OR));
+  EXPECT_EQ("=>", BinaryOperator_Name(BinaryOperator::IMPLY));
 }
 
 TEST(ExpressionTest, ConstructsBinaryOperation) {

@@ -27,14 +27,10 @@
 #include <string>
 #include <vector>
 
+#include "type.h"
+
 class Expression;
 class ProcessAlgebra;
-
-// Supported expression types.
-enum class Type { INT, DOUBLE, BOOL };
-
-// Returns the name of the given expression type.
-std::string Type_Name(Type type);
 
 // Range for int variables.
 class Range {

@@ -30,12 +30,6 @@
 
 namespace {
 
-TEST(TypeTest, Name) {
-  EXPECT_EQ("int", Type_Name(Type::INT));
-  EXPECT_EQ("double", Type_Name(Type::DOUBLE));
-  EXPECT_EQ("bool", Type_Name(Type::BOOL));
-}
-
 TEST(RangeTest, ConstructsRange) {
   std::unique_ptr<const Expression> min(IntLiteral::Create(17));
   const Expression* const raw_min = min.get();

@@ -40,8 +40,10 @@ noinst_PROGRAMS = parser$(EXEEXT)
 @HAVE_LIBGTEST_TRUE@check_PROGRAMS = src/ddutil_test$(EXEEXT) \
 @HAVE_LIBGTEST_TRUE@	src/expression_test$(EXEEXT) \
 @HAVE_LIBGTEST_TRUE@	src/process-algebra_test$(EXEEXT) \
+@HAVE_LIBGTEST_TRUE@	src/type_test$(EXEEXT) \
 @HAVE_LIBGTEST_TRUE@	src/model_test$(EXEEXT) \
-@HAVE_LIBGTEST_TRUE@	src/parse_test$(EXEEXT)
+@HAVE_LIBGTEST_TRUE@	src/parse_test$(EXEEXT) \
+@HAVE_LIBGTEST_TRUE@	src/expression-compiler_test$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
@@ -151,11 +153,16 @@ cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
 src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
 am_src_libddutil_la_OBJECTS = ddutil.lo
 src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
+src_libexpression_compiler_la_DEPENDENCIES = src/libddutil.la \
+	src/libexpression.la src/libtype.la glog/libglog.la
+am_src_libexpression_compiler_la_OBJECTS = expression-compiler.lo
+src_libexpression_compiler_la_OBJECTS =  \
+	$(am_src_libexpression_compiler_la_OBJECTS)
 src_libexpression_la_DEPENDENCIES = glog/libglog.la
 am_src_libexpression_la_OBJECTS = expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_libmodel_la_DEPENDENCIES = src/libexpression.la \
-	src/libprocess-algebra.la glog/libglog.la
+	src/libprocess-algebra.la src/libtype.la glog/libglog.la
 am_src_libmodel_la_OBJECTS = model.lo
 src_libmodel_la_OBJECTS = $(am_src_libmodel_la_OBJECTS)
 src_libparse_la_DEPENDENCIES = src/libexpression.la src/libmodel.la \
@@ -172,6 +179,9 @@ am__src_libtest_main_la_SOURCES_DIST = src/test-main.cc
 @HAVE_LIBGTEST_TRUE@am_src_libtest_main_la_OBJECTS = test-main.lo
 src_libtest_main_la_OBJECTS = $(am_src_libtest_main_la_OBJECTS)
 @HAVE_LIBGTEST_TRUE@am_src_libtest_main_la_rpath =
+src_libtype_la_DEPENDENCIES = glog/libglog.la
+am_src_libtype_la_OBJECTS = type.lo
+src_libtype_la_OBJECTS = $(am_src_libtype_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
 am_parser_OBJECTS = parser-main.$(OBJEXT)
@@ -184,6 +194,16 @@ am__src_ddutil_test_SOURCES_DIST = src/ddutil_test.cc
 src_ddutil_test_OBJECTS = $(am_src_ddutil_test_OBJECTS)
 @HAVE_LIBGTEST_TRUE@src_ddutil_test_DEPENDENCIES = src/libddutil.la \
 @HAVE_LIBGTEST_TRUE@	src/libtest-main.la
+am__src_expression_compiler_test_SOURCES_DIST =  \
+	src/expression-compiler_test.cc
+@HAVE_LIBGTEST_TRUE@am_src_expression_compiler_test_OBJECTS =  \
+@HAVE_LIBGTEST_TRUE@	expression-compiler_test.$(OBJEXT)
+src_expression_compiler_test_OBJECTS =  \
+	$(am_src_expression_compiler_test_OBJECTS)
+@HAVE_LIBGTEST_TRUE@src_expression_compiler_test_DEPENDENCIES =  \
+@HAVE_LIBGTEST_TRUE@	src/libexpression-compiler.la \
+@HAVE_LIBGTEST_TRUE@	src/libddutil.la src/libexpression.la \
+@HAVE_LIBGTEST_TRUE@	src/libtype.la src/libtest-main.la
 am__src_expression_test_SOURCES_DIST = src/expression_test.cc
 @HAVE_LIBGTEST_TRUE@am_src_expression_test_OBJECTS =  \
 @HAVE_LIBGTEST_TRUE@	expression_test.$(OBJEXT)
@@ -212,6 +232,11 @@ src_process_algebra_test_OBJECTS =  \
 	$(am_src_process_algebra_test_OBJECTS)
 @HAVE_LIBGTEST_TRUE@src_process_algebra_test_DEPENDENCIES =  \
 @HAVE_LIBGTEST_TRUE@	src/libprocess-algebra.la \
+@HAVE_LIBGTEST_TRUE@	src/libtest-main.la
+am__src_type_test_SOURCES_DIST = src/type_test.cc
+@HAVE_LIBGTEST_TRUE@am_src_type_test_OBJECTS = type_test.$(OBJEXT)
+src_type_test_OBJECTS = $(am_src_type_test_OBJECTS)
+@HAVE_LIBGTEST_TRUE@src_type_test_DEPENDENCIES = src/libtype.la \
 @HAVE_LIBGTEST_TRUE@	src/libtest-main.la
 am_ymer_OBJECTS = main.$(OBJEXT) rng.$(OBJEXT) rngdc.$(OBJEXT) \
 	expressions.$(OBJEXT) formulas.$(OBJEXT) \
@@ -254,25 +279,34 @@ LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_libmodel_la_SOURCES) $(src_libparse_la_SOURCES) \
+	$(src_libddutil_la_SOURCES) \
+	$(src_libexpression_compiler_la_SOURCES) \
+	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
+	$(src_libparse_la_SOURCES) \
 	$(src_libprocess_algebra_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) $(parser_SOURCES) \
-	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
-	$(src_model_test_SOURCES) $(src_parse_test_SOURCES) \
-	$(src_process_algebra_test_SOURCES) $(ymer_SOURCES)
+	$(src_libtest_main_la_SOURCES) $(src_libtype_la_SOURCES) \
+	$(parser_SOURCES) $(src_ddutil_test_SOURCES) \
+	$(src_expression_compiler_test_SOURCES) \
+	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
+	$(src_parse_test_SOURCES) $(src_process_algebra_test_SOURCES) \
+	$(src_type_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_libmodel_la_SOURCES) $(src_libparse_la_SOURCES) \
+	$(src_libddutil_la_SOURCES) \
+	$(src_libexpression_compiler_la_SOURCES) \
+	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
+	$(src_libparse_la_SOURCES) \
 	$(src_libprocess_algebra_la_SOURCES) \
-	$(am__src_libtest_main_la_SOURCES_DIST) $(parser_SOURCES) \
+	$(am__src_libtest_main_la_SOURCES_DIST) \
+	$(src_libtype_la_SOURCES) $(parser_SOURCES) \
 	$(am__src_ddutil_test_SOURCES_DIST) \
+	$(am__src_expression_compiler_test_SOURCES_DIST) \
 	$(am__src_expression_test_SOURCES_DIST) \
 	$(am__src_model_test_SOURCES_DIST) \
 	$(am__src_parse_test_SOURCES_DIST) \
-	$(am__src_process_algebra_test_SOURCES_DIST) $(ymer_SOURCES)
+	$(am__src_process_algebra_test_SOURCES_DIST) \
+	$(am__src_type_test_SOURCES_DIST) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -471,13 +505,18 @@ SUBDIRS = gflags glog gsl
 
 # Process algebra library.
 
+# Type library.
+
 # Model library.
 
 # Parse library.
+
+# Expression compiler library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
 	src/libddutil.la src/libexpression.la \
-	src/libprocess-algebra.la src/libmodel.la src/libparse.la
+	src/libprocess-algebra.la src/libtype.la src/libmodel.la \
+	src/libparse.la src/libexpression-compiler.la
 
 #
 # CUDD libraries.
@@ -535,9 +574,11 @@ src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = glog/libglog.la
 src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
 src_libprocess_algebra_la_LIBADD = glog/libglog.la
+src_libtype_la_SOURCES = src/type.h src/type.cc
+src_libtype_la_LIBADD = glog/libglog.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libexpression.la src/libprocess-algebra.la \
-    glog/libglog.la
+    src/libtype.la glog/libglog.la
 
 src_libparse_la_SOURCES = src/parse.h src/parse.cc src/parser-state.h \
     src/grammar.yy src/tokens.ll
@@ -546,6 +587,12 @@ src_libparse_la_LIBADD = src/libexpression.la src/libmodel.la \
     src/libprocess-algebra.la glog/libglog.la
 
 BUILT_SOURCES = grammar.h
+src_libexpression_compiler_la_SOURCES = src/expression-compiler.h \
+    src/expression-compiler.cc
+
+src_libexpression_compiler_la_LIBADD = src/libddutil.la src/libexpression.la \
+    src/libtype.la glog/libglog.la
+
 ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 	gsl/cblas/libgslcblas.la
@@ -566,6 +613,8 @@ parser_LDADD = src/libparse.la gflags/libgflags.la glog/libglog.la
 @HAVE_LIBGTEST_TRUE@src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
 @HAVE_LIBGTEST_TRUE@src_process_algebra_test_SOURCES = src/process-algebra_test.cc
 @HAVE_LIBGTEST_TRUE@src_process_algebra_test_LDADD = src/libprocess-algebra.la src/libtest-main.la
+@HAVE_LIBGTEST_TRUE@src_type_test_SOURCES = src/type_test.cc
+@HAVE_LIBGTEST_TRUE@src_type_test_LDADD = src/libtype.la src/libtest-main.la
 @HAVE_LIBGTEST_TRUE@src_model_test_SOURCES = src/model_test.cc
 @HAVE_LIBGTEST_TRUE@src_model_test_LDADD = src/libmodel.la src/libexpression.la \
 @HAVE_LIBGTEST_TRUE@    src/libprocess-algebra.la src/libtest-main.la
@@ -574,11 +623,16 @@ parser_LDADD = src/libparse.la gflags/libgflags.la glog/libglog.la
 @HAVE_LIBGTEST_TRUE@src_parse_test_LDADD = src/libparse.la src/libexpression.la src/libmodel.la \
 @HAVE_LIBGTEST_TRUE@    src/libprocess-algebra.la src/libtest-main.la
 
+@HAVE_LIBGTEST_TRUE@src_expression_compiler_test_SOURCES = src/expression-compiler_test.cc
+@HAVE_LIBGTEST_TRUE@src_expression_compiler_test_LDADD = src/libexpression-compiler.la \
+@HAVE_LIBGTEST_TRUE@    src/libddutil.la src/libexpression.la src/libtype.la src/libtest-main.la
+
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 @HAVE_LIBGTEST_TRUE@TESTS_ENVIRONMENT = HEAPCHECK=normal
 @HAVE_LIBGTEST_TRUE@TESTS = $(check_PROGRAMS) src/parser_test.sh
 EXTRA_DIST = cudd examples scripts
+CLEANFILES = core
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/gflags/src -I$(srcdir)/glog/src -Igsl
 
@@ -688,6 +742,8 @@ src/$(am__dirstamp):
 	@: > src/$(am__dirstamp)
 src/libddutil.la: $(src_libddutil_la_OBJECTS) $(src_libddutil_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libddutil_la_OBJECTS) $(src_libddutil_la_LIBADD) $(LIBS)
+src/libexpression-compiler.la: $(src_libexpression_compiler_la_OBJECTS) $(src_libexpression_compiler_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libexpression_compiler_la_OBJECTS) $(src_libexpression_compiler_la_LIBADD) $(LIBS)
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
 src/libmodel.la: $(src_libmodel_la_OBJECTS) $(src_libmodel_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -703,6 +759,8 @@ src/libprocess-algebra.la: $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess
 	$(CXXLINK)  $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK) $(am_src_libtest_main_la_rpath) $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
+src/libtype.la: $(src_libtype_la_OBJECTS) $(src_libtype_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libtype_la_OBJECTS) $(src_libtype_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
@@ -770,6 +828,9 @@ parser$(EXEEXT): $(parser_OBJECTS) $(parser_DEPENDENCIES)
 src/ddutil_test$(EXEEXT): $(src_ddutil_test_OBJECTS) $(src_ddutil_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/ddutil_test$(EXEEXT)
 	$(CXXLINK) $(src_ddutil_test_OBJECTS) $(src_ddutil_test_LDADD) $(LIBS)
+src/expression-compiler_test$(EXEEXT): $(src_expression_compiler_test_OBJECTS) $(src_expression_compiler_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/expression-compiler_test$(EXEEXT)
+	$(CXXLINK) $(src_expression_compiler_test_OBJECTS) $(src_expression_compiler_test_LDADD) $(LIBS)
 src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/expression_test$(EXEEXT)
 	$(CXXLINK) $(src_expression_test_OBJECTS) $(src_expression_test_LDADD) $(LIBS)
@@ -782,6 +843,9 @@ src/parse_test$(EXEEXT): $(src_parse_test_OBJECTS) $(src_parse_test_DEPENDENCIES
 src/process-algebra_test$(EXEEXT): $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/process-algebra_test$(EXEEXT)
 	$(CXXLINK) $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_LDADD) $(LIBS)
+src/type_test$(EXEEXT): $(src_type_test_OBJECTS) $(src_type_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/type_test$(EXEEXT)
+	$(CXXLINK) $(src_type_test_OBJECTS) $(src_type_test_LDADD) $(LIBS)
 parser.h: parser.cc
 	@if test ! -f $@; then \
 	  rm -f parser.cc; \
@@ -879,6 +943,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/distributions.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression-compiler.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression-compiler_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expressions.Po@am__quote@
@@ -904,6 +970,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simulator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-main.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokens.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/type.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/type_test.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -1500,6 +1568,13 @@ ddutil.lo: src/ddutil.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil.lo `test -f 'src/ddutil.cc' || echo '$(srcdir)/'`src/ddutil.cc
 
+expression-compiler.lo: src/expression-compiler.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression-compiler.lo -MD -MP -MF $(DEPDIR)/expression-compiler.Tpo -c -o expression-compiler.lo `test -f 'src/expression-compiler.cc' || echo '$(srcdir)/'`src/expression-compiler.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression-compiler.Tpo $(DEPDIR)/expression-compiler.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression-compiler.cc' object='expression-compiler.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression-compiler.lo `test -f 'src/expression-compiler.cc' || echo '$(srcdir)/'`src/expression-compiler.cc
+
 expression.lo: src/expression.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression.lo -MD -MP -MF $(DEPDIR)/expression.Tpo -c -o expression.lo `test -f 'src/expression.cc' || echo '$(srcdir)/'`src/expression.cc
 @am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression.Tpo $(DEPDIR)/expression.Plo
@@ -1535,6 +1610,13 @@ test-main.lo: src/test-main.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc
 
+type.lo: src/type.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT type.lo -MD -MP -MF $(DEPDIR)/type.Tpo -c -o type.lo `test -f 'src/type.cc' || echo '$(srcdir)/'`src/type.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/type.Tpo $(DEPDIR)/type.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/type.cc' object='type.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o type.lo `test -f 'src/type.cc' || echo '$(srcdir)/'`src/type.cc
+
 parser-main.o: src/parser-main.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT parser-main.o -MD -MP -MF $(DEPDIR)/parser-main.Tpo -c -o parser-main.o `test -f 'src/parser-main.cc' || echo '$(srcdir)/'`src/parser-main.cc
 @am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/parser-main.Tpo $(DEPDIR)/parser-main.Po
@@ -1562,6 +1644,20 @@ ddutil_test.obj: src/ddutil_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil_test.cc' object='ddutil_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil_test.obj `if test -f 'src/ddutil_test.cc'; then $(CYGPATH_W) 'src/ddutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/ddutil_test.cc'; fi`
+
+expression-compiler_test.o: src/expression-compiler_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression-compiler_test.o -MD -MP -MF $(DEPDIR)/expression-compiler_test.Tpo -c -o expression-compiler_test.o `test -f 'src/expression-compiler_test.cc' || echo '$(srcdir)/'`src/expression-compiler_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression-compiler_test.Tpo $(DEPDIR)/expression-compiler_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression-compiler_test.cc' object='expression-compiler_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression-compiler_test.o `test -f 'src/expression-compiler_test.cc' || echo '$(srcdir)/'`src/expression-compiler_test.cc
+
+expression-compiler_test.obj: src/expression-compiler_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression-compiler_test.obj -MD -MP -MF $(DEPDIR)/expression-compiler_test.Tpo -c -o expression-compiler_test.obj `if test -f 'src/expression-compiler_test.cc'; then $(CYGPATH_W) 'src/expression-compiler_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/expression-compiler_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression-compiler_test.Tpo $(DEPDIR)/expression-compiler_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression-compiler_test.cc' object='expression-compiler_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression-compiler_test.obj `if test -f 'src/expression-compiler_test.cc'; then $(CYGPATH_W) 'src/expression-compiler_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/expression-compiler_test.cc'; fi`
 
 expression_test.o: src/expression_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression_test.o -MD -MP -MF $(DEPDIR)/expression_test.Tpo -c -o expression_test.o `test -f 'src/expression_test.cc' || echo '$(srcdir)/'`src/expression_test.cc
@@ -1618,6 +1714,20 @@ process-algebra_test.obj: src/process-algebra_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/process-algebra_test.cc' object='process-algebra_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o process-algebra_test.obj `if test -f 'src/process-algebra_test.cc'; then $(CYGPATH_W) 'src/process-algebra_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/process-algebra_test.cc'; fi`
+
+type_test.o: src/type_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT type_test.o -MD -MP -MF $(DEPDIR)/type_test.Tpo -c -o type_test.o `test -f 'src/type_test.cc' || echo '$(srcdir)/'`src/type_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/type_test.Tpo $(DEPDIR)/type_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/type_test.cc' object='type_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o type_test.o `test -f 'src/type_test.cc' || echo '$(srcdir)/'`src/type_test.cc
+
+type_test.obj: src/type_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT type_test.obj -MD -MP -MF $(DEPDIR)/type_test.Tpo -c -o type_test.obj `if test -f 'src/type_test.cc'; then $(CYGPATH_W) 'src/type_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/type_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/type_test.Tpo $(DEPDIR)/type_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/type_test.cc' object='type_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o type_test.obj `if test -f 'src/type_test.cc'; then $(CYGPATH_W) 'src/type_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/type_test.cc'; fi`
 
 .ll.cc:
 	$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
@@ -2081,6 +2191,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)

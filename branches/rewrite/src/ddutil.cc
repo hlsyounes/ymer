@@ -16,7 +16,7 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-#include "src/ddutil.h"
+#include "ddutil.h"
 
 #include <cmath>
 #include <cstdio>  // cudd.h needs declaration for FILE.
@@ -148,7 +148,14 @@ BDD& BDD::operator=(const BDD& dd) {
   return *this;
 }
 
-bool BDD::BoolValue() const {
+BDD::BDD(const ADD& dd)
+    : DecisionDiagram(
+        dd.dd_manager(),
+        Cudd_Not(Cudd_addBddInterval(dd.dd_manager(), dd.dd_node(),
+                                     0.0, 0.0))) {
+}
+
+bool BDD::Value() const {
   CHECK(IsConstant());
   return !Cudd_IsComplement(dd_node());
 }
@@ -220,7 +227,12 @@ ADD& ADD::operator=(const ADD& dd) {
   return *this;
 }
 
-double ADD::DoubleValue() const {
+ADD::ADD(const BDD& dd)
+    : DecisionDiagram(dd.dd_manager(),
+                      Cudd_BddToAdd(dd.dd_manager(), dd.dd_node())) {
+}
+
+double ADD::Value() const {
   CHECK(IsConstant());
   return Cudd_V(dd_node());
 }
@@ -423,4 +435,32 @@ BDD DecisionDiagramManager::VariableIdentity(int low_bit, int high_bit) const {
   return BDD(
       dd_manager_,
       Cudd_Xeqy(dd_manager_, num_bits, row_vars.get(), column_vars.get()));
+}
+
+bool GetValue(const DecisionDiagramManager& dd_manager,
+              const BDD& dd, const std::vector<bool>& bits) {
+  CHECK_EQ(dd_manager.num_variables(), bits.size());
+  BDD bits_dd = dd_manager.GetConstant(true);
+  for (int i = 0; i < bits.size(); ++i) {
+    BDD var_dd = dd_manager.GetBddVariable(i);
+    if (!bits[i]) {
+      var_dd = !var_dd;
+    }
+    bits_dd = bits_dd && var_dd;
+  }
+  return (bits_dd && dd).ExistAbstract(dd_manager.GetBddCube()).Value();
+}
+
+double GetValue(const DecisionDiagramManager& dd_manager,
+                const ADD& dd, const std::vector<bool>& bits) {
+  CHECK_EQ(dd_manager.num_variables(), bits.size());
+  ADD bits_dd = dd_manager.GetConstant(1);
+  for (int i = 0; i < bits.size(); ++i) {
+    ADD var_dd = dd_manager.GetAddVariable(i);
+    if (!bits[i]) {
+      var_dd = dd_manager.GetConstant(1) - var_dd;
+    }
+    bits_dd = bits_dd * var_dd;
+  }
+  return (bits_dd * dd).ExistAbstract(dd_manager.GetAddCube()).Value();
 }
