@@ -341,6 +341,21 @@ TEST(ParseStringTest, ParsesValidModel) {
   EXPECT_EQ("M2", system_operand2->name());
 }
 
+TEST(ParseStringTest, DefaultsToMDP) {
+  const std::string kModelSource =
+      "module M\n"
+      "  b : bool;\n"
+      "  [] b -> 1 : (b'=!b);\n"
+      "endmodule\n";
+
+  Model model;
+  std::string message;
+  EXPECT_TRUE(ParseString(kModelSource, &model, &message));
+  EXPECT_TRUE(message.empty()) << message;
+
+  EXPECT_EQ(ModelType::MDP, model.type());
+}
+
 TEST(ParseStringTest, ReportsErrorForInvalidModel) {
   const std::string kModelSource =
       "module M\n"
