@@ -135,6 +135,20 @@ TransitionReward& TransitionReward::operator=(
   return *this;
 }
 
+std::string ModelType_Name(ModelType model_type) {
+  switch (model_type) {
+    case ModelType::DTMC:
+      return "DTMC";
+    case ModelType::CTMC:
+      return "CTMC";
+    case ModelType::MDP:
+      return "MDP";
+    case ModelType::NONE:
+      break;
+  }
+  LOG(FATAL) << "bad model type";
+}
+
 namespace {
 
 // Invalid module index.

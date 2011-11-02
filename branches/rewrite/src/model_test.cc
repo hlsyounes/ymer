@@ -109,6 +109,12 @@ TEST(TransitionRewardTest, ConstructsTransitionReward) {
   EXPECT_EQ(raw_reward, &transition_reward.reward());
 }
 
+TEST(ModelTypeTest, Name) {
+  EXPECT_EQ("DTMC", ModelType_Name(ModelType::DTMC));
+  EXPECT_EQ("CTMC", ModelType_Name(ModelType::CTMC));
+  EXPECT_EQ("MDP", ModelType_Name(ModelType::MDP));
+}
+
 Range MakeLiteralRange(int min, int max) {
   return Range(IntLiteral::Create(min), IntLiteral::Create(max));
 }
