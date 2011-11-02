@@ -219,6 +219,9 @@ class TransitionReward {
 // Supported model types.  Note: NONE is not a valid model type.
 enum class ModelType { NONE, DTMC, CTMC, MDP };
 
+// Returns the name of the given model type.
+std::string ModelType_Name(ModelType model_type);
+
 // A model.
 class Model {
  public:
