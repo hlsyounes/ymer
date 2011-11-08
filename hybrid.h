@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2002 Dave Parker
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -17,10 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: hybrid.h,v 2.1 2004-01-25 12:26:01 lorens Exp $
  */
-#include <util.h>
+#include <cstdio>
 #include <cudd.h>
 #include <odd.h>
 
@@ -52,8 +51,8 @@ struct HDDNode {
     double val;	// for terminals
     HDDKids kids;	// for non-terminals
   } type;
-  int off;
-  int off2;
+  size_t off;
+  size_t off2;
   SparseBit *sb;
   HDDNode *next;
 };
