@@ -166,8 +166,8 @@ static void prepare_model();
 static void compile_model();
 %}
 
-%token STOCHASTIC
-%token CONST RATE GLOBAL INIT
+%token STOCHASTIC CTMC
+%token CONST_TOKEN INT DOUBLE RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
 %token EXP
 %token MODULE ENDMODULE
@@ -222,7 +222,7 @@ model : model_type { prepare_model(); } declarations modules
           { compile_model(); }
       ;
 
-model_type : STOCHASTIC
+model_type : STOCHASTIC | CTMC
            ;
 
 /* ====================================================================== */
@@ -232,8 +232,10 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST NAME '=' integer ';' { declare_constant($2, $4); }
+declaration : CONST_TOKEN NAME '=' integer ';' { declare_constant($2, $4); }
+            | CONST_TOKEN INT NAME '=' integer ';' { declare_constant($3, $5); }
             | RATE NAME '=' NUMBER ';' { declare_rate($2, $4); }
+            | CONST_TOKEN DOUBLE NAME '=' NUMBER ';' { declare_rate($3, $5); }
             | GLOBAL NAME ':' range ';' { declare_variable($2, $4, NULL); }
             | GLOBAL NAME ':' range INIT const_expr ';'
                 { declare_variable($2, $4, $6); }
