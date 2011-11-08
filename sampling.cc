@@ -601,7 +601,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   if (server_socket != -1) {
     FD_ZERO(&master_fds);
     FD_SET(server_socket, &master_fds);
-    int fdmax = server_socket;
+    fdmax = server_socket;
     std::set<int> closed_sockets;
     for (std::map<int, short>::const_iterator ci = registered_clients.begin();
 	 ci != registered_clients.end(); ci++) {
