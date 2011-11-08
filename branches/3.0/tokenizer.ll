@@ -55,7 +55,10 @@ IDENT	[A-Za-z]([A-Za-z0-9_])*
 %%
 
 stochastic		return STOCHASTIC;
-const			return CONST;
+ctmc                    return CTMC;
+const			return CONST_TOKEN;
+int                     return INT;
+double                  return DOUBLE;
 rate			return RATE;
 global			return GLOBAL;
 module			return MODULE;
