@@ -103,10 +103,10 @@ static option long_options[] = {
   { "trials", required_argument, 0, 'T' },
   { "verbose", optional_argument, 0, 'v' },
   { "version", no_argument, 0, 'V' },
-  { "help", no_argument, 0, '?' },
+  { "help", no_argument, 0, 'h' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:D:d:E:e:H:Mm:n:pP:s:S:T:v::V?";
+static const char OPTION_STRING[] = "A:B:D:d:E:e:H:hMm:n:pP:s:S:T:v::V";
 
 
 /* Displays help. */
@@ -164,7 +164,7 @@ static void display_help() {
 	    << std::endl
 	    << "  -V,    --version\t"
 	    << "display version information and exit" << std::endl
-	    << "  -?,    --help\t\t"
+	    << "  -h,    --help\t\t"
 	    << "display this help and exit" << std::endl
 	    << "  file ...\t\t"
 	    << "files containing models and properties;" << std::endl
@@ -408,11 +408,9 @@ int main(int argc, char* argv[]) {
       case 'V':
 	display_version();
 	return 0;
-      case '?':
-	if (optopt == '?') {
-	  display_help();
-	  return 0;
-	}
+      case 'h':
+        display_help();
+        return 0;
       case ':':
       default:
 	std::cerr << "Try `" PACKAGE " --help' for more information."
