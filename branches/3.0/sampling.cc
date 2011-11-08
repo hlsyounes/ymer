@@ -2,6 +2,7 @@
  * Sampling-based model checking of CSL formulas.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -18,8 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: sampling.cc,v 4.1 2005-02-01 14:15:28 lorens Exp $
  */
 #include "formulas.h"
 #include "comm.h"
@@ -30,6 +29,7 @@
 #include <queue>
 #define __USE_ISOC9X 1
 #include <cmath>
+#include <cstdio>
 
 
 /* Verbosity level. */
