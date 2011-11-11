@@ -108,7 +108,7 @@ static int integer_value(const Rational* q);
 /* Returns a variable representing an integer constant. */
 static const Variable* find_constant(const std::string* ident);
 /* Returns a variable representing a rate constant. */
-static const Variable* find_rate(const std::string* ident, bool constant);
+static const Variable* find_rate(const std::string* ident);
 /* Returns a range with the given bounds, signaling an error if the
    range is empty. */
 static Range make_range(const Expression* l, const Expression* h);
@@ -141,9 +141,11 @@ static size_t synchronization_value(const std::string* ident);
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2);
 /* Declares an integer constant. */
-static void declare_constant(const std::string* ident, int value);
+static void declare_constant(const std::string* ident,
+                             const Expression* value_expr);
 /* Declares a rate constant. */
-static void declare_rate(const std::string* ident, const Rational* value);
+static void declare_rate(const std::string* ident,
+                         const Expression* value_expr);
 /* Declares a variable. */
 static const Variable* declare_variable(const std::string* ident,
 					const Range& range,
@@ -232,10 +234,12 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST_TOKEN NAME '=' integer ';' { declare_constant($2, $4); }
-            | CONST_TOKEN INT NAME '=' integer ';' { declare_constant($3, $5); }
-            | RATE NAME '=' NUMBER ';' { declare_rate($2, $4); }
-            | CONST_TOKEN DOUBLE NAME '=' NUMBER ';' { declare_rate($3, $5); }
+declaration : CONST_TOKEN NAME '=' const_expr ';' { declare_constant($2, $4); }
+            | CONST_TOKEN INT NAME '=' const_expr ';'
+                { declare_constant($3, $5); }
+            | RATE NAME '=' const_rate_expr ';' { declare_rate($2, $4); }
+            | CONST_TOKEN DOUBLE NAME '=' const_rate_expr ';'
+                { declare_rate($3, $5); }
             | GLOBAL NAME ':' range ';' { declare_variable($2, $4, NULL); }
             | GLOBAL NAME ':' range INIT const_expr ';'
                 { declare_variable($2, $4, $6); }
@@ -334,14 +338,14 @@ expr : integer { $$ = make_value($1); }
      ;
 
 rate_expr : NUMBER { $$ = make_value($1); }
-          | NAME { $$ = find_rate($1, false); }
+          | NAME { $$ = find_rate($1); }
           | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
           | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
 
 const_rate_expr : NUMBER { $$ = make_value($1); }
-                | NAME { $$ = find_rate($1, true); }
+                | NAME { $$ = find_rate($1); }
                 | const_rate_expr '*' const_rate_expr
                     { $$ = &Multiplication::make(*$1, *$3); }
                 | const_rate_expr '/' const_rate_expr
@@ -524,17 +528,13 @@ static const Variable* find_constant(const std::string* ident) {
 
 
 /* Returns a variable representing a rate constant. */
-static const Variable* find_rate(const std::string* ident, bool constant) {
+static const Variable* find_rate(const std::string* ident) {
   std::map<std::string, const Variable*>::const_iterator ri =
     rates.find(*ident);
   if (ri != rates.end()) {
     delete ident;
     return (*ri).second;
   } else {
-    if (constant) {
-      yyerror("variable parameters only permitted for exponential"
-	      " distribution");
-    }
     return find_variable(ident);
   }
 }
@@ -738,7 +738,8 @@ static void add_substitution(const std::string* ident1,
 
 
 /* Declares an integer constant. */
-static void declare_constant(const std::string* ident, int value) {
+static void declare_constant(const std::string* ident,
+                             const Expression* value_expr) {
   if (constants.find(*ident) != constants.end()) {
     yyerror("ignoring repeated declaration of constant `" + *ident + "'");
   } else if (rates.find(*ident) != rates.end()) {
@@ -754,15 +755,18 @@ static void declare_constant(const std::string* ident, int value) {
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
     constants.insert(std::make_pair(*ident, v));
+    const int value = value_expr->value(constant_values).numerator();
     constant_values.insert(std::make_pair(v, value));
     rate_values.insert(std::make_pair(v, value));
   }
   delete ident;
+  delete value_expr;
 }
 
 
 /* Declares a rate constant. */
-static void declare_rate(const std::string* ident, const Rational* value) {
+static void declare_rate(const std::string* ident,
+                         const Expression* value_expr) {
   if (rates.find(*ident) != rates.end()) {
     yyerror("ignoring repeated declaration of rate `" + *ident + "'");
   } else if (constants.find(*ident) != constants.end()) {
@@ -778,10 +782,10 @@ static void declare_rate(const std::string* ident, const Rational* value) {
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
     rates.insert(std::make_pair(*ident, v));
-    rate_values.insert(std::make_pair(v, *value));
+    rate_values.insert(std::make_pair(v, value_expr->value(rate_values)));
   }
   delete ident;
-  delete value;
+  delete value_expr;
 }
 
 
