@@ -1,0 +1,55 @@
+Version 3.0.2 (Nov 18, 2011):
+
+* Minor improvements to parser: recognition of "ctmc" model type; "const int"
+  and "const double" constants.
+
+* Limited support for constant expressions in the initializer for constants.
+
+Version 3.0.1 (Nov 7, 2011):
+
+* Distributed sampling no longer blocks indefinitely.
+
+* Use correct command-line arguments in README file.
+
+* ./ymer --help works.
+
+* Added missing includes.
+
+* Includes cudd-2.4.2 for easier out-of-the-box compilation.
+
+
+Version 3.0 (Feb 1, 2005):
+
+* Added support for sequential single sampling plans and probability
+  estimation.
+
+* Improved verification procedure for conjunction, disjunction,
+  implication, and path formulas.
+
+* Made statistical verification of nested probabilistic operators work
+  in practice through the use of memoization and heuristics for
+  selecting observation error.
+
+* Fixed several bugs in the simulation of sample trajectories.
+
+
+Version 2.1 (Mar 11, 2004):
+
+* Simplified setup of client/server mode.  To run Ymer in server mode,
+  specify a port.  To run Ymer in client mode, specify the host running
+  the server and the port used by the server.  There is no longer any
+  need to provide client identifiers or IP-addresses.
+
+* Changed to TCP for client/server communication.  The server can now
+  detect if a client goes down and will not expect any samples from
+  clients no longer connected to the server.
+
+
+Version 2.0 (Jan 25, 2004):
+
+* Support for non-exponential distributions and distributed sampling.
+
+
+Version 1.0 (Nov 7, 2003):
+
+* Initial release.
