@@ -20,7 +20,7 @@ to generate samples, which can result in significant speedup as each
 sample can be generated independently.
 
 Ymer can also use numerical techniques based on uniformization by
-approximating a GSMP with a CTMC using phase-type distributions .
+approximating a GSMP with a CTMC using phase-type distributions.
 Ymer includes the hybrid engine from the PRISM tool for CTMC model
 checking.  Numerical and statistical techniques can be used in
 combination to solve nested CSL queries.
@@ -52,7 +52,7 @@ an example of how to use distributed sampling with Ymer:
 
   cpu2> ymer -H cpu1 -P 5000 examples/tandem63.sm examples/tandem500.csl
 
-  cpu3> ymer -h cpu1 -p 5000 examples/tandem63.sm examples/tandem500.csl
+  cpu3> ymer -H cpu1 -P 5000 examples/tandem63.sm examples/tandem500.csl
 
 This starts a server on a machine called `cpu1' and a client on each
 of the machines called `cpu2' and `cpu3'.  Once enough samples have
