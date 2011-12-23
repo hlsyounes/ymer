@@ -37,6 +37,24 @@ AC_PROG_YACC
 # Set the language.
 AC_LANG(C++)
 
+# Whether to use tcmalloc.
+AC_ARG_WITH([tcmalloc],
+            [AS_HELP_STRING([--with-tcmalloc],
+                            [a faster malloc @<:@default=check@:>@])],
+            [],
+            [with_tcmalloc=check])
+AS_IF([test "x$with_tcmalloc" != xno],
+      [AC_CHECK_LIB(
+          [tcmalloc], [tc_malloc], ,
+          [AS_IF([test "x$with_tcmalloc" != xcheck],
+                 [AC_MSG_FAILURE(
+                     [--with-tcmalloc was given, but test for tcmalloc failed])
+                 ])])])
+
+# Whether gtest is available.
+AC_CHECK_PROG([have_gtest_config], [gtest-config], [yes])
+AM_CONDITIONAL([HAVE_LIBGTEST], [test "x$have_gtest_config" = xyes])
+
 # Checks for libraries.
 AC_SEARCH_LIBS(gettext, intl)
 
@@ -55,5 +73,5 @@ AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror])
 
 AC_CONFIG_FILES(Makefile)
-AC_CONFIG_SUBDIRS([gsl])
+AC_CONFIG_SUBDIRS([gflags glog gsl])
 AC_OUTPUT
