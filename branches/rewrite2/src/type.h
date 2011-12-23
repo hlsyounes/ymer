@@ -16,36 +16,159 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 //
-// Type information for model constants and variables.
+// Type information for values, model constants and model variables.
 
 #ifndef TYPE_H_
 #define TYPE_H_
 
+#include <cmath>
+#include <ostream>
 #include <string>
 
-// Supported expression types.
+#include "glog/logging.h"
+
+// Supported value and expression types.
 enum class Type { INT, DOUBLE, BOOL };
 
-// Returns the name of the given expression type.
-std::string Type_Name(Type type);
+std::ostream& operator<<(std::ostream& os, Type type);
 
 // Returns true if actual_type silently converts to expected_type.  If error
 // is non-null, then it is populated with an error message in case of failure.
 bool ConvertsToType(Type actual_type, Type expected_type, std::string* error);
 
-// Class for mapping native type to expression type.
-template <typename NativeType> class TypeInfo {
+// A typed value.
+class TypedValue {
  public:
-  TypeInfo() = delete;
+  // Constructs a typed value.
+  TypedValue() {}
+  TypedValue(int i) : type_(Type::INT) { value_.i = i; }
+  TypedValue(double d) : type_(Type::DOUBLE) { value_.d = d; }
+  TypedValue(bool b) : type_(Type::BOOL) { value_.b = b; }
 
-  // Returns the expression type associated with NativeType.
-  static Type type();
+  // Returns the type.
+  Type type() const { return type_; }
+
+  // Returns the value, converted to the given type.
+  template <typename T> T value() const;
+
+ private:
+  Type type_;
+  union {
+    int i;
+    double d;
+    bool b;
+  } value_;
 };
 
-template <> inline Type TypeInfo<int>::type() { return Type::INT; }
+template <typename T>
+T TypedValue::value() const {
+  switch (type_) {
+    case Type::INT:
+      return value_.i;
+    case Type::DOUBLE:
+      return value_.d;
+    case Type::BOOL:
+      return value_.b;
+  }
+  LOG(FATAL) << "bad value type";
+}
 
-template <> inline Type TypeInfo<double>::type() { return Type::DOUBLE; }
+inline bool operator==(const TypedValue& v1, const TypedValue& v2) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
+    return v1.value<double>() == v2.value<double>();
+  } else {
+    return v1.value<int>() == v2.value<int>();
+  }
+}
 
-template <> inline Type TypeInfo<bool>::type() { return Type::BOOL; }
+inline bool operator!=(const TypedValue& v1, const TypedValue& v2) {
+  return !(v1 == v2);
+}
+
+inline bool operator<(const TypedValue& v1, const TypedValue& v2) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
+    return v1.value<double>() < v2.value<double>();
+  } else {
+    return v1.value<int>() < v2.value<int>();
+  }
+}
+
+inline bool operator<=(const TypedValue& v1, const TypedValue& v2) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
+    return v1.value<double>() <= v2.value<double>();
+  } else {
+    return v1.value<int>() <= v2.value<int>();
+  }
+}
+
+inline bool operator>=(const TypedValue& v1, const TypedValue& v2) {
+  return !(v1 < v2);
+}
+
+inline bool operator>(const TypedValue& v1, const TypedValue& v2) {
+  return !(v1 <= v2);
+}
+
+inline TypedValue operator-(const TypedValue& v) {
+  if (v.type() == Type::DOUBLE) {
+    return -v.value<double>();
+  } else {
+    return -v.value<int>();
+  }
+}
+
+inline TypedValue operator+(const TypedValue& v1, const TypedValue& v2) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
+    return v1.value<double>() + v2.value<double>();
+  } else {
+    return v1.value<int>() + v2.value<int>();
+  }
+}
+
+inline TypedValue operator-(const TypedValue& v1, const TypedValue& v2) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
+    return v1.value<double>() - v2.value<double>();
+  } else {
+    return v1.value<int>() - v2.value<int>();
+  }
+}
+
+inline TypedValue operator*(const TypedValue& v1, const TypedValue& v2) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
+    return v1.value<double>() * v2.value<double>();
+  } else {
+    return v1.value<int>() * v2.value<int>();
+  }
+}
+
+inline TypedValue operator/(const TypedValue& v1, const TypedValue& v2) {
+  return v1.value<double>() / v2.value<double>();
+}
+
+inline TypedValue operator%(const TypedValue& v1, const TypedValue& v2) {
+  return v1.value<int>() % v2.value<int>();
+}
+
+inline TypedValue operator!(const TypedValue& v) {
+  return !v.value<bool>();
+}
+
+inline TypedValue floor(const TypedValue& v) {
+  return static_cast<int>(floor(v.value<double>()));
+}
+
+inline TypedValue ceil(const TypedValue& v) {
+  return static_cast<int>(ceil(v.value<double>()));
+}
+
+inline TypedValue pow(const TypedValue& v1, const TypedValue& v2) {
+  return pow(v1.value<double>(), v2.value<double>());
+}
+
+inline TypedValue log(const TypedValue& v) {
+  return log(v.value<double>());
+}
+
+std::ostream& operator<<(std::ostream& os, const TypedValue& v);
 
 #endif  // TYPE_H_

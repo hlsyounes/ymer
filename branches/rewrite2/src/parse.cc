@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <sstream>
 #include <string>
 
 #include "glog/logging.h"
@@ -75,6 +76,14 @@ yy_buffer_state* ScanFile(FILE* file, void* scanner) {
   return buffer_state;
 }
 
+void SetCannotOpenFileError(const std::string& filename, std::string* error) {
+  if (error) {
+    std::stringstream out;
+    out << "Cannot open " << filename << ": " << strerror(errno);
+    *error = out.str();
+  }
+}
+
 }  // namespace
 
 bool ParseFile(const std::string& filename,
@@ -85,12 +94,7 @@ bool ParseFile(const std::string& filename,
   } else {
     file = fopen(filename.c_str(), "r");
     if (file == nullptr) {
-      if (message) {
-        *message = "Cannot open ";
-        *message += filename;
-        *message += ": ";
-        *message += strerror(errno);
-      }
+      SetCannotOpenFileError(filename, message);
       return false;
     }
   }

@@ -169,20 +169,20 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 212 "grammar.yy"
+#line 216 "grammar.yy"
 
-  std::string* str;
+  const std::string* str;
   Type type;
   std::map<std::string, std::string>* substitutions;
-  std::vector<Outcome>* outcomes;
-  Outcome* outcome;
-  std::vector<Update>* updates;
-  Update* update;
-  const Expression* expr;
+  std::vector<ParsedOutcome>* outcomes;
+  ParsedOutcome* outcome;
+  std::vector<ParsedUpdate>* updates;
+  ParsedUpdate* update;
+  const ParsedExpression* expr;
   int int_literal;
   double double_literal;
   Function function;
-  ArgumentList* arguments;
+  ParsedArgumentList* arguments;
   const ProcessAlgebra* process_algebra;
   std::set<std::string>* actions;
 
