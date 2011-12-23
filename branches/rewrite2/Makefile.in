@@ -35,24 +35,23 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = ymer$(EXEEXT)
 noinst_PROGRAMS = parser$(EXEEXT)
-@HAVE_LIBGTEST_TRUE@check_PROGRAMS = src/ddutil_test$(EXEEXT) \
-@HAVE_LIBGTEST_TRUE@	src/expression_test$(EXEEXT) \
+@HAVE_LIBGTEST_TRUE@check_PROGRAMS = src/expression_test$(EXEEXT) \
 @HAVE_LIBGTEST_TRUE@	src/process-algebra_test$(EXEEXT) \
 @HAVE_LIBGTEST_TRUE@	src/type_test$(EXEEXT) \
 @HAVE_LIBGTEST_TRUE@	src/model_test$(EXEEXT) \
-@HAVE_LIBGTEST_TRUE@	src/parse_test$(EXEEXT) \
-@HAVE_LIBGTEST_TRUE@	src/expression-compiler_test$(EXEEXT)
+@HAVE_LIBGTEST_TRUE@	src/parse_test$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
 	config.guess config.sub depcomp grammar.cc grammar.h \
-	install-sh lexer.cc ltmain.sh missing mkinstalldirs parser.cc \
-	parser.h tokens.cc ylwrap
+	install-sh ltmain.sh missing mkinstalldirs tokens.cc ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -62,105 +61,10 @@ CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
-cudd_cudd_libcudd_la_DEPENDENCIES = cudd/epd/libepd.la \
-	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la
-am_cudd_cudd_libcudd_la_OBJECTS = cudd_cudd_libcudd_la-cuddAPI.lo \
-	cudd_cudd_libcudd_la-cuddAddAbs.lo \
-	cudd_cudd_libcudd_la-cuddAddApply.lo \
-	cudd_cudd_libcudd_la-cuddAddFind.lo \
-	cudd_cudd_libcudd_la-cuddAddIte.lo \
-	cudd_cudd_libcudd_la-cuddAddInv.lo \
-	cudd_cudd_libcudd_la-cuddAddNeg.lo \
-	cudd_cudd_libcudd_la-cuddAddWalsh.lo \
-	cudd_cudd_libcudd_la-cuddAndAbs.lo \
-	cudd_cudd_libcudd_la-cuddAnneal.lo \
-	cudd_cudd_libcudd_la-cuddApa.lo \
-	cudd_cudd_libcudd_la-cuddApprox.lo \
-	cudd_cudd_libcudd_la-cuddBddAbs.lo \
-	cudd_cudd_libcudd_la-cuddBddCorr.lo \
-	cudd_cudd_libcudd_la-cuddBddIte.lo \
-	cudd_cudd_libcudd_la-cuddBridge.lo \
-	cudd_cudd_libcudd_la-cuddCache.lo \
-	cudd_cudd_libcudd_la-cuddCheck.lo \
-	cudd_cudd_libcudd_la-cuddClip.lo \
-	cudd_cudd_libcudd_la-cuddCof.lo \
-	cudd_cudd_libcudd_la-cuddCompose.lo \
-	cudd_cudd_libcudd_la-cuddDecomp.lo \
-	cudd_cudd_libcudd_la-cuddEssent.lo \
-	cudd_cudd_libcudd_la-cuddExact.lo \
-	cudd_cudd_libcudd_la-cuddExport.lo \
-	cudd_cudd_libcudd_la-cuddGenCof.lo \
-	cudd_cudd_libcudd_la-cuddGenetic.lo \
-	cudd_cudd_libcudd_la-cuddGroup.lo \
-	cudd_cudd_libcudd_la-cuddHarwell.lo \
-	cudd_cudd_libcudd_la-cuddInit.lo \
-	cudd_cudd_libcudd_la-cuddInteract.lo \
-	cudd_cudd_libcudd_la-cuddLCache.lo \
-	cudd_cudd_libcudd_la-cuddLevelQ.lo \
-	cudd_cudd_libcudd_la-cuddLinear.lo \
-	cudd_cudd_libcudd_la-cuddLiteral.lo \
-	cudd_cudd_libcudd_la-cuddMatMult.lo \
-	cudd_cudd_libcudd_la-cuddPriority.lo \
-	cudd_cudd_libcudd_la-cuddRead.lo \
-	cudd_cudd_libcudd_la-cuddRef.lo \
-	cudd_cudd_libcudd_la-cuddReorder.lo \
-	cudd_cudd_libcudd_la-cuddSat.lo \
-	cudd_cudd_libcudd_la-cuddSign.lo \
-	cudd_cudd_libcudd_la-cuddSolve.lo \
-	cudd_cudd_libcudd_la-cuddSplit.lo \
-	cudd_cudd_libcudd_la-cuddSubsetHB.lo \
-	cudd_cudd_libcudd_la-cuddSubsetSP.lo \
-	cudd_cudd_libcudd_la-cuddSymmetry.lo \
-	cudd_cudd_libcudd_la-cuddTable.lo \
-	cudd_cudd_libcudd_la-cuddUtil.lo \
-	cudd_cudd_libcudd_la-cuddWindow.lo \
-	cudd_cudd_libcudd_la-cuddZddCount.lo \
-	cudd_cudd_libcudd_la-cuddZddFuncs.lo \
-	cudd_cudd_libcudd_la-cuddZddGroup.lo \
-	cudd_cudd_libcudd_la-cuddZddIsop.lo \
-	cudd_cudd_libcudd_la-cuddZddLin.lo \
-	cudd_cudd_libcudd_la-cuddZddMisc.lo \
-	cudd_cudd_libcudd_la-cuddZddPort.lo \
-	cudd_cudd_libcudd_la-cuddZddReord.lo \
-	cudd_cudd_libcudd_la-cuddZddSetop.lo \
-	cudd_cudd_libcudd_la-cuddZddSymm.lo \
-	cudd_cudd_libcudd_la-cuddZddUtil.lo
-cudd_cudd_libcudd_la_OBJECTS = $(am_cudd_cudd_libcudd_la_OBJECTS)
-am__dirstamp = $(am__leading_dot)dirstamp
-cudd_epd_libepd_la_DEPENDENCIES = cudd/util/libutil.la
-am_cudd_epd_libepd_la_OBJECTS = cudd_epd_libepd_la-epd.lo
-cudd_epd_libepd_la_OBJECTS = $(am_cudd_epd_libepd_la_OBJECTS)
-cudd_mtr_libmtr_la_DEPENDENCIES = cudd/st/libst.la \
-	cudd/util/libutil.la
-am_cudd_mtr_libmtr_la_OBJECTS = cudd_mtr_libmtr_la-mtrBasic.lo \
-	cudd_mtr_libmtr_la-mtrGroup.lo
-cudd_mtr_libmtr_la_OBJECTS = $(am_cudd_mtr_libmtr_la_OBJECTS)
-cudd_st_libst_la_DEPENDENCIES = cudd/util/libutil.la
-am_cudd_st_libst_la_OBJECTS = cudd_st_libst_la-st.lo
-cudd_st_libst_la_OBJECTS = $(am_cudd_st_libst_la_OBJECTS)
-cudd_util_libutil_la_LIBADD =
-am_cudd_util_libutil_la_OBJECTS = cudd_util_libutil_la-cpu_time.lo \
-	cudd_util_libutil_la-cpu_stats.lo \
-	cudd_util_libutil_la-getopt.lo \
-	cudd_util_libutil_la-safe_mem.lo \
-	cudd_util_libutil_la-strsav.lo cudd_util_libutil_la-texpand.lo \
-	cudd_util_libutil_la-ptime.lo cudd_util_libutil_la-prtime.lo \
-	cudd_util_libutil_la-pipefork.lo \
-	cudd_util_libutil_la-pathsearch.lo \
-	cudd_util_libutil_la-stub.lo cudd_util_libutil_la-tmpfile.lo \
-	cudd_util_libutil_la-datalimit.lo
-cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
-src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
-am_src_libddutil_la_OBJECTS = ddutil.lo
-src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
-src_libexpression_compiler_la_DEPENDENCIES = src/libddutil.la \
-	src/libexpression.la src/libtype.la glog/libglog.la
-am_src_libexpression_compiler_la_OBJECTS = expression-compiler.lo
-src_libexpression_compiler_la_OBJECTS =  \
-	$(am_src_libexpression_compiler_la_OBJECTS)
 src_libexpression_la_DEPENDENCIES = glog/libglog.la
 am_src_libexpression_la_OBJECTS = expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
+am__dirstamp = $(am__leading_dot)dirstamp
 src_libmodel_la_DEPENDENCIES = src/libexpression.la \
 	src/libprocess-algebra.la src/libtype.la glog/libglog.la
 am_src_libmodel_la_OBJECTS = model.lo
@@ -182,28 +86,11 @@ src_libtest_main_la_OBJECTS = $(am_src_libtest_main_la_OBJECTS)
 src_libtype_la_DEPENDENCIES = glog/libglog.la
 am_src_libtype_la_OBJECTS = type.lo
 src_libtype_la_OBJECTS = $(am_src_libtype_la_OBJECTS)
-am__installdirs = "$(DESTDIR)$(bindir)"
-PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
+PROGRAMS = $(noinst_PROGRAMS)
 am_parser_OBJECTS = parser-main.$(OBJEXT)
 parser_OBJECTS = $(am_parser_OBJECTS)
 parser_DEPENDENCIES = src/libparse.la gflags/libgflags.la \
 	glog/libglog.la
-am__src_ddutil_test_SOURCES_DIST = src/ddutil_test.cc
-@HAVE_LIBGTEST_TRUE@am_src_ddutil_test_OBJECTS =  \
-@HAVE_LIBGTEST_TRUE@	ddutil_test.$(OBJEXT)
-src_ddutil_test_OBJECTS = $(am_src_ddutil_test_OBJECTS)
-@HAVE_LIBGTEST_TRUE@src_ddutil_test_DEPENDENCIES = src/libddutil.la \
-@HAVE_LIBGTEST_TRUE@	src/libtest-main.la
-am__src_expression_compiler_test_SOURCES_DIST =  \
-	src/expression-compiler_test.cc
-@HAVE_LIBGTEST_TRUE@am_src_expression_compiler_test_OBJECTS =  \
-@HAVE_LIBGTEST_TRUE@	expression-compiler_test.$(OBJEXT)
-src_expression_compiler_test_OBJECTS =  \
-	$(am_src_expression_compiler_test_OBJECTS)
-@HAVE_LIBGTEST_TRUE@src_expression_compiler_test_DEPENDENCIES =  \
-@HAVE_LIBGTEST_TRUE@	src/libexpression-compiler.la \
-@HAVE_LIBGTEST_TRUE@	src/libddutil.la src/libexpression.la \
-@HAVE_LIBGTEST_TRUE@	src/libtype.la src/libtest-main.la
 am__src_expression_test_SOURCES_DIST = src/expression_test.cc
 @HAVE_LIBGTEST_TRUE@am_src_expression_test_OBJECTS =  \
 @HAVE_LIBGTEST_TRUE@	expression_test.$(OBJEXT)
@@ -238,28 +125,10 @@ am__src_type_test_SOURCES_DIST = src/type_test.cc
 src_type_test_OBJECTS = $(am_src_type_test_OBJECTS)
 @HAVE_LIBGTEST_TRUE@src_type_test_DEPENDENCIES = src/libtype.la \
 @HAVE_LIBGTEST_TRUE@	src/libtest-main.la
-am_ymer_OBJECTS = main.$(OBJEXT) rng.$(OBJEXT) rngdc.$(OBJEXT) \
-	expressions.$(OBJEXT) formulas.$(OBJEXT) \
-	distributions.$(OBJEXT) modules.$(OBJEXT) models.$(OBJEXT) \
-	comm.$(OBJEXT) simulator.$(OBJEXT) sampling.$(OBJEXT) \
-	learning.$(OBJEXT) mtbdd.$(OBJEXT) parser.$(OBJEXT) \
-	lexer.$(OBJEXT)
-ymer_OBJECTS = $(am_ymer_OBJECTS)
-ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
-	gsl/cblas/libgslcblas.la
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
-COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
-	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-CCLD = $(CC)
-LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
 LTCXXCOMPILE = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
@@ -276,37 +145,32 @@ YLWRAP = $(top_srcdir)/ylwrap
 YACCCOMPILE = $(YACC) $(YFLAGS) $(AM_YFLAGS)
 LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=compile $(YACC) $(YFLAGS) $(AM_YFLAGS)
-SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
-	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
-	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libddutil_la_SOURCES) \
-	$(src_libexpression_compiler_la_SOURCES) \
-	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
+SOURCES = $(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
 	$(src_libparse_la_SOURCES) \
 	$(src_libprocess_algebra_la_SOURCES) \
 	$(src_libtest_main_la_SOURCES) $(src_libtype_la_SOURCES) \
-	$(parser_SOURCES) $(src_ddutil_test_SOURCES) \
-	$(src_expression_compiler_test_SOURCES) \
-	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_parse_test_SOURCES) $(src_process_algebra_test_SOURCES) \
-	$(src_type_test_SOURCES) $(ymer_SOURCES)
-DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
-	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
-	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libddutil_la_SOURCES) \
-	$(src_libexpression_compiler_la_SOURCES) \
-	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_libparse_la_SOURCES) \
+	$(parser_SOURCES) $(src_expression_test_SOURCES) \
+	$(src_model_test_SOURCES) $(src_parse_test_SOURCES) \
+	$(src_process_algebra_test_SOURCES) $(src_type_test_SOURCES)
+DIST_SOURCES = $(src_libexpression_la_SOURCES) \
+	$(src_libmodel_la_SOURCES) $(src_libparse_la_SOURCES) \
 	$(src_libprocess_algebra_la_SOURCES) \
 	$(am__src_libtest_main_la_SOURCES_DIST) \
 	$(src_libtype_la_SOURCES) $(parser_SOURCES) \
-	$(am__src_ddutil_test_SOURCES_DIST) \
-	$(am__src_expression_compiler_test_SOURCES_DIST) \
 	$(am__src_expression_test_SOURCES_DIST) \
 	$(am__src_model_test_SOURCES_DIST) \
 	$(am__src_parse_test_SOURCES_DIST) \
 	$(am__src_process_algebra_test_SOURCES_DIST) \
-	$(am__src_type_test_SOURCES_DIST) $(ymer_SOURCES)
+	$(am__src_type_test_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -483,23 +347,11 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = gflags glog gsl
-
-# The main CUDD library.
-
-# CUDD library for extended double precision arithmetic.
-
-# CUDD library for multiway-branch tree manipulation.
-
-# CUDD library for symbol tables.
-
-# CUDD utility library.
+SUBDIRS = gflags glog
 
 #
 # Ymer libraries.
 #
-
-# Decision diagram utility library.
 
 # Expression library.
 
@@ -510,66 +362,8 @@ SUBDIRS = gflags glog gsl
 # Model library.
 
 # Parse library.
-
-# Expression compiler library.
-noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
-	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
-	src/libddutil.la src/libexpression.la \
-	src/libprocess-algebra.la src/libtype.la src/libmodel.la \
-	src/libparse.la src/libexpression-compiler.la
-
-#
-# CUDD libraries.
-#
-CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
-cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
-    cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
-    cudd/cudd/cuddAddInv.c cudd/cudd/cuddAddNeg.c cudd/cudd/cuddAddWalsh.c \
-    cudd/cudd/cuddAndAbs.c cudd/cudd/cuddAnneal.c cudd/cudd/cuddApa.c \
-    cudd/cudd/cuddApprox.c cudd/cudd/cuddBddAbs.c cudd/cudd/cuddBddCorr.c \
-    cudd/cudd/cuddBddIte.c cudd/cudd/cuddBridge.c cudd/cudd/cuddCache.c \
-    cudd/cudd/cuddCheck.c cudd/cudd/cuddClip.c cudd/cudd/cuddCof.c \
-    cudd/cudd/cuddCompose.c cudd/cudd/cuddDecomp.c cudd/cudd/cuddEssent.c \
-    cudd/cudd/cuddExact.c cudd/cudd/cuddExport.c cudd/cudd/cuddGenCof.c \
-    cudd/cudd/cuddGenetic.c cudd/cudd/cuddGroup.c cudd/cudd/cuddHarwell.c \
-    cudd/cudd/cuddInit.c cudd/cudd/cuddInteract.c cudd/cudd/cuddLCache.c \
-    cudd/cudd/cuddLevelQ.c cudd/cudd/cuddLinear.c cudd/cudd/cuddLiteral.c \
-    cudd/cudd/cuddMatMult.c cudd/cudd/cuddPriority.c cudd/cudd/cuddRead.c \
-    cudd/cudd/cuddRef.c cudd/cudd/cuddReorder.c cudd/cudd/cuddSat.c \
-    cudd/cudd/cuddSign.c cudd/cudd/cuddSolve.c cudd/cudd/cuddSplit.c \
-    cudd/cudd/cuddSubsetHB.c cudd/cudd/cuddSubsetSP.c cudd/cudd/cuddSymmetry.c \
-    cudd/cudd/cuddTable.c cudd/cudd/cuddUtil.c cudd/cudd/cuddWindow.c \
-    cudd/cudd/cuddZddCount.c cudd/cudd/cuddZddFuncs.c cudd/cudd/cuddZddGroup.c \
-    cudd/cudd/cuddZddIsop.c cudd/cudd/cuddZddLin.c cudd/cudd/cuddZddMisc.c \
-    cudd/cudd/cuddZddPort.c cudd/cudd/cuddZddReord.c cudd/cudd/cuddZddSetop.c \
-    cudd/cudd/cuddZddSymm.c cudd/cudd/cuddZddUtil.c
-
-cudd_cudd_libcudd_la_LIBADD = cudd/epd/libepd.la cudd/mtr/libmtr.la \
-    cudd/st/libst.la cudd/util/libutil.la
-
-cudd_cudd_libcudd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/epd \
-    -I$(srcdir)/cudd/mtr -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
-
-cudd_epd_libepd_la_SOURCES = cudd/epd/epd.c
-cudd_epd_libepd_la_LIBADD = cudd/util/libutil.la
-cudd_epd_libepd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/util
-cudd_mtr_libmtr_la_SOURCES = cudd/mtr/mtrBasic.c cudd/mtr/mtrGroup.c
-cudd_mtr_libmtr_la_LIBADD = cudd/st/libst.la cudd/util/libutil.la
-cudd_mtr_libmtr_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/st \
-    -I$(srcdir)/cudd/util
-
-cudd_st_libst_la_SOURCES = cudd/st/st.c
-cudd_st_libst_la_LIBADD = cudd/util/libutil.la
-cudd_st_libst_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/util
-cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
-    cudd/util/getopt.c cudd/util/safe_mem.c cudd/util/strsav.c \
-    cudd/util/texpand.c cudd/util/ptime.c cudd/util/prtime.c \
-    cudd/util/pipefork.c cudd/util/pathsearch.c cudd/util/stub.c \
-    cudd/util/tmpfile.c cudd/util/datalimit.c
-
-cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
-src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
-src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
+noinst_LTLIBRARIES = src/libexpression.la src/libprocess-algebra.la \
+	src/libtype.la src/libmodel.la src/libparse.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = glog/libglog.la
 src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
@@ -587,15 +381,6 @@ src_libparse_la_LIBADD = src/libexpression.la src/libmodel.la \
     src/libprocess-algebra.la glog/libglog.la
 
 BUILT_SOURCES = grammar.h
-src_libexpression_compiler_la_SOURCES = src/expression-compiler.h \
-    src/expression-compiler.cc
-
-src_libexpression_compiler_la_LIBADD = src/libddutil.la src/libexpression.la \
-    src/libtype.la glog/libglog.la
-
-ymer_SOURCES = main.cc rng.h rng.c rngdc.c verbosity.h refcount.h expressions.h expressions.cc formulas.h formulas.cc distributions.h distributions.cc modules.h modules.cc models.h models.cc comm.h comm.cc simulator.h simulator.cc verify.h sampling.cc sampling.h trajectories.h learning.cc learning.h mtbdd.cc mtbdd.h parser.yy lexer.ll
-ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
-	gsl/cblas/libgslcblas.la
 parser_SOURCES = src/parser-main.cc
 parser_LDADD = src/libparse.la gflags/libgflags.la glog/libglog.la
 
@@ -607,8 +392,6 @@ parser_LDADD = src/libparse.la gflags/libgflags.la glog/libglog.la
 @HAVE_LIBGTEST_TRUE@check_LTLIBRARIES = src/libtest-main.la
 @HAVE_LIBGTEST_TRUE@src_libtest_main_la_SOURCES = src/test-main.cc
 @HAVE_LIBGTEST_TRUE@src_libtest_main_la_LIBADD = gflags/libgflags.la glog/libglog.la -lgtest
-@HAVE_LIBGTEST_TRUE@src_ddutil_test_SOURCES = src/ddutil_test.cc
-@HAVE_LIBGTEST_TRUE@src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
 @HAVE_LIBGTEST_TRUE@src_expression_test_SOURCES = src/expression_test.cc
 @HAVE_LIBGTEST_TRUE@src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
 @HAVE_LIBGTEST_TRUE@src_process_algebra_test_SOURCES = src/process-algebra_test.cc
@@ -623,26 +406,21 @@ parser_LDADD = src/libparse.la gflags/libgflags.la glog/libglog.la
 @HAVE_LIBGTEST_TRUE@src_parse_test_LDADD = src/libparse.la src/libexpression.la src/libmodel.la \
 @HAVE_LIBGTEST_TRUE@    src/libprocess-algebra.la src/libtest-main.la
 
-@HAVE_LIBGTEST_TRUE@src_expression_compiler_test_SOURCES = src/expression-compiler_test.cc
-@HAVE_LIBGTEST_TRUE@src_expression_compiler_test_LDADD = src/libexpression-compiler.la \
-@HAVE_LIBGTEST_TRUE@    src/libddutil.la src/libexpression.la src/libtype.la src/libtest-main.la
-
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 @HAVE_LIBGTEST_TRUE@TESTS_ENVIRONMENT = HEAPCHECK=normal
 @HAVE_LIBGTEST_TRUE@TESTS = $(check_PROGRAMS) src/parser_test.sh
-EXTRA_DIST = cudd examples scripts
+EXTRA_DIST = examples scripts
 CLEANFILES = core
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/gflags/src -I$(srcdir)/glog/src -Igsl
-
+AM_CPPFLAGS = -I$(srcdir)/gflags/src -I$(srcdir)/glog/src
 AM_CXXFLAGS = -std=c++0x
 AM_YFLAGS = -d
+ACLOCAL_AMFLAGS = -I m4
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .c .cc .ll .lo .o .obj .yy
+.SUFFIXES: .cc .ll .lo .o .obj .yy
 am--refresh:
 	@:
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
@@ -712,38 +490,9 @@ clean-noinstLTLIBRARIES:
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
-cudd/cudd/$(am__dirstamp):
-	@$(MKDIR_P) cudd/cudd
-	@: > cudd/cudd/$(am__dirstamp)
-cudd/cudd/libcudd.la: $(cudd_cudd_libcudd_la_OBJECTS) $(cudd_cudd_libcudd_la_DEPENDENCIES) cudd/cudd/$(am__dirstamp)
-	$(LINK)  $(cudd_cudd_libcudd_la_OBJECTS) $(cudd_cudd_libcudd_la_LIBADD) $(LIBS)
-cudd/epd/$(am__dirstamp):
-	@$(MKDIR_P) cudd/epd
-	@: > cudd/epd/$(am__dirstamp)
-cudd/epd/libepd.la: $(cudd_epd_libepd_la_OBJECTS) $(cudd_epd_libepd_la_DEPENDENCIES) cudd/epd/$(am__dirstamp)
-	$(LINK)  $(cudd_epd_libepd_la_OBJECTS) $(cudd_epd_libepd_la_LIBADD) $(LIBS)
-cudd/mtr/$(am__dirstamp):
-	@$(MKDIR_P) cudd/mtr
-	@: > cudd/mtr/$(am__dirstamp)
-cudd/mtr/libmtr.la: $(cudd_mtr_libmtr_la_OBJECTS) $(cudd_mtr_libmtr_la_DEPENDENCIES) cudd/mtr/$(am__dirstamp)
-	$(LINK)  $(cudd_mtr_libmtr_la_OBJECTS) $(cudd_mtr_libmtr_la_LIBADD) $(LIBS)
-cudd/st/$(am__dirstamp):
-	@$(MKDIR_P) cudd/st
-	@: > cudd/st/$(am__dirstamp)
-cudd/st/libst.la: $(cudd_st_libst_la_OBJECTS) $(cudd_st_libst_la_DEPENDENCIES) cudd/st/$(am__dirstamp)
-	$(LINK)  $(cudd_st_libst_la_OBJECTS) $(cudd_st_libst_la_LIBADD) $(LIBS)
-cudd/util/$(am__dirstamp):
-	@$(MKDIR_P) cudd/util
-	@: > cudd/util/$(am__dirstamp)
-cudd/util/libutil.la: $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_DEPENDENCIES) cudd/util/$(am__dirstamp)
-	$(LINK)  $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_LIBADD) $(LIBS)
 src/$(am__dirstamp):
 	@$(MKDIR_P) src
 	@: > src/$(am__dirstamp)
-src/libddutil.la: $(src_libddutil_la_OBJECTS) $(src_libddutil_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(CXXLINK)  $(src_libddutil_la_OBJECTS) $(src_libddutil_la_LIBADD) $(LIBS)
-src/libexpression-compiler.la: $(src_libexpression_compiler_la_OBJECTS) $(src_libexpression_compiler_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(CXXLINK)  $(src_libexpression_compiler_la_OBJECTS) $(src_libexpression_compiler_la_LIBADD) $(LIBS)
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
 src/libmodel.la: $(src_libmodel_la_OBJECTS) $(src_libmodel_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -761,49 +510,6 @@ src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPEND
 	$(CXXLINK) $(am_src_libtest_main_la_rpath) $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
 src/libtype.la: $(src_libtype_la_OBJECTS) $(src_libtype_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libtype_la_OBJECTS) $(src_libtype_la_LIBADD) $(LIBS)
-install-binPROGRAMS: $(bin_PROGRAMS)
-	@$(NORMAL_INSTALL)
-	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
-	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
-	for p in $$list; do echo "$$p $$p"; done | \
-	sed 's/$(EXEEXT)$$//' | \
-	while read p p1; do if test -f $$p || test -f $$p1; \
-	  then echo "$$p"; echo "$$p"; else :; fi; \
-	done | \
-	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
-	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
-	sed 'N;N;N;s,\n, ,g' | \
-	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
-	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
-	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
-	    else { print "f", $$3 "/" $$4, $$1; } } \
-	  END { for (d in files) print "f", d, files[d] }' | \
-	while read type dir files; do \
-	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
-	    test -z "$$files" || { \
-	    echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(bindir)$$dir'"; \
-	    $(INSTALL_PROGRAM_ENV) $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(bindir)$$dir" || exit $$?; \
-	    } \
-	; done
-
-uninstall-binPROGRAMS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
-	files=`for p in $$list; do echo "$$p"; done | \
-	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
-	      -e 's/$$/$(EXEEXT)/' `; \
-	test -n "$$list" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(bindir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(bindir)" && rm -f $$files
-
-clean-binPROGRAMS:
-	@list='$(bin_PROGRAMS)'; test -n "$$list" || exit 0; \
-	echo " rm -f" $$list; \
-	rm -f $$list || exit $$?; \
-	test -n "$(EXEEXT)" || exit 0; \
-	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
-	echo " rm -f" $$list; \
-	rm -f $$list
 
 clean-checkPROGRAMS:
 	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
@@ -825,12 +531,6 @@ clean-noinstPROGRAMS:
 parser$(EXEEXT): $(parser_OBJECTS) $(parser_DEPENDENCIES) 
 	@rm -f parser$(EXEEXT)
 	$(CXXLINK) $(parser_OBJECTS) $(parser_LDADD) $(LIBS)
-src/ddutil_test$(EXEEXT): $(src_ddutil_test_OBJECTS) $(src_ddutil_test_DEPENDENCIES) src/$(am__dirstamp)
-	@rm -f src/ddutil_test$(EXEEXT)
-	$(CXXLINK) $(src_ddutil_test_OBJECTS) $(src_ddutil_test_LDADD) $(LIBS)
-src/expression-compiler_test$(EXEEXT): $(src_expression_compiler_test_OBJECTS) $(src_expression_compiler_test_DEPENDENCIES) src/$(am__dirstamp)
-	@rm -f src/expression-compiler_test$(EXEEXT)
-	$(CXXLINK) $(src_expression_compiler_test_OBJECTS) $(src_expression_compiler_test_LDADD) $(LIBS)
 src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/expression_test$(EXEEXT)
 	$(CXXLINK) $(src_expression_test_OBJECTS) $(src_expression_test_LDADD) $(LIBS)
@@ -846,14 +546,6 @@ src/process-algebra_test$(EXEEXT): $(src_process_algebra_test_OBJECTS) $(src_pro
 src/type_test$(EXEEXT): $(src_type_test_OBJECTS) $(src_type_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/type_test$(EXEEXT)
 	$(CXXLINK) $(src_type_test_OBJECTS) $(src_type_test_LDADD) $(LIBS)
-parser.h: parser.cc
-	@if test ! -f $@; then \
-	  rm -f parser.cc; \
-	  $(MAKE) $(AM_MAKEFLAGS) parser.cc; \
-	else :; fi
-ymer$(EXEEXT): $(ymer_OBJECTS) $(ymer_DEPENDENCIES) 
-	@rm -f ymer$(EXEEXT)
-	$(CXXLINK) $(ymer_OBJECTS) $(ymer_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -861,684 +553,20 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/comm.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddFind.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddInv.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddIte.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddNeg.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddWalsh.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAndAbs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAnneal.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddApa.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddApprox.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddBddAbs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddBddCorr.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddBddIte.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddBridge.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddCache.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddCheck.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddClip.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddCof.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddCompose.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddDecomp.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddEssent.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddExact.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddExport.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddGenCof.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddGenetic.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddGroup.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddHarwell.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddInit.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddInteract.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddLCache.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddLevelQ.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddLinear.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddLiteral.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddMatMult.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddPriority.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddRead.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddRef.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddReorder.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSat.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSign.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSolve.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSplit.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetHB.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetSP.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddSymmetry.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddTable.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddUtil.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddWindow.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddCount.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddFuncs.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddGroup.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddIsop.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddLin.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddMisc.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddPort.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddReord.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSetop.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSymm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddUtil.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_epd_libepd_la-epd.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_mtr_libmtr_la-mtrGroup.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_st_libst_la-st.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-cpu_stats.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-cpu_time.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-datalimit.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-getopt.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-pathsearch.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-pipefork.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-prtime.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-ptime.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-safe_mem.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-strsav.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-stub.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-texpand.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-tmpfile.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddutil.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddutil_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/distributions.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression-compiler.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression-compiler_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expressions.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/formulas.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/grammar.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/learning.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lexer.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/model_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/models.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modules.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mtbdd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parse.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parse_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser-main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process-algebra.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/process-algebra_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rngdc.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simulator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-main.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokens.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/type.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/type_test.Po@am__quote@
-
-.c.o:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(COMPILE) -c $<
-
-.c.obj:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
-
-.c.lo:
-@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
-
-cudd_cudd_libcudd_la-cuddAPI.lo: cudd/cudd/cuddAPI.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAPI.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Tpo -c -o cudd_cudd_libcudd_la-cuddAPI.lo `test -f 'cudd/cudd/cuddAPI.c' || echo '$(srcdir)/'`cudd/cudd/cuddAPI.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAPI.c' object='cudd_cudd_libcudd_la-cuddAPI.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAPI.lo `test -f 'cudd/cudd/cuddAPI.c' || echo '$(srcdir)/'`cudd/cudd/cuddAPI.c
-
-cudd_cudd_libcudd_la-cuddAddAbs.lo: cudd/cudd/cuddAddAbs.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddAbs.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Tpo -c -o cudd_cudd_libcudd_la-cuddAddAbs.lo `test -f 'cudd/cudd/cuddAddAbs.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddAbs.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddAbs.c' object='cudd_cudd_libcudd_la-cuddAddAbs.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddAbs.lo `test -f 'cudd/cudd/cuddAddAbs.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddAbs.c
-
-cudd_cudd_libcudd_la-cuddAddApply.lo: cudd/cudd/cuddAddApply.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddApply.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Tpo -c -o cudd_cudd_libcudd_la-cuddAddApply.lo `test -f 'cudd/cudd/cuddAddApply.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddApply.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddApply.c' object='cudd_cudd_libcudd_la-cuddAddApply.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddApply.lo `test -f 'cudd/cudd/cuddAddApply.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddApply.c
-
-cudd_cudd_libcudd_la-cuddAddFind.lo: cudd/cudd/cuddAddFind.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddFind.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddFind.Tpo -c -o cudd_cudd_libcudd_la-cuddAddFind.lo `test -f 'cudd/cudd/cuddAddFind.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddFind.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddFind.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddFind.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddFind.c' object='cudd_cudd_libcudd_la-cuddAddFind.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddFind.lo `test -f 'cudd/cudd/cuddAddFind.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddFind.c
-
-cudd_cudd_libcudd_la-cuddAddIte.lo: cudd/cudd/cuddAddIte.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddIte.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddIte.Tpo -c -o cudd_cudd_libcudd_la-cuddAddIte.lo `test -f 'cudd/cudd/cuddAddIte.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddIte.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddIte.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddIte.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddIte.c' object='cudd_cudd_libcudd_la-cuddAddIte.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddIte.lo `test -f 'cudd/cudd/cuddAddIte.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddIte.c
-
-cudd_cudd_libcudd_la-cuddAddInv.lo: cudd/cudd/cuddAddInv.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddInv.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddInv.Tpo -c -o cudd_cudd_libcudd_la-cuddAddInv.lo `test -f 'cudd/cudd/cuddAddInv.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddInv.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddInv.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddInv.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddInv.c' object='cudd_cudd_libcudd_la-cuddAddInv.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddInv.lo `test -f 'cudd/cudd/cuddAddInv.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddInv.c
-
-cudd_cudd_libcudd_la-cuddAddNeg.lo: cudd/cudd/cuddAddNeg.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddNeg.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddNeg.Tpo -c -o cudd_cudd_libcudd_la-cuddAddNeg.lo `test -f 'cudd/cudd/cuddAddNeg.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddNeg.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddNeg.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddNeg.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddNeg.c' object='cudd_cudd_libcudd_la-cuddAddNeg.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddNeg.lo `test -f 'cudd/cudd/cuddAddNeg.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddNeg.c
-
-cudd_cudd_libcudd_la-cuddAddWalsh.lo: cudd/cudd/cuddAddWalsh.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAddWalsh.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddWalsh.Tpo -c -o cudd_cudd_libcudd_la-cuddAddWalsh.lo `test -f 'cudd/cudd/cuddAddWalsh.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddWalsh.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddWalsh.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAddWalsh.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAddWalsh.c' object='cudd_cudd_libcudd_la-cuddAddWalsh.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAddWalsh.lo `test -f 'cudd/cudd/cuddAddWalsh.c' || echo '$(srcdir)/'`cudd/cudd/cuddAddWalsh.c
-
-cudd_cudd_libcudd_la-cuddAndAbs.lo: cudd/cudd/cuddAndAbs.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAndAbs.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAndAbs.Tpo -c -o cudd_cudd_libcudd_la-cuddAndAbs.lo `test -f 'cudd/cudd/cuddAndAbs.c' || echo '$(srcdir)/'`cudd/cudd/cuddAndAbs.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAndAbs.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAndAbs.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAndAbs.c' object='cudd_cudd_libcudd_la-cuddAndAbs.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAndAbs.lo `test -f 'cudd/cudd/cuddAndAbs.c' || echo '$(srcdir)/'`cudd/cudd/cuddAndAbs.c
-
-cudd_cudd_libcudd_la-cuddAnneal.lo: cudd/cudd/cuddAnneal.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddAnneal.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddAnneal.Tpo -c -o cudd_cudd_libcudd_la-cuddAnneal.lo `test -f 'cudd/cudd/cuddAnneal.c' || echo '$(srcdir)/'`cudd/cudd/cuddAnneal.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddAnneal.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddAnneal.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddAnneal.c' object='cudd_cudd_libcudd_la-cuddAnneal.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddAnneal.lo `test -f 'cudd/cudd/cuddAnneal.c' || echo '$(srcdir)/'`cudd/cudd/cuddAnneal.c
-
-cudd_cudd_libcudd_la-cuddApa.lo: cudd/cudd/cuddApa.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddApa.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddApa.Tpo -c -o cudd_cudd_libcudd_la-cuddApa.lo `test -f 'cudd/cudd/cuddApa.c' || echo '$(srcdir)/'`cudd/cudd/cuddApa.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddApa.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddApa.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddApa.c' object='cudd_cudd_libcudd_la-cuddApa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddApa.lo `test -f 'cudd/cudd/cuddApa.c' || echo '$(srcdir)/'`cudd/cudd/cuddApa.c
-
-cudd_cudd_libcudd_la-cuddApprox.lo: cudd/cudd/cuddApprox.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddApprox.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddApprox.Tpo -c -o cudd_cudd_libcudd_la-cuddApprox.lo `test -f 'cudd/cudd/cuddApprox.c' || echo '$(srcdir)/'`cudd/cudd/cuddApprox.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddApprox.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddApprox.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddApprox.c' object='cudd_cudd_libcudd_la-cuddApprox.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddApprox.lo `test -f 'cudd/cudd/cuddApprox.c' || echo '$(srcdir)/'`cudd/cudd/cuddApprox.c
-
-cudd_cudd_libcudd_la-cuddBddAbs.lo: cudd/cudd/cuddBddAbs.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddBddAbs.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddAbs.Tpo -c -o cudd_cudd_libcudd_la-cuddBddAbs.lo `test -f 'cudd/cudd/cuddBddAbs.c' || echo '$(srcdir)/'`cudd/cudd/cuddBddAbs.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddAbs.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddAbs.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddBddAbs.c' object='cudd_cudd_libcudd_la-cuddBddAbs.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddBddAbs.lo `test -f 'cudd/cudd/cuddBddAbs.c' || echo '$(srcdir)/'`cudd/cudd/cuddBddAbs.c
-
-cudd_cudd_libcudd_la-cuddBddCorr.lo: cudd/cudd/cuddBddCorr.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddBddCorr.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddCorr.Tpo -c -o cudd_cudd_libcudd_la-cuddBddCorr.lo `test -f 'cudd/cudd/cuddBddCorr.c' || echo '$(srcdir)/'`cudd/cudd/cuddBddCorr.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddCorr.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddCorr.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddBddCorr.c' object='cudd_cudd_libcudd_la-cuddBddCorr.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddBddCorr.lo `test -f 'cudd/cudd/cuddBddCorr.c' || echo '$(srcdir)/'`cudd/cudd/cuddBddCorr.c
-
-cudd_cudd_libcudd_la-cuddBddIte.lo: cudd/cudd/cuddBddIte.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddBddIte.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddIte.Tpo -c -o cudd_cudd_libcudd_la-cuddBddIte.lo `test -f 'cudd/cudd/cuddBddIte.c' || echo '$(srcdir)/'`cudd/cudd/cuddBddIte.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddIte.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddBddIte.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddBddIte.c' object='cudd_cudd_libcudd_la-cuddBddIte.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddBddIte.lo `test -f 'cudd/cudd/cuddBddIte.c' || echo '$(srcdir)/'`cudd/cudd/cuddBddIte.c
-
-cudd_cudd_libcudd_la-cuddBridge.lo: cudd/cudd/cuddBridge.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddBridge.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddBridge.Tpo -c -o cudd_cudd_libcudd_la-cuddBridge.lo `test -f 'cudd/cudd/cuddBridge.c' || echo '$(srcdir)/'`cudd/cudd/cuddBridge.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddBridge.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddBridge.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddBridge.c' object='cudd_cudd_libcudd_la-cuddBridge.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddBridge.lo `test -f 'cudd/cudd/cuddBridge.c' || echo '$(srcdir)/'`cudd/cudd/cuddBridge.c
-
-cudd_cudd_libcudd_la-cuddCache.lo: cudd/cudd/cuddCache.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddCache.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddCache.Tpo -c -o cudd_cudd_libcudd_la-cuddCache.lo `test -f 'cudd/cudd/cuddCache.c' || echo '$(srcdir)/'`cudd/cudd/cuddCache.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddCache.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddCache.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddCache.c' object='cudd_cudd_libcudd_la-cuddCache.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddCache.lo `test -f 'cudd/cudd/cuddCache.c' || echo '$(srcdir)/'`cudd/cudd/cuddCache.c
-
-cudd_cudd_libcudd_la-cuddCheck.lo: cudd/cudd/cuddCheck.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddCheck.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddCheck.Tpo -c -o cudd_cudd_libcudd_la-cuddCheck.lo `test -f 'cudd/cudd/cuddCheck.c' || echo '$(srcdir)/'`cudd/cudd/cuddCheck.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddCheck.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddCheck.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddCheck.c' object='cudd_cudd_libcudd_la-cuddCheck.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddCheck.lo `test -f 'cudd/cudd/cuddCheck.c' || echo '$(srcdir)/'`cudd/cudd/cuddCheck.c
-
-cudd_cudd_libcudd_la-cuddClip.lo: cudd/cudd/cuddClip.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddClip.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddClip.Tpo -c -o cudd_cudd_libcudd_la-cuddClip.lo `test -f 'cudd/cudd/cuddClip.c' || echo '$(srcdir)/'`cudd/cudd/cuddClip.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddClip.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddClip.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddClip.c' object='cudd_cudd_libcudd_la-cuddClip.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddClip.lo `test -f 'cudd/cudd/cuddClip.c' || echo '$(srcdir)/'`cudd/cudd/cuddClip.c
-
-cudd_cudd_libcudd_la-cuddCof.lo: cudd/cudd/cuddCof.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddCof.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddCof.Tpo -c -o cudd_cudd_libcudd_la-cuddCof.lo `test -f 'cudd/cudd/cuddCof.c' || echo '$(srcdir)/'`cudd/cudd/cuddCof.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddCof.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddCof.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddCof.c' object='cudd_cudd_libcudd_la-cuddCof.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddCof.lo `test -f 'cudd/cudd/cuddCof.c' || echo '$(srcdir)/'`cudd/cudd/cuddCof.c
-
-cudd_cudd_libcudd_la-cuddCompose.lo: cudd/cudd/cuddCompose.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddCompose.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddCompose.Tpo -c -o cudd_cudd_libcudd_la-cuddCompose.lo `test -f 'cudd/cudd/cuddCompose.c' || echo '$(srcdir)/'`cudd/cudd/cuddCompose.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddCompose.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddCompose.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddCompose.c' object='cudd_cudd_libcudd_la-cuddCompose.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddCompose.lo `test -f 'cudd/cudd/cuddCompose.c' || echo '$(srcdir)/'`cudd/cudd/cuddCompose.c
-
-cudd_cudd_libcudd_la-cuddDecomp.lo: cudd/cudd/cuddDecomp.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddDecomp.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddDecomp.Tpo -c -o cudd_cudd_libcudd_la-cuddDecomp.lo `test -f 'cudd/cudd/cuddDecomp.c' || echo '$(srcdir)/'`cudd/cudd/cuddDecomp.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddDecomp.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddDecomp.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddDecomp.c' object='cudd_cudd_libcudd_la-cuddDecomp.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddDecomp.lo `test -f 'cudd/cudd/cuddDecomp.c' || echo '$(srcdir)/'`cudd/cudd/cuddDecomp.c
-
-cudd_cudd_libcudd_la-cuddEssent.lo: cudd/cudd/cuddEssent.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddEssent.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddEssent.Tpo -c -o cudd_cudd_libcudd_la-cuddEssent.lo `test -f 'cudd/cudd/cuddEssent.c' || echo '$(srcdir)/'`cudd/cudd/cuddEssent.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddEssent.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddEssent.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddEssent.c' object='cudd_cudd_libcudd_la-cuddEssent.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddEssent.lo `test -f 'cudd/cudd/cuddEssent.c' || echo '$(srcdir)/'`cudd/cudd/cuddEssent.c
-
-cudd_cudd_libcudd_la-cuddExact.lo: cudd/cudd/cuddExact.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddExact.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddExact.Tpo -c -o cudd_cudd_libcudd_la-cuddExact.lo `test -f 'cudd/cudd/cuddExact.c' || echo '$(srcdir)/'`cudd/cudd/cuddExact.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddExact.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddExact.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddExact.c' object='cudd_cudd_libcudd_la-cuddExact.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddExact.lo `test -f 'cudd/cudd/cuddExact.c' || echo '$(srcdir)/'`cudd/cudd/cuddExact.c
-
-cudd_cudd_libcudd_la-cuddExport.lo: cudd/cudd/cuddExport.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddExport.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddExport.Tpo -c -o cudd_cudd_libcudd_la-cuddExport.lo `test -f 'cudd/cudd/cuddExport.c' || echo '$(srcdir)/'`cudd/cudd/cuddExport.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddExport.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddExport.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddExport.c' object='cudd_cudd_libcudd_la-cuddExport.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddExport.lo `test -f 'cudd/cudd/cuddExport.c' || echo '$(srcdir)/'`cudd/cudd/cuddExport.c
-
-cudd_cudd_libcudd_la-cuddGenCof.lo: cudd/cudd/cuddGenCof.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddGenCof.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddGenCof.Tpo -c -o cudd_cudd_libcudd_la-cuddGenCof.lo `test -f 'cudd/cudd/cuddGenCof.c' || echo '$(srcdir)/'`cudd/cudd/cuddGenCof.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddGenCof.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddGenCof.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddGenCof.c' object='cudd_cudd_libcudd_la-cuddGenCof.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddGenCof.lo `test -f 'cudd/cudd/cuddGenCof.c' || echo '$(srcdir)/'`cudd/cudd/cuddGenCof.c
-
-cudd_cudd_libcudd_la-cuddGenetic.lo: cudd/cudd/cuddGenetic.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddGenetic.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddGenetic.Tpo -c -o cudd_cudd_libcudd_la-cuddGenetic.lo `test -f 'cudd/cudd/cuddGenetic.c' || echo '$(srcdir)/'`cudd/cudd/cuddGenetic.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddGenetic.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddGenetic.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddGenetic.c' object='cudd_cudd_libcudd_la-cuddGenetic.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddGenetic.lo `test -f 'cudd/cudd/cuddGenetic.c' || echo '$(srcdir)/'`cudd/cudd/cuddGenetic.c
-
-cudd_cudd_libcudd_la-cuddGroup.lo: cudd/cudd/cuddGroup.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddGroup.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddGroup.Tpo -c -o cudd_cudd_libcudd_la-cuddGroup.lo `test -f 'cudd/cudd/cuddGroup.c' || echo '$(srcdir)/'`cudd/cudd/cuddGroup.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddGroup.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddGroup.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddGroup.c' object='cudd_cudd_libcudd_la-cuddGroup.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddGroup.lo `test -f 'cudd/cudd/cuddGroup.c' || echo '$(srcdir)/'`cudd/cudd/cuddGroup.c
-
-cudd_cudd_libcudd_la-cuddHarwell.lo: cudd/cudd/cuddHarwell.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddHarwell.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddHarwell.Tpo -c -o cudd_cudd_libcudd_la-cuddHarwell.lo `test -f 'cudd/cudd/cuddHarwell.c' || echo '$(srcdir)/'`cudd/cudd/cuddHarwell.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddHarwell.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddHarwell.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddHarwell.c' object='cudd_cudd_libcudd_la-cuddHarwell.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddHarwell.lo `test -f 'cudd/cudd/cuddHarwell.c' || echo '$(srcdir)/'`cudd/cudd/cuddHarwell.c
-
-cudd_cudd_libcudd_la-cuddInit.lo: cudd/cudd/cuddInit.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddInit.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddInit.Tpo -c -o cudd_cudd_libcudd_la-cuddInit.lo `test -f 'cudd/cudd/cuddInit.c' || echo '$(srcdir)/'`cudd/cudd/cuddInit.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddInit.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddInit.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddInit.c' object='cudd_cudd_libcudd_la-cuddInit.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddInit.lo `test -f 'cudd/cudd/cuddInit.c' || echo '$(srcdir)/'`cudd/cudd/cuddInit.c
-
-cudd_cudd_libcudd_la-cuddInteract.lo: cudd/cudd/cuddInteract.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddInteract.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddInteract.Tpo -c -o cudd_cudd_libcudd_la-cuddInteract.lo `test -f 'cudd/cudd/cuddInteract.c' || echo '$(srcdir)/'`cudd/cudd/cuddInteract.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddInteract.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddInteract.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddInteract.c' object='cudd_cudd_libcudd_la-cuddInteract.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddInteract.lo `test -f 'cudd/cudd/cuddInteract.c' || echo '$(srcdir)/'`cudd/cudd/cuddInteract.c
-
-cudd_cudd_libcudd_la-cuddLCache.lo: cudd/cudd/cuddLCache.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddLCache.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddLCache.Tpo -c -o cudd_cudd_libcudd_la-cuddLCache.lo `test -f 'cudd/cudd/cuddLCache.c' || echo '$(srcdir)/'`cudd/cudd/cuddLCache.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddLCache.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddLCache.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddLCache.c' object='cudd_cudd_libcudd_la-cuddLCache.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddLCache.lo `test -f 'cudd/cudd/cuddLCache.c' || echo '$(srcdir)/'`cudd/cudd/cuddLCache.c
-
-cudd_cudd_libcudd_la-cuddLevelQ.lo: cudd/cudd/cuddLevelQ.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddLevelQ.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddLevelQ.Tpo -c -o cudd_cudd_libcudd_la-cuddLevelQ.lo `test -f 'cudd/cudd/cuddLevelQ.c' || echo '$(srcdir)/'`cudd/cudd/cuddLevelQ.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddLevelQ.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddLevelQ.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddLevelQ.c' object='cudd_cudd_libcudd_la-cuddLevelQ.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddLevelQ.lo `test -f 'cudd/cudd/cuddLevelQ.c' || echo '$(srcdir)/'`cudd/cudd/cuddLevelQ.c
-
-cudd_cudd_libcudd_la-cuddLinear.lo: cudd/cudd/cuddLinear.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddLinear.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddLinear.Tpo -c -o cudd_cudd_libcudd_la-cuddLinear.lo `test -f 'cudd/cudd/cuddLinear.c' || echo '$(srcdir)/'`cudd/cudd/cuddLinear.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddLinear.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddLinear.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddLinear.c' object='cudd_cudd_libcudd_la-cuddLinear.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddLinear.lo `test -f 'cudd/cudd/cuddLinear.c' || echo '$(srcdir)/'`cudd/cudd/cuddLinear.c
-
-cudd_cudd_libcudd_la-cuddLiteral.lo: cudd/cudd/cuddLiteral.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddLiteral.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddLiteral.Tpo -c -o cudd_cudd_libcudd_la-cuddLiteral.lo `test -f 'cudd/cudd/cuddLiteral.c' || echo '$(srcdir)/'`cudd/cudd/cuddLiteral.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddLiteral.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddLiteral.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddLiteral.c' object='cudd_cudd_libcudd_la-cuddLiteral.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddLiteral.lo `test -f 'cudd/cudd/cuddLiteral.c' || echo '$(srcdir)/'`cudd/cudd/cuddLiteral.c
-
-cudd_cudd_libcudd_la-cuddMatMult.lo: cudd/cudd/cuddMatMult.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddMatMult.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddMatMult.Tpo -c -o cudd_cudd_libcudd_la-cuddMatMult.lo `test -f 'cudd/cudd/cuddMatMult.c' || echo '$(srcdir)/'`cudd/cudd/cuddMatMult.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddMatMult.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddMatMult.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddMatMult.c' object='cudd_cudd_libcudd_la-cuddMatMult.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddMatMult.lo `test -f 'cudd/cudd/cuddMatMult.c' || echo '$(srcdir)/'`cudd/cudd/cuddMatMult.c
-
-cudd_cudd_libcudd_la-cuddPriority.lo: cudd/cudd/cuddPriority.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddPriority.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddPriority.Tpo -c -o cudd_cudd_libcudd_la-cuddPriority.lo `test -f 'cudd/cudd/cuddPriority.c' || echo '$(srcdir)/'`cudd/cudd/cuddPriority.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddPriority.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddPriority.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddPriority.c' object='cudd_cudd_libcudd_la-cuddPriority.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddPriority.lo `test -f 'cudd/cudd/cuddPriority.c' || echo '$(srcdir)/'`cudd/cudd/cuddPriority.c
-
-cudd_cudd_libcudd_la-cuddRead.lo: cudd/cudd/cuddRead.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddRead.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddRead.Tpo -c -o cudd_cudd_libcudd_la-cuddRead.lo `test -f 'cudd/cudd/cuddRead.c' || echo '$(srcdir)/'`cudd/cudd/cuddRead.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddRead.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddRead.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddRead.c' object='cudd_cudd_libcudd_la-cuddRead.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddRead.lo `test -f 'cudd/cudd/cuddRead.c' || echo '$(srcdir)/'`cudd/cudd/cuddRead.c
-
-cudd_cudd_libcudd_la-cuddRef.lo: cudd/cudd/cuddRef.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddRef.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddRef.Tpo -c -o cudd_cudd_libcudd_la-cuddRef.lo `test -f 'cudd/cudd/cuddRef.c' || echo '$(srcdir)/'`cudd/cudd/cuddRef.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddRef.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddRef.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddRef.c' object='cudd_cudd_libcudd_la-cuddRef.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddRef.lo `test -f 'cudd/cudd/cuddRef.c' || echo '$(srcdir)/'`cudd/cudd/cuddRef.c
-
-cudd_cudd_libcudd_la-cuddReorder.lo: cudd/cudd/cuddReorder.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddReorder.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddReorder.Tpo -c -o cudd_cudd_libcudd_la-cuddReorder.lo `test -f 'cudd/cudd/cuddReorder.c' || echo '$(srcdir)/'`cudd/cudd/cuddReorder.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddReorder.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddReorder.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddReorder.c' object='cudd_cudd_libcudd_la-cuddReorder.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddReorder.lo `test -f 'cudd/cudd/cuddReorder.c' || echo '$(srcdir)/'`cudd/cudd/cuddReorder.c
-
-cudd_cudd_libcudd_la-cuddSat.lo: cudd/cudd/cuddSat.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSat.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSat.Tpo -c -o cudd_cudd_libcudd_la-cuddSat.lo `test -f 'cudd/cudd/cuddSat.c' || echo '$(srcdir)/'`cudd/cudd/cuddSat.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSat.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSat.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSat.c' object='cudd_cudd_libcudd_la-cuddSat.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSat.lo `test -f 'cudd/cudd/cuddSat.c' || echo '$(srcdir)/'`cudd/cudd/cuddSat.c
-
-cudd_cudd_libcudd_la-cuddSign.lo: cudd/cudd/cuddSign.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSign.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSign.Tpo -c -o cudd_cudd_libcudd_la-cuddSign.lo `test -f 'cudd/cudd/cuddSign.c' || echo '$(srcdir)/'`cudd/cudd/cuddSign.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSign.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSign.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSign.c' object='cudd_cudd_libcudd_la-cuddSign.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSign.lo `test -f 'cudd/cudd/cuddSign.c' || echo '$(srcdir)/'`cudd/cudd/cuddSign.c
-
-cudd_cudd_libcudd_la-cuddSolve.lo: cudd/cudd/cuddSolve.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSolve.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSolve.Tpo -c -o cudd_cudd_libcudd_la-cuddSolve.lo `test -f 'cudd/cudd/cuddSolve.c' || echo '$(srcdir)/'`cudd/cudd/cuddSolve.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSolve.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSolve.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSolve.c' object='cudd_cudd_libcudd_la-cuddSolve.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSolve.lo `test -f 'cudd/cudd/cuddSolve.c' || echo '$(srcdir)/'`cudd/cudd/cuddSolve.c
-
-cudd_cudd_libcudd_la-cuddSplit.lo: cudd/cudd/cuddSplit.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSplit.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSplit.Tpo -c -o cudd_cudd_libcudd_la-cuddSplit.lo `test -f 'cudd/cudd/cuddSplit.c' || echo '$(srcdir)/'`cudd/cudd/cuddSplit.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSplit.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSplit.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSplit.c' object='cudd_cudd_libcudd_la-cuddSplit.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSplit.lo `test -f 'cudd/cudd/cuddSplit.c' || echo '$(srcdir)/'`cudd/cudd/cuddSplit.c
-
-cudd_cudd_libcudd_la-cuddSubsetHB.lo: cudd/cudd/cuddSubsetHB.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSubsetHB.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetHB.Tpo -c -o cudd_cudd_libcudd_la-cuddSubsetHB.lo `test -f 'cudd/cudd/cuddSubsetHB.c' || echo '$(srcdir)/'`cudd/cudd/cuddSubsetHB.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetHB.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetHB.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSubsetHB.c' object='cudd_cudd_libcudd_la-cuddSubsetHB.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSubsetHB.lo `test -f 'cudd/cudd/cuddSubsetHB.c' || echo '$(srcdir)/'`cudd/cudd/cuddSubsetHB.c
-
-cudd_cudd_libcudd_la-cuddSubsetSP.lo: cudd/cudd/cuddSubsetSP.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSubsetSP.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetSP.Tpo -c -o cudd_cudd_libcudd_la-cuddSubsetSP.lo `test -f 'cudd/cudd/cuddSubsetSP.c' || echo '$(srcdir)/'`cudd/cudd/cuddSubsetSP.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetSP.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSubsetSP.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSubsetSP.c' object='cudd_cudd_libcudd_la-cuddSubsetSP.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSubsetSP.lo `test -f 'cudd/cudd/cuddSubsetSP.c' || echo '$(srcdir)/'`cudd/cudd/cuddSubsetSP.c
-
-cudd_cudd_libcudd_la-cuddSymmetry.lo: cudd/cudd/cuddSymmetry.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddSymmetry.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddSymmetry.Tpo -c -o cudd_cudd_libcudd_la-cuddSymmetry.lo `test -f 'cudd/cudd/cuddSymmetry.c' || echo '$(srcdir)/'`cudd/cudd/cuddSymmetry.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddSymmetry.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddSymmetry.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddSymmetry.c' object='cudd_cudd_libcudd_la-cuddSymmetry.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddSymmetry.lo `test -f 'cudd/cudd/cuddSymmetry.c' || echo '$(srcdir)/'`cudd/cudd/cuddSymmetry.c
-
-cudd_cudd_libcudd_la-cuddTable.lo: cudd/cudd/cuddTable.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddTable.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddTable.Tpo -c -o cudd_cudd_libcudd_la-cuddTable.lo `test -f 'cudd/cudd/cuddTable.c' || echo '$(srcdir)/'`cudd/cudd/cuddTable.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddTable.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddTable.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddTable.c' object='cudd_cudd_libcudd_la-cuddTable.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddTable.lo `test -f 'cudd/cudd/cuddTable.c' || echo '$(srcdir)/'`cudd/cudd/cuddTable.c
-
-cudd_cudd_libcudd_la-cuddUtil.lo: cudd/cudd/cuddUtil.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddUtil.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddUtil.Tpo -c -o cudd_cudd_libcudd_la-cuddUtil.lo `test -f 'cudd/cudd/cuddUtil.c' || echo '$(srcdir)/'`cudd/cudd/cuddUtil.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddUtil.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddUtil.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddUtil.c' object='cudd_cudd_libcudd_la-cuddUtil.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddUtil.lo `test -f 'cudd/cudd/cuddUtil.c' || echo '$(srcdir)/'`cudd/cudd/cuddUtil.c
-
-cudd_cudd_libcudd_la-cuddWindow.lo: cudd/cudd/cuddWindow.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddWindow.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddWindow.Tpo -c -o cudd_cudd_libcudd_la-cuddWindow.lo `test -f 'cudd/cudd/cuddWindow.c' || echo '$(srcdir)/'`cudd/cudd/cuddWindow.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddWindow.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddWindow.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddWindow.c' object='cudd_cudd_libcudd_la-cuddWindow.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddWindow.lo `test -f 'cudd/cudd/cuddWindow.c' || echo '$(srcdir)/'`cudd/cudd/cuddWindow.c
-
-cudd_cudd_libcudd_la-cuddZddCount.lo: cudd/cudd/cuddZddCount.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddCount.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddCount.Tpo -c -o cudd_cudd_libcudd_la-cuddZddCount.lo `test -f 'cudd/cudd/cuddZddCount.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddCount.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddCount.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddCount.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddCount.c' object='cudd_cudd_libcudd_la-cuddZddCount.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddCount.lo `test -f 'cudd/cudd/cuddZddCount.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddCount.c
-
-cudd_cudd_libcudd_la-cuddZddFuncs.lo: cudd/cudd/cuddZddFuncs.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddFuncs.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddFuncs.Tpo -c -o cudd_cudd_libcudd_la-cuddZddFuncs.lo `test -f 'cudd/cudd/cuddZddFuncs.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddFuncs.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddFuncs.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddFuncs.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddFuncs.c' object='cudd_cudd_libcudd_la-cuddZddFuncs.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddFuncs.lo `test -f 'cudd/cudd/cuddZddFuncs.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddFuncs.c
-
-cudd_cudd_libcudd_la-cuddZddGroup.lo: cudd/cudd/cuddZddGroup.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddGroup.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddGroup.Tpo -c -o cudd_cudd_libcudd_la-cuddZddGroup.lo `test -f 'cudd/cudd/cuddZddGroup.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddGroup.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddGroup.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddGroup.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddGroup.c' object='cudd_cudd_libcudd_la-cuddZddGroup.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddGroup.lo `test -f 'cudd/cudd/cuddZddGroup.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddGroup.c
-
-cudd_cudd_libcudd_la-cuddZddIsop.lo: cudd/cudd/cuddZddIsop.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddIsop.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddIsop.Tpo -c -o cudd_cudd_libcudd_la-cuddZddIsop.lo `test -f 'cudd/cudd/cuddZddIsop.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddIsop.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddIsop.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddIsop.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddIsop.c' object='cudd_cudd_libcudd_la-cuddZddIsop.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddIsop.lo `test -f 'cudd/cudd/cuddZddIsop.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddIsop.c
-
-cudd_cudd_libcudd_la-cuddZddLin.lo: cudd/cudd/cuddZddLin.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddLin.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddLin.Tpo -c -o cudd_cudd_libcudd_la-cuddZddLin.lo `test -f 'cudd/cudd/cuddZddLin.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddLin.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddLin.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddLin.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddLin.c' object='cudd_cudd_libcudd_la-cuddZddLin.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddLin.lo `test -f 'cudd/cudd/cuddZddLin.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddLin.c
-
-cudd_cudd_libcudd_la-cuddZddMisc.lo: cudd/cudd/cuddZddMisc.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddMisc.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddMisc.Tpo -c -o cudd_cudd_libcudd_la-cuddZddMisc.lo `test -f 'cudd/cudd/cuddZddMisc.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddMisc.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddMisc.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddMisc.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddMisc.c' object='cudd_cudd_libcudd_la-cuddZddMisc.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddMisc.lo `test -f 'cudd/cudd/cuddZddMisc.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddMisc.c
-
-cudd_cudd_libcudd_la-cuddZddPort.lo: cudd/cudd/cuddZddPort.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddPort.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddPort.Tpo -c -o cudd_cudd_libcudd_la-cuddZddPort.lo `test -f 'cudd/cudd/cuddZddPort.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddPort.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddPort.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddPort.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddPort.c' object='cudd_cudd_libcudd_la-cuddZddPort.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddPort.lo `test -f 'cudd/cudd/cuddZddPort.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddPort.c
-
-cudd_cudd_libcudd_la-cuddZddReord.lo: cudd/cudd/cuddZddReord.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddReord.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddReord.Tpo -c -o cudd_cudd_libcudd_la-cuddZddReord.lo `test -f 'cudd/cudd/cuddZddReord.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddReord.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddReord.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddReord.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddReord.c' object='cudd_cudd_libcudd_la-cuddZddReord.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddReord.lo `test -f 'cudd/cudd/cuddZddReord.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddReord.c
-
-cudd_cudd_libcudd_la-cuddZddSetop.lo: cudd/cudd/cuddZddSetop.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddSetop.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSetop.Tpo -c -o cudd_cudd_libcudd_la-cuddZddSetop.lo `test -f 'cudd/cudd/cuddZddSetop.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddSetop.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSetop.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSetop.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddSetop.c' object='cudd_cudd_libcudd_la-cuddZddSetop.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddSetop.lo `test -f 'cudd/cudd/cuddZddSetop.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddSetop.c
-
-cudd_cudd_libcudd_la-cuddZddSymm.lo: cudd/cudd/cuddZddSymm.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddSymm.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSymm.Tpo -c -o cudd_cudd_libcudd_la-cuddZddSymm.lo `test -f 'cudd/cudd/cuddZddSymm.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddSymm.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSymm.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSymm.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddSymm.c' object='cudd_cudd_libcudd_la-cuddZddSymm.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddSymm.lo `test -f 'cudd/cudd/cuddZddSymm.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddSymm.c
-
-cudd_cudd_libcudd_la-cuddZddUtil.lo: cudd/cudd/cuddZddUtil.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_cudd_libcudd_la-cuddZddUtil.lo -MD -MP -MF $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddUtil.Tpo -c -o cudd_cudd_libcudd_la-cuddZddUtil.lo `test -f 'cudd/cudd/cuddZddUtil.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddUtil.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddUtil.Tpo $(DEPDIR)/cudd_cudd_libcudd_la-cuddZddUtil.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/cudd/cuddZddUtil.c' object='cudd_cudd_libcudd_la-cuddZddUtil.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddUtil.lo `test -f 'cudd/cudd/cuddZddUtil.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddUtil.c
-
-cudd_epd_libepd_la-epd.lo: cudd/epd/epd.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_epd_libepd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_epd_libepd_la-epd.lo -MD -MP -MF $(DEPDIR)/cudd_epd_libepd_la-epd.Tpo -c -o cudd_epd_libepd_la-epd.lo `test -f 'cudd/epd/epd.c' || echo '$(srcdir)/'`cudd/epd/epd.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_epd_libepd_la-epd.Tpo $(DEPDIR)/cudd_epd_libepd_la-epd.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/epd/epd.c' object='cudd_epd_libepd_la-epd.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_epd_libepd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_epd_libepd_la-epd.lo `test -f 'cudd/epd/epd.c' || echo '$(srcdir)/'`cudd/epd/epd.c
-
-cudd_mtr_libmtr_la-mtrBasic.lo: cudd/mtr/mtrBasic.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_mtr_libmtr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_mtr_libmtr_la-mtrBasic.lo -MD -MP -MF $(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Tpo -c -o cudd_mtr_libmtr_la-mtrBasic.lo `test -f 'cudd/mtr/mtrBasic.c' || echo '$(srcdir)/'`cudd/mtr/mtrBasic.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Tpo $(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/mtr/mtrBasic.c' object='cudd_mtr_libmtr_la-mtrBasic.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_mtr_libmtr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_mtr_libmtr_la-mtrBasic.lo `test -f 'cudd/mtr/mtrBasic.c' || echo '$(srcdir)/'`cudd/mtr/mtrBasic.c
-
-cudd_mtr_libmtr_la-mtrGroup.lo: cudd/mtr/mtrGroup.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_mtr_libmtr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_mtr_libmtr_la-mtrGroup.lo -MD -MP -MF $(DEPDIR)/cudd_mtr_libmtr_la-mtrGroup.Tpo -c -o cudd_mtr_libmtr_la-mtrGroup.lo `test -f 'cudd/mtr/mtrGroup.c' || echo '$(srcdir)/'`cudd/mtr/mtrGroup.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_mtr_libmtr_la-mtrGroup.Tpo $(DEPDIR)/cudd_mtr_libmtr_la-mtrGroup.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/mtr/mtrGroup.c' object='cudd_mtr_libmtr_la-mtrGroup.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_mtr_libmtr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_mtr_libmtr_la-mtrGroup.lo `test -f 'cudd/mtr/mtrGroup.c' || echo '$(srcdir)/'`cudd/mtr/mtrGroup.c
-
-cudd_st_libst_la-st.lo: cudd/st/st.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_st_libst_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_st_libst_la-st.lo -MD -MP -MF $(DEPDIR)/cudd_st_libst_la-st.Tpo -c -o cudd_st_libst_la-st.lo `test -f 'cudd/st/st.c' || echo '$(srcdir)/'`cudd/st/st.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_st_libst_la-st.Tpo $(DEPDIR)/cudd_st_libst_la-st.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/st/st.c' object='cudd_st_libst_la-st.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_st_libst_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_st_libst_la-st.lo `test -f 'cudd/st/st.c' || echo '$(srcdir)/'`cudd/st/st.c
-
-cudd_util_libutil_la-cpu_time.lo: cudd/util/cpu_time.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-cpu_time.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-cpu_time.Tpo -c -o cudd_util_libutil_la-cpu_time.lo `test -f 'cudd/util/cpu_time.c' || echo '$(srcdir)/'`cudd/util/cpu_time.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-cpu_time.Tpo $(DEPDIR)/cudd_util_libutil_la-cpu_time.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/cpu_time.c' object='cudd_util_libutil_la-cpu_time.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-cpu_time.lo `test -f 'cudd/util/cpu_time.c' || echo '$(srcdir)/'`cudd/util/cpu_time.c
-
-cudd_util_libutil_la-cpu_stats.lo: cudd/util/cpu_stats.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-cpu_stats.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-cpu_stats.Tpo -c -o cudd_util_libutil_la-cpu_stats.lo `test -f 'cudd/util/cpu_stats.c' || echo '$(srcdir)/'`cudd/util/cpu_stats.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-cpu_stats.Tpo $(DEPDIR)/cudd_util_libutil_la-cpu_stats.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/cpu_stats.c' object='cudd_util_libutil_la-cpu_stats.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-cpu_stats.lo `test -f 'cudd/util/cpu_stats.c' || echo '$(srcdir)/'`cudd/util/cpu_stats.c
-
-cudd_util_libutil_la-getopt.lo: cudd/util/getopt.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-getopt.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-getopt.Tpo -c -o cudd_util_libutil_la-getopt.lo `test -f 'cudd/util/getopt.c' || echo '$(srcdir)/'`cudd/util/getopt.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-getopt.Tpo $(DEPDIR)/cudd_util_libutil_la-getopt.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/getopt.c' object='cudd_util_libutil_la-getopt.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-getopt.lo `test -f 'cudd/util/getopt.c' || echo '$(srcdir)/'`cudd/util/getopt.c
-
-cudd_util_libutil_la-safe_mem.lo: cudd/util/safe_mem.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-safe_mem.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-safe_mem.Tpo -c -o cudd_util_libutil_la-safe_mem.lo `test -f 'cudd/util/safe_mem.c' || echo '$(srcdir)/'`cudd/util/safe_mem.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-safe_mem.Tpo $(DEPDIR)/cudd_util_libutil_la-safe_mem.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/safe_mem.c' object='cudd_util_libutil_la-safe_mem.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-safe_mem.lo `test -f 'cudd/util/safe_mem.c' || echo '$(srcdir)/'`cudd/util/safe_mem.c
-
-cudd_util_libutil_la-strsav.lo: cudd/util/strsav.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-strsav.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-strsav.Tpo -c -o cudd_util_libutil_la-strsav.lo `test -f 'cudd/util/strsav.c' || echo '$(srcdir)/'`cudd/util/strsav.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-strsav.Tpo $(DEPDIR)/cudd_util_libutil_la-strsav.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/strsav.c' object='cudd_util_libutil_la-strsav.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-strsav.lo `test -f 'cudd/util/strsav.c' || echo '$(srcdir)/'`cudd/util/strsav.c
-
-cudd_util_libutil_la-texpand.lo: cudd/util/texpand.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-texpand.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-texpand.Tpo -c -o cudd_util_libutil_la-texpand.lo `test -f 'cudd/util/texpand.c' || echo '$(srcdir)/'`cudd/util/texpand.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-texpand.Tpo $(DEPDIR)/cudd_util_libutil_la-texpand.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/texpand.c' object='cudd_util_libutil_la-texpand.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-texpand.lo `test -f 'cudd/util/texpand.c' || echo '$(srcdir)/'`cudd/util/texpand.c
-
-cudd_util_libutil_la-ptime.lo: cudd/util/ptime.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-ptime.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-ptime.Tpo -c -o cudd_util_libutil_la-ptime.lo `test -f 'cudd/util/ptime.c' || echo '$(srcdir)/'`cudd/util/ptime.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-ptime.Tpo $(DEPDIR)/cudd_util_libutil_la-ptime.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/ptime.c' object='cudd_util_libutil_la-ptime.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-ptime.lo `test -f 'cudd/util/ptime.c' || echo '$(srcdir)/'`cudd/util/ptime.c
-
-cudd_util_libutil_la-prtime.lo: cudd/util/prtime.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-prtime.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-prtime.Tpo -c -o cudd_util_libutil_la-prtime.lo `test -f 'cudd/util/prtime.c' || echo '$(srcdir)/'`cudd/util/prtime.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-prtime.Tpo $(DEPDIR)/cudd_util_libutil_la-prtime.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/prtime.c' object='cudd_util_libutil_la-prtime.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-prtime.lo `test -f 'cudd/util/prtime.c' || echo '$(srcdir)/'`cudd/util/prtime.c
-
-cudd_util_libutil_la-pipefork.lo: cudd/util/pipefork.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-pipefork.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-pipefork.Tpo -c -o cudd_util_libutil_la-pipefork.lo `test -f 'cudd/util/pipefork.c' || echo '$(srcdir)/'`cudd/util/pipefork.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-pipefork.Tpo $(DEPDIR)/cudd_util_libutil_la-pipefork.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/pipefork.c' object='cudd_util_libutil_la-pipefork.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-pipefork.lo `test -f 'cudd/util/pipefork.c' || echo '$(srcdir)/'`cudd/util/pipefork.c
-
-cudd_util_libutil_la-pathsearch.lo: cudd/util/pathsearch.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-pathsearch.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-pathsearch.Tpo -c -o cudd_util_libutil_la-pathsearch.lo `test -f 'cudd/util/pathsearch.c' || echo '$(srcdir)/'`cudd/util/pathsearch.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-pathsearch.Tpo $(DEPDIR)/cudd_util_libutil_la-pathsearch.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/pathsearch.c' object='cudd_util_libutil_la-pathsearch.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-pathsearch.lo `test -f 'cudd/util/pathsearch.c' || echo '$(srcdir)/'`cudd/util/pathsearch.c
-
-cudd_util_libutil_la-stub.lo: cudd/util/stub.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-stub.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-stub.Tpo -c -o cudd_util_libutil_la-stub.lo `test -f 'cudd/util/stub.c' || echo '$(srcdir)/'`cudd/util/stub.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-stub.Tpo $(DEPDIR)/cudd_util_libutil_la-stub.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/stub.c' object='cudd_util_libutil_la-stub.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-stub.lo `test -f 'cudd/util/stub.c' || echo '$(srcdir)/'`cudd/util/stub.c
-
-cudd_util_libutil_la-tmpfile.lo: cudd/util/tmpfile.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-tmpfile.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-tmpfile.Tpo -c -o cudd_util_libutil_la-tmpfile.lo `test -f 'cudd/util/tmpfile.c' || echo '$(srcdir)/'`cudd/util/tmpfile.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-tmpfile.Tpo $(DEPDIR)/cudd_util_libutil_la-tmpfile.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/tmpfile.c' object='cudd_util_libutil_la-tmpfile.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-tmpfile.lo `test -f 'cudd/util/tmpfile.c' || echo '$(srcdir)/'`cudd/util/tmpfile.c
-
-cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_util_libutil_la-datalimit.lo -MD -MP -MF $(DEPDIR)/cudd_util_libutil_la-datalimit.Tpo -c -o cudd_util_libutil_la-datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_util_libutil_la-datalimit.Tpo $(DEPDIR)/cudd_util_libutil_la-datalimit.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/util/datalimit.c' object='cudd_util_libutil_la-datalimit.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_util_libutil_la-datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -1560,20 +588,6 @@ cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
-
-ddutil.lo: src/ddutil.cc
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil.lo -MD -MP -MF $(DEPDIR)/ddutil.Tpo -c -o ddutil.lo `test -f 'src/ddutil.cc' || echo '$(srcdir)/'`src/ddutil.cc
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/ddutil.Tpo $(DEPDIR)/ddutil.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil.cc' object='ddutil.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil.lo `test -f 'src/ddutil.cc' || echo '$(srcdir)/'`src/ddutil.cc
-
-expression-compiler.lo: src/expression-compiler.cc
-@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression-compiler.lo -MD -MP -MF $(DEPDIR)/expression-compiler.Tpo -c -o expression-compiler.lo `test -f 'src/expression-compiler.cc' || echo '$(srcdir)/'`src/expression-compiler.cc
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression-compiler.Tpo $(DEPDIR)/expression-compiler.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression-compiler.cc' object='expression-compiler.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression-compiler.lo `test -f 'src/expression-compiler.cc' || echo '$(srcdir)/'`src/expression-compiler.cc
 
 expression.lo: src/expression.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression.lo -MD -MP -MF $(DEPDIR)/expression.Tpo -c -o expression.lo `test -f 'src/expression.cc' || echo '$(srcdir)/'`src/expression.cc
@@ -1630,34 +644,6 @@ parser-main.obj: src/parser-main.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/parser-main.cc' object='parser-main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o parser-main.obj `if test -f 'src/parser-main.cc'; then $(CYGPATH_W) 'src/parser-main.cc'; else $(CYGPATH_W) '$(srcdir)/src/parser-main.cc'; fi`
-
-ddutil_test.o: src/ddutil_test.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil_test.o -MD -MP -MF $(DEPDIR)/ddutil_test.Tpo -c -o ddutil_test.o `test -f 'src/ddutil_test.cc' || echo '$(srcdir)/'`src/ddutil_test.cc
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/ddutil_test.Tpo $(DEPDIR)/ddutil_test.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil_test.cc' object='ddutil_test.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil_test.o `test -f 'src/ddutil_test.cc' || echo '$(srcdir)/'`src/ddutil_test.cc
-
-ddutil_test.obj: src/ddutil_test.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil_test.obj -MD -MP -MF $(DEPDIR)/ddutil_test.Tpo -c -o ddutil_test.obj `if test -f 'src/ddutil_test.cc'; then $(CYGPATH_W) 'src/ddutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/ddutil_test.cc'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/ddutil_test.Tpo $(DEPDIR)/ddutil_test.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil_test.cc' object='ddutil_test.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil_test.obj `if test -f 'src/ddutil_test.cc'; then $(CYGPATH_W) 'src/ddutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/ddutil_test.cc'; fi`
-
-expression-compiler_test.o: src/expression-compiler_test.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression-compiler_test.o -MD -MP -MF $(DEPDIR)/expression-compiler_test.Tpo -c -o expression-compiler_test.o `test -f 'src/expression-compiler_test.cc' || echo '$(srcdir)/'`src/expression-compiler_test.cc
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression-compiler_test.Tpo $(DEPDIR)/expression-compiler_test.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression-compiler_test.cc' object='expression-compiler_test.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression-compiler_test.o `test -f 'src/expression-compiler_test.cc' || echo '$(srcdir)/'`src/expression-compiler_test.cc
-
-expression-compiler_test.obj: src/expression-compiler_test.cc
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression-compiler_test.obj -MD -MP -MF $(DEPDIR)/expression-compiler_test.Tpo -c -o expression-compiler_test.obj `if test -f 'src/expression-compiler_test.cc'; then $(CYGPATH_W) 'src/expression-compiler_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/expression-compiler_test.cc'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression-compiler_test.Tpo $(DEPDIR)/expression-compiler_test.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression-compiler_test.cc' object='expression-compiler_test.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression-compiler_test.obj `if test -f 'src/expression-compiler_test.cc'; then $(CYGPATH_W) 'src/expression-compiler_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/expression-compiler_test.cc'; fi`
 
 expression_test.o: src/expression_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression_test.o -MD -MP -MF $(DEPDIR)/expression_test.Tpo -c -o expression_test.o `test -f 'src/expression_test.cc' || echo '$(srcdir)/'`src/expression_test.cc
@@ -1750,11 +736,6 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-	-rm -rf cudd/cudd/.libs cudd/cudd/_libs
-	-rm -rf cudd/epd/.libs cudd/epd/_libs
-	-rm -rf cudd/mtr/.libs cudd/mtr/_libs
-	-rm -rf cudd/st/.libs cudd/st/_libs
-	-rm -rf cudd/util/.libs cudd/util/_libs
 	-rm -rf src/.libs src/_libs
 
 distclean-libtool:
@@ -2170,9 +1151,6 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) config.h
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(bindir)"; do \
-	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
-	done
 install: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) install-recursive
 install-exec: install-exec-recursive
@@ -2196,11 +1174,6 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
-	-rm -f cudd/cudd/$(am__dirstamp)
-	-rm -f cudd/epd/$(am__dirstamp)
-	-rm -f cudd/mtr/$(am__dirstamp)
-	-rm -f cudd/st/$(am__dirstamp)
-	-rm -f cudd/util/$(am__dirstamp)
 	-rm -f src/$(am__dirstamp)
 
 maintainer-clean-generic:
@@ -2208,16 +1181,13 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 	-rm -f grammar.cc
 	-rm -f grammar.h
-	-rm -f lexer.cc
-	-rm -f parser.cc
-	-rm -f parser.h
 	-rm -f tokens.cc
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-recursive
 
-clean-am: clean-binPROGRAMS clean-checkLTLIBRARIES clean-checkPROGRAMS \
-	clean-generic clean-libtool clean-noinstLTLIBRARIES \
-	clean-noinstPROGRAMS mostlyclean-am
+clean-am: clean-checkLTLIBRARIES clean-checkPROGRAMS clean-generic \
+	clean-libtool clean-noinstLTLIBRARIES clean-noinstPROGRAMS \
+	mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -2244,7 +1214,7 @@ install-dvi: install-dvi-recursive
 
 install-dvi-am:
 
-install-exec-am: install-binPROGRAMS
+install-exec-am:
 
 install-html: install-html-recursive
 
@@ -2286,7 +1256,7 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS
+uninstall-am:
 
 .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all check \
 	check-am ctags-recursive install install-am install-strip \
@@ -2294,15 +1264,14 @@ uninstall-am: uninstall-binPROGRAMS
 
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
 	all all-am am--refresh check check-TESTS check-am clean \
-	clean-binPROGRAMS clean-checkLTLIBRARIES clean-checkPROGRAMS \
-	clean-generic clean-libtool clean-noinstLTLIBRARIES \
-	clean-noinstPROGRAMS ctags ctags-recursive dist dist-all \
-	dist-bzip2 dist-gzip dist-lzma dist-shar dist-tarZ dist-xz \
-	dist-zip distcheck distclean distclean-compile \
-	distclean-generic distclean-hdr distclean-libtool \
-	distclean-tags distcleancheck distdir distuninstallcheck dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-binPROGRAMS install-data install-data-am install-dvi \
+	clean-checkLTLIBRARIES clean-checkPROGRAMS clean-generic \
+	clean-libtool clean-noinstLTLIBRARIES clean-noinstPROGRAMS \
+	ctags ctags-recursive dist dist-all dist-bzip2 dist-gzip \
+	dist-lzma dist-shar dist-tarZ dist-xz dist-zip distcheck \
+	distclean distclean-compile distclean-generic distclean-hdr \
+	distclean-libtool distclean-tags distcleancheck distdir \
+	distuninstallcheck dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
 	install-html-am install-info install-info-am install-man \
 	install-pdf install-pdf-am install-ps install-ps-am \
@@ -2310,7 +1279,7 @@ uninstall-am: uninstall-binPROGRAMS
 	installdirs-am maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
-	uninstall uninstall-am uninstall-binPROGRAMS
+	uninstall uninstall-am
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
