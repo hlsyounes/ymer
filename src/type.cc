@@ -18,34 +18,55 @@
 
 #include "type.h"
 
+#include <ostream>
+#include <sstream>
 #include <string>
 
 #include "glog/logging.h"
 
-std::string Type_Name(Type type) {
+std::ostream& operator<<(std::ostream& os, Type type) {
   switch (type) {
     case Type::INT:
-      return "int";
+      return os << "int";
     case Type::DOUBLE:
-      return "double";
+      return os << "double";
     case Type::BOOL:
-      return "bool";
+      return os << "bool";
   }
   LOG(FATAL) << "bad type";
 }
 
+namespace {
+
+void SetTypeMismatchError(Type actual, Type expected, std::string* error) {
+  if (error) {
+    std::ostringstream out;
+    out << "type mismatch; expecting " << expected << ", found " << actual;
+    *error = out.str();
+  }
+}
+
+}  // namespace
+
 bool ConvertsToType(Type actual_type, Type expected_type, std::string* error) {
-  // We allow implicit conversion from int to double (just int to bool is
-  // disallowed).  For the other types, all implicit conversion is disallowed.
-  if ((actual_type == Type::INT && expected_type == Type::BOOL) ||
-      (actual_type != Type::INT && expected_type != actual_type)) {
-    if (error) {
-      *error = "type mismatch; expecting ";
-      *error += Type_Name(expected_type);
-      *error += ", found ";
-      *error += Type_Name(actual_type);
-    }
+  // We allow implicit conversion from int to double.  Any other implicit
+  // conversion is disallowed.
+  if (actual_type != expected_type &&
+      (actual_type != Type::INT || expected_type != Type::DOUBLE)) {
+    SetTypeMismatchError(actual_type, expected_type, error);
     return false;
   }
   return true;
+}
+
+std::ostream& operator<<(std::ostream& os, const TypedValue& v) {
+  switch (v.type()) {
+    case Type::INT:
+      return os << v.value<int>();
+    case Type::DOUBLE:
+      return os << v.value<double>();
+    case Type::BOOL:
+      return os << (v.value<bool>() ? "true" : "false");
+  }
+  LOG(FATAL) << "bad value type";
 }

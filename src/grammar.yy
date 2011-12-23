@@ -51,45 +51,46 @@ static void SetModelType(
 static void AddConstant(const YYLTYPE& location,
                         const std::string* name,
                         Type type,
-                        const Expression* init,
+                        const ParsedExpression* init,
                         ParserState* state);
 // Adds an int variable to state->model.
 static void AddIntVariable(const YYLTYPE& location,
                            const std::string* name,
-                           const Expression* min,
-                           const Expression* max,
-                           const Expression* init,
+                           const ParsedExpression* min,
+                           const ParsedExpression* max,
+                           const ParsedExpression* init,
                            ParserState* state);
 // Adds a bool variable to state->model.
 static void AddBoolVariable(const YYLTYPE& location,
                             const std::string* name,
-                            const Expression* init,
+                            const ParsedExpression* init,
                             ParserState* state);
 // Adds a formula to state->model.
 static void AddFormula(const YYLTYPE& location,
                        const std::string* name,
-                       const Expression* expr,
+                       const ParsedExpression* expr,
                        ParserState* state);
 // Adds a label to state->model.
 static void AddLabel(const YYLTYPE& location,
                      const std::string* name,
-                     const Expression* expr,
+                     const ParsedExpression* expr,
                      ParserState* state);
 // Sets the init expression of state->model.
 static void SetInit(
-    const YYLTYPE& location, const Expression* init, ParserState* state);
+    const YYLTYPE& location, const ParsedExpression* init, ParserState* state);
 // Starts a reward structure with the given label for state->model.
 static void StartRewards(
     const YYLTYPE& location, const std::string* label, ParserState* state);
 // Ends the current reward structure for state->model.
 static void EndRewards(ParserState* state);
 // Adds a state reward to state->model.
-static void AddStateReward(
-    const Expression* guard, const Expression* reward, ParserState* state);
+static void AddStateReward(const ParsedExpression* guard,
+                           const ParsedExpression* reward,
+                           ParserState* state);
 // Adds a transition reward to state->model.
 static void AddTransitionReward(const std::string* action,
-                                const Expression* guard,
-                                const Expression* reward,
+                                const ParsedExpression* guard,
+                                const ParsedExpression* reward,
                                 ParserState* state);
 // Starts a new module for state->model.
 static void StartModule(
@@ -106,8 +107,8 @@ static void AddFromModule(
 // Adds a command to state->model.
 static void AddCommand(const YYLTYPE& location,
                        const std::string* action,
-                       const Expression* guard,
-                       std::vector<Outcome>* outcomes,
+                       const ParsedExpression* guard,
+                       std::vector<ParsedOutcome>* outcomes,
                        ParserState* state);
 // Adds an indentifier substitution to the given set of substitutions, and
 // returns the resulting substitutions.
@@ -117,30 +118,33 @@ static std::map<std::string, std::string>* AddSubstitution(
     std::map<std::string, std::string>* substitutions,
     ParserState* state);
 // Adds an outcome to the given outcomes, and returns the resulting outcomes.
-static std::vector<Outcome>* AddOutcome(Outcome* outcome,
-                                        std::vector<Outcome>* outcomes);
+static std::vector<ParsedOutcome>* AddOutcome(
+    ParsedOutcome* outcome, std::vector<ParsedOutcome>* outcomes);
 // Returns an outcome for the given probability expression and updates.
-static Outcome* MakeOutcome(const Expression* probability,
-                            std::vector<Update>* updates);
+static ParsedOutcome* MakeOutcome(const ParsedExpression* probability,
+                                  std::vector<ParsedUpdate>* updates);
 // Adds an update to the given updates, and returns the resulting updates.
-static std::vector<Update>* AddUpdate(Update* update,
-                                      std::vector<Update>* updates);
+static std::vector<ParsedUpdate>* AddUpdate(ParsedUpdate* update,
+                                            std::vector<ParsedUpdate>* updates);
 // Returns an update for the given variable and with the given expression.
-static Update* MakeUpdate(const std::string* variable, const Expression* expr);
+static ParsedUpdate* MakeUpdate(const std::string* variable,
+                                const ParsedExpression* expr);
 // Returns the function with the given name.
 static Function MakeFunction(
     const YYLTYPE& location, const std::string* name, ParserState* state);
 // Returns the unary operation with the given operator and operand.
-static const Expression* MakeUnaryOperation(UnaryOperator op,
-                                            const Expression* operand);
+static const ParsedExpression* MakeUnaryOperation(
+    UnaryOperator op, const ParsedExpression* operand);
 // Returns the binary operation with the given operator and operands.
-static const Expression* MakeBinaryOperation(BinaryOperator op,
-                                             const Expression* operand1,
-                                             const Expression* operand2);
+static const ParsedExpression* MakeBinaryOperation(
+    BinaryOperator op,
+    const ParsedExpression* operand1,
+    const ParsedExpression* operand2);
 // Returns the conditional with the given condition, if_expr, and else_expr.
-static const Expression* MakeConditional(const Expression* condition,
-                                         const Expression* if_expr,
-                                         const Expression* else_expr);
+static const ParsedExpression* MakeConditional(
+    const ParsedExpression* condition,
+    const ParsedExpression* if_expr,
+    const ParsedExpression* else_expr);
 // Sets the system process algebra expression of state->model.
 static void SetSystem(
     const YYLTYPE& location, const ProcessAlgebra* system, ParserState* state);
@@ -210,18 +214,18 @@ static std::set<std::string>* AddAction(const YYLTYPE& location,
 %right UMINUS
 
 %union {
-  std::string* str;
+  const std::string* str;
   Type type;
   std::map<std::string, std::string>* substitutions;
-  std::vector<Outcome>* outcomes;
-  Outcome* outcome;
-  std::vector<Update>* updates;
-  Update* update;
-  const Expression* expr;
+  std::vector<ParsedOutcome>* outcomes;
+  ParsedOutcome* outcome;
+  std::vector<ParsedUpdate>* updates;
+  ParsedUpdate* update;
+  const ParsedExpression* expr;
   int int_literal;
   double double_literal;
   Function function;
-  ArgumentList* arguments;
+  ParsedArgumentList* arguments;
   const ProcessAlgebra* process_algebra;
   std::set<std::string>* actions;
 }
@@ -412,7 +416,7 @@ probability_and_updates : expr ':' true_or_updates
                         ;
 
 true_or_updates : TRUE
-                    { $$ = new std::vector<Update>(); }
+                    { $$ = new std::vector<ParsedUpdate>(); }
                 | updates
                 ;
 
@@ -427,19 +431,19 @@ update : '(' IDENTIFIER PRIME '=' expr ')'
        ;
 
 expr : INT_LITERAL
-         { $$ = new IntLiteral($1); }
+         { $$ = new ParsedLiteral($1); }
      | DOUBLE_LITERAL
-         { $$ = new DoubleLiteral($1); }
+         { $$ = new ParsedLiteral($1); }
      | TRUE
-         { $$ = new BoolLiteral(true); }
+         { $$ = new ParsedLiteral(true); }
      | FALSE
-         { $$ = new BoolLiteral(false); }
+         { $$ = new ParsedLiteral(false); }
      | IDENTIFIER
-         { $$ = new Identifier(*$1); delete $1; }
+         { $$ = new ParsedIdentifier(*$1); delete $1; }
      | function_name '(' arguments ')'
-         { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
+         { $$ = new ParsedFunctionCall($1, std::move(*$3)); delete $3; }
      | FUNC '(' function_name ',' arguments ')'
-         { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
+         { $$ = new ParsedFunctionCall($3, std::move(*$5)); delete $5; }
      | '(' expr ')'
          { $$ = $2; }
      | '-' expr %prec UMINUS
@@ -485,9 +489,9 @@ function_name : IDENTIFIER
               ;
 
 arguments : expr
-              { $$ = new ArgumentList(std::unique_ptr<const Expression>($1)); }
+              { $$ = new ParsedArgumentList(std::unique_ptr<const ParsedExpression>($1)); }
           | arguments ',' expr
-              { $$ = $1; $$->push_back(std::unique_ptr<const Expression>($3)); }
+              { $$ = $1; $$->push_back(std::unique_ptr<const ParsedExpression>($3)); }
           ;
 
 system : SYSTEM process_algebra ENDSYSTEM
@@ -525,20 +529,33 @@ action_substitutions : IDENTIFIER BACK_ARROW IDENTIFIER
 
 %%
 
+namespace {
+
+Optional<std::string> MakeOptionalAction(const std::string* action) {
+  if (action) {
+    std::unique_ptr<const std::string> owned_action(action);
+    return Optional<std::string>(*action);
+  } else {
+    return Optional<std::string>();
+  }
+}
+
+}  // namespace
+
 static void yyerror(
     const YYLTYPE& location, const std::string& msg, ParserState* state) {
   CHECK(state);
 
   if (state->message) {
-    std::ostringstream os;
+    std::ostringstream out;
     if (state->filename && *state->filename != "-") {
-      os << *state->filename << ':';
+      out << *state->filename << ':';
     }
-    os << location.first_line << ':' << msg;
+    out << location.first_line << ':' << msg;
     if (!state->message->empty()) {
       *state->message += "\n";
     }
-    *state->message += os.str();
+    *state->message += out.str();
   }
   state->success = false;
 }
@@ -561,14 +578,14 @@ static void SetModelType(
 static void AddConstant(const YYLTYPE& location,
                         const std::string* name,
                         Type type,
-                        const Expression* init,
+                        const ParsedExpression* init,
                         ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddConstant(
-          *name, type, std::unique_ptr<const Expression>(init))) {
+          *name, type, std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -576,9 +593,9 @@ static void AddConstant(const YYLTYPE& location,
 
 static void AddIntVariable(const YYLTYPE& location,
                            const std::string* name,
-                           const Expression* min,
-                           const Expression* max,
-                           const Expression* init,
+                           const ParsedExpression* min,
+                           const ParsedExpression* max,
+                           const ParsedExpression* init,
                            ParserState* state) {
   CHECK(name);
   CHECK(state);
@@ -586,9 +603,9 @@ static void AddIntVariable(const YYLTYPE& location,
 
   if (!state->model->AddIntVariable(
           *name,
-          Range(std::unique_ptr<const Expression>(min),
-                std::unique_ptr<const Expression>(max)),
-          std::unique_ptr<const Expression>(init))) {
+          Range(std::unique_ptr<const ParsedExpression>(min),
+                std::unique_ptr<const ParsedExpression>(max)),
+          std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -596,14 +613,14 @@ static void AddIntVariable(const YYLTYPE& location,
 
 static void AddBoolVariable(const YYLTYPE& location,
                             const std::string* name,
-                            const Expression* init,
+                            const ParsedExpression* init,
                             ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddBoolVariable(
-          *name, std::unique_ptr<const Expression>(init))) {
+          *name, std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -611,14 +628,14 @@ static void AddBoolVariable(const YYLTYPE& location,
 
 static void AddFormula(const YYLTYPE& location,
                        const std::string* name,
-                       const Expression* expr,
+                       const ParsedExpression* expr,
                        ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddFormula(
-          *name, std::unique_ptr<const Expression>(expr))) {
+          *name, std::unique_ptr<const ParsedExpression>(expr))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -626,25 +643,25 @@ static void AddFormula(const YYLTYPE& location,
 
 static void AddLabel(const YYLTYPE& location,
                      const std::string* name,
-                     const Expression* expr,
+                     const ParsedExpression* expr,
                      ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddLabel(
-          *name, std::unique_ptr<const Expression>(expr))) {
+          *name, std::unique_ptr<const ParsedExpression>(expr))) {
     yyerror(location, "duplicate label", state);
   }
   delete name;
 }
 
 static void SetInit(
-    const YYLTYPE& location, const Expression* init, ParserState* state) {
+    const YYLTYPE& location, const ParsedExpression* init, ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
-  if (!state->model->SetInit(std::unique_ptr<const Expression>(init))) {
+  if (!state->model->SetInit(std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "multiple init blocks", state);
   }
 }
@@ -671,27 +688,28 @@ static void EndRewards(ParserState* state) {
   state->model->EndRewards();
 }
 
-static void AddStateReward(
-    const Expression* guard, const Expression* reward, ParserState* state) {
+static void AddStateReward(const ParsedExpression* guard,
+                           const ParsedExpression* reward,
+                           ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
   state->model->AddStateReward(StateReward(
-      std::unique_ptr<const Expression>(guard),
-      std::unique_ptr<const Expression>(reward)));
+      std::unique_ptr<const ParsedExpression>(guard),
+      std::unique_ptr<const ParsedExpression>(reward)));
 }
 
 static void AddTransitionReward(const std::string* action,
-                                const Expression* guard,
-                                const Expression* reward,
+                                const ParsedExpression* guard,
+                                const ParsedExpression* reward,
                                 ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
   state->model->AddTransitionReward(TransitionReward(
-      std::unique_ptr<const std::string>(action),
-      std::unique_ptr<const Expression>(guard),
-      std::unique_ptr<const Expression>(reward)));
+      MakeOptionalAction(action),
+      std::unique_ptr<const ParsedExpression>(guard),
+      std::unique_ptr<const ParsedExpression>(reward)));
 }
 
 static void StartModule(
@@ -732,16 +750,16 @@ static void AddFromModule(
 
 static void AddCommand(const YYLTYPE& location,
                        const std::string* action,
-                       const Expression* guard,
-                       std::vector<Outcome>* outcomes,
+                       const ParsedExpression* guard,
+                       std::vector<ParsedOutcome>* outcomes,
                        ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddCommand(
-          Command(std::unique_ptr<const std::string>(action),
-                  std::unique_ptr<const Expression>(guard),
-                  std::move(*outcomes)))) {
+          ParsedCommand(MakeOptionalAction(action),
+                        std::unique_ptr<const ParsedExpression>(guard),
+                        std::move(*outcomes)))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete outcomes;
@@ -786,34 +804,36 @@ static std::vector<Movable>* AddToVector(Movable* element,
 
 }  // namespace
 
-static std::vector<Outcome>* AddOutcome(Outcome* outcome,
-                                        std::vector<Outcome>* outcomes) {
+static std::vector<ParsedOutcome>* AddOutcome(
+    ParsedOutcome* outcome, std::vector<ParsedOutcome>* outcomes) {
   return AddToVector(outcome, outcomes);
 }
 
-static Outcome* MakeOutcome(const Expression* probability,
-                            std::vector<Update>* updates) {
+static ParsedOutcome* MakeOutcome(const ParsedExpression* probability,
+                                  std::vector<ParsedUpdate>* updates) {
   CHECK(updates);
 
   if (probability == nullptr) {
-    probability = new DoubleLiteral(1.0);
+    probability = new ParsedLiteral(1.0);
   }
-  Outcome* outcome = new Outcome(std::unique_ptr<const Expression>(probability),
-                                 std::move(*updates));
+  ParsedOutcome* outcome =
+      new ParsedOutcome(std::unique_ptr<const ParsedExpression>(probability),
+                        std::move(*updates));
   delete updates;
   return outcome;
 }
 
-static std::vector<Update>* AddUpdate(Update* update,
-                                      std::vector<Update>* updates) {
+static std::vector<ParsedUpdate>* AddUpdate(
+    ParsedUpdate* update, std::vector<ParsedUpdate>* updates) {
   return AddToVector(update, updates);
 }
 
-static Update* MakeUpdate(const std::string* variable, const Expression* expr) {
+static ParsedUpdate* MakeUpdate(const std::string* variable,
+                                const ParsedExpression* expr) {
   CHECK(variable);
 
-  Update* update = new Update(*variable,
-                              std::unique_ptr<const Expression>(expr));
+  ParsedUpdate* update = new ParsedUpdate(
+      *variable, std::unique_ptr<const ParsedExpression>(expr));
   delete variable;
   return update;
 }
@@ -841,25 +861,30 @@ static Function MakeFunction(
   return function;
 }
 
-static const Expression* MakeUnaryOperation(UnaryOperator op,
-                                            const Expression* operand) {
-  return new UnaryOperation(op, std::unique_ptr<const Expression>(operand));
+static const ParsedExpression* MakeUnaryOperation(
+    UnaryOperator op, const ParsedExpression* operand) {
+  return new ParsedUnaryOperation(
+      op, std::unique_ptr<const ParsedExpression>(operand));
 }
 
-static const Expression* MakeBinaryOperation(BinaryOperator op,
-                                             const Expression* operand1,
-                                             const Expression* operand2) {
-  return new BinaryOperation(op,
-                             std::unique_ptr<const Expression>(operand1),
-                             std::unique_ptr<const Expression>(operand2));
+static const ParsedExpression* MakeBinaryOperation(
+    BinaryOperator op,
+    const ParsedExpression* operand1,
+    const ParsedExpression* operand2) {
+  return new ParsedBinaryOperation(
+      op,
+      std::unique_ptr<const ParsedExpression>(operand1),
+      std::unique_ptr<const ParsedExpression>(operand2));
 }
 
-static const Expression* MakeConditional(const Expression* condition,
-                                         const Expression* if_expr,
-                                         const Expression* else_expr) {
-  return new Conditional(std::unique_ptr<const Expression>(condition),
-                         std::unique_ptr<const Expression>(if_expr),
-                         std::unique_ptr<const Expression>(else_expr));
+static const ParsedExpression* MakeConditional(
+    const ParsedExpression* condition,
+    const ParsedExpression* if_expr,
+    const ParsedExpression* else_expr) {
+  return new ParsedConditional(
+      std::unique_ptr<const ParsedExpression>(condition),
+      std::unique_ptr<const ParsedExpression>(if_expr),
+      std::unique_ptr<const ParsedExpression>(else_expr));
 }
 
 static void SetSystem(

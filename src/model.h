@@ -27,17 +27,19 @@
 #include <string>
 #include <vector>
 
+#include "command.h"
+#include "expression.h"
+#include "optional.h"
 #include "type.h"
 
-class Expression;
 class ProcessAlgebra;
 
 // Range for int variables.
 class Range {
  public:
   // Constucts a range.
-  Range(std::unique_ptr<const Expression>&& min,
-        std::unique_ptr<const Expression>&& max);
+  Range(std::unique_ptr<const ParsedExpression>&& min,
+        std::unique_ptr<const ParsedExpression>&& max);
   Range(Range&& range);
 
   // Disallow copy and assign.
@@ -45,118 +47,24 @@ class Range {
   Range& operator=(const Range&) = delete;
 
   // Returns the min expression for this range.
-  const Expression& min() const { return *min_; }
+  const ParsedExpression& min() const { return *min_; }
 
   // Returns the max expression for this range.
-  const Expression& max() const { return *max_; }
+  const ParsedExpression& max() const { return *max_; }
 
  private:
   // The min expression for this range.
-  std::unique_ptr<const Expression> min_;
+  std::unique_ptr<const ParsedExpression> min_;
   // The max expression for this range.
-  std::unique_ptr<const Expression> max_;
-};
-
-// A variable update for a module command.
-class Update {
- public:
-  // Constructs an update for the given variable and with the given
-  // expression.
-  Update(const std::string& variable, std::unique_ptr<const Expression>&& expr);
-  Update(Update&& update);
-
-  // Disallow copy and assign.
-  Update(const Update&) = delete;
-  Update& operator=(const Update&) = delete;
-
-  // Move assignment.
-  Update& operator=(Update&& update);
-
-  // Returns the variable for this update.
-  const std::string& variable() const { return variable_; }
-
-  // Returns the expression for this update.
-  const Expression& expr() const { return *expr_; }
-
- private:
-  // The variable for this update.
-  std::string variable_;
-  // The expression for this update.
-  std::unique_ptr<const Expression> expr_;
-};
-
-// A possible outcome of a module command, consisting of a probability and a
-// list of variable updates.
-class Outcome {
- public:
-  // Constructs an outcome.
-  Outcome(std::unique_ptr<const Expression>&& probability,
-          std::vector<Update>&& updates);
-  Outcome(Outcome&& outcome);
-
-  // Disallow copy and assign.
-  Outcome(const Outcome&) = delete;
-  Outcome& operator=(const Outcome&) = delete;
-
-  // Move assignment.
-  Outcome& operator=(Outcome&& outcome);
-
-  // Returns the probability for this outcome.
-  const Expression& probability() const { return *probability_; }
-
-  // Returns the list of updates for this outcome.
-  const std::vector<Update>& updates() const { return updates_; }
-
- private:
-  // The probability for this outcome.
-  std::unique_ptr<const Expression> probability_;
-  // The list of updates for this outcome.
-  std::vector<Update> updates_;
-};
-
-// A module command.
-class Command {
- public:
-  // Constructs a command with the given action, guard, and outcomes.  The
-  // action is optional and may be null.
-  Command(std::unique_ptr<const std::string>&& action,
-          std::unique_ptr<const Expression>&& guard,
-          std::vector<Outcome>&& outcomes);
-  Command(Command&& command);
-
-  // Disallow copy and assign.
-  Command(const Command&) = delete;
-  Command& operator=(const Command&) = delete;
-
-  // Move assignment.
-  Command& operator=(Command&& command);
-
-  // Returns the action for this command; null if no action is associated with
-  // this command.
-  const std::string* action() const { return action_.get(); }
-
-  // Returns the guard for this command.
-  const Expression& guard() const { return *guard_; }
-
-  // Returns the outcomes for this command.
-  const std::vector<Outcome>& outcomes() const { return outcomes_; }
-
- private:
-  // The action for this command; null if no action is associated with this
-  // command.
-  std::unique_ptr<const std::string> action_;
-  // The guard for this command.
-  std::unique_ptr<const Expression> guard_;
-  // The outcomes for this command.
-  std::vector<Outcome> outcomes_;
+  std::unique_ptr<const ParsedExpression> max_;
 };
 
 // A state reward specification.
 class StateReward {
  public:
   // Constructs a state reward specification.
-  StateReward(std::unique_ptr<const Expression>&& guard,
-              std::unique_ptr<const Expression>&& reward);
+  StateReward(std::unique_ptr<const ParsedExpression>&& guard,
+              std::unique_ptr<const ParsedExpression>&& reward);
   StateReward(StateReward&& state_reward);
 
   // Disallow copy and assign.
@@ -167,16 +75,16 @@ class StateReward {
   StateReward& operator=(StateReward&& state_reward);
 
   // Returns the guard for this state reward specification.
-  const Expression& guard() const { return *guard_; }
+  const ParsedExpression& guard() const { return *guard_; }
 
   // Returns the reward for this state reward specification.
-  const Expression& reward() const { return *reward_; }
+  const ParsedExpression& reward() const { return *reward_; }
 
  private:
   // The guard for this state reward specification.
-  std::unique_ptr<const Expression> guard_;
+  std::unique_ptr<const ParsedExpression> guard_;
   // The reward for this state reward specification.
-  std::unique_ptr<const Expression> reward_;
+  std::unique_ptr<const ParsedExpression> reward_;
 };
 
 // A transition reward specification.
@@ -184,9 +92,9 @@ class TransitionReward {
  public:
   // Constructs a transition reward specification.  The action is optional and
   // may be null.
-  TransitionReward(std::unique_ptr<const std::string>&& action,
-                   std::unique_ptr<const Expression>&& guard,
-                   std::unique_ptr<const Expression>&& reward);
+  TransitionReward(const Optional<std::string>& action,
+                   std::unique_ptr<const ParsedExpression>&& guard,
+                   std::unique_ptr<const ParsedExpression>&& reward);
   TransitionReward(TransitionReward&& transition_reward);
 
   // Disallow copy and assign.
@@ -198,22 +106,21 @@ class TransitionReward {
 
   // Returns the action for this transition reward specification; null if no
   // action is associated with this transition reward specification.
-  const std::string* action() const { return action_.get(); }
+  const Optional<std::string>& action() const { return action_; }
 
   // Returns the guard for this transition reward specification.
-  const Expression& guard() const { return *guard_; }
+  const ParsedExpression& guard() const { return *guard_; }
 
   // Returns the reward for this transition reward specification.
-  const Expression& reward() const { return *reward_; }
+  const ParsedExpression& reward() const { return *reward_; }
 
  private:
-  // The action for this transition reward specification; null if no action is
-  // associated with this transition reward specification.
-  std::unique_ptr<const std::string> action_;
+  // The action for this transition reward specification.
+  Optional<std::string> action_;
   // The guard for this transition reward specification.
-  std::unique_ptr<const Expression> guard_;
+  std::unique_ptr<const ParsedExpression> guard_;
   // The reward for this transition reward specification.
-  std::unique_ptr<const Expression> reward_;
+  std::unique_ptr<const ParsedExpression> reward_;
 };
 
 // Supported model types.  Note: NONE is not a valid model type.
@@ -245,7 +152,7 @@ class Model {
   // model.  The init expression is optional and may be null.  Returns false
   // if an identifier with the given name has already been added.
   bool AddConstant(const std::string& name, Type type,
-                   std::unique_ptr<const Expression>&& init);
+                   std::unique_ptr<const ParsedExpression>&& init);
 
   // Returns the number of constants defined for this model.
   int num_constants() const { return constant_types_.size(); }
@@ -255,7 +162,7 @@ class Model {
 
   // Returns the init expression for the ith constant; null if the ith
   // constant does not have an init expression.
-  const Expression* GetConstantInit(int i) const;
+  const ParsedExpression* GetConstantInit(int i) const;
 
   // Returns the name for the ith constant.
   const std::string& GetConstantName(int i) const;
@@ -266,7 +173,7 @@ class Model {
   // variable becomes a module variable if this method is called between calls
   // to StartModule() and EndModule().
   bool AddIntVariable(const std::string& name, Range&& range,
-                      std::unique_ptr<const Expression>&& init);
+                      std::unique_ptr<const ParsedExpression>&& init);
 
   // Adds a bool variable with the given name and init expression to this
   // model.  The init expression is optional and may be null.  Returns false
@@ -274,7 +181,7 @@ class Model {
   // variable becomes a module variable if this method is called between calls
   // to StartModule() and EndModule().
   bool AddBoolVariable(const std::string& name,
-                       std::unique_ptr<const Expression>&& init);
+                       std::unique_ptr<const ParsedExpression>&& init);
 
   // Returns the number of variables defined for this model.
   int num_variables() const { return variable_types_.size(); }
@@ -288,7 +195,7 @@ class Model {
 
   // Returns the init expression for the ith variable; null if the ith
   // variable does not have an init expression.
-  const Expression* GetVariableInit(int i) const;
+  const ParsedExpression* GetVariableInit(int i) const;
 
   // Returns the name for the ith variable.
   const std::string& GetVariableName(int i) const;
@@ -296,13 +203,15 @@ class Model {
   // Adds a formula with the given name to this model.  Returns false if an
   // identifier with the given name has already been added.
   bool AddFormula(const std::string& name,
-                  std::unique_ptr<const Expression>&& expr);
+                  std::unique_ptr<const ParsedExpression>&& expr);
 
   // Returns the number of formulas defined for this model.
   int num_formulas() const { return formula_exprs_.size(); }
 
   // Returns the expression for the ith formula.
-  const Expression& formula_expr(int i) const { return *formula_exprs_[i]; }
+  const ParsedExpression& formula_expr(int i) const {
+    return *formula_exprs_[i];
+  }
 
   // Returns the name for the ith formula.
   const std::string& GetFormulaName(int i) const;
@@ -325,10 +234,10 @@ class Model {
 
   // Adds a command to the current module.  Requires that a module is
   // currently open.
-  bool AddCommand(Command&& command);
+  bool AddCommand(ParsedCommand&& command);
 
   // Returns the commands for the ith module.
-  const std::vector<Command>& module_commands(int i) const {
+  const std::vector<ParsedCommand>& module_commands(int i) const {
     return module_commands_[i];
   }
 
@@ -350,19 +259,19 @@ class Model {
   // Adds a label for the given expression.  Returns false if the given label
   // has already been added to this model.
   bool AddLabel(const std::string& label,
-                std::unique_ptr<const Expression>&& expr);
+                std::unique_ptr<const ParsedExpression>&& expr);
 
   // Returns the expression for the given label; null if the given label has
   // not been added to this model.
-  const Expression* GetLabelExpr(const std::string& label) const;
+  const ParsedExpression* GetLabelExpr(const std::string& label) const;
 
   // Sets the init expression for this model.  Returns false if this model
   // already has an init expression.
-  bool SetInit(std::unique_ptr<const Expression>&& init);
+  bool SetInit(std::unique_ptr<const ParsedExpression>&& init);
 
   // Returns the init expression for this model; null if no init expression
   // has been set for this model.
-  const Expression* init() const { return init_.get(); }
+  const ParsedExpression* init() const { return init_.get(); }
 
   // Marks the start of a new rewards structure without a label.  Requires
   // that no rewards structure is currently open.
@@ -414,14 +323,14 @@ class Model {
   // Helper method for Add*Variable().  Requires that range is non-null iff
   // type is int.
   bool AddVariable(const std::string& name, Type type, Range* range,
-                   std::unique_ptr<const Expression>&& init);
+                   std::unique_ptr<const ParsedExpression>&& init);
 
   // Helper method for AddCommand().  Returns true if name is null, or if name
   // is a permissible action identifier (either already defined to be an
   // action identifier, or an undefined identifer).  Actions for commands must
   // not clash with variable, constant, and formula identifiers, since that
   // could result in ambiguous substitutions when using AddFromModule().
-  bool AddAction(const std::string* name);
+  bool AddAction(const Optional<std::string>& name);
 
   // Helper method for Start*Rewards().
   bool StartRewards(const std::string* label);
@@ -445,7 +354,7 @@ class Model {
   // Map from an index into constant_types_ to the init expression for that
   // constant.  The map is sparse, meaning that the index for a constant with
   // no init expression is not present in the map.
-  std::map<int, std::unique_ptr<const Expression> > constant_inits_;
+  std::map<int, std::unique_ptr<const ParsedExpression> > constant_inits_;
   // Type of variables in the order they were added to this model.
   std::vector<Type> variable_types_;
   // Map from an index into variable_types_ to the range for that variable.
@@ -455,9 +364,9 @@ class Model {
   // Map from an index into variable_types_ to the init expression for that
   // variable.  The map is sparse, meaning that the index for a variable with
   // no init expression is not present in the map.
-  std::map<int, std::unique_ptr<const Expression> > variable_inits_;
+  std::map<int, std::unique_ptr<const ParsedExpression> > variable_inits_;
   // Formula expressions in the order they were added to this model.
-  std::vector<std::unique_ptr<const Expression> > formula_exprs_;
+  std::vector<std::unique_ptr<const ParsedExpression> > formula_exprs_;
   // Map from module name to module index.
   std::map<std::string, int> modules_;
   // The index of the current module, or an invalid index if no module is
@@ -467,12 +376,12 @@ class Model {
   // module.
   std::vector<std::set<int> > module_variables_;
   // For each module, the list of commands for that module.
-  std::vector<std::vector<Command> > module_commands_;
+  std::vector<std::vector<ParsedCommand> > module_commands_;
   // Map from label name to labeled expression.
-  std::map<std::string, std::unique_ptr<const Expression> > labels_;
+  std::map<std::string, std::unique_ptr<const ParsedExpression> > labels_;
   // The init expression for this model; null if no init expression has been
   // set for this model.
-  std::unique_ptr<const Expression> init_;
+  std::unique_ptr<const ParsedExpression> init_;
   // The state rewards for each rewards structure of this model.
   std::vector<std::vector<StateReward> > state_rewards_;
   // The transition rewards for each rewards structure of this model.

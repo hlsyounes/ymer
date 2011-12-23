@@ -101,45 +101,46 @@ static void SetModelType(
 static void AddConstant(const YYLTYPE& location,
                         const std::string* name,
                         Type type,
-                        const Expression* init,
+                        const ParsedExpression* init,
                         ParserState* state);
 // Adds an int variable to state->model.
 static void AddIntVariable(const YYLTYPE& location,
                            const std::string* name,
-                           const Expression* min,
-                           const Expression* max,
-                           const Expression* init,
+                           const ParsedExpression* min,
+                           const ParsedExpression* max,
+                           const ParsedExpression* init,
                            ParserState* state);
 // Adds a bool variable to state->model.
 static void AddBoolVariable(const YYLTYPE& location,
                             const std::string* name,
-                            const Expression* init,
+                            const ParsedExpression* init,
                             ParserState* state);
 // Adds a formula to state->model.
 static void AddFormula(const YYLTYPE& location,
                        const std::string* name,
-                       const Expression* expr,
+                       const ParsedExpression* expr,
                        ParserState* state);
 // Adds a label to state->model.
 static void AddLabel(const YYLTYPE& location,
                      const std::string* name,
-                     const Expression* expr,
+                     const ParsedExpression* expr,
                      ParserState* state);
 // Sets the init expression of state->model.
 static void SetInit(
-    const YYLTYPE& location, const Expression* init, ParserState* state);
+    const YYLTYPE& location, const ParsedExpression* init, ParserState* state);
 // Starts a reward structure with the given label for state->model.
 static void StartRewards(
     const YYLTYPE& location, const std::string* label, ParserState* state);
 // Ends the current reward structure for state->model.
 static void EndRewards(ParserState* state);
 // Adds a state reward to state->model.
-static void AddStateReward(
-    const Expression* guard, const Expression* reward, ParserState* state);
+static void AddStateReward(const ParsedExpression* guard,
+                           const ParsedExpression* reward,
+                           ParserState* state);
 // Adds a transition reward to state->model.
 static void AddTransitionReward(const std::string* action,
-                                const Expression* guard,
-                                const Expression* reward,
+                                const ParsedExpression* guard,
+                                const ParsedExpression* reward,
                                 ParserState* state);
 // Starts a new module for state->model.
 static void StartModule(
@@ -156,8 +157,8 @@ static void AddFromModule(
 // Adds a command to state->model.
 static void AddCommand(const YYLTYPE& location,
                        const std::string* action,
-                       const Expression* guard,
-                       std::vector<Outcome>* outcomes,
+                       const ParsedExpression* guard,
+                       std::vector<ParsedOutcome>* outcomes,
                        ParserState* state);
 // Adds an indentifier substitution to the given set of substitutions, and
 // returns the resulting substitutions.
@@ -167,30 +168,33 @@ static std::map<std::string, std::string>* AddSubstitution(
     std::map<std::string, std::string>* substitutions,
     ParserState* state);
 // Adds an outcome to the given outcomes, and returns the resulting outcomes.
-static std::vector<Outcome>* AddOutcome(Outcome* outcome,
-                                        std::vector<Outcome>* outcomes);
+static std::vector<ParsedOutcome>* AddOutcome(
+    ParsedOutcome* outcome, std::vector<ParsedOutcome>* outcomes);
 // Returns an outcome for the given probability expression and updates.
-static Outcome* MakeOutcome(const Expression* probability,
-                            std::vector<Update>* updates);
+static ParsedOutcome* MakeOutcome(const ParsedExpression* probability,
+                                  std::vector<ParsedUpdate>* updates);
 // Adds an update to the given updates, and returns the resulting updates.
-static std::vector<Update>* AddUpdate(Update* update,
-                                      std::vector<Update>* updates);
+static std::vector<ParsedUpdate>* AddUpdate(ParsedUpdate* update,
+                                            std::vector<ParsedUpdate>* updates);
 // Returns an update for the given variable and with the given expression.
-static Update* MakeUpdate(const std::string* variable, const Expression* expr);
+static ParsedUpdate* MakeUpdate(const std::string* variable,
+                                const ParsedExpression* expr);
 // Returns the function with the given name.
 static Function MakeFunction(
     const YYLTYPE& location, const std::string* name, ParserState* state);
 // Returns the unary operation with the given operator and operand.
-static const Expression* MakeUnaryOperation(UnaryOperator op,
-                                            const Expression* operand);
+static const ParsedExpression* MakeUnaryOperation(
+    UnaryOperator op, const ParsedExpression* operand);
 // Returns the binary operation with the given operator and operands.
-static const Expression* MakeBinaryOperation(BinaryOperator op,
-                                             const Expression* operand1,
-                                             const Expression* operand2);
+static const ParsedExpression* MakeBinaryOperation(
+    BinaryOperator op,
+    const ParsedExpression* operand1,
+    const ParsedExpression* operand2);
 // Returns the conditional with the given condition, if_expr, and else_expr.
-static const Expression* MakeConditional(const Expression* condition,
-                                         const Expression* if_expr,
-                                         const Expression* else_expr);
+static const ParsedExpression* MakeConditional(
+    const ParsedExpression* condition,
+    const ParsedExpression* if_expr,
+    const ParsedExpression* else_expr);
 // Sets the system process algebra expression of state->model.
 static void SetSystem(
     const YYLTYPE& location, const ProcessAlgebra* system, ParserState* state);
@@ -220,7 +224,7 @@ static std::set<std::string>* AddAction(const YYLTYPE& location,
 
 
 /* Line 189 of yacc.c  */
-#line 224 "grammar.cc"
+#line 228 "grammar.cc"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -377,27 +381,27 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 212 "grammar.yy"
+#line 216 "grammar.yy"
 
-  std::string* str;
+  const std::string* str;
   Type type;
   std::map<std::string, std::string>* substitutions;
-  std::vector<Outcome>* outcomes;
-  Outcome* outcome;
-  std::vector<Update>* updates;
-  Update* update;
-  const Expression* expr;
+  std::vector<ParsedOutcome>* outcomes;
+  ParsedOutcome* outcome;
+  std::vector<ParsedUpdate>* updates;
+  ParsedUpdate* update;
+  const ParsedExpression* expr;
   int int_literal;
   double double_literal;
   Function function;
-  ArgumentList* arguments;
+  ParsedArgumentList* arguments;
   const ProcessAlgebra* process_algebra;
   std::set<std::string>* actions;
 
 
 
 /* Line 214 of yacc.c  */
-#line 401 "grammar.cc"
+#line 405 "grammar.cc"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -422,7 +426,7 @@ typedef struct YYLTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 426 "grammar.cc"
+#line 430 "grammar.cc"
 
 #ifdef short
 # undef short
@@ -757,17 +761,17 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   257,   257,   260,   261,   264,   265,   266,   267,   268,
-     269,   270,   271,   272,   275,   277,   279,   281,   283,   285,
-     289,   293,   295,   297,   299,   301,   303,   308,   309,   313,
-     316,   317,   320,   322,   327,   328,   332,   336,   340,   344,
-     349,   350,   354,   355,   356,   359,   363,   367,   371,   375,
-     376,   380,   382,   386,   387,   390,   395,   396,   399,   401,
-     404,   406,   410,   414,   416,   419,   421,   425,   429,   431,
-     433,   435,   437,   439,   441,   443,   445,   447,   449,   451,
-     453,   455,   457,   459,   461,   463,   465,   467,   469,   471,
-     473,   475,   479,   481,   483,   487,   489,   493,   497,   499,
-     501,   503,   505,   507,   509,   513,   515,   519,   522
+       0,   261,   261,   264,   265,   268,   269,   270,   271,   272,
+     273,   274,   275,   276,   279,   281,   283,   285,   287,   289,
+     293,   297,   299,   301,   303,   305,   307,   312,   313,   317,
+     320,   321,   324,   326,   331,   332,   336,   340,   344,   348,
+     353,   354,   358,   359,   360,   363,   367,   371,   375,   379,
+     380,   384,   386,   390,   391,   394,   399,   400,   403,   405,
+     408,   410,   414,   418,   420,   423,   425,   429,   433,   435,
+     437,   439,   441,   443,   445,   447,   449,   451,   453,   455,
+     457,   459,   461,   463,   465,   467,   469,   471,   473,   475,
+     477,   479,   483,   485,   487,   491,   493,   497,   501,   503,
+     505,   507,   509,   511,   513,   517,   519,   523,   526
 };
 #endif
 
@@ -1599,155 +1603,155 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, scanner, state)
       case 32: /* "IDENTIFIER" */
 
 /* Line 1000 of yacc.c  */
-#line 244 "grammar.yy"
+#line 248 "grammar.yy"
 	{ delete (yyvaluep->str); };
 
 /* Line 1000 of yacc.c  */
-#line 1607 "grammar.cc"
+#line 1611 "grammar.cc"
 	break;
       case 35: /* "LABEL_NAME" */
 
 /* Line 1000 of yacc.c  */
-#line 244 "grammar.yy"
+#line 248 "grammar.yy"
 	{ delete (yyvaluep->str); };
 
 /* Line 1000 of yacc.c  */
-#line 1616 "grammar.cc"
+#line 1620 "grammar.cc"
 	break;
       case 89: /* "constant_init" */
 
 /* Line 1000 of yacc.c  */
-#line 250 "grammar.yy"
+#line 254 "grammar.yy"
 	{ delete (yyvaluep->expr); };
 
 /* Line 1000 of yacc.c  */
-#line 1625 "grammar.cc"
+#line 1629 "grammar.cc"
 	break;
       case 93: /* "variable_init" */
 
 /* Line 1000 of yacc.c  */
-#line 250 "grammar.yy"
+#line 254 "grammar.yy"
 	{ delete (yyvaluep->expr); };
 
 /* Line 1000 of yacc.c  */
-#line 1634 "grammar.cc"
+#line 1638 "grammar.cc"
 	break;
       case 105: /* "substitutions" */
 
 /* Line 1000 of yacc.c  */
-#line 245 "grammar.yy"
+#line 249 "grammar.yy"
 	{ delete (yyvaluep->substitutions); };
 
 /* Line 1000 of yacc.c  */
-#line 1643 "grammar.cc"
+#line 1647 "grammar.cc"
 	break;
       case 108: /* "action" */
 
 /* Line 1000 of yacc.c  */
-#line 244 "grammar.yy"
+#line 248 "grammar.yy"
 	{ delete (yyvaluep->str); };
 
 /* Line 1000 of yacc.c  */
-#line 1652 "grammar.cc"
+#line 1656 "grammar.cc"
 	break;
       case 109: /* "outcomes" */
 
 /* Line 1000 of yacc.c  */
-#line 246 "grammar.yy"
+#line 250 "grammar.yy"
 	{ delete (yyvaluep->outcomes); };
 
 /* Line 1000 of yacc.c  */
-#line 1661 "grammar.cc"
+#line 1665 "grammar.cc"
 	break;
       case 110: /* "update_distribution" */
 
 /* Line 1000 of yacc.c  */
-#line 246 "grammar.yy"
+#line 250 "grammar.yy"
 	{ delete (yyvaluep->outcomes); };
 
 /* Line 1000 of yacc.c  */
-#line 1670 "grammar.cc"
+#line 1674 "grammar.cc"
 	break;
       case 111: /* "probability_and_updates" */
 
 /* Line 1000 of yacc.c  */
-#line 247 "grammar.yy"
+#line 251 "grammar.yy"
 	{ delete (yyvaluep->outcome); };
 
 /* Line 1000 of yacc.c  */
-#line 1679 "grammar.cc"
+#line 1683 "grammar.cc"
 	break;
       case 112: /* "true_or_updates" */
 
 /* Line 1000 of yacc.c  */
-#line 248 "grammar.yy"
+#line 252 "grammar.yy"
 	{ delete (yyvaluep->updates); };
 
 /* Line 1000 of yacc.c  */
-#line 1688 "grammar.cc"
+#line 1692 "grammar.cc"
 	break;
       case 113: /* "updates" */
 
 /* Line 1000 of yacc.c  */
-#line 248 "grammar.yy"
+#line 252 "grammar.yy"
 	{ delete (yyvaluep->updates); };
 
 /* Line 1000 of yacc.c  */
-#line 1697 "grammar.cc"
+#line 1701 "grammar.cc"
 	break;
       case 114: /* "update" */
 
 /* Line 1000 of yacc.c  */
-#line 249 "grammar.yy"
+#line 253 "grammar.yy"
 	{ delete (yyvaluep->update); };
 
 /* Line 1000 of yacc.c  */
-#line 1706 "grammar.cc"
+#line 1710 "grammar.cc"
 	break;
       case 115: /* "expr" */
 
 /* Line 1000 of yacc.c  */
-#line 250 "grammar.yy"
+#line 254 "grammar.yy"
 	{ delete (yyvaluep->expr); };
 
 /* Line 1000 of yacc.c  */
-#line 1715 "grammar.cc"
+#line 1719 "grammar.cc"
 	break;
       case 117: /* "arguments" */
 
 /* Line 1000 of yacc.c  */
-#line 251 "grammar.yy"
+#line 255 "grammar.yy"
 	{ delete (yyvaluep->arguments); };
 
 /* Line 1000 of yacc.c  */
-#line 1724 "grammar.cc"
+#line 1728 "grammar.cc"
 	break;
       case 119: /* "process_algebra" */
 
 /* Line 1000 of yacc.c  */
-#line 252 "grammar.yy"
+#line 256 "grammar.yy"
 	{ delete (yyvaluep->process_algebra); };
 
 /* Line 1000 of yacc.c  */
-#line 1733 "grammar.cc"
+#line 1737 "grammar.cc"
 	break;
       case 120: /* "action_list" */
 
 /* Line 1000 of yacc.c  */
-#line 253 "grammar.yy"
+#line 257 "grammar.yy"
 	{ delete (yyvaluep->actions); };
 
 /* Line 1000 of yacc.c  */
-#line 1742 "grammar.cc"
+#line 1746 "grammar.cc"
 	break;
       case 121: /* "action_substitutions" */
 
 /* Line 1000 of yacc.c  */
-#line 245 "grammar.yy"
+#line 249 "grammar.yy"
 	{ delete (yyvaluep->substitutions); };
 
 /* Line 1000 of yacc.c  */
-#line 1751 "grammar.cc"
+#line 1755 "grammar.cc"
 	break;
 
       default:
@@ -2079,581 +2083,581 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 257 "grammar.yy"
+#line 261 "grammar.yy"
     { if (!state->success) YYERROR; }
     break;
 
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 276 "grammar.yy"
+#line 280 "grammar.yy"
     { SetModelType(yylloc, ModelType::DTMC, state); }
     break;
 
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 278 "grammar.yy"
+#line 282 "grammar.yy"
     { SetModelType(yylloc, ModelType::CTMC, state); }
     break;
 
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 280 "grammar.yy"
+#line 284 "grammar.yy"
     { SetModelType(yylloc, ModelType::MDP, state); }
     break;
 
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 282 "grammar.yy"
+#line 286 "grammar.yy"
     { SetModelType(yylloc, ModelType::DTMC, state); }
     break;
 
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 284 "grammar.yy"
+#line 288 "grammar.yy"
     { SetModelType(yylloc, ModelType::CTMC, state); }
     break;
 
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 286 "grammar.yy"
+#line 290 "grammar.yy"
     { SetModelType(yylloc, ModelType::MDP, state); }
     break;
 
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 290 "grammar.yy"
+#line 294 "grammar.yy"
     { AddConstant(yylloc, (yyvsp[(2) - (4)].str), (yyvsp[(1) - (4)].type), (yyvsp[(3) - (4)].expr), state); }
     break;
 
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 294 "grammar.yy"
+#line 298 "grammar.yy"
     { (yyval.type) = Type::INT; }
     break;
 
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 296 "grammar.yy"
+#line 300 "grammar.yy"
     { (yyval.type) = Type::INT; }
     break;
 
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 298 "grammar.yy"
+#line 302 "grammar.yy"
     { (yyval.type) = Type::DOUBLE; }
     break;
 
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 300 "grammar.yy"
+#line 304 "grammar.yy"
     { (yyval.type) = Type::DOUBLE; }
     break;
 
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 302 "grammar.yy"
+#line 306 "grammar.yy"
     { (yyval.type) = Type::DOUBLE; }
     break;
 
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 304 "grammar.yy"
+#line 308 "grammar.yy"
     { (yyval.type) = Type::BOOL; }
     break;
 
   case 27:
 
 /* Line 1455 of yacc.c  */
-#line 308 "grammar.yy"
+#line 312 "grammar.yy"
     { (yyval.expr) = nullptr; }
     break;
 
   case 28:
 
 /* Line 1455 of yacc.c  */
-#line 310 "grammar.yy"
+#line 314 "grammar.yy"
     { (yyval.expr) = (yyvsp[(2) - (2)].expr); }
     break;
 
   case 32:
 
 /* Line 1455 of yacc.c  */
-#line 321 "grammar.yy"
+#line 325 "grammar.yy"
     { AddIntVariable(yylloc, (yyvsp[(1) - (9)].str), (yyvsp[(4) - (9)].expr), (yyvsp[(6) - (9)].expr), (yyvsp[(8) - (9)].expr), state); }
     break;
 
   case 33:
 
 /* Line 1455 of yacc.c  */
-#line 323 "grammar.yy"
+#line 327 "grammar.yy"
     { AddBoolVariable(yylloc, (yyvsp[(1) - (5)].str), (yyvsp[(4) - (5)].expr), state); }
     break;
 
   case 34:
 
 /* Line 1455 of yacc.c  */
-#line 327 "grammar.yy"
+#line 331 "grammar.yy"
     { (yyval.expr) = nullptr; }
     break;
 
   case 35:
 
 /* Line 1455 of yacc.c  */
-#line 329 "grammar.yy"
+#line 333 "grammar.yy"
     { (yyval.expr) = (yyvsp[(2) - (2)].expr); }
     break;
 
   case 36:
 
 /* Line 1455 of yacc.c  */
-#line 333 "grammar.yy"
+#line 337 "grammar.yy"
     { AddFormula(yylloc, (yyvsp[(2) - (5)].str), (yyvsp[(4) - (5)].expr), state); }
     break;
 
   case 37:
 
 /* Line 1455 of yacc.c  */
-#line 337 "grammar.yy"
+#line 341 "grammar.yy"
     { AddLabel(yylloc, (yyvsp[(2) - (5)].str), (yyvsp[(4) - (5)].expr), state); }
     break;
 
   case 38:
 
 /* Line 1455 of yacc.c  */
-#line 341 "grammar.yy"
+#line 345 "grammar.yy"
     { SetInit(yylloc, (yyvsp[(2) - (3)].expr), state); }
     break;
 
   case 39:
 
 /* Line 1455 of yacc.c  */
-#line 345 "grammar.yy"
+#line 349 "grammar.yy"
     { EndRewards(state); }
     break;
 
   case 40:
 
 /* Line 1455 of yacc.c  */
-#line 349 "grammar.yy"
+#line 353 "grammar.yy"
     { StartRewards(yylloc, nullptr, state); }
     break;
 
   case 41:
 
 /* Line 1455 of yacc.c  */
-#line 351 "grammar.yy"
+#line 355 "grammar.yy"
     { StartRewards(yylloc, (yyvsp[(1) - (1)].str), state); }
     break;
 
   case 45:
 
 /* Line 1455 of yacc.c  */
-#line 360 "grammar.yy"
+#line 364 "grammar.yy"
     { AddStateReward((yyvsp[(1) - (4)].expr), (yyvsp[(3) - (4)].expr), state); }
     break;
 
   case 46:
 
 /* Line 1455 of yacc.c  */
-#line 364 "grammar.yy"
+#line 368 "grammar.yy"
     { AddTransitionReward((yyvsp[(2) - (7)].str), (yyvsp[(4) - (7)].expr), (yyvsp[(6) - (7)].expr), state); }
     break;
 
   case 47:
 
 /* Line 1455 of yacc.c  */
-#line 368 "grammar.yy"
+#line 372 "grammar.yy"
     { EndModule(state); }
     break;
 
   case 48:
 
 /* Line 1455 of yacc.c  */
-#line 372 "grammar.yy"
+#line 376 "grammar.yy"
     { StartModule(yylloc, (yyvsp[(1) - (1)].str), state); }
     break;
 
   case 50:
 
 /* Line 1455 of yacc.c  */
-#line 377 "grammar.yy"
+#line 381 "grammar.yy"
     { AddFromModule(yylloc, (yyvsp[(2) - (5)].str), (yyvsp[(4) - (5)].substitutions), state); }
     break;
 
   case 51:
 
 /* Line 1455 of yacc.c  */
-#line 381 "grammar.yy"
+#line 385 "grammar.yy"
     { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), nullptr, state); }
     break;
 
   case 52:
 
 /* Line 1455 of yacc.c  */
-#line 383 "grammar.yy"
+#line 387 "grammar.yy"
     { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[(3) - (5)].str), (yyvsp[(5) - (5)].str), (yyvsp[(1) - (5)].substitutions), state); }
     break;
 
   case 55:
 
 /* Line 1455 of yacc.c  */
-#line 391 "grammar.yy"
+#line 395 "grammar.yy"
     { AddCommand(yylloc, (yyvsp[(2) - (7)].str), (yyvsp[(4) - (7)].expr), (yyvsp[(6) - (7)].outcomes), state); }
     break;
 
   case 56:
 
 /* Line 1455 of yacc.c  */
-#line 395 "grammar.yy"
+#line 399 "grammar.yy"
     { (yyval.str) = nullptr; }
     break;
 
   case 58:
 
 /* Line 1455 of yacc.c  */
-#line 400 "grammar.yy"
+#line 404 "grammar.yy"
     { (yyval.outcomes) = AddOutcome(MakeOutcome(nullptr, (yyvsp[(1) - (1)].updates)), nullptr); }
     break;
 
   case 60:
 
 /* Line 1455 of yacc.c  */
-#line 405 "grammar.yy"
+#line 409 "grammar.yy"
     { (yyval.outcomes) = AddOutcome((yyvsp[(1) - (1)].outcome), nullptr); }
     break;
 
   case 61:
 
 /* Line 1455 of yacc.c  */
-#line 407 "grammar.yy"
+#line 411 "grammar.yy"
     { (yyval.outcomes) = AddOutcome((yyvsp[(3) - (3)].outcome), (yyvsp[(1) - (3)].outcomes)); }
     break;
 
   case 62:
 
 /* Line 1455 of yacc.c  */
-#line 411 "grammar.yy"
+#line 415 "grammar.yy"
     { (yyval.outcome) = MakeOutcome((yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].updates)); }
     break;
 
   case 63:
 
 /* Line 1455 of yacc.c  */
-#line 415 "grammar.yy"
-    { (yyval.updates) = new std::vector<Update>(); }
+#line 419 "grammar.yy"
+    { (yyval.updates) = new std::vector<ParsedUpdate>(); }
     break;
 
   case 65:
 
 /* Line 1455 of yacc.c  */
-#line 420 "grammar.yy"
+#line 424 "grammar.yy"
     { (yyval.updates) = AddUpdate((yyvsp[(1) - (1)].update), nullptr); }
     break;
 
   case 66:
 
 /* Line 1455 of yacc.c  */
-#line 422 "grammar.yy"
+#line 426 "grammar.yy"
     { (yyval.updates) = AddUpdate((yyvsp[(3) - (3)].update), (yyvsp[(1) - (3)].updates)); }
     break;
 
   case 67:
 
 /* Line 1455 of yacc.c  */
-#line 426 "grammar.yy"
+#line 430 "grammar.yy"
     { (yyval.update) = MakeUpdate((yyvsp[(2) - (6)].str), (yyvsp[(5) - (6)].expr)); }
     break;
 
   case 68:
 
 /* Line 1455 of yacc.c  */
-#line 430 "grammar.yy"
-    { (yyval.expr) = new IntLiteral((yyvsp[(1) - (1)].int_literal)); }
+#line 434 "grammar.yy"
+    { (yyval.expr) = new ParsedLiteral((yyvsp[(1) - (1)].int_literal)); }
     break;
 
   case 69:
 
 /* Line 1455 of yacc.c  */
-#line 432 "grammar.yy"
-    { (yyval.expr) = new DoubleLiteral((yyvsp[(1) - (1)].double_literal)); }
+#line 436 "grammar.yy"
+    { (yyval.expr) = new ParsedLiteral((yyvsp[(1) - (1)].double_literal)); }
     break;
 
   case 70:
 
 /* Line 1455 of yacc.c  */
-#line 434 "grammar.yy"
-    { (yyval.expr) = new BoolLiteral(true); }
+#line 438 "grammar.yy"
+    { (yyval.expr) = new ParsedLiteral(true); }
     break;
 
   case 71:
 
 /* Line 1455 of yacc.c  */
-#line 436 "grammar.yy"
-    { (yyval.expr) = new BoolLiteral(false); }
+#line 440 "grammar.yy"
+    { (yyval.expr) = new ParsedLiteral(false); }
     break;
 
   case 72:
 
 /* Line 1455 of yacc.c  */
-#line 438 "grammar.yy"
-    { (yyval.expr) = new Identifier(*(yyvsp[(1) - (1)].str)); delete (yyvsp[(1) - (1)].str); }
+#line 442 "grammar.yy"
+    { (yyval.expr) = new ParsedIdentifier(*(yyvsp[(1) - (1)].str)); delete (yyvsp[(1) - (1)].str); }
     break;
 
   case 73:
 
 /* Line 1455 of yacc.c  */
-#line 440 "grammar.yy"
-    { (yyval.expr) = new FunctionCall((yyvsp[(1) - (4)].function), std::move(*(yyvsp[(3) - (4)].arguments))); delete (yyvsp[(3) - (4)].arguments); }
+#line 444 "grammar.yy"
+    { (yyval.expr) = new ParsedFunctionCall((yyvsp[(1) - (4)].function), std::move(*(yyvsp[(3) - (4)].arguments))); delete (yyvsp[(3) - (4)].arguments); }
     break;
 
   case 74:
 
 /* Line 1455 of yacc.c  */
-#line 442 "grammar.yy"
-    { (yyval.expr) = new FunctionCall((yyvsp[(3) - (6)].function), std::move(*(yyvsp[(5) - (6)].arguments))); delete (yyvsp[(5) - (6)].arguments); }
+#line 446 "grammar.yy"
+    { (yyval.expr) = new ParsedFunctionCall((yyvsp[(3) - (6)].function), std::move(*(yyvsp[(5) - (6)].arguments))); delete (yyvsp[(5) - (6)].arguments); }
     break;
 
   case 75:
 
 /* Line 1455 of yacc.c  */
-#line 444 "grammar.yy"
+#line 448 "grammar.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 76:
 
 /* Line 1455 of yacc.c  */
-#line 446 "grammar.yy"
+#line 450 "grammar.yy"
     { (yyval.expr) = MakeUnaryOperation(UnaryOperator::NEGATE, (yyvsp[(2) - (2)].expr)); }
     break;
 
   case 77:
 
 /* Line 1455 of yacc.c  */
-#line 448 "grammar.yy"
+#line 452 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::MULTIPLY, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 78:
 
 /* Line 1455 of yacc.c  */
-#line 450 "grammar.yy"
+#line 454 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::DIVIDE, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 79:
 
 /* Line 1455 of yacc.c  */
-#line 452 "grammar.yy"
+#line 456 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::PLUS, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 80:
 
 /* Line 1455 of yacc.c  */
-#line 454 "grammar.yy"
+#line 458 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::MINUS, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 81:
 
 /* Line 1455 of yacc.c  */
-#line 456 "grammar.yy"
+#line 460 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::LESS, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 82:
 
 /* Line 1455 of yacc.c  */
-#line 458 "grammar.yy"
+#line 462 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::LESS_EQUAL, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 83:
 
 /* Line 1455 of yacc.c  */
-#line 460 "grammar.yy"
+#line 464 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 84:
 
 /* Line 1455 of yacc.c  */
-#line 462 "grammar.yy"
+#line 466 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::GREATER, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 85:
 
 /* Line 1455 of yacc.c  */
-#line 464 "grammar.yy"
+#line 468 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::EQUAL, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 86:
 
 /* Line 1455 of yacc.c  */
-#line 466 "grammar.yy"
+#line 470 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::NOT_EQUAL, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 87:
 
 /* Line 1455 of yacc.c  */
-#line 468 "grammar.yy"
+#line 472 "grammar.yy"
     { (yyval.expr) = MakeUnaryOperation(UnaryOperator::NOT, (yyvsp[(2) - (2)].expr)); }
     break;
 
   case 88:
 
 /* Line 1455 of yacc.c  */
-#line 470 "grammar.yy"
+#line 474 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::AND, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 89:
 
 /* Line 1455 of yacc.c  */
-#line 472 "grammar.yy"
+#line 476 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::OR, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 90:
 
 /* Line 1455 of yacc.c  */
-#line 474 "grammar.yy"
+#line 478 "grammar.yy"
     { (yyval.expr) = MakeBinaryOperation(BinaryOperator::IMPLY, (yyvsp[(1) - (3)].expr), (yyvsp[(3) - (3)].expr)); }
     break;
 
   case 91:
 
 /* Line 1455 of yacc.c  */
-#line 476 "grammar.yy"
+#line 480 "grammar.yy"
     { (yyval.expr) = MakeConditional((yyvsp[(1) - (5)].expr), (yyvsp[(3) - (5)].expr), (yyvsp[(5) - (5)].expr)); }
     break;
 
   case 92:
 
 /* Line 1455 of yacc.c  */
-#line 480 "grammar.yy"
+#line 484 "grammar.yy"
     { (yyval.function) = MakeFunction(yylloc, (yyvsp[(1) - (1)].str), state); }
     break;
 
   case 93:
 
 /* Line 1455 of yacc.c  */
-#line 482 "grammar.yy"
+#line 486 "grammar.yy"
     { (yyval.function) = Function::MAX; }
     break;
 
   case 94:
 
 /* Line 1455 of yacc.c  */
-#line 484 "grammar.yy"
+#line 488 "grammar.yy"
     { (yyval.function) = Function::MIN; }
     break;
 
   case 95:
 
 /* Line 1455 of yacc.c  */
-#line 488 "grammar.yy"
-    { (yyval.arguments) = new ArgumentList(std::unique_ptr<const Expression>((yyvsp[(1) - (1)].expr))); }
+#line 492 "grammar.yy"
+    { (yyval.arguments) = new ParsedArgumentList(std::unique_ptr<const ParsedExpression>((yyvsp[(1) - (1)].expr))); }
     break;
 
   case 96:
 
 /* Line 1455 of yacc.c  */
-#line 490 "grammar.yy"
-    { (yyval.arguments) = (yyvsp[(1) - (3)].arguments); (yyval.arguments)->push_back(std::unique_ptr<const Expression>((yyvsp[(3) - (3)].expr))); }
+#line 494 "grammar.yy"
+    { (yyval.arguments) = (yyvsp[(1) - (3)].arguments); (yyval.arguments)->push_back(std::unique_ptr<const ParsedExpression>((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 97:
 
 /* Line 1455 of yacc.c  */
-#line 494 "grammar.yy"
+#line 498 "grammar.yy"
     { SetSystem(yylloc, (yyvsp[(2) - (3)].process_algebra), state); }
     break;
 
   case 98:
 
 /* Line 1455 of yacc.c  */
-#line 498 "grammar.yy"
+#line 502 "grammar.yy"
     { (yyval.process_algebra) = new ModuleIdentifier(*(yyvsp[(1) - (1)].str)); delete (yyvsp[(1) - (1)].str); }
     break;
 
   case 99:
 
 /* Line 1455 of yacc.c  */
-#line 500 "grammar.yy"
+#line 504 "grammar.yy"
     { (yyval.process_algebra) = (yyvsp[(2) - (3)].process_algebra); }
     break;
 
   case 100:
 
 /* Line 1455 of yacc.c  */
-#line 502 "grammar.yy"
+#line 506 "grammar.yy"
     { (yyval.process_algebra) = MakeActionHiding((yyvsp[(4) - (5)].actions), (yyvsp[(1) - (5)].process_algebra)); }
     break;
 
   case 101:
 
 /* Line 1455 of yacc.c  */
-#line 504 "grammar.yy"
+#line 508 "grammar.yy"
     { (yyval.process_algebra) = MakeActionRenaming((yyvsp[(3) - (4)].substitutions), (yyvsp[(1) - (4)].process_algebra)); }
     break;
 
   case 102:
 
 /* Line 1455 of yacc.c  */
-#line 506 "grammar.yy"
+#line 510 "grammar.yy"
     { (yyval.process_algebra) = MakeRestrictedParallelComposition((yyvsp[(4) - (7)].actions), (yyvsp[(1) - (7)].process_algebra), (yyvsp[(7) - (7)].process_algebra)); }
     break;
 
   case 103:
 
 /* Line 1455 of yacc.c  */
-#line 508 "grammar.yy"
+#line 512 "grammar.yy"
     { (yyval.process_algebra) = MakeAlphabetizedParallelComposition((yyvsp[(1) - (3)].process_algebra), (yyvsp[(3) - (3)].process_algebra)); }
     break;
 
   case 104:
 
 /* Line 1455 of yacc.c  */
-#line 510 "grammar.yy"
+#line 514 "grammar.yy"
     { (yyval.process_algebra) = MakeAsynchronousParallelComposition((yyvsp[(1) - (3)].process_algebra), (yyvsp[(3) - (3)].process_algebra)); }
     break;
 
   case 105:
 
 /* Line 1455 of yacc.c  */
-#line 514 "grammar.yy"
+#line 518 "grammar.yy"
     { (yyval.actions) = AddAction(yylloc, (yyvsp[(1) - (1)].str), nullptr, state); }
     break;
 
   case 106:
 
 /* Line 1455 of yacc.c  */
-#line 516 "grammar.yy"
+#line 520 "grammar.yy"
     { (yyval.actions) = AddAction(yylloc, (yyvsp[(3) - (3)].str), (yyvsp[(1) - (3)].actions), state); }
     break;
 
   case 107:
 
 /* Line 1455 of yacc.c  */
-#line 520 "grammar.yy"
+#line 524 "grammar.yy"
     { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str), nullptr,
                                                 state); }
     break;
@@ -2661,14 +2665,14 @@ yyreduce:
   case 108:
 
 /* Line 1455 of yacc.c  */
-#line 523 "grammar.yy"
+#line 527 "grammar.yy"
     { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[(3) - (5)].str), (yyvsp[(5) - (5)].str), (yyvsp[(1) - (5)].substitutions), state); }
     break;
 
 
 
 /* Line 1455 of yacc.c  */
-#line 2672 "grammar.cc"
+#line 2676 "grammar.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2887,23 +2891,36 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 526 "grammar.yy"
+#line 530 "grammar.yy"
 
+
+namespace {
+
+Optional<std::string> MakeOptionalAction(const std::string* action) {
+  if (action) {
+    std::unique_ptr<const std::string> owned_action(action);
+    return Optional<std::string>(*action);
+  } else {
+    return Optional<std::string>();
+  }
+}
+
+}  // namespace
 
 static void yyerror(
     const YYLTYPE& location, const std::string& msg, ParserState* state) {
   CHECK(state);
 
   if (state->message) {
-    std::ostringstream os;
+    std::ostringstream out;
     if (state->filename && *state->filename != "-") {
-      os << *state->filename << ':';
+      out << *state->filename << ':';
     }
-    os << location.first_line << ':' << msg;
+    out << location.first_line << ':' << msg;
     if (!state->message->empty()) {
       *state->message += "\n";
     }
-    *state->message += os.str();
+    *state->message += out.str();
   }
   state->success = false;
 }
@@ -2926,14 +2943,14 @@ static void SetModelType(
 static void AddConstant(const YYLTYPE& location,
                         const std::string* name,
                         Type type,
-                        const Expression* init,
+                        const ParsedExpression* init,
                         ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddConstant(
-          *name, type, std::unique_ptr<const Expression>(init))) {
+          *name, type, std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -2941,9 +2958,9 @@ static void AddConstant(const YYLTYPE& location,
 
 static void AddIntVariable(const YYLTYPE& location,
                            const std::string* name,
-                           const Expression* min,
-                           const Expression* max,
-                           const Expression* init,
+                           const ParsedExpression* min,
+                           const ParsedExpression* max,
+                           const ParsedExpression* init,
                            ParserState* state) {
   CHECK(name);
   CHECK(state);
@@ -2951,9 +2968,9 @@ static void AddIntVariable(const YYLTYPE& location,
 
   if (!state->model->AddIntVariable(
           *name,
-          Range(std::unique_ptr<const Expression>(min),
-                std::unique_ptr<const Expression>(max)),
-          std::unique_ptr<const Expression>(init))) {
+          Range(std::unique_ptr<const ParsedExpression>(min),
+                std::unique_ptr<const ParsedExpression>(max)),
+          std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -2961,14 +2978,14 @@ static void AddIntVariable(const YYLTYPE& location,
 
 static void AddBoolVariable(const YYLTYPE& location,
                             const std::string* name,
-                            const Expression* init,
+                            const ParsedExpression* init,
                             ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddBoolVariable(
-          *name, std::unique_ptr<const Expression>(init))) {
+          *name, std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -2976,14 +2993,14 @@ static void AddBoolVariable(const YYLTYPE& location,
 
 static void AddFormula(const YYLTYPE& location,
                        const std::string* name,
-                       const Expression* expr,
+                       const ParsedExpression* expr,
                        ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddFormula(
-          *name, std::unique_ptr<const Expression>(expr))) {
+          *name, std::unique_ptr<const ParsedExpression>(expr))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete name;
@@ -2991,25 +3008,25 @@ static void AddFormula(const YYLTYPE& location,
 
 static void AddLabel(const YYLTYPE& location,
                      const std::string* name,
-                     const Expression* expr,
+                     const ParsedExpression* expr,
                      ParserState* state) {
   CHECK(name);
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddLabel(
-          *name, std::unique_ptr<const Expression>(expr))) {
+          *name, std::unique_ptr<const ParsedExpression>(expr))) {
     yyerror(location, "duplicate label", state);
   }
   delete name;
 }
 
 static void SetInit(
-    const YYLTYPE& location, const Expression* init, ParserState* state) {
+    const YYLTYPE& location, const ParsedExpression* init, ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
-  if (!state->model->SetInit(std::unique_ptr<const Expression>(init))) {
+  if (!state->model->SetInit(std::unique_ptr<const ParsedExpression>(init))) {
     yyerror(location, "multiple init blocks", state);
   }
 }
@@ -3036,27 +3053,28 @@ static void EndRewards(ParserState* state) {
   state->model->EndRewards();
 }
 
-static void AddStateReward(
-    const Expression* guard, const Expression* reward, ParserState* state) {
+static void AddStateReward(const ParsedExpression* guard,
+                           const ParsedExpression* reward,
+                           ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
   state->model->AddStateReward(StateReward(
-      std::unique_ptr<const Expression>(guard),
-      std::unique_ptr<const Expression>(reward)));
+      std::unique_ptr<const ParsedExpression>(guard),
+      std::unique_ptr<const ParsedExpression>(reward)));
 }
 
 static void AddTransitionReward(const std::string* action,
-                                const Expression* guard,
-                                const Expression* reward,
+                                const ParsedExpression* guard,
+                                const ParsedExpression* reward,
                                 ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
   state->model->AddTransitionReward(TransitionReward(
-      std::unique_ptr<const std::string>(action),
-      std::unique_ptr<const Expression>(guard),
-      std::unique_ptr<const Expression>(reward)));
+      MakeOptionalAction(action),
+      std::unique_ptr<const ParsedExpression>(guard),
+      std::unique_ptr<const ParsedExpression>(reward)));
 }
 
 static void StartModule(
@@ -3097,16 +3115,16 @@ static void AddFromModule(
 
 static void AddCommand(const YYLTYPE& location,
                        const std::string* action,
-                       const Expression* guard,
-                       std::vector<Outcome>* outcomes,
+                       const ParsedExpression* guard,
+                       std::vector<ParsedOutcome>* outcomes,
                        ParserState* state) {
   CHECK(state);
   CHECK(state->model);
 
   if (!state->model->AddCommand(
-          Command(std::unique_ptr<const std::string>(action),
-                  std::unique_ptr<const Expression>(guard),
-                  std::move(*outcomes)))) {
+          ParsedCommand(MakeOptionalAction(action),
+                        std::unique_ptr<const ParsedExpression>(guard),
+                        std::move(*outcomes)))) {
     yyerror(location, "duplicate identifier", state);
   }
   delete outcomes;
@@ -3151,34 +3169,36 @@ static std::vector<Movable>* AddToVector(Movable* element,
 
 }  // namespace
 
-static std::vector<Outcome>* AddOutcome(Outcome* outcome,
-                                        std::vector<Outcome>* outcomes) {
+static std::vector<ParsedOutcome>* AddOutcome(
+    ParsedOutcome* outcome, std::vector<ParsedOutcome>* outcomes) {
   return AddToVector(outcome, outcomes);
 }
 
-static Outcome* MakeOutcome(const Expression* probability,
-                            std::vector<Update>* updates) {
+static ParsedOutcome* MakeOutcome(const ParsedExpression* probability,
+                                  std::vector<ParsedUpdate>* updates) {
   CHECK(updates);
 
   if (probability == nullptr) {
-    probability = new DoubleLiteral(1.0);
+    probability = new ParsedLiteral(1.0);
   }
-  Outcome* outcome = new Outcome(std::unique_ptr<const Expression>(probability),
-                                 std::move(*updates));
+  ParsedOutcome* outcome =
+      new ParsedOutcome(std::unique_ptr<const ParsedExpression>(probability),
+                        std::move(*updates));
   delete updates;
   return outcome;
 }
 
-static std::vector<Update>* AddUpdate(Update* update,
-                                      std::vector<Update>* updates) {
+static std::vector<ParsedUpdate>* AddUpdate(
+    ParsedUpdate* update, std::vector<ParsedUpdate>* updates) {
   return AddToVector(update, updates);
 }
 
-static Update* MakeUpdate(const std::string* variable, const Expression* expr) {
+static ParsedUpdate* MakeUpdate(const std::string* variable,
+                                const ParsedExpression* expr) {
   CHECK(variable);
 
-  Update* update = new Update(*variable,
-                              std::unique_ptr<const Expression>(expr));
+  ParsedUpdate* update = new ParsedUpdate(
+      *variable, std::unique_ptr<const ParsedExpression>(expr));
   delete variable;
   return update;
 }
@@ -3206,25 +3226,30 @@ static Function MakeFunction(
   return function;
 }
 
-static const Expression* MakeUnaryOperation(UnaryOperator op,
-                                            const Expression* operand) {
-  return new UnaryOperation(op, std::unique_ptr<const Expression>(operand));
+static const ParsedExpression* MakeUnaryOperation(
+    UnaryOperator op, const ParsedExpression* operand) {
+  return new ParsedUnaryOperation(
+      op, std::unique_ptr<const ParsedExpression>(operand));
 }
 
-static const Expression* MakeBinaryOperation(BinaryOperator op,
-                                             const Expression* operand1,
-                                             const Expression* operand2) {
-  return new BinaryOperation(op,
-                             std::unique_ptr<const Expression>(operand1),
-                             std::unique_ptr<const Expression>(operand2));
+static const ParsedExpression* MakeBinaryOperation(
+    BinaryOperator op,
+    const ParsedExpression* operand1,
+    const ParsedExpression* operand2) {
+  return new ParsedBinaryOperation(
+      op,
+      std::unique_ptr<const ParsedExpression>(operand1),
+      std::unique_ptr<const ParsedExpression>(operand2));
 }
 
-static const Expression* MakeConditional(const Expression* condition,
-                                         const Expression* if_expr,
-                                         const Expression* else_expr) {
-  return new Conditional(std::unique_ptr<const Expression>(condition),
-                         std::unique_ptr<const Expression>(if_expr),
-                         std::unique_ptr<const Expression>(else_expr));
+static const ParsedExpression* MakeConditional(
+    const ParsedExpression* condition,
+    const ParsedExpression* if_expr,
+    const ParsedExpression* else_expr) {
+  return new ParsedConditional(
+      std::unique_ptr<const ParsedExpression>(condition),
+      std::unique_ptr<const ParsedExpression>(if_expr),
+      std::unique_ptr<const ParsedExpression>(else_expr));
 }
 
 static void SetSystem(

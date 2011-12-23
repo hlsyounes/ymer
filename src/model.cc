@@ -21,18 +21,20 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "glog/logging.h"
 
+#include "command.h"
 #include "expression.h"
 #include "process-algebra.h"
 #include "type.h"
 
-Range::Range(std::unique_ptr<const Expression>&& min,
-             std::unique_ptr<const Expression>&& max)
+Range::Range(std::unique_ptr<const ParsedExpression>&& min,
+             std::unique_ptr<const ParsedExpression>&& max)
     : min_(std::move(min)), max_(std::move(max)) {
   CHECK(min_);
   CHECK(max_);
@@ -42,61 +44,8 @@ Range::Range(Range&& range)
     : min_(std::move(range.min_)), max_(std::move(range.max_)) {
 }
 
-Update::Update(const std::string& variable,
-               std::unique_ptr<const Expression>&& expr)
-    : variable_(variable), expr_(std::move(expr)) {
-  CHECK(expr_);
-}
-
-Update::Update(Update&& update)
-    : variable_(std::move(update.variable_)), expr_(std::move(update.expr_)) {
-}
-
-Update& Update::operator=(Update&& update) {
-  variable_ = std::move(update.variable_);
-  expr_ = std::move(update.expr_);
-  return *this;
-}
-
-Outcome::Outcome(std::unique_ptr<const Expression>&& probability,
-                 std::vector<Update>&& updates)
-    : probability_(std::move(probability)), updates_(std::move(updates)) {
-  CHECK(probability_);
-}
-
-Outcome::Outcome(Outcome&& outcome)
-    : probability_(std::move(outcome.probability_)),
-      updates_(std::move(outcome.updates_)) {
-}
-
-Outcome& Outcome::operator=(Outcome&& outcome) {
-  probability_ = std::move(outcome.probability_);
-  updates_ = std::move(outcome.updates_);
-  return *this;
-}
-
-Command::Command(std::unique_ptr<const std::string>&& action,
-                 std::unique_ptr<const Expression>&& guard,
-                 std::vector<Outcome>&& outcomes)
-    : action_(std::move(action)), guard_(std::move(guard)),
-      outcomes_(std::move(outcomes)) {
-  CHECK(guard_);
-}
-
-Command::Command(Command&& command)
-    : action_(std::move(command.action_)), guard_(std::move(command.guard_)),
-      outcomes_(std::move(command.outcomes_)) {
-}
-
-Command& Command::operator=(Command&& command) {
-  action_ = std::move(command.action_);
-  guard_ = std::move(command.guard_);
-  outcomes_ = std::move(command.outcomes_);
-  return *this;
-}
-
-StateReward::StateReward(std::unique_ptr<const Expression>&& guard,
-                         std::unique_ptr<const Expression>&& reward)
+StateReward::StateReward(std::unique_ptr<const ParsedExpression>&& guard,
+                         std::unique_ptr<const ParsedExpression>&& reward)
     : guard_(std::move(guard)), reward_(std::move(reward)) {
   CHECK(guard_);
   CHECK(reward_);
@@ -113,12 +62,11 @@ StateReward& StateReward::operator=(StateReward&& state_reward) {
   return *this;
 }
 
-TransitionReward::TransitionReward(std::unique_ptr<const std::string>&& action,
-                                   std::unique_ptr<const Expression>&& guard,
-                                   std::unique_ptr<const Expression>&& reward)
-    : action_(std::move(action)),
-      guard_(std::move(guard)),
-      reward_(std::move(reward)) {
+TransitionReward::TransitionReward(
+    const Optional<std::string>& action,
+    std::unique_ptr<const ParsedExpression>&& guard,
+    std::unique_ptr<const ParsedExpression>&& reward)
+    : action_(action), guard_(std::move(guard)), reward_(std::move(reward)) {
 }
 
 TransitionReward::TransitionReward(TransitionReward&& transition_reward)
@@ -212,7 +160,7 @@ int IdentifierUniqueId(int index, int offset) {
 }  // namespace
 
 bool Model::AddConstant(const std::string& name, Type type,
-                        std::unique_ptr<const Expression>&& init) {
+                        std::unique_ptr<const ParsedExpression>&& init) {
   const int index = constant_types_.size();
   const int id = IdentifierUniqueId(index, kConstantOffset);
   if (!identifiers_.insert({ name, id }).second) {
@@ -225,7 +173,7 @@ bool Model::AddConstant(const std::string& name, Type type,
   return true;
 }
 
-const Expression* Model::GetConstantInit(int i) const {
+const ParsedExpression* Model::GetConstantInit(int i) const {
   auto j = constant_inits_.find(i);
   return (j != constant_inits_.end()) ? j->second.get() : nullptr;
 }
@@ -241,7 +189,7 @@ const std::string& Model::GetConstantName(int i) const {
 }
 
 bool Model::AddVariable(const std::string& name, Type type, Range* range,
-                        std::unique_ptr<const Expression>&& init) {
+                        std::unique_ptr<const ParsedExpression>&& init) {
   const int index = variable_types_.size();
   const int id = IdentifierUniqueId(index, kVariableOffset);
   if (!identifiers_.insert({ name, id }).second) {
@@ -264,12 +212,12 @@ bool Model::AddVariable(const std::string& name, Type type, Range* range,
 }
 
 bool Model::AddIntVariable(const std::string& name, Range&& range,
-                           std::unique_ptr<const Expression>&& init) {
+                           std::unique_ptr<const ParsedExpression>&& init) {
   return AddVariable(name, Type::INT, &range, std::move(init));
 }
 
 bool Model::AddBoolVariable(const std::string& name,
-                            std::unique_ptr<const Expression>&& init) {
+                            std::unique_ptr<const ParsedExpression>&& init) {
   return AddVariable(name, Type::BOOL, nullptr /* range */, std::move(init));
 }
 
@@ -290,7 +238,7 @@ const Range* Model::GetVariableRange(int i) const {
   return (j != variable_ranges_.end()) ? &j->second : nullptr;
 }
 
-const Expression* Model::GetVariableInit(int i) const {
+const ParsedExpression* Model::GetVariableInit(int i) const {
   auto j = variable_inits_.find(i);
   return (j != variable_inits_.end()) ? j->second.get() : nullptr;
 }
@@ -306,7 +254,7 @@ const std::string& Model::GetVariableName(int i) const {
 }
 
 bool Model::AddFormula(const std::string& name,
-                       std::unique_ptr<const Expression>&& expr) {
+                       std::unique_ptr<const ParsedExpression>&& expr) {
   CHECK(expr);
   const int id = IdentifierUniqueId(formula_exprs_.size(), kFormulaOffset);
   if (!identifiers_.insert({ name, id }).second) {
@@ -326,12 +274,12 @@ const std::string& Model::GetFormulaName(int i) const {
   LOG(FATAL) << "invalid formula index " << i;
 }
 
-bool Model::AddAction(const std::string* name) {
+bool Model::AddAction(const Optional<std::string>& name) {
   if (name) {
     // We reuse the same index for all actions, since we just need to ensure
     // that actions do not clash with other identifier kinds.
     const int id = IdentifierUniqueId(0, kActionOffset);
-    auto result = identifiers_.insert({ *name, id });
+    auto result = identifiers_.insert({ name.get(), id });
     return result.second
         || IdentifierOffset(result.first->second) == kActionOffset;
   }
@@ -369,7 +317,7 @@ const std::string& Model::GetModuleName(int i) const {
   LOG(FATAL) << "invalid module index " << i;
 }
 
-bool Model::AddCommand(Command&& command) {
+bool Model::AddCommand(ParsedCommand&& command) {
   CHECK_NE(current_module_, kNoModule);
   if (!AddAction(command.action())) {
     return false;
@@ -390,7 +338,7 @@ std::string RewriteName(
 
 // Expression visitor that rewrites an expression subject to a set of
 // identifier substitutions.
-class ExpressionRewriter : public ExpressionVisitor {
+class ExpressionRewriter : public ParsedExpressionVisitor {
  public:
   // Constructs an expression rewriter with the given substitutions.
   explicit ExpressionRewriter(
@@ -402,73 +350,70 @@ class ExpressionRewriter : public ExpressionVisitor {
   virtual ~ExpressionRewriter();
 
   // Releases the latest rewritten expression to the caller.
-  std::unique_ptr<const Expression> new_expr() { return std::move(new_expr_); }
-
-  virtual void VisitIntLiteral(const IntLiteral& expr) {
-    new_expr_ = IntLiteral::Create(expr.value());
+  std::unique_ptr<const ParsedExpression> new_expr() {
+    return std::move(new_expr_);
   }
 
-  virtual void VisitDoubleLiteral(const DoubleLiteral& expr) {
-    new_expr_ = DoubleLiteral::Create(expr.value());
+  virtual void VisitLiteral(const ParsedLiteral& expr) {
+    new_expr_ = ParsedLiteral::Create(expr.value());
   }
 
-  virtual void VisitBoolLiteral(const BoolLiteral& expr) {
-    new_expr_ = BoolLiteral::Create(expr.value());
+  virtual void VisitIdentifier(const ParsedIdentifier& expr) {
+    new_expr_ =
+        ParsedIdentifier::Create(RewriteName(expr.id(), *substitutions_));
   }
 
-  virtual void VisitIdentifier(const Identifier& expr) {
-    new_expr_ = Identifier::Create(RewriteName(expr.name(), *substitutions_));
-  }
-
-  virtual void VisitFunctionCall(const FunctionCall& expr) {
-    ArgumentList new_arguments;
+  virtual void VisitFunctionCall(const ParsedFunctionCall& expr) {
+    ParsedArgumentList new_arguments;
     ExpressionRewriter argument_rewriter(substitutions_);
-    for (const Expression& argument: expr.arguments()) {
+    for (const ParsedExpression& argument: expr.arguments()) {
       argument.Accept(&argument_rewriter);
       new_arguments.push_back(argument_rewriter.new_expr());
     }
-    new_expr_ = FunctionCall::Create(expr.function(), std::move(new_arguments));
+    new_expr_ =
+        ParsedFunctionCall::Create(expr.function(), std::move(new_arguments));
   }
 
-  virtual void VisitUnaryOperation(const UnaryOperation& expr) {
+  virtual void VisitUnaryOperation(const ParsedUnaryOperation& expr) {
     ExpressionRewriter operand_rewriter(substitutions_);
     expr.operand().Accept(&operand_rewriter);
-    new_expr_ = UnaryOperation::Create(expr.op(), operand_rewriter.new_expr());
+    new_expr_ =
+        ParsedUnaryOperation::Create(expr.op(), operand_rewriter.new_expr());
   }
 
-  virtual void VisitBinaryOperation(const BinaryOperation& expr) {
+  virtual void VisitBinaryOperation(const ParsedBinaryOperation& expr) {
     ExpressionRewriter operand1_rewriter(substitutions_);
     expr.operand1().Accept(&operand1_rewriter);
     ExpressionRewriter operand2_rewriter(substitutions_);
     expr.operand2().Accept(&operand2_rewriter);
-    new_expr_ = BinaryOperation::Create(expr.op(),
-                                        operand1_rewriter.new_expr(),
-                                        operand2_rewriter.new_expr());
+    new_expr_ = ParsedBinaryOperation::Create(expr.op(),
+                                              operand1_rewriter.new_expr(),
+                                              operand2_rewriter.new_expr());
   }
 
-  virtual void VisitConditional(const Conditional& expr) {
+  virtual void VisitConditional(const ParsedConditional& expr) {
     ExpressionRewriter condition_rewriter(substitutions_);
     expr.condition().Accept(&condition_rewriter);
     ExpressionRewriter if_expr_rewriter(substitutions_);
     expr.if_expr().Accept(&if_expr_rewriter);
     ExpressionRewriter else_expr_rewriter(substitutions_);
     expr.else_expr().Accept(&else_expr_rewriter);
-    new_expr_ = Conditional::Create(condition_rewriter.new_expr(),
-                                    if_expr_rewriter.new_expr(),
-                                    else_expr_rewriter.new_expr());
+    new_expr_ = ParsedConditional::Create(condition_rewriter.new_expr(),
+                                          if_expr_rewriter.new_expr(),
+                                          else_expr_rewriter.new_expr());
   }
 
  private:
   const std::map<std::string, std::string>* substitutions_;
-  std::unique_ptr<const Expression> new_expr_;
+  std::unique_ptr<const ParsedExpression> new_expr_;
 };
 
 ExpressionRewriter::~ExpressionRewriter() = default;
 
 // Rewrites the given expression subject to the given identifier
 // substitutions.
-std::unique_ptr<const Expression> RewriteExpression(
-    const Expression* expr,
+std::unique_ptr<const ParsedExpression> RewriteExpression(
+    const ParsedExpression* expr,
     const std::map<std::string, std::string>& substitutions) {
   if (expr) {
     ExpressionRewriter expr_rewriter(&substitutions);
@@ -491,63 +436,91 @@ Range RewriteRange(const Range& range,
 }
 
 // Rewrites the given action subject to the given identifier substitutions.
-std::unique_ptr<const std::string> RewriteAction(
-    const std::string* action,
+Optional<std::string> RewriteAction(
+    const Optional<std::string>& action,
     const std::map<std::string, std::string>& substitutions) {
   if (action) {
-    auto i = substitutions.find(*action);
-    return (i != substitutions.end())
-        ? std::unique_ptr<const std::string>(new std::string(i->second))
-        : nullptr;
+    auto i = substitutions.find(action.get());
+    if (i != substitutions.end()) {
+      return i->second;
+    } else {
+      return action;
+    }
   } else {
-    return nullptr;
+    return action;
   }
 }
 
 // Rewrites the given update subject to the given identifier substitutions.
-Update RewriteUpdate(const Update& update,
-                     const std::map<std::string, std::string>& substitutions) {
-  return Update(RewriteName(update.variable(), substitutions),
-                RewriteExpression(&update.expr(), substitutions));
+ParsedUpdate RewriteUpdate(
+    const ParsedUpdate& update,
+    const std::map<std::string, std::string>& substitutions) {
+  return ParsedUpdate(RewriteName(update.variable(), substitutions),
+                      RewriteExpression(&update.expr(), substitutions));
 }
 
 // Rewrites the given updates subject to the given identifier substitutions.
-std::vector<Update> RewriteUpdates(
-    const std::vector<Update>& updates,
+std::vector<ParsedUpdate> RewriteUpdates(
+    const std::vector<ParsedUpdate>& updates,
     const std::map<std::string, std::string>& substitutions) {
-  std::vector<Update> new_updates;
-  for (const Update& update: updates) {
+  std::vector<ParsedUpdate> new_updates;
+  for (const ParsedUpdate& update: updates) {
     new_updates.push_back(RewriteUpdate(update, substitutions));
   }
   return std::move(new_updates);
 }
 
 // Rewrites the given outcome subject to the given identifier substitutions.
-Outcome RewriteOutcome(
-    const Outcome& outcome,
+ParsedOutcome RewriteOutcome(
+    const ParsedOutcome& outcome,
     const std::map<std::string, std::string>& substitutions) {
-  return Outcome(RewriteExpression(&outcome.probability(), substitutions),
-                 RewriteUpdates(outcome.updates(), substitutions));
+  return ParsedOutcome(RewriteExpression(&outcome.probability(), substitutions),
+                       RewriteUpdates(outcome.updates(), substitutions));
 }
 
 // Rewrites the given outcomes subject to the given identifier substitutions.
-std::vector<Outcome> RewriteOutcomes(
-    const std::vector<Outcome>& outcomes,
+std::vector<ParsedOutcome> RewriteOutcomes(
+    const std::vector<ParsedOutcome>& outcomes,
     const std::map<std::string, std::string>& substitutions) {
-  std::vector<Outcome> new_outcomes;
-  for (const Outcome& outcome: outcomes) {
+  std::vector<ParsedOutcome> new_outcomes;
+  for (const ParsedOutcome& outcome: outcomes) {
     new_outcomes.push_back(RewriteOutcome(outcome, substitutions));
   }
   return std::move(new_outcomes);
 }
 
 // Rewrites the given command subject to the given identifier substitutions.
-Command RewriteCommand(
-    const Command& command,
+ParsedCommand RewriteCommand(
+    const ParsedCommand& command,
     const std::map<std::string, std::string>& substitutions) {
-  return Command(RewriteAction(command.action(), substitutions),
-                 RewriteExpression(&command.guard(), substitutions),
-                 RewriteOutcomes(command.outcomes(), substitutions));
+  return ParsedCommand(RewriteAction(command.action(), substitutions),
+                       RewriteExpression(&command.guard(), substitutions),
+                       RewriteOutcomes(command.outcomes(), substitutions));
+}
+
+void SetUndefinedModuleError(const std::string& module, std::string* error) {
+  if (error) {
+    std::stringstream out;
+    out << "undefined module '" << module << "'";
+    *error = out.str();
+  }
+}
+
+void SetMissingVariableSubstitutionError(
+    const std::string& module, const std::string& variable,
+    std::string* error) {
+  if (error) {
+    std::stringstream out;
+    out << "missing substitution for module '" << module
+        << "' variable '" << variable << "'";
+    *error = out.str();
+  }
+}
+
+void SetDuplicateIdentifierError(std::string* error) {
+  if (error) {
+    *error = "duplicate identifier";
+  }
 }
 
 }  // namespace
@@ -561,11 +534,7 @@ bool Model::AddFromModule(
   // Find index of from_module.
   int from_module_index;
   if (!GetModuleIndex(from_module, &from_module_index)) {
-    if (error) {
-      *error = "undefined module '";
-      *error += from_module;
-      *error += "'";
-    }
+    SetUndefinedModuleError(from_module, error);
     return false;
   }
 
@@ -575,13 +544,7 @@ bool Model::AddFromModule(
     const std::string& from_name = GetVariableName(from_index);
     auto i = substitutions.find(from_name);
     if (i == substitutions.end()) {
-      if (error) {
-        *error = "missing substitution for module '";
-        *error += from_module;
-        *error += "' variable '";
-        *error += from_name;
-        *error += "'";
-      }
+      SetMissingVariableSubstitutionError(from_module, from_name, error);
       return false;
     }
     const std::string& to_name = i->second;
@@ -591,26 +554,22 @@ bool Model::AddFromModule(
               RewriteRange(*CHECK_NOTNULL(GetVariableRange(from_index)),
                            substitutions),
               RewriteExpression(GetVariableInit(from_index), substitutions))) {
-        if (error) {
-          *error = "duplicate identifier";
-        }
+        SetDuplicateIdentifierError(error);
         return false;
       }
     } else {
       if (!AddBoolVariable(std::string(to_name),
                            RewriteExpression(GetVariableInit(from_index),
                                              substitutions))) {
-        if (error) {
-          *error = "duplicate identifier";
-        }
+        SetDuplicateIdentifierError(error);
         return false;
       }
     }
   }
 
-  for (const Command& command: module_commands(from_module_index)) {
+  for (const ParsedCommand& command: module_commands(from_module_index)) {
     if (!AddCommand(RewriteCommand(command, substitutions))) {
-      *error = "duplicate identifier";
+      SetDuplicateIdentifierError(error);
       return false;
     }
   }
@@ -624,17 +583,17 @@ void Model::EndModule() {
 }
 
 bool Model::AddLabel(const std::string& label,
-                     std::unique_ptr<const Expression>&& expr) {
+                     std::unique_ptr<const ParsedExpression>&& expr) {
   CHECK(expr);
   return labels_.insert(std::make_pair(label, std::move(expr))).second;
 }
 
-const Expression* Model::GetLabelExpr(const std::string& label) const {
+const ParsedExpression* Model::GetLabelExpr(const std::string& label) const {
   auto i = labels_.find(label);
   return (i != labels_.end()) ? i->second.get() : nullptr;
 }
 
-bool Model::SetInit(std::unique_ptr<const Expression>&& init) {
+bool Model::SetInit(std::unique_ptr<const ParsedExpression>&& init) {
   CHECK(init);
   if (init_) {
     return false;

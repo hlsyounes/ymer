@@ -11,5 +11,6 @@ fi
 
 models=$(find $1 -regex '.*[psn]m')
 for m in ${models}; do
-  HEAPCHECK=normal ./parser ${m} || die ${m}
+  echo PARSING MODEL ${m}
+  HEAPCHECK=normal ./parser --logtostderr ${m} || die ${m}
 done

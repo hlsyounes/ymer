@@ -31,80 +31,36 @@
 namespace {
 
 TEST(RangeTest, ConstructsRange) {
-  std::unique_ptr<const Expression> min(IntLiteral::Create(17));
-  const Expression* const raw_min = min.get();
-  std::unique_ptr<const Expression> max(IntLiteral::Create(42));
-  const Expression* const raw_max = max.get();
+  std::unique_ptr<const ParsedExpression> min(ParsedLiteral::Create(17));
+  const ParsedExpression* const raw_min = min.get();
+  std::unique_ptr<const ParsedExpression> max(ParsedLiteral::Create(42));
+  const ParsedExpression* const raw_max = max.get();
   const Range range(std::move(min), std::move(max));
   EXPECT_EQ(raw_min, &range.min());
   EXPECT_EQ(raw_max, &range.max());
 }
 
-TEST(UpdateTest, ConstructsUpdate) {
-  std::unique_ptr<const Expression> expr(IntLiteral::Create(17));
-  const Expression* const raw_expr = expr.get();
-  const Update update("foo", std::move(expr));
-  EXPECT_EQ("foo", update.variable());
-  EXPECT_EQ(raw_expr, &update.expr());
-}
-
-TEST(OutcomeTest, ConstructsOutcome) {
-  std::unique_ptr<const Expression> probability(DoubleLiteral::Create(0.5));
-  const Expression* const raw_probability = probability.get();
-  std::unique_ptr<const Expression> expr0(IntLiteral::Create(17));
-  const Expression* const raw_expr0 = expr0.get();
-  std::unique_ptr<const Expression> expr1(IntLiteral::Create(42));
-  const Expression* const raw_expr1 = expr1.get();
-  std::vector<Update> updates;
-  updates.emplace_back("foo", std::move(expr0));
-  updates.emplace_back("bar", std::move(expr1));
-  const Outcome outcome(std::move(probability), std::move(updates));
-  EXPECT_EQ(raw_probability, &outcome.probability());
-  ASSERT_EQ(2, outcome.updates().size());
-  EXPECT_EQ("foo", outcome.updates()[0].variable());
-  EXPECT_EQ(raw_expr0, &outcome.updates()[0].expr());
-  EXPECT_EQ("bar", outcome.updates()[1].variable());
-  EXPECT_EQ(raw_expr1, &outcome.updates()[1].expr());
-}
-
-TEST(CommandTest, ConstructsCommand) {
-  std::unique_ptr<std::string> action(new std::string("foo"));
-  const std::string* const raw_action = action.get();
-  std::unique_ptr<const Expression> guard(BoolLiteral::Create(true));
-  const Expression* const raw_guard = guard.get();
-  std::vector<Outcome> outcomes;
-  std::unique_ptr<const Expression> probability(DoubleLiteral::Create(0.5));
-  const Expression* const raw_probability = probability.get();
-  outcomes.emplace_back(std::move(probability), std::vector<Update>());
-  const Command command(
-      std::move(action), std::move(guard), std::move(outcomes));
-  EXPECT_EQ(raw_action, command.action());
-  EXPECT_EQ(raw_guard, &command.guard());
-  ASSERT_EQ(1, command.outcomes().size());
-  EXPECT_EQ(raw_probability, &command.outcomes()[0].probability());
-  EXPECT_EQ(0, command.outcomes()[0].updates().size());
-}
-
 TEST(StateRewardTest, ConstructsStateReward) {
-  std::unique_ptr<const Expression> guard(BoolLiteral::Create(true));
-  const Expression* const raw_guard = guard.get();
-  std::unique_ptr<const Expression> reward(DoubleLiteral::Create(3.14159));
-  const Expression* const raw_reward = reward.get();
+  std::unique_ptr<const ParsedExpression> guard(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard = guard.get();
+  std::unique_ptr<const ParsedExpression> reward(
+      ParsedLiteral::Create(3.14159));
+  const ParsedExpression* const raw_reward = reward.get();
   const StateReward state_reward(std::move(guard), std::move(reward));
   EXPECT_EQ(raw_guard, &state_reward.guard());
   EXPECT_EQ(raw_reward, &state_reward.reward());
 }
 
 TEST(TransitionRewardTest, ConstructsTransitionReward) {
-  std::unique_ptr<std::string> action(new std::string("foo"));
-  const std::string* const raw_action = action.get();
-  std::unique_ptr<const Expression> guard(BoolLiteral::Create(true));
-  const Expression* const raw_guard = guard.get();
-  std::unique_ptr<const Expression> reward(DoubleLiteral::Create(3.14159));
-  const Expression* const raw_reward = reward.get();
+  std::unique_ptr<const ParsedExpression> guard(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard = guard.get();
+  std::unique_ptr<const ParsedExpression> reward(
+      ParsedLiteral::Create(3.14159));
+  const ParsedExpression* const raw_reward = reward.get();
   const TransitionReward transition_reward(
-      std::move(action), std::move(guard), std::move(reward));
-  EXPECT_EQ(raw_action, transition_reward.action());
+      "foo", std::move(guard), std::move(reward));
+  ASSERT_TRUE(transition_reward.action() ? true : false);
+  EXPECT_EQ("foo", transition_reward.action().get());
   EXPECT_EQ(raw_guard, &transition_reward.guard());
   EXPECT_EQ(raw_reward, &transition_reward.reward());
 }
@@ -116,7 +72,7 @@ TEST(ModelTypeTest, Name) {
 }
 
 Range MakeLiteralRange(int min, int max) {
-  return Range(IntLiteral::Create(min), IntLiteral::Create(max));
+  return Range(ParsedLiteral::Create(min), ParsedLiteral::Create(max));
 }
 
 TEST(ModelTest, InitializesModelType) {
@@ -140,10 +96,11 @@ TEST(ModelTest, SetsModelTypeOnce) {
 
 TEST(ModelTest, AddsConstants) {
   Model model;
-  std::unique_ptr<const Expression> int_init(IntLiteral::Create(17));
-  const Expression* const raw_int_init = int_init.get();
-  std::unique_ptr<const Expression> double_init(DoubleLiteral::Create(0.5));
-  const Expression* const raw_double_init = double_init.get();
+  std::unique_ptr<const ParsedExpression> int_init(ParsedLiteral::Create(17));
+  const ParsedExpression* const raw_int_init = int_init.get();
+  std::unique_ptr<const ParsedExpression> double_init(
+      ParsedLiteral::Create(0.5));
+  const ParsedExpression* const raw_double_init = double_init.get();
   EXPECT_TRUE(model.AddConstant("c", Type::INT, std::move(int_init)));
   EXPECT_TRUE(model.AddConstant("k", Type::BOOL, nullptr));
   EXPECT_TRUE(model.AddConstant("K", Type::DOUBLE, std::move(double_init)));
@@ -161,18 +118,19 @@ TEST(ModelTest, AddsConstants) {
 
 TEST(ModelTest, AddsVariables) {
   Model model;
-  std::unique_ptr<const Expression> min0(IntLiteral::Create(17));
-  const Expression* const raw_min0 = min0.get();
-  std::unique_ptr<const Expression> max0(IntLiteral::Create(42));
-  const Expression* const raw_max0 = max0.get();
-  std::unique_ptr<const Expression> min2(IntLiteral::Create(0));
-  const Expression* const raw_min2 = min2.get();
-  std::unique_ptr<const Expression> max2(IntLiteral::Create(1));
-  const Expression* const raw_max2 = max2.get();
-  std::unique_ptr<const Expression> int_init(IntLiteral::Create(17));
-  const Expression* const raw_int_init = int_init.get();
-  std::unique_ptr<const Expression> bool_init(BoolLiteral::Create(true));
-  const Expression* const raw_bool_init = bool_init.get();
+  std::unique_ptr<const ParsedExpression> min0(ParsedLiteral::Create(17));
+  const ParsedExpression* const raw_min0 = min0.get();
+  std::unique_ptr<const ParsedExpression> max0(ParsedLiteral::Create(42));
+  const ParsedExpression* const raw_max0 = max0.get();
+  std::unique_ptr<const ParsedExpression> min2(ParsedLiteral::Create(0));
+  const ParsedExpression* const raw_min2 = min2.get();
+  std::unique_ptr<const ParsedExpression> max2(ParsedLiteral::Create(1));
+  const ParsedExpression* const raw_max2 = max2.get();
+  std::unique_ptr<const ParsedExpression> int_init(ParsedLiteral::Create(17));
+  const ParsedExpression* const raw_int_init = int_init.get();
+  std::unique_ptr<const ParsedExpression> bool_init(
+      ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_bool_init = bool_init.get();
   EXPECT_TRUE(model.AddIntVariable(
       "i", Range(std::move(min0), std::move(max0)), std::move(int_init)));
   EXPECT_TRUE(model.AddBoolVariable("b", std::move(bool_init)));
@@ -199,12 +157,12 @@ TEST(ModelTest, AddsVariables) {
 
 TEST(ModelTest, AddsFormulas) {
   Model model;
-  std::unique_ptr<const Expression> expr0(IntLiteral::Create(17));
-  const Expression* const raw_expr0 = expr0.get();
-  std::unique_ptr<const Expression> expr1(BoolLiteral::Create(true));
-  const Expression* const raw_expr1 = expr1.get();
-  std::unique_ptr<const Expression> expr2(DoubleLiteral::Create(3.14159));
-  const Expression* const raw_expr2 = expr2.get();
+  std::unique_ptr<const ParsedExpression> expr0(ParsedLiteral::Create(17));
+  const ParsedExpression* const raw_expr0 = expr0.get();
+  std::unique_ptr<const ParsedExpression> expr1(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_expr1 = expr1.get();
+  std::unique_ptr<const ParsedExpression> expr2(ParsedLiteral::Create(3.14159));
+  const ParsedExpression* const raw_expr2 = expr2.get();
   EXPECT_TRUE(model.AddFormula("f", std::move(expr0)));
   EXPECT_TRUE(model.AddFormula("h", std::move(expr1)));
   EXPECT_TRUE(model.AddFormula("g", std::move(expr2)));
@@ -266,66 +224,65 @@ TEST(ModelTest, AddsModuleVariables) {
 
 TEST(ModelTest, AddsModuleCommands) {
   Model model;
-  std::unique_ptr<std::string> action1(new std::string("foo"));
-  const std::string* const raw_action1 = action1.get();
-  std::unique_ptr<const Expression> guard1(BoolLiteral::Create(true));
-  const Expression* const raw_guard1 = guard1.get();
-  std::unique_ptr<std::string> action2(nullptr);
-  const std::string* const raw_action2 = action2.get();
-  std::unique_ptr<const Expression> guard2(BoolLiteral::Create(false));
-  const Expression* const raw_guard2 = guard2.get();
-  std::unique_ptr<std::string> action3(new std::string("bar"));
-  const std::string* const raw_action3 = action3.get();
-  std::unique_ptr<const Expression> guard3(BoolLiteral::Create(true));
-  const Expression* const raw_guard3 = guard3.get();
+  std::unique_ptr<const ParsedExpression> guard1(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard1 = guard1.get();
+  std::unique_ptr<const ParsedExpression> guard2(ParsedLiteral::Create(false));
+  const ParsedExpression* const raw_guard2 = guard2.get();
+  std::unique_ptr<const ParsedExpression> guard3(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard3 = guard3.get();
   EXPECT_TRUE(model.StartModule("M1"));
-  model.AddCommand(Command(std::move(action1), std::move(guard1), {}));
-  model.AddCommand(Command(std::move(action2), std::move(guard2), {}));
+  model.AddCommand(ParsedCommand("foo", std::move(guard1), {}));
+  model.AddCommand(ParsedCommand(
+      Optional<std::string>(), std::move(guard2), {}));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M2"));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M3"));
-  model.AddCommand(Command(std::move(action3), std::move(guard3), {}));
+  model.AddCommand(ParsedCommand("bar", std::move(guard3), {}));
   model.EndModule();
   ASSERT_EQ(3, model.num_modules());
   ASSERT_EQ(2, model.module_commands(0).size());
-  EXPECT_EQ(raw_action1, model.module_commands(0)[0].action());
+  ASSERT_TRUE(model.module_commands(0)[0].action() ? true : false);
+  EXPECT_EQ("foo", model.module_commands(0)[0].action().get());
   EXPECT_EQ(raw_guard1, &model.module_commands(0)[0].guard());
-  EXPECT_EQ(raw_action2, model.module_commands(0)[1].action());
+  EXPECT_FALSE(model.module_commands(0)[1].action() ? true : false);
   EXPECT_EQ(raw_guard2, &model.module_commands(0)[1].guard());
   EXPECT_EQ(0, model.module_commands(1).size());
   ASSERT_EQ(1, model.module_commands(2).size());
-  EXPECT_EQ(raw_action3, model.module_commands(2)[0].action());
+  ASSERT_TRUE(model.module_commands(2)[0].action() ? true : false);
+  EXPECT_EQ("bar", model.module_commands(2)[0].action().get());
   EXPECT_EQ(raw_guard3, &model.module_commands(2)[0].guard());
 }
 
 TEST(ModelTest, AddsFromModule) {
   Model model;
-  EXPECT_TRUE(model.AddConstant("c", Type::INT, Identifier::Create("f")));
-  EXPECT_TRUE(model.AddConstant("k", Type::INT, Identifier::Create("g")));
-  EXPECT_TRUE(model.AddFormula("f", IntLiteral::Create(17)));
-  EXPECT_TRUE(model.AddFormula("g", IntLiteral::Create(42)));
+  EXPECT_TRUE(model.AddConstant("c", Type::INT, ParsedIdentifier::Create("f")));
+  EXPECT_TRUE(model.AddConstant("k", Type::INT, ParsedIdentifier::Create("g")));
+  EXPECT_TRUE(model.AddFormula("f", ParsedLiteral::Create(17)));
+  EXPECT_TRUE(model.AddFormula("g", ParsedLiteral::Create(42)));
   EXPECT_TRUE(model.StartModule("M1"));
   EXPECT_TRUE(model.AddIntVariable("i",
-                                   Range(IntLiteral::Create(0),
-                                         Identifier::Create("c")),
-                                   Identifier::Create("f")));
+                                   Range(ParsedLiteral::Create(0),
+                                         ParsedIdentifier::Create("c")),
+                                   ParsedIdentifier::Create("f")));
   EXPECT_TRUE(model.AddBoolVariable("b1", nullptr));
-  std::vector<Update> updates;
+  std::vector<ParsedUpdate> updates;
   updates.emplace_back("i",
-                       BinaryOperation::Create(BinaryOperator::PLUS,
-                                               Identifier::Create("i"),
-                                               IntLiteral::Create(1)));
-  std::vector<Outcome> outcomes;
-  outcomes.emplace_back(BinaryOperation::Create(BinaryOperator::DIVIDE,
-                                                IntLiteral::Create(1),
-                                                Identifier::Create("i")),
-                        std::move(updates));
-  EXPECT_TRUE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("a")),
-      BinaryOperation::Create(BinaryOperator::LESS,
-                              Identifier::Create("i"),
-                              Identifier::Create("c")),
+                       ParsedBinaryOperation::Create(
+                           BinaryOperator::PLUS,
+                           ParsedIdentifier::Create("i"),
+                           ParsedLiteral::Create(1)));
+  std::vector<ParsedOutcome> outcomes;
+  outcomes.emplace_back(
+      ParsedBinaryOperation::Create(BinaryOperator::DIVIDE,
+                                    ParsedLiteral::Create(1),
+                                    ParsedIdentifier::Create("i")),
+      std::move(updates));
+  EXPECT_TRUE(model.AddCommand(ParsedCommand(
+      "a",
+      ParsedBinaryOperation::Create(BinaryOperator::LESS,
+                                    ParsedIdentifier::Create("i"),
+                                    ParsedIdentifier::Create("c")),
       std::move(outcomes))));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M2"));
@@ -340,66 +297,67 @@ TEST(ModelTest, AddsFromModule) {
   EXPECT_EQ(Type::BOOL, model.variable_type(3));
   const Range* const range2 = model.GetVariableRange(2);
   ASSERT_NE(nullptr, range2);
-  const IntLiteral* const min2 =
-      dynamic_cast<const IntLiteral*>(&range2->min());
+  const ParsedLiteral* const min2 =
+      dynamic_cast<const ParsedLiteral*>(&range2->min());
   ASSERT_NE(nullptr, min2);
   EXPECT_EQ(0, min2->value());
-  const Identifier* const max2 =
-      dynamic_cast<const Identifier*>(&range2->max());
+  const ParsedIdentifier* const max2 =
+      dynamic_cast<const ParsedIdentifier*>(&range2->max());
   ASSERT_NE(nullptr, max2);
-  EXPECT_EQ("k", max2->name());
-  const Identifier* const init2 =
-      dynamic_cast<const Identifier*>(model.GetVariableInit(2));
+  EXPECT_EQ("k", max2->id());
+  const ParsedIdentifier* const init2 =
+      dynamic_cast<const ParsedIdentifier*>(model.GetVariableInit(2));
   ASSERT_NE(nullptr, init2);
-  EXPECT_EQ("g", init2->name());
+  EXPECT_EQ("g", init2->id());
   EXPECT_EQ(nullptr, model.GetVariableInit(3));
   EXPECT_EQ("j", model.GetVariableName(2));
   EXPECT_EQ("b2", model.GetVariableName(3));
   ASSERT_EQ(2, model.num_modules());
   EXPECT_EQ(std::set<int>({ 2, 3 }), model.module_variables(1));
   ASSERT_EQ(1, model.module_commands(1).size());
-  ASSERT_NE(nullptr, model.module_commands(1)[0].action());
-  EXPECT_EQ("b", *model.module_commands(1)[0].action());
-  const BinaryOperation* const guard = dynamic_cast<const BinaryOperation*>(
-      &model.module_commands(1)[0].guard());
+  ASSERT_TRUE(model.module_commands(1)[0].action() ? true : false);
+  EXPECT_EQ("b", model.module_commands(1)[0].action().get());
+  const ParsedBinaryOperation* const guard =
+      dynamic_cast<const ParsedBinaryOperation*>(
+          &model.module_commands(1)[0].guard());
   ASSERT_NE(nullptr, guard);
   EXPECT_EQ(BinaryOperator::LESS, guard->op());
-  const Identifier* const guard_operand1 =
-      dynamic_cast<const Identifier*>(&guard->operand1());
+  const ParsedIdentifier* const guard_operand1 =
+      dynamic_cast<const ParsedIdentifier*>(&guard->operand1());
   ASSERT_NE(nullptr, guard_operand1);
-  EXPECT_EQ("j", guard_operand1->name());
-  const Identifier* const guard_operand2 =
-      dynamic_cast<const Identifier*>(&guard->operand2());
+  EXPECT_EQ("j", guard_operand1->id());
+  const ParsedIdentifier* const guard_operand2 =
+      dynamic_cast<const ParsedIdentifier*>(&guard->operand2());
   ASSERT_NE(nullptr, guard_operand2);
-  EXPECT_EQ("k", guard_operand2->name());
+  EXPECT_EQ("k", guard_operand2->id());
   ASSERT_EQ(1, model.module_commands(1)[0].outcomes().size());
-  const BinaryOperation* const probability =
-      dynamic_cast<const BinaryOperation*>(
+  const ParsedBinaryOperation* const probability =
+      dynamic_cast<const ParsedBinaryOperation*>(
           &model.module_commands(1)[0].outcomes()[0].probability());
   ASSERT_NE(nullptr, probability);
   EXPECT_EQ(BinaryOperator::DIVIDE, probability->op());
-  const IntLiteral* const probability_operand1 =
-      dynamic_cast<const IntLiteral*>(&probability->operand1());
+  const ParsedLiteral* const probability_operand1 =
+      dynamic_cast<const ParsedLiteral*>(&probability->operand1());
   ASSERT_NE(nullptr, probability_operand1);
   EXPECT_EQ(1, probability_operand1->value());
-  const Identifier* const probability_operand2 =
-      dynamic_cast<const Identifier*>(&probability->operand2());
+  const ParsedIdentifier* const probability_operand2 =
+      dynamic_cast<const ParsedIdentifier*>(&probability->operand2());
   ASSERT_NE(nullptr, probability_operand2);
-  EXPECT_EQ("j", probability_operand2->name());
+  EXPECT_EQ("j", probability_operand2->id());
   ASSERT_EQ(1, model.module_commands(1)[0].outcomes()[0].updates().size());
   EXPECT_EQ("j",
             model.module_commands(1)[0].outcomes()[0].updates()[0].variable());
-  const BinaryOperation* const update_expr =
-      dynamic_cast<const BinaryOperation*>(
+  const ParsedBinaryOperation* const update_expr =
+      dynamic_cast<const ParsedBinaryOperation*>(
           &model.module_commands(1)[0].outcomes()[0].updates()[0].expr());
   ASSERT_NE(nullptr, update_expr);
   EXPECT_EQ(BinaryOperator::PLUS, update_expr->op());
-  const Identifier* const update_expr_operand1 =
-      dynamic_cast<const Identifier*>(&update_expr->operand1());
+  const ParsedIdentifier* const update_expr_operand1 =
+      dynamic_cast<const ParsedIdentifier*>(&update_expr->operand1());
   ASSERT_NE(nullptr, update_expr_operand1);
-  EXPECT_EQ("j", update_expr_operand1->name());
-  const IntLiteral* const update_expr_operand2 =
-      dynamic_cast<const IntLiteral*>(&update_expr->operand2());
+  EXPECT_EQ("j", update_expr_operand1->id());
+  const ParsedLiteral* const update_expr_operand2 =
+      dynamic_cast<const ParsedLiteral*>(&update_expr->operand2());
   ASSERT_NE(nullptr, update_expr_operand2);
   EXPECT_EQ(1, update_expr_operand2->value());
 }
@@ -441,64 +399,58 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   Model model;
 
   EXPECT_TRUE(model.AddConstant("c", Type::INT, nullptr));
-  EXPECT_TRUE(model.AddFormula("f", IntLiteral::Create(17)));
+  EXPECT_TRUE(model.AddFormula("f", ParsedLiteral::Create(17)));
   EXPECT_TRUE(model.AddIntVariable("i", MakeLiteralRange(17, 42), nullptr));
   EXPECT_TRUE(model.AddBoolVariable("b", nullptr));
   EXPECT_TRUE(model.StartModule("M1"));
-  EXPECT_TRUE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("a")),
-      BoolLiteral::Create(true), {})));
+  EXPECT_TRUE(model.AddCommand(ParsedCommand(
+      "a", ParsedLiteral::Create(true), {})));
   model.EndModule();
 
   EXPECT_FALSE(model.AddConstant("c", Type::INT, nullptr));
-  EXPECT_FALSE(model.AddFormula("c", IntLiteral::Create(17)));
+  EXPECT_FALSE(model.AddFormula("c", ParsedLiteral::Create(17)));
   EXPECT_FALSE(model.AddIntVariable("c", MakeLiteralRange(17, 42), nullptr));
   EXPECT_FALSE(model.AddBoolVariable("c", nullptr));
   EXPECT_TRUE(model.StartModule("M2"));
-  EXPECT_FALSE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("c")),
-      BoolLiteral::Create(true), {})));
+  EXPECT_FALSE(model.AddCommand(ParsedCommand(
+      "c", ParsedLiteral::Create(true), {})));
   model.EndModule();
 
   EXPECT_FALSE(model.AddConstant("i", Type::INT, nullptr));
-  EXPECT_FALSE(model.AddFormula("i", IntLiteral::Create(17)));
+  EXPECT_FALSE(model.AddFormula("i", ParsedLiteral::Create(17)));
   EXPECT_FALSE(model.AddIntVariable("i", MakeLiteralRange(17, 42), nullptr));
   EXPECT_FALSE(model.AddBoolVariable("i", nullptr));
   EXPECT_TRUE(model.StartModule("M3"));
-  EXPECT_FALSE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("i")),
-      BoolLiteral::Create(true), {})));
+  EXPECT_FALSE(model.AddCommand(ParsedCommand(
+      "i", ParsedLiteral::Create(true), {})));
   model.EndModule();
 
   EXPECT_FALSE(model.AddConstant("b", Type::INT, nullptr));
-  EXPECT_FALSE(model.AddFormula("b", IntLiteral::Create(17)));
+  EXPECT_FALSE(model.AddFormula("b", ParsedLiteral::Create(17)));
   EXPECT_FALSE(model.AddIntVariable("b", MakeLiteralRange(17, 42), nullptr));
   EXPECT_FALSE(model.AddBoolVariable("b", nullptr));
   EXPECT_TRUE(model.StartModule("M4"));
-  EXPECT_FALSE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("b")),
-      BoolLiteral::Create(true), {})));
+  EXPECT_FALSE(model.AddCommand(ParsedCommand(
+      "b", ParsedLiteral::Create(true), {})));
   model.EndModule();
 
   EXPECT_FALSE(model.AddConstant("f", Type::INT, nullptr));
-  EXPECT_FALSE(model.AddFormula("f", IntLiteral::Create(17)));
+  EXPECT_FALSE(model.AddFormula("f", ParsedLiteral::Create(17)));
   EXPECT_FALSE(model.AddIntVariable("f", MakeLiteralRange(17, 42), nullptr));
   EXPECT_FALSE(model.AddBoolVariable("f", nullptr));
   EXPECT_TRUE(model.StartModule("M5"));
-  EXPECT_FALSE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("f")),
-      BoolLiteral::Create(true), {})));
+  EXPECT_FALSE(model.AddCommand(ParsedCommand(
+      "f", ParsedLiteral::Create(true), {})));
   model.EndModule();
 
   EXPECT_FALSE(model.AddConstant("a", Type::INT, nullptr));
-  EXPECT_FALSE(model.AddFormula("a", IntLiteral::Create(17)));
+  EXPECT_FALSE(model.AddFormula("a", ParsedLiteral::Create(17)));
   EXPECT_FALSE(model.AddIntVariable("a", MakeLiteralRange(17, 42), nullptr));
   EXPECT_FALSE(model.AddBoolVariable("a", nullptr));
   EXPECT_TRUE(model.StartModule("M6"));
   // NOTE: It is fine to use the same action label multiple times.
-  EXPECT_TRUE(model.AddCommand(Command(
-      std::unique_ptr<std::string>(new std::string("a")),
-      BoolLiteral::Create(true), {})));
+  EXPECT_TRUE(model.AddCommand(ParsedCommand(
+      "a", ParsedLiteral::Create(true), {})));
   model.EndModule();
 }
 
@@ -517,8 +469,8 @@ TEST(ModelTest, RejectsDuplicateModules) {
 
 TEST(ModelTest, AddsLabel) {
   Model model;
-  std::unique_ptr<const Expression> expr(BoolLiteral::Create(true));
-  const Expression* const raw_expr = expr.get();
+  std::unique_ptr<const ParsedExpression> expr(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_expr = expr.get();
   EXPECT_EQ(nullptr, model.GetLabelExpr("foo"));
   EXPECT_TRUE(model.AddLabel("foo", std::move(expr)));
   EXPECT_EQ(raw_expr, model.GetLabelExpr("foo"));
@@ -526,8 +478,8 @@ TEST(ModelTest, AddsLabel) {
 
 TEST(ModelTest, RelectsDuplicateLabel) {
   Model model;
-  EXPECT_TRUE(model.AddLabel("foo", BoolLiteral::Create(true)));
-  EXPECT_FALSE(model.AddLabel("foo", BoolLiteral::Create(true)));
+  EXPECT_TRUE(model.AddLabel("foo", ParsedLiteral::Create(true)));
+  EXPECT_FALSE(model.AddLabel("foo", ParsedLiteral::Create(true)));
 }
 
 TEST(ModelTest, InitializesInit) {
@@ -537,68 +489,62 @@ TEST(ModelTest, InitializesInit) {
 
 TEST(ModelTest, SetsAndGetsInit) {
   Model model;
-  std::unique_ptr<const Expression> init(BoolLiteral::Create(true));
-  const Expression* const raw_init = init.get();
+  std::unique_ptr<const ParsedExpression> init(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_init = init.get();
   EXPECT_TRUE(model.SetInit(std::move(init)));
   EXPECT_EQ(raw_init, model.init());
 }
 
 TEST(ModelTest, SetsInitOnce) {
   Model model;
-  std::unique_ptr<const Expression> init(BoolLiteral::Create(true));
-  const Expression* const raw_init = init.get();
+  std::unique_ptr<const ParsedExpression> init(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_init = init.get();
   EXPECT_TRUE(model.SetInit(std::move(init)));
   EXPECT_EQ(raw_init, model.init());
-  EXPECT_FALSE(model.SetInit(BoolLiteral::Create(false)));
+  EXPECT_FALSE(model.SetInit(ParsedLiteral::Create(false)));
   EXPECT_EQ(raw_init, model.init());
 }
 
 TEST(ModelTest, AddsRewards) {
   Model model;
-  std::unique_ptr<const Expression> guard1(BoolLiteral::Create(true));
-  const Expression* const raw_guard1 = guard1.get();
-  std::unique_ptr<const Expression> reward1(DoubleLiteral::Create(1.0));
-  const Expression* const raw_reward1 = reward1.get();
-  std::unique_ptr<const Expression> guard2(BoolLiteral::Create(false));
-  const Expression* const raw_guard2 = guard2.get();
-  std::unique_ptr<const Expression> reward2(DoubleLiteral::Create(2.0));
-  const Expression* const raw_reward2 = reward2.get();
-  std::unique_ptr<const std::string> action3(new std::string("a3"));
-  const std::string* const raw_action3 = action3.get();
-  std::unique_ptr<const Expression> guard3(BoolLiteral::Create(true));
-  const Expression* const raw_guard3 = guard3.get();
-  std::unique_ptr<const Expression> reward3(DoubleLiteral::Create(1.0));
-  const Expression* const raw_reward3 = reward3.get();
-  std::unique_ptr<const std::string> action4(nullptr);
-  const std::string* const raw_action4 = action4.get();
-  std::unique_ptr<const Expression> guard4(BoolLiteral::Create(true));
-  const Expression* const raw_guard4 = guard4.get();
-  std::unique_ptr<const Expression> reward4(DoubleLiteral::Create(1.0));
-  const Expression* const raw_reward4 = reward4.get();
-  std::unique_ptr<const Expression> guard5(BoolLiteral::Create(true));
-  const Expression* const raw_guard5 = guard5.get();
-  std::unique_ptr<const Expression> reward5(DoubleLiteral::Create(1.0));
-  const Expression* const raw_reward5 = reward5.get();
-  std::unique_ptr<const std::string> action6(new std::string("a6"));
-  const std::string* const raw_action6 = action6.get();
-  std::unique_ptr<const Expression> guard6(BoolLiteral::Create(true));
-  const Expression* const raw_guard6 = guard6.get();
-  std::unique_ptr<const Expression> reward6(DoubleLiteral::Create(1.0));
-  const Expression* const raw_reward6 = reward6.get();
+  std::unique_ptr<const ParsedExpression> guard1(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard1 = guard1.get();
+  std::unique_ptr<const ParsedExpression> reward1(ParsedLiteral::Create(1.0));
+  const ParsedExpression* const raw_reward1 = reward1.get();
+  std::unique_ptr<const ParsedExpression> guard2(ParsedLiteral::Create(false));
+  const ParsedExpression* const raw_guard2 = guard2.get();
+  std::unique_ptr<const ParsedExpression> reward2(ParsedLiteral::Create(2.0));
+  const ParsedExpression* const raw_reward2 = reward2.get();
+  std::unique_ptr<const ParsedExpression> guard3(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard3 = guard3.get();
+  std::unique_ptr<const ParsedExpression> reward3(ParsedLiteral::Create(1.0));
+  const ParsedExpression* const raw_reward3 = reward3.get();
+  std::unique_ptr<const ParsedExpression> guard4(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard4 = guard4.get();
+  std::unique_ptr<const ParsedExpression> reward4(ParsedLiteral::Create(1.0));
+  const ParsedExpression* const raw_reward4 = reward4.get();
+  std::unique_ptr<const ParsedExpression> guard5(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard5 = guard5.get();
+  std::unique_ptr<const ParsedExpression> reward5(ParsedLiteral::Create(1.0));
+  const ParsedExpression* const raw_reward5 = reward5.get();
+  std::unique_ptr<const ParsedExpression> guard6(ParsedLiteral::Create(true));
+  const ParsedExpression* const raw_guard6 = guard6.get();
+  std::unique_ptr<const ParsedExpression> reward6(ParsedLiteral::Create(1.0));
+  const ParsedExpression* const raw_reward6 = reward6.get();
   EXPECT_TRUE(model.StartLabeledRewards("r1"));
   model.AddStateReward(StateReward(std::move(guard1), std::move(reward1)));
   model.AddStateReward(StateReward(std::move(guard2), std::move(reward2)));
   model.EndRewards();
   model.StartUnlabeledRewards();
   model.AddTransitionReward(TransitionReward(
-      std::move(action3), std::move(guard3), std::move(reward3)));
+      "a3", std::move(guard3), std::move(reward3)));
   model.AddTransitionReward(TransitionReward(
-      std::move(action4), std::move(guard4), std::move(reward4)));
+      Optional<std::string>(), std::move(guard4), std::move(reward4)));
   model.EndRewards();
   EXPECT_TRUE(model.StartLabeledRewards("r2"));
   model.AddStateReward(StateReward(std::move(guard5), std::move(reward5)));
   model.AddTransitionReward(TransitionReward(
-      std::move(action6), std::move(guard6), std::move(reward6)));
+      "a6", std::move(guard6), std::move(reward6)));
   model.EndRewards();
   ASSERT_EQ(3, model.num_rewards());
   ASSERT_EQ(2, model.state_rewards(0).size());
@@ -609,17 +555,19 @@ TEST(ModelTest, AddsRewards) {
   EXPECT_EQ(0, model.transition_rewards(0).size());
   EXPECT_EQ(0, model.state_rewards(1).size());
   ASSERT_EQ(2, model.transition_rewards(1).size());
-  EXPECT_EQ(raw_action3, model.transition_rewards(1)[0].action());
+  ASSERT_TRUE(model.transition_rewards(1)[0].action() ? true : false);
+  EXPECT_EQ("a3", model.transition_rewards(1)[0].action().get());
   EXPECT_EQ(raw_guard3, &model.transition_rewards(1)[0].guard());
   EXPECT_EQ(raw_reward3, &model.transition_rewards(1)[0].reward());
-  EXPECT_EQ(raw_action4, model.transition_rewards(1)[1].action());
+  EXPECT_FALSE(model.transition_rewards(1)[1].action() ? true : false);
   EXPECT_EQ(raw_guard4, &model.transition_rewards(1)[1].guard());
   EXPECT_EQ(raw_reward4, &model.transition_rewards(1)[1].reward());
   ASSERT_EQ(1, model.state_rewards(2).size());
   EXPECT_EQ(raw_guard5, &model.state_rewards(2)[0].guard());
   EXPECT_EQ(raw_reward5, &model.state_rewards(2)[0].reward());
   ASSERT_EQ(1, model.transition_rewards(2).size());
-  EXPECT_EQ(raw_action6, model.transition_rewards(2)[0].action());
+  ASSERT_TRUE(model.transition_rewards(2)[0].action() ? true : false);
+  EXPECT_EQ("a6", model.transition_rewards(2)[0].action().get());
   EXPECT_EQ(raw_guard6, &model.transition_rewards(2)[0].guard());
   EXPECT_EQ(raw_reward6, &model.transition_rewards(2)[0].reward());
   int index = -1;
