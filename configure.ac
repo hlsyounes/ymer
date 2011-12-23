@@ -21,7 +21,8 @@
 
 AC_PREREQ(2.57)
 AC_INIT(Ymer, 4.0, hlsyounes@gmail.com)
-AC_CONFIG_SRCDIR(main.cc)
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_SRCDIR([src/expression.h])
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
 
@@ -73,5 +74,5 @@ AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror])
 
 AC_CONFIG_FILES(Makefile)
-AC_CONFIG_SUBDIRS([gflags glog gsl])
+AC_CONFIG_SUBDIRS([gflags glog])
 AC_OUTPUT
