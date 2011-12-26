@@ -97,6 +97,13 @@ void DTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
   seen_actions_ = std::vector<bool>(model_->num_actions(), false);
   num_seen_actions_ = 0;
   num_enabled_ = 0;
+  for (const CompiledCommand& command: model_->commands_without_action()) {
+    if (command.guard().ValueInState(*state_)) {
+      candidate_commands_.push_back(&command);
+      ConsiderCandidateCommands();
+      candidate_commands_.pop_back();
+    }
+  }
   SampleCommands(0);
 }
 
@@ -104,29 +111,23 @@ template <typename RandomNumberEngine>
 void DTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
   VLOG(2) << "SampleCommands(" << module << ")";
   for (const auto& p: model_->commands(module)) {
-    const Optional<int>& action = p.first;
-    if (action && num_seen_actions_ == model_->num_actions()) {
+    const int action = p.first;
+    if (num_seen_actions_ == model_->num_actions()) {
       break;
     }
-    if (!action || !seen_actions_[action.get()]) {
+    if (!seen_actions_[action]) {
       for (const CompiledCommand& command: p.second) {
         if (command.guard().ValueInState(*state_)) {
           candidate_commands_.push_back(&command);
-          if (action) {
-            SampleSynchronizedCommands(module + 1, action.get());
-          } else {
-            ConsiderCandidateCommands();
-          }
+          SampleSynchronizedCommands(module + 1, action);
           candidate_commands_.pop_back();
         }
       }
-      if (action) {
-        seen_actions_[action.get()] = true;
-        ++num_seen_actions_;
-      }
+      seen_actions_[action] = true;
+      ++num_seen_actions_;
     }
   }
-  if (module + 1 < model_->num_modules()) {
+  if (num_seen_actions_ < model_->num_actions()) {
     SampleCommands(module + 1);
   }
 }
@@ -270,15 +271,6 @@ bool CTMCNextStateSampler<RandomNumberEngine>::NextState(
   return true;
 }
 
-template <typename RandomNumberEngine>
-void CTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
-  seen_actions_ = std::vector<bool>(model_->num_actions(), false);
-  num_seen_actions_ = 0;
-  weight_sum_ = 0.0;
-  selected_key_ = -std::numeric_limits<double>::infinity();
-  SampleCommands(0);
-}
-
 double GetWeight(
     const CompiledCommand& command, double factor, const CompiledState& state) {
   double weight = 0.0;
@@ -289,33 +281,43 @@ double GetWeight(
 }
 
 template <typename RandomNumberEngine>
+void CTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
+  seen_actions_ = std::vector<bool>(model_->num_actions(), false);
+  num_seen_actions_ = 0;
+  weight_sum_ = 0.0;
+  selected_key_ = -std::numeric_limits<double>::infinity();
+  for (const CompiledCommand& command: model_->commands_without_action()) {
+    if (command.guard().ValueInState(*state_)) {
+      candidate_commands_.push_back(&command);
+      ConsiderCandidateCommands(GetWeight(command, 1.0, *state_));
+      candidate_commands_.pop_back();
+    }
+  }
+  SampleCommands(0);
+}
+
+template <typename RandomNumberEngine>
 void CTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
   VLOG(2) << "SampleCommands(" << module << ")";
   for (const auto& p: model_->commands(module)) {
-    const Optional<int>& action = p.first;
-    if (action && num_seen_actions_ == model_->num_actions()) {
+    const int action = p.first;
+    if (num_seen_actions_ == model_->num_actions()) {
       break;
     }
-    if (!action || !seen_actions_[action.get()]) {
+    if (!seen_actions_[action]) {
       for (const CompiledCommand& command: p.second) {
         if (command.guard().ValueInState(*state_)) {
           candidate_commands_.push_back(&command);
           const double weight = GetWeight(command, 1.0, *state_);
-          if (action) {
-            SampleSynchronizedCommands(module + 1, action.get(), weight);
-          } else {
-            ConsiderCandidateCommands(weight);
-          }
+          SampleSynchronizedCommands(module + 1, action, weight);
           candidate_commands_.pop_back();
         }
       }
-      if (action) {
-        seen_actions_[action.get()] = true;
-        ++num_seen_actions_;
-      }
+      seen_actions_[action] = true;
+      ++num_seen_actions_;
     }
   }
-  if (module + 1 < model_->num_modules()) {
+  if (num_seen_actions_ < model_->num_actions()) {
     SampleCommands(module + 1);
   }
 }
