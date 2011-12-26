@@ -61,6 +61,7 @@ class DTMCNextStateSampler {
   RandomNumberEngine* engine_;
   const CompiledState* state_;
   std::vector<bool> seen_actions_;
+  int num_seen_actions_;
   int num_enabled_;
   std::vector<const CompiledCommand*> candidate_commands_;
   std::vector<const CompiledCommand*> selected_commands_;
@@ -94,6 +95,7 @@ bool DTMCNextStateSampler<RandomNumberEngine>::NextState(
 template <typename RandomNumberEngine>
 void DTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
   seen_actions_ = std::vector<bool>(model_->num_actions(), false);
+  num_seen_actions_ = 0;
   num_enabled_ = 0;
   SampleCommands(0);
 }
@@ -103,6 +105,9 @@ void DTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
   VLOG(2) << "SampleCommands(" << module << ")";
   for (const auto& p: model_->commands(module)) {
     const Optional<int>& action = p.first;
+    if (action && num_seen_actions_ == model_->num_actions()) {
+      break;
+    }
     if (!action || !seen_actions_[action.get()]) {
       for (const CompiledCommand& command: p.second) {
         if (command.guard().ValueInState(*state_)) {
@@ -117,6 +122,7 @@ void DTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
       }
       if (action) {
         seen_actions_[action.get()] = true;
+        ++num_seen_actions_;
       }
     }
   }
@@ -232,6 +238,7 @@ class CTMCNextStateSampler {
   RandomNumberEngine* engine_;
   const CompiledState* state_;
   std::vector<bool> seen_actions_;
+  int num_seen_actions_;
   double weight_sum_;
   std::vector<const CompiledCommand*> candidate_commands_;
   std::vector<const CompiledCommand*> selected_commands_;
@@ -266,6 +273,7 @@ bool CTMCNextStateSampler<RandomNumberEngine>::NextState(
 template <typename RandomNumberEngine>
 void CTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
   seen_actions_ = std::vector<bool>(model_->num_actions(), false);
+  num_seen_actions_ = 0;
   weight_sum_ = 0.0;
   selected_key_ = -std::numeric_limits<double>::infinity();
   SampleCommands(0);
@@ -285,6 +293,9 @@ void CTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
   VLOG(2) << "SampleCommands(" << module << ")";
   for (const auto& p: model_->commands(module)) {
     const Optional<int>& action = p.first;
+    if (action && num_seen_actions_ == model_->num_actions()) {
+      break;
+    }
     if (!action || !seen_actions_[action.get()]) {
       for (const CompiledCommand& command: p.second) {
         if (command.guard().ValueInState(*state_)) {
@@ -300,6 +311,7 @@ void CTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
       }
       if (action) {
         seen_actions_[action.get()] = true;
+        ++num_seen_actions_;
       }
     }
   }
@@ -474,7 +486,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   double model_end_time = GetCurrentTimeSeconds();
-  LOG(INFO) << "Compilation time: " << model_end_time - model_start_time;
+  printf("Compilation time: %g\n", model_end_time - model_start_time);
 
   double simulation_start_time = GetCurrentTimeSeconds();
   std::mt19937 engine;
@@ -534,8 +546,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   double simulation_end_time = GetCurrentTimeSeconds();
-  LOG(INFO) << "Simulation time: "
-            << simulation_end_time - simulation_start_time;
+  printf("Simulation time: %g\n", simulation_end_time - simulation_start_time);
 
   return 0;
 }
