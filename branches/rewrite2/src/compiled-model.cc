@@ -934,16 +934,17 @@ bool CompileCommands(
     std::map<std::string, int>* modules,
     std::map<std::string, int>* actions,
     std::vector<CompiledCommand>* commands_without_action,
-    std::vector<ActionToCommandsMap>* module_commands,
+    std::vector<
+      std::vector<std::vector<CompiledCommand> > >* commands_with_action,
     std::string* error) {
   CHECK(modules);
   CHECK(actions);
   CHECK(commands_without_action);
-  CHECK(module_commands);
-  module_commands->resize(model.num_modules());
+  CHECK(commands_with_action);
   for (int i = 0; i < model.num_modules(); ++i) {
     const std::string& name = model.GetModuleName(i);
     CHECK(modules->insert({ name, i }).second);
+    std::set<int> seen_actions;
     for (const ParsedCommand& command: model.module_commands(i)) {
       Optional<int> action = CompileAction(command.action(), actions);
       std::unique_ptr<const CompiledExpression<double> > guard =
@@ -961,7 +962,14 @@ bool CompileCommands(
         }
       }
       if (action) {
-        (*module_commands)[i][action.get()].emplace_back(
+        commands_with_action->resize(actions->size());
+        std::vector<std::vector<CompiledCommand> >& commands_per_module =
+            (*commands_with_action)[action.get()];
+        if (seen_actions.find(action.get()) == seen_actions.end()) {
+          commands_per_module.emplace_back();
+          seen_actions.insert(action.get());
+        }
+        commands_per_module.back().emplace_back(
             action, std::move(guard), std::move(outcomes));
       } else {
         commands_without_action->emplace_back(
@@ -969,6 +977,7 @@ bool CompileCommands(
       }
     }
   }
+  commands_with_action->resize(actions->size());
   return true;
 }
 
@@ -983,8 +992,10 @@ CompiledModel::CompiledModel(CompiledModel&& compiled_model)
       variables_(std::move(compiled_model.variables_)),
       action_names_(std::move(compiled_model.action_names_)),
       init_(std::move(compiled_model.init_)),
-      commands_without_action_(std::move(commands_without_action_)),
-      module_commands_(std::move(compiled_model.module_commands_)),
+      commands_without_action_(
+          std::move(compiled_model.commands_without_action_)),
+      commands_with_action_(
+          std::move(compiled_model.commands_with_action_)),
       is_valid_(compiled_model.is_valid_) {
 }
 
@@ -994,13 +1005,14 @@ CompiledModel::CompiledModel(
     std::vector<std::string>&& action_names,
     std::unique_ptr<const CompiledExpression<double> >&& init,
     std::vector<CompiledCommand>&& commands_without_action,
-    std::vector<ActionToCommandsMap>&& module_commands)
+    std::vector<
+      std::vector<std::vector<CompiledCommand> > >&& commands_with_action)
     : model_type_(model_type),
       variables_(std::move(variables)),
       action_names_(std::move(action_names)),
       init_(std::move(init)),
       commands_without_action_(std::move(commands_without_action)),
-      module_commands_(std::move(module_commands)),
+      commands_with_action_(std::move(commands_with_action)),
       is_valid_(true) {
 }
 
@@ -1026,10 +1038,10 @@ CompiledModel CompiledModel::Make(
   std::map<std::string, int> modules;
   std::map<std::string, int> actions;
   std::vector<CompiledCommand> commands_without_action;
-  std::vector<ActionToCommandsMap> module_commands;
+  std::vector<std::vector<std::vector<CompiledCommand> > > commands_with_action;
   if (!CompileCommands(
           parsed_model, constants, formulas, compiled_variables,
-          &modules, &actions, &commands_without_action, &module_commands,
+          &modules, &actions, &commands_without_action, &commands_with_action,
           error)) {
     return CompiledModel();
   }
@@ -1046,5 +1058,5 @@ CompiledModel CompiledModel::Make(
                        std::move(action_names),
                        std::move(init),
                        std::move(commands_without_action),
-                       std::move(module_commands));
+                       std::move(commands_with_action));
 }

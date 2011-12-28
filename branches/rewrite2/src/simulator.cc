@@ -49,9 +49,7 @@ class DTMCNextStateSampler {
  private:
   void GetCommand();
 
-  void SampleCommands(int module);
-
-  void SampleSynchronizedCommands(int module, int action);
+  void SampleSynchronizedCommands(int action, int module);
 
   void ConsiderCandidateCommands();
 
@@ -60,8 +58,6 @@ class DTMCNextStateSampler {
   const CompiledModel* model_;
   RandomNumberEngine* engine_;
   const CompiledState* state_;
-  std::vector<bool> seen_actions_;
-  int num_seen_actions_;
   int num_enabled_;
   std::vector<const CompiledCommand*> candidate_commands_;
   std::vector<const CompiledCommand*> selected_commands_;
@@ -94,8 +90,6 @@ bool DTMCNextStateSampler<RandomNumberEngine>::NextState(
 
 template <typename RandomNumberEngine>
 void DTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
-  seen_actions_ = std::vector<bool>(model_->num_actions(), false);
-  num_seen_actions_ = 0;
   num_enabled_ = 0;
   for (const CompiledCommand& command: model_->commands_without_action()) {
     if (command.guard().ValueInState(*state_)) {
@@ -104,53 +98,30 @@ void DTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
       candidate_commands_.pop_back();
     }
   }
-  SampleCommands(0);
-}
-
-template <typename RandomNumberEngine>
-void DTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
-  VLOG(2) << "SampleCommands(" << module << ")";
-  for (const auto& p: model_->commands(module)) {
-    const int action = p.first;
-    if (num_seen_actions_ == model_->num_actions()) {
-      break;
+  const int num_actions = model_->num_actions();
+  for (int i = 0; i < num_actions; ++i) {
+    if (!model_->commands_with_action(i).empty()) {
+      SampleSynchronizedCommands(i, 0);
     }
-    if (!seen_actions_[action]) {
-      for (const CompiledCommand& command: p.second) {
-        if (command.guard().ValueInState(*state_)) {
-          candidate_commands_.push_back(&command);
-          SampleSynchronizedCommands(module + 1, action);
-          candidate_commands_.pop_back();
-        }
-      }
-      seen_actions_[action] = true;
-      ++num_seen_actions_;
-    }
-  }
-  if (num_seen_actions_ < model_->num_actions()) {
-    SampleCommands(module + 1);
   }
 }
 
 template <typename RandomNumberEngine>
 void DTMCNextStateSampler<RandomNumberEngine>::SampleSynchronizedCommands(
-    int module, int action) {
-  if (module == model_->num_modules()) {
+    int action, int module) {
+  const std::vector<std::vector<CompiledCommand> >& commands_per_module =
+      model_->commands_with_action(action);
+  if (module == commands_per_module.size()) {
     ConsiderCandidateCommands();
     return;
   }
-  VLOG(2) << "SampleSynchronizedCommands(" << module << ", " << action << ")";
-  auto i = model_->commands(module).find(action);
-  if (i != model_->commands(module).end()) {
-    for (const CompiledCommand& command: i->second) {
-      if (command.guard().ValueInState(*state_)) {
-        candidate_commands_.push_back(&command);
-        SampleSynchronizedCommands(module + 1, action);
-        candidate_commands_.pop_back();
-      }
+  VLOG(2) << "SampleSynchronizedCommands(" << action << ", " << module << ")";
+  for (const CompiledCommand& command: commands_per_module[module]) {
+    if (command.guard().ValueInState(*state_)) {
+      candidate_commands_.push_back(&command);
+      SampleSynchronizedCommands(action, module + 1);
+      candidate_commands_.pop_back();
     }
-  } else {
-    SampleSynchronizedCommands(module + 1, action);
   }
 }
 
@@ -227,9 +198,7 @@ class CTMCNextStateSampler {
  private:
   void GetCommand();
 
-  void SampleCommands(int module);
-
-  void SampleSynchronizedCommands(int module, int action, double factor);
+  void SampleSynchronizedCommands(int action, int module, double factor);
 
   void ConsiderCandidateCommands(double weight);
 
@@ -238,8 +207,6 @@ class CTMCNextStateSampler {
   const CompiledModel* model_;
   RandomNumberEngine* engine_;
   const CompiledState* state_;
-  std::vector<bool> seen_actions_;
-  int num_seen_actions_;
   double weight_sum_;
   std::vector<const CompiledCommand*> candidate_commands_;
   std::vector<const CompiledCommand*> selected_commands_;
@@ -282,8 +249,6 @@ double GetWeight(
 
 template <typename RandomNumberEngine>
 void CTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
-  seen_actions_ = std::vector<bool>(model_->num_actions(), false);
-  num_seen_actions_ = 0;
   weight_sum_ = 0.0;
   selected_key_ = -std::numeric_limits<double>::infinity();
   for (const CompiledCommand& command: model_->commands_without_action()) {
@@ -293,57 +258,35 @@ void CTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
       candidate_commands_.pop_back();
     }
   }
-  SampleCommands(0);
-}
-
-template <typename RandomNumberEngine>
-void CTMCNextStateSampler<RandomNumberEngine>::SampleCommands(int module) {
-  VLOG(2) << "SampleCommands(" << module << ")";
-  for (const auto& p: model_->commands(module)) {
-    const int action = p.first;
-    if (num_seen_actions_ == model_->num_actions()) {
-      break;
+  const int num_actions = model_->num_actions();
+  for (int i = 0; i < num_actions; ++i) {
+    if (!model_->commands_with_action(i).empty()) {
+      SampleSynchronizedCommands(i, 0, 1.0);
     }
-    if (!seen_actions_[action]) {
-      for (const CompiledCommand& command: p.second) {
-        if (command.guard().ValueInState(*state_)) {
-          candidate_commands_.push_back(&command);
-          const double weight = GetWeight(command, 1.0, *state_);
-          SampleSynchronizedCommands(module + 1, action, weight);
-          candidate_commands_.pop_back();
-        }
-      }
-      seen_actions_[action] = true;
-      ++num_seen_actions_;
-    }
-  }
-  if (num_seen_actions_ < model_->num_actions()) {
-    SampleCommands(module + 1);
   }
 }
 
 template <typename RandomNumberEngine>
 void CTMCNextStateSampler<RandomNumberEngine>::SampleSynchronizedCommands(
-    int module, int action, double factor) {
-  if (module == model_->num_modules()) {
+    int action, int module, double factor) {
+  const std::vector<std::vector<CompiledCommand> >& commands_per_module =
+      model_->commands_with_action(action);
+  if (module == commands_per_module.size()) {
     ConsiderCandidateCommands(factor);
     return;
   }
-  VLOG(2) << "SampleSynchronizedCommands(" << module << ", " << action << ")";
-  auto i = model_->commands(module).find(action);
-  if (i != model_->commands(module).end()) {
-    for (const CompiledCommand& command: i->second) {
-      if (command.guard().ValueInState(*state_)) {
-        candidate_commands_.push_back(&command);
-        const double weight = GetWeight(command, factor, *state_);
-        SampleSynchronizedCommands(module + 1, action, weight);
-        candidate_commands_.pop_back();
-      }
+  VLOG(2) << "SampleSynchronizedCommands(" << action << ", " << module << ", "
+          << factor << ")";
+  for (const CompiledCommand& command: commands_per_module[module]) {
+    if (command.guard().ValueInState(*state_)) {
+      candidate_commands_.push_back(&command);
+      const double weight = GetWeight(command, factor, *state_);
+      SampleSynchronizedCommands(action, module + 1, weight);
+      candidate_commands_.pop_back();
     }
-  } else {
-    SampleSynchronizedCommands(module + 1, action, factor);
   }
 }
+
 template <typename RandomNumberEngine>
 void CTMCNextStateSampler<RandomNumberEngine>::ConsiderCandidateCommands(
     double weight) {
