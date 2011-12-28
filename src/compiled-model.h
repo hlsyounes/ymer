@@ -38,8 +38,6 @@ struct VariableInfo {
   TypedValue init_value;
 };
 
-using ActionToCommandsMap = std::map<int, std::vector<CompiledCommand> >;
-
 class CompiledModel {
  public:
   CompiledModel(CompiledModel&& compiled_model);
@@ -76,22 +74,21 @@ class CompiledModel {
     return commands_without_action_;
   }
 
-  // Returns the number of modules for this compiled model.
-  int num_modules() const { return module_commands_.size(); }
-
-  // Returns the commands for the ith module.
-  const ActionToCommandsMap& commands(int i) const {
-    return module_commands_[i];
+  const std::vector<std::vector<CompiledCommand> >& commands_with_action(
+      int action) const {
+    return commands_with_action_[action];
   }
 
  private:
   CompiledModel();
-  CompiledModel(ModelType model_type,
-                std::vector<VariableInfo>&& variables,
-                std::vector<std::string>&& action_names,
-                std::unique_ptr<const CompiledExpression<double> >&& init,
-                std::vector<CompiledCommand>&& commands_without_action,
-                std::vector<ActionToCommandsMap>&& module_commands);
+  CompiledModel(
+      ModelType model_type,
+      std::vector<VariableInfo>&& variables,
+      std::vector<std::string>&& action_names,
+      std::unique_ptr<const CompiledExpression<double> >&& init,
+      std::vector<CompiledCommand>&& commands_without_action,
+      std::vector<
+        std::vector<std::vector<CompiledCommand> > >&& commands_with_action);
 
   // Model type.
   ModelType model_type_;
@@ -103,8 +100,9 @@ class CompiledModel {
   std::unique_ptr<const CompiledExpression<double> > init_;
   // Commands without action.
   std::vector<CompiledCommand> commands_without_action_;
-  // Module commands.
-  std::vector<ActionToCommandsMap> module_commands_;
+  // Commands with action.  Maps action to commands grouped by module.
+  std::vector<
+    std::vector<std::vector<CompiledCommand> > > commands_with_action_;
   // Whether this system is valid.
   bool is_valid_;
 };

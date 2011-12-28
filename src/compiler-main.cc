@@ -82,25 +82,6 @@ bool ParseConstOverrides(
   return true;
 }
 
-int NumCommands(const ActionToCommandsMap& commands) {
-  int n = 0;
-  for (const auto& p: commands) {
-    n += p.second.size();
-  }
-  return n;
-}
-
-std::string ModuleSizes(const CompiledModel& compiled_model) {
-  std::ostringstream out;
-  if (compiled_model.num_modules() > 0) {
-    out << NumCommands(compiled_model.commands(0));
-    for (int i = 1; i < compiled_model.num_modules(); ++i) {
-      out << "x" << NumCommands(compiled_model.commands(i));
-    }
-  }
-  return out.str();
-}
-
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -130,12 +111,11 @@ int main(int argc, char* argv[]) {
         CompiledModel::Make(parsed_model, const_overrides, &error);
     if (compiled_model.is_valid()) {
       if (VLOG_IS_ON(1)) {
-        printf("%s:\ntype: %s; variables: %d; modules %d (%s)\n",
+        printf("%s:\ntype: %s; variables: %d; actions: %d\n",
                filename.c_str(),
                ModelType_Name(compiled_model.model_type()).c_str(),
                compiled_model.num_variables(),
-               compiled_model.num_modules(),
-               ModuleSizes(compiled_model).c_str());
+               compiled_model.num_actions());
       }
     } else {
       fprintf(stderr, "%s\n", error.c_str());
