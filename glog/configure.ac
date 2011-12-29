@@ -105,7 +105,8 @@ fi
 # Modified for Ymer 2011-01-30: use local copy of gflags.
 GFLAGS_CFLAGS="-I../gflags/src"
 GFLAGS_LIBS="../gflags/libgflags.la"
-AC_DEFINE([HAVE_LIB_GFLAGS], [1], [Define to 1 if you have google glog library])
+AC_DEFINE([HAVE_LIB_GFLAGS], [1],
+          [Define to 1 if you have google gflags library])
 ac_cv_have_libgflags=1
 
 # TODO(hamaji): Use official m4 macros provided by testing libraries
