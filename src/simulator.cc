@@ -19,216 +19,46 @@
 #include "model.h"
 #include "parse.h"
 
-template <typename RandomNumberEngine>
-class DTMCSimulator {
+template <ModelType type, typename RandomNumberEngine>
+class NextStateSampler {
  public:
-  DTMCSimulator(const CompiledModel* model, RandomNumberEngine* engine);
-
-  bool NextState(const CompiledState& state, CompiledState* next_state) const;
-
- private:
-  const CompiledModel* model_;
-  RandomNumberEngine* engine_;
-};
-
-template <typename RandomNumberEngine>
-DTMCSimulator<RandomNumberEngine>::DTMCSimulator(const CompiledModel* model,
-                                                 RandomNumberEngine* engine)
-    : model_(model), engine_(engine) {
-  CHECK(model_);
-  CHECK(engine_);
-}
-
-template <typename RandomNumberEngine>
-class DTMCNextStateSampler {
- public:
-  DTMCNextStateSampler(const CompiledModel* model, RandomNumberEngine* engine);
+  NextStateSampler(const CompiledModel* model, RandomNumberEngine* engine);
 
   bool NextState(const CompiledState& state, CompiledState* next_state);
 
  private:
-  void GetCommand();
+  void GetCommand(const CompiledState& state);
 
-  void SampleSynchronizedCommands(int action, int module);
-
-  void ConsiderCandidateCommands();
-
-  void GetOutcome();
-
-  const CompiledModel* model_;
-  RandomNumberEngine* engine_;
-  const CompiledState* state_;
-  int num_enabled_;
-  std::vector<const CompiledCommand*> candidate_commands_;
-  std::vector<const CompiledCommand*> selected_commands_;
-  std::vector<const CompiledOutcome*> selected_outcomes_;
-};
-
-template <typename RandomNumberEngine>
-DTMCNextStateSampler<RandomNumberEngine>::DTMCNextStateSampler(
-    const CompiledModel* model, RandomNumberEngine* engine)
-    : model_(model), engine_(engine) {
-}
-
-template <typename RandomNumberEngine>
-bool DTMCNextStateSampler<RandomNumberEngine>::NextState(
-    const CompiledState& state, CompiledState* next_state) {
-  state_ = &state;
-  GetCommand();
-  if (selected_commands_.empty()) {
-    return false;
-  }
-  GetOutcome();
-  *next_state = state;
-  for (const CompiledOutcome* outcome: selected_outcomes_) {
-    for (const CompiledUpdate& update: outcome->updates()) {
-      (*next_state)[update.variable()] = update.expr().ValueInState(state);
-    }
-  }
-  return true;
-}
-
-template <typename RandomNumberEngine>
-void DTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
-  num_enabled_ = 0;
-  for (const CompiledCommand& command: model_->commands_without_action()) {
-    if (command.guard().ValueInState(*state_)) {
-      candidate_commands_.push_back(&command);
-      ConsiderCandidateCommands();
-      candidate_commands_.pop_back();
-    }
-  }
-  const int num_actions = model_->num_actions();
-  for (int i = 0; i < num_actions; ++i) {
-    if (!model_->commands_with_action(i).empty()) {
-      SampleSynchronizedCommands(i, 0);
-    }
-  }
-}
-
-template <typename RandomNumberEngine>
-void DTMCNextStateSampler<RandomNumberEngine>::SampleSynchronizedCommands(
-    int action, int module) {
-  const std::vector<std::vector<CompiledCommand> >& commands_per_module =
-      model_->commands_with_action(action);
-  if (module == commands_per_module.size()) {
-    ConsiderCandidateCommands();
-    return;
-  }
-  VLOG(2) << "SampleSynchronizedCommands(" << action << ", " << module << ")";
-  for (const CompiledCommand& command: commands_per_module[module]) {
-    if (command.guard().ValueInState(*state_)) {
-      candidate_commands_.push_back(&command);
-      SampleSynchronizedCommands(action, module + 1);
-      candidate_commands_.pop_back();
-    }
-  }
-}
-
-template <typename RandomNumberEngine>
-void DTMCNextStateSampler<RandomNumberEngine>::ConsiderCandidateCommands() {
-  ++num_enabled_;
-  if (num_enabled_ == 1 ||
-      std::uniform_int_distribution<>(1, num_enabled_)(*engine_) <= 1) {
-    VLOG(2) << "select enabled command " << num_enabled_;
-    selected_commands_ = candidate_commands_;
-  } else {
-    VLOG(2) << "reject enabled command " << num_enabled_;
-  }
-}
-
-template <typename RandomNumberEngine>
-void DTMCNextStateSampler<RandomNumberEngine>::GetOutcome() {
-  selected_outcomes_.resize(selected_commands_.size());
-  for (int i = 0; i < selected_commands_.size(); ++i) {
-    VLOG(2) << "SampleOutcomes(" << i << ")";
-    const CompiledCommand& command = *selected_commands_[i];
-    double selected_key = -std::numeric_limits<double>::infinity();
-    for (const CompiledOutcome& outcome: command.outcomes()) {
-      const double p = outcome.probability().ValueInState(*state_);
-      const double key =
-          log(1.0 - std::uniform_real_distribution<>(0, 1)(*engine_)) / p;
-      if (key > selected_key) {
-        VLOG(2) << "select outcome with probability " << p
-                << " (key = " << key << ")";
-        selected_outcomes_[i] = &outcome;
-        selected_key = key;
-      } else {
-        VLOG(2) << "reject outcome with probability " << p
-                << " (key = " << key << ")";
-      }
-    }
-  }
-}
-
-template <typename RandomNumberEngine>
-bool DTMCSimulator<RandomNumberEngine>::NextState(
-    const CompiledState& state, CompiledState* next_state) const {
-  return DTMCNextStateSampler<RandomNumberEngine>(model_, engine_).NextState(
-      state, next_state);
-}
-
-template <typename RandomNumberEngine>
-class CTMCSimulator {
- public:
-  CTMCSimulator(const CompiledModel* model, RandomNumberEngine* engine);
-
-  bool NextState(const CompiledState& state, CompiledState* next_state) const;
-
- private:
-  const CompiledModel* model_;
-  RandomNumberEngine* engine_;
-};
-
-template <typename RandomNumberEngine>
-CTMCSimulator<RandomNumberEngine>::CTMCSimulator(const CompiledModel* model,
-                                                 RandomNumberEngine* engine)
-    : model_(model), engine_(engine) {
-  CHECK(model_);
-  CHECK(engine_);
-}
-
-template <typename RandomNumberEngine>
-class CTMCNextStateSampler {
- public:
-  CTMCNextStateSampler(const CompiledModel* model, RandomNumberEngine* engine);
-
-  bool NextState(const CompiledState& state, CompiledState* next_state);
-
- private:
-  void GetCommand();
-
-  void SampleSynchronizedCommands(int action, int module, double factor);
+  void SampleSynchronizedCommands(
+      const CompiledState& state, int action, int module, double factor);
 
   void ConsiderCandidateCommands(double weight);
 
-  void GetOutcome();
+  void GetOutcome(const CompiledState& state);
 
-  const CompiledModel* model_;
-  RandomNumberEngine* engine_;
-  const CompiledState* state_;
+  const CompiledModel* const model_;
+  RandomNumberEngine* const engine_;
   double weight_sum_;
   std::vector<const CompiledCommand*> candidate_commands_;
   std::vector<const CompiledCommand*> selected_commands_;
-  double selected_key_;
+  double selected_commands_key_;
   std::vector<const CompiledOutcome*> selected_outcomes_;
 };
 
-template <typename RandomNumberEngine>
-CTMCNextStateSampler<RandomNumberEngine>::CTMCNextStateSampler(
+template <ModelType type, typename RandomNumberEngine>
+NextStateSampler<type, RandomNumberEngine>::NextStateSampler(
     const CompiledModel* model, RandomNumberEngine* engine)
     : model_(model), engine_(engine) {
 }
 
-template <typename RandomNumberEngine>
-bool CTMCNextStateSampler<RandomNumberEngine>::NextState(
+template <ModelType type, typename RandomNumberEngine>
+bool NextStateSampler<type, RandomNumberEngine>::NextState(
     const CompiledState& state, CompiledState* next_state) {
-  state_ = &state;
-  GetCommand();
+  GetCommand(state);
   if (selected_commands_.empty()) {
     return false;
   }
-  GetOutcome();
+  GetOutcome(state);
   *next_state = state;
   for (const CompiledOutcome* outcome: selected_outcomes_) {
     for (const CompiledUpdate& update: outcome->updates()) {
@@ -238,8 +68,23 @@ bool CTMCNextStateSampler<RandomNumberEngine>::NextState(
   return true;
 }
 
-double GetWeight(
-    const CompiledCommand& command, double factor, const CompiledState& state) {
+template <ModelType type>
+class CommandWeight {
+ public:
+  static double Get(const CompiledState& state,
+                    const CompiledCommand& command,
+                    double factor);
+};
+
+template <>
+double CommandWeight<ModelType::DTMC>::Get(
+    const CompiledState& state, const CompiledCommand& command, double factor) {
+  return 1.0;
+}
+
+template <>
+double CommandWeight<ModelType::CTMC>::Get(
+    const CompiledState& state, const CompiledCommand& command, double factor) {
   double weight = 0.0;
   for (const CompiledOutcome& outcome: command.outcomes()) {
     weight += factor * outcome.probability().ValueInState(state);
@@ -247,28 +92,30 @@ double GetWeight(
   return weight;
 }
 
-template <typename RandomNumberEngine>
-void CTMCNextStateSampler<RandomNumberEngine>::GetCommand() {
+template <ModelType type, typename RandomNumberEngine>
+void NextStateSampler<type, RandomNumberEngine>::GetCommand(
+    const CompiledState& state) {
   weight_sum_ = 0.0;
-  selected_key_ = -std::numeric_limits<double>::infinity();
+  selected_commands_.clear();
+  selected_commands_key_ = -std::numeric_limits<double>::infinity();
   for (const CompiledCommand& command: model_->commands_without_action()) {
-    if (command.guard().ValueInState(*state_)) {
+    if (command.guard().ValueInState(state)) {
       candidate_commands_.push_back(&command);
-      ConsiderCandidateCommands(GetWeight(command, 1.0, *state_));
+      ConsiderCandidateCommands(CommandWeight<type>::Get(state, command, 1.0));
       candidate_commands_.pop_back();
     }
   }
   const int num_actions = model_->num_actions();
   for (int i = 0; i < num_actions; ++i) {
     if (!model_->commands_with_action(i).empty()) {
-      SampleSynchronizedCommands(i, 0, 1.0);
+      SampleSynchronizedCommands(state, i, 0, 1.0);
     }
   }
 }
 
-template <typename RandomNumberEngine>
-void CTMCNextStateSampler<RandomNumberEngine>::SampleSynchronizedCommands(
-    int action, int module, double factor) {
+template <ModelType type, typename RandomNumberEngine>
+void NextStateSampler<type, RandomNumberEngine>::SampleSynchronizedCommands(
+    const CompiledState& state, int action, int module, double factor) {
   const std::vector<std::vector<CompiledCommand> >& commands_per_module =
       model_->commands_with_action(action);
   if (module == commands_per_module.size()) {
@@ -278,57 +125,52 @@ void CTMCNextStateSampler<RandomNumberEngine>::SampleSynchronizedCommands(
   VLOG(2) << "SampleSynchronizedCommands(" << action << ", " << module << ", "
           << factor << ")";
   for (const CompiledCommand& command: commands_per_module[module]) {
-    if (command.guard().ValueInState(*state_)) {
+    if (command.guard().ValueInState(state)) {
       candidate_commands_.push_back(&command);
-      const double weight = GetWeight(command, factor, *state_);
-      SampleSynchronizedCommands(action, module + 1, weight);
+      SampleSynchronizedCommands(
+          state, action, module + 1,
+          CommandWeight<type>::Get(state, command, factor));
       candidate_commands_.pop_back();
     }
   }
 }
 
-template <typename RandomNumberEngine>
-void CTMCNextStateSampler<RandomNumberEngine>::ConsiderCandidateCommands(
+template <ModelType type, typename RandomNumberEngine>
+void NextStateSampler<type, RandomNumberEngine>::ConsiderCandidateCommands(
     double weight) {
   weight_sum_ += weight;
   double key =
       log(1.0 - std::uniform_real_distribution<>(0, 1)(*engine_)) / weight;
-  if (key > selected_key_) {
-    VLOG(2) << "select enabled command " << weight << " (" << key << ")";
+  if (key > selected_commands_key_) {
+    VLOG(2) << "select enabled command weight=" << weight << " (" << key << ")";
     selected_commands_ = candidate_commands_;
-    selected_key_ = key;
+    selected_commands_key_ = key;
   } else {
-    VLOG(2) << "relect enabled command " << weight << " (" << key << ")";
+    VLOG(2) << "relect enabled command weight=" << weight << " (" << key << ")";
   }
 }
 
-template <typename RandomNumberEngine>
-void CTMCNextStateSampler<RandomNumberEngine>::GetOutcome() {
+template <ModelType type, typename RandomNumberEngine>
+void NextStateSampler<type, RandomNumberEngine>::GetOutcome(
+    const CompiledState& state) {
   selected_outcomes_.resize(selected_commands_.size());
+  VLOG(2) << "SampleOutcomes()";
   for (int i = 0; i < selected_commands_.size(); ++i) {
-    VLOG(2) << "SampleOutcomes(" << i << ")";
     const CompiledCommand& command = *selected_commands_[i];
     double selected_key = -std::numeric_limits<double>::infinity();
     for (const CompiledOutcome& outcome: command.outcomes()) {
-      const double p = outcome.probability().ValueInState(*state_);
+      const double p = outcome.probability().ValueInState(state);
       const double key =
           log(1.0 - std::uniform_real_distribution<>(0, 1)(*engine_)) / p;
       if (key > selected_key) {
-        VLOG(2) << "select outcome with rate " << p << " (key = " << key << ")";
+        VLOG(2) << i << ": select outcome with p=" << p << " (" << key << ")";
         selected_outcomes_[i] = &outcome;
         selected_key = key;
       } else {
-        VLOG(2) << "reject outcome with rate " << p << " (key = " << key << ")";
+        VLOG(2) << i << ": reject outcome with p=" << p << " (" << key << ")";
       }
     }
   }
-}
-
-template <typename RandomNumberEngine>
-bool CTMCSimulator<RandomNumberEngine>::NextState(
-    const CompiledState& state, CompiledState* next_state) const {
-  return CTMCNextStateSampler<RandomNumberEngine>(model_, engine_).NextState(
-      state, next_state);
 }
 
 DEFINE_string(const, "", "Value assignments for constants.");
@@ -395,6 +237,68 @@ double GetCurrentTimeSeconds() {
   return tv.tv_sec + 1e-6*tv.tv_usec;
 }
 
+template <typename RandomNumberEngine>
+class Simulator {
+ public:
+  Simulator(const CompiledModel* model, RandomNumberEngine* engine);
+
+  void GeneratePath(const CompiledState& init_state, int max_length) const;
+
+ private:
+  template <ModelType type>
+  void GeneratePathImpl(const CompiledState& init_state, int max_length) const;
+
+  const CompiledModel* const model_;
+  RandomNumberEngine* const engine_;
+};
+
+template <typename RandomNumberEngine>
+Simulator<RandomNumberEngine>::Simulator(const CompiledModel* model,
+                                         RandomNumberEngine* engine)
+    : model_(model), engine_(engine) {
+  CHECK(model_);
+  CHECK(engine_);
+}
+
+template <typename RandomNumberEngine>
+void Simulator<RandomNumberEngine>::GeneratePath(
+    const CompiledState& init_state, int max_length) const {
+  switch (model_->model_type()) {
+    case ModelType::DTMC:
+      GeneratePathImpl<ModelType::DTMC>(init_state, max_length);
+      break;
+    case ModelType::CTMC:
+      GeneratePathImpl<ModelType::CTMC>(init_state, max_length);
+      break;
+    case ModelType::MDP:
+      LOG(FATAL) << "unsupported model type for Simulator";
+  }
+}
+
+template <typename RandomNumberEngine>
+template <ModelType type>
+void Simulator<RandomNumberEngine>::GeneratePathImpl(
+    const CompiledState& init_state, int max_length) const {
+  NextStateSampler<type, RandomNumberEngine> next_state_sampler(model_,
+                                                                engine_);
+  CompiledState state = init_state;
+  if (VLOG_IS_ON(1)) {
+    LOG(INFO) << "state:" << StateString(state);
+  }
+  CompiledState next_state;
+  for (int i = 1; i <= max_length; ++i) {
+    if (next_state_sampler.NextState(state, &next_state)) {
+      swap(state, next_state);
+      if (VLOG_IS_ON(1)) {
+        LOG(INFO) << "state:" << StateString(state);
+      }
+    } else {
+      VLOG(1) << "dead end at step " << i;
+      break;
+    }
+  }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -440,55 +344,13 @@ int main(int argc, char* argv[]) {
   if (compiled_model.init()) {
     fprintf(stderr, "Simulator ignores init expression.\n");
   }
-  if (compiled_model.model_type() == ModelType::DTMC) {
-    DTMCSimulator<std::mt19937> simulator(&compiled_model, &engine);
-    CompiledState next_state;
-    for (int k = 1; k <= sample_size; ++k) {
-      CompiledState state(compiled_model.num_variables());
-      for (int i = 0; i < compiled_model.num_variables(); ++i) {
-        state[i] = compiled_model.variable_info(i).init_value.value<int>();
-      }
-      if (VLOG_IS_ON(1)) {
-        LOG(INFO) << "state:" << StateString(state);
-      }
-      for (int i = 1; i <= path_length; ++i) {
-        if (simulator.NextState(state, &next_state)) {
-          swap(state, next_state);
-          if (VLOG_IS_ON(1)) {
-            LOG(INFO) << "state:" << StateString(state);
-          }
-        } else {
-          VLOG(1) << "dead end at step " << i;
-          break;
-        }
-      }
-    }
-  } else if (compiled_model.model_type() == ModelType::CTMC) {
-    CTMCSimulator<std::mt19937> simulator(&compiled_model, &engine);
-    for (int k = 1; k <= sample_size; ++k) {
-      CompiledState state(compiled_model.num_variables());
-      for (int i = 0; i < compiled_model.num_variables(); ++i) {
-        state[i] = compiled_model.variable_info(i).init_value.value<int>();
-      }
-      if (VLOG_IS_ON(1)) {
-        LOG(INFO) << "state:" << StateString(state);
-      }
-      CompiledState next_state;
-      for (int i = 1; i <= path_length; ++i) {
-        if (simulator.NextState(state, &next_state)) {
-          swap(state, next_state);
-          if (VLOG_IS_ON(1)) {
-            LOG(INFO) << "state:" << StateString(state);
-          }
-        } else {
-          VLOG(1) << "dead end at step " << i;
-          break;
-        }
-      }
-    }
-  } else {
-    fprintf(stderr, "Simulator does not support the given model type.\n");
-    return 1;
+  CompiledState init_state(compiled_model.num_variables());
+  for (int i = 0; i < compiled_model.num_variables(); ++i) {
+    init_state[i] = compiled_model.variable_info(i).init_value.value<int>();
+  }
+  for (int k = 1; k <= sample_size; ++k) {
+    Simulator<std::mt19937> simulator(&compiled_model, &engine);
+    simulator.GeneratePath(init_state, path_length);
   }
   double simulation_end_time = GetCurrentTimeSeconds();
   printf("Simulation time: %g\n", simulation_end_time - simulation_start_time);
