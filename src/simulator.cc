@@ -19,6 +19,12 @@
 #include "model.h"
 #include "parse.h"
 
+// TODO(hlsyounes): Hack to avoid bug in GCC 4.7.0 (trunk).
+#ifdef NDEBUG
+#undef DVLOG
+#define DVLOG(verbositylevel) (true) ? (void) 0 : google::LogMessageVoidify() & LOG(INFO)
+#endif
+
 template <ModelType type, typename RandomNumberEngine>
 class NextStateSampler {
  public:
@@ -122,8 +128,8 @@ void NextStateSampler<type, RandomNumberEngine>::SampleSynchronizedCommands(
     ConsiderCandidateCommands(factor);
     return;
   }
-  VLOG(2) << "SampleSynchronizedCommands(" << action << ", " << module << ", "
-          << factor << ")";
+  DVLOG(2) << "SampleSynchronizedCommands(" << action << ", " << module << ", "
+           << factor << ")";
   for (const CompiledCommand& command: commands_per_module[module]) {
     if (command.guard().ValueInState(state)) {
       candidate_commands_.push_back(&command);
@@ -142,11 +148,13 @@ void NextStateSampler<type, RandomNumberEngine>::ConsiderCandidateCommands(
   double key =
       log(1.0 - std::uniform_real_distribution<>(0, 1)(*engine_)) / weight;
   if (key > selected_commands_key_) {
-    VLOG(2) << "select enabled command weight=" << weight << " (" << key << ")";
+    DVLOG(2) << "select enabled command weight=" << weight
+             << " (" << key << ")";
     selected_commands_ = candidate_commands_;
     selected_commands_key_ = key;
   } else {
-    VLOG(2) << "relect enabled command weight=" << weight << " (" << key << ")";
+    DVLOG(2) << "relect enabled command weight=" << weight
+             << " (" << key << ")";
   }
 }
 
@@ -154,7 +162,7 @@ template <ModelType type, typename RandomNumberEngine>
 void NextStateSampler<type, RandomNumberEngine>::GetOutcome(
     const CompiledState& state) {
   selected_outcomes_.resize(selected_commands_.size());
-  VLOG(2) << "SampleOutcomes()";
+  DVLOG(2) << "SampleOutcomes()";
   for (int i = 0; i < selected_commands_.size(); ++i) {
     const CompiledCommand& command = *selected_commands_[i];
     double selected_key = -std::numeric_limits<double>::infinity();
@@ -163,11 +171,11 @@ void NextStateSampler<type, RandomNumberEngine>::GetOutcome(
       const double key =
           log(1.0 - std::uniform_real_distribution<>(0, 1)(*engine_)) / p;
       if (key > selected_key) {
-        VLOG(2) << i << ": select outcome with p=" << p << " (" << key << ")";
+        DVLOG(2) << i << ": select outcome with p=" << p << " (" << key << ")";
         selected_outcomes_[i] = &outcome;
         selected_key = key;
       } else {
-        VLOG(2) << i << ": reject outcome with p=" << p << " (" << key << ")";
+        DVLOG(2) << i << ": reject outcome with p=" << p << " (" << key << ")";
       }
     }
   }
@@ -282,18 +290,14 @@ void Simulator<RandomNumberEngine>::GeneratePathImpl(
   NextStateSampler<type, RandomNumberEngine> next_state_sampler(model_,
                                                                 engine_);
   CompiledState state = init_state;
-  if (VLOG_IS_ON(1)) {
-    LOG(INFO) << "state:" << StateString(state);
-  }
+  DVLOG(1) << "state:" << StateString(state);
   CompiledState next_state;
   for (int i = 1; i <= max_length; ++i) {
     if (next_state_sampler.NextState(state, &next_state)) {
       swap(state, next_state);
-      if (VLOG_IS_ON(1)) {
-        LOG(INFO) << "state:" << StateString(state);
-      }
+      DVLOG(1) << "state:" << StateString(state);
     } else {
-      VLOG(1) << "dead end at step " << i;
+      DVLOG(1) << "dead end at step " << i;
       break;
     }
   }
