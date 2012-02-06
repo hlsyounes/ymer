@@ -38,11 +38,13 @@
 #else
 #include "getopt.h"
 #endif
+#include <algorithm>
 #include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 
@@ -62,6 +64,8 @@ extern void clear_declarations();
 
 /* Name of current file. */
 std::string current_file;
+/* Constant overrides. */
+std::map<std::string, Rational> const_overrides;
 /* Verbosity level. */
 int verbosity;
 /* Whether memoization is enabled. */
@@ -91,6 +95,7 @@ static option long_options[] = {
   { "delta", required_argument, 0, 'D' },
   { "relative-delta", required_argument, 0, 'd' },
   { "epsilon", required_argument, 0, 'E' },
+  { "const", required_argument, 0, 'c' },
   { "engine", required_argument, 0, 'e' },
   { "host", required_argument, 0, 'H' },
   { "memoization", no_argument, 0, 'M' },
@@ -106,7 +111,7 @@ static option long_options[] = {
   { "help", no_argument, 0, 'h' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:D:d:E:e:H:hMm:n:pP:s:S:T:v::V";
+static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hMm:n:pP:s:S:T:v::V";
 
 
 /* Displays help. */
@@ -192,6 +197,29 @@ static void display_version() {
 	    << "Written by Haakan Younes." << std::endl;
 }
 
+
+/* Parses spec for const overrides.  Returns true on success. */
+static bool parse_const_overrides(
+    const std::string& spec, std::map<std::string, Rational>* const_overrides) {
+  if (spec.empty()) {
+    return true;
+  }
+  std::string::const_iterator comma = spec.begin() - 1;
+  while (comma != spec.end()) {
+    std::string::const_iterator next_comma = find(comma + 1, spec.end(), ',');
+    std::string::const_iterator assignment = find(comma + 1, next_comma, '=');
+    if (assignment == next_comma) {
+      return false;
+    }
+    const std::string name(comma + 1, assignment);
+    const std::string value(assignment + 1, next_comma);
+    if (!const_overrides->insert(std::make_pair(name, value.c_str())).second) {
+      return false;
+    }
+    comma = next_comma;
+  }
+  return true;
+}
 
 /* Parses the given file, and returns true on success. */
 static bool read_file(const char* name) {
@@ -321,6 +349,11 @@ int main(int argc, char* argv[]) {
 	  throw std::invalid_argument("beta >= 0.5");
 	}
 	break;
+      case 'c':
+        if (!parse_const_overrides(optarg, &const_overrides)) {
+          throw std::invalid_argument("bad --const specification");
+        }
+        break;
       case 'D':
 	delta = atof(optarg);
 	relative_delta = false;
