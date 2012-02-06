@@ -50,6 +50,8 @@ extern int yylex();
 extern size_t line_number;
 /* Name of current file. */
 extern std::string current_file;
+/* Constant overrides. */
+extern std::map<std::string, Rational> const_overrides;
 
 /* Last model parsed. */
 const Model* global_model = NULL;
@@ -237,10 +239,14 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST_TOKEN NAME '=' const_expr ';' { declare_constant($2, $4); }
+declaration : CONST_TOKEN NAME ';' { declare_constant($2, NULL); }
+            | CONST_TOKEN NAME '=' const_expr ';' { declare_constant($2, $4); }
+            | CONST_TOKEN INT NAME ';' { declare_constant($3, NULL); }
             | CONST_TOKEN INT NAME '=' const_expr ';'
                 { declare_constant($3, $5); }
+            | RATE NAME ';' { declare_rate($2, NULL); }
             | RATE NAME '=' const_rate_expr ';' { declare_rate($2, $4); }
+            | CONST_TOKEN DOUBLE NAME ';' { declare_rate($3, NULL); }
             | CONST_TOKEN DOUBLE NAME '=' const_rate_expr ';'
                 { declare_rate($3, $5); }
             | GLOBAL NAME ':' range ';' { declare_variable($2, $4, NULL); }
@@ -372,6 +378,8 @@ expr : integer { $$ = make_value($1); }
 
 rate_expr : NUMBER { $$ = make_value($1); }
           | NAME { $$ = find_rate_or_variable($1); }
+          | rate_expr '+' rate_expr { $$ = &Addition::make(*$1, *$3); }
+          | rate_expr '-' rate_expr { $$ = &Subtraction::make(*$1, *$3); }
           | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
           | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
           | '(' rate_expr ')' { $$ = $2; }
@@ -809,11 +817,19 @@ static void declare_constant(const std::string* ident,
     yyerror("ignoring declaration of constant `" + *ident
 	    + "' previously declared as synchronization");
   } else {
+    std::map<std::string, Rational>::iterator override =
+        const_overrides.find(*ident);
+    if (value_expr == NULL && override == const_overrides.end()) {
+      yyerror("uninitialized constant `" + *ident + "'");
+      value_expr = make_value(0);
+    }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
     rates.insert(std::make_pair(*ident, v));
     constants.insert(std::make_pair(*ident, v));
-    const int value = value_expr->value(constant_values).numerator();
+    const int value =
+        ((override != const_overrides.end()) ?
+         override->second : value_expr->value(constant_values)).numerator();
     rate_values.insert(std::make_pair(v, value));
     constant_values.insert(std::make_pair(v, value));
   }
@@ -837,10 +853,18 @@ static void declare_rate(const std::string* ident,
     yyerror("ignoring declaration of rate `" + *ident
 	    + "' previously declared as synchronization");
   } else {
+    std::map<std::string, Rational>::iterator override =
+        const_overrides.find(*ident);
+    if (value_expr == NULL && override == const_overrides.end()) {
+      yyerror("uninitialized rate `" + *ident + "'");
+      value_expr = make_value(0);
+    }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
     rates.insert(std::make_pair(*ident, v));
-    rate_values.insert(std::make_pair(v, value_expr->value(rate_values)));
+    const Rational value = (override != const_overrides.end()) ?
+        override->second : value_expr->value(rate_values);
+    rate_values.insert(std::make_pair(v, value));
   }
   delete ident;
   delete value_expr;

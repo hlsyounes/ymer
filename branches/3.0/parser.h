@@ -105,7 +105,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 190 "parser.yy"
+#line 192 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
