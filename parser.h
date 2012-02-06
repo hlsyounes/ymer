@@ -50,19 +50,22 @@
      TRUE_TOKEN = 266,
      FALSE_TOKEN = 267,
      EXP = 268,
-     MODULE = 269,
-     ENDMODULE = 270,
-     PNAME = 271,
-     NAME = 272,
-     NUMBER = 273,
-     ARROW = 274,
-     DOTDOT = 275,
-     ILLEGAL_TOKEN = 276,
-     IMPLY = 277,
-     NEQ = 278,
-     EQ = 279,
-     GTE = 280,
-     LTE = 281
+     REWARDS = 269,
+     ENDREWARDS = 270,
+     MODULE = 271,
+     ENDMODULE = 272,
+     PNAME = 273,
+     NAME = 274,
+     LABEL_NAME = 275,
+     NUMBER = 276,
+     ARROW = 277,
+     DOTDOT = 278,
+     ILLEGAL_TOKEN = 279,
+     IMPLY = 280,
+     NEQ = 281,
+     EQ = 282,
+     GTE = 283,
+     LTE = 284
    };
 #endif
 /* Tokens.  */
@@ -77,19 +80,22 @@
 #define TRUE_TOKEN 266
 #define FALSE_TOKEN 267
 #define EXP 268
-#define MODULE 269
-#define ENDMODULE 270
-#define PNAME 271
-#define NAME 272
-#define NUMBER 273
-#define ARROW 274
-#define DOTDOT 275
-#define ILLEGAL_TOKEN 276
-#define IMPLY 277
-#define NEQ 278
-#define EQ 279
-#define GTE 280
-#define LTE 281
+#define REWARDS 269
+#define ENDREWARDS 270
+#define MODULE 271
+#define ENDMODULE 272
+#define PNAME 273
+#define NAME 274
+#define LABEL_NAME 275
+#define NUMBER 276
+#define ARROW 277
+#define DOTDOT 278
+#define ILLEGAL_TOKEN 279
+#define IMPLY 280
+#define NEQ 281
+#define EQ 282
+#define GTE 283
+#define LTE 284
 
 
 
@@ -99,7 +105,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 189 "parser.yy"
+#line 190 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -114,7 +120,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 118 "parser.h"
+#line 124 "parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

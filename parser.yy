@@ -174,8 +174,9 @@ static void compile_model();
 %token CONST_TOKEN INT DOUBLE RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
 %token EXP
+%token REWARDS ENDREWARDS
 %token MODULE ENDMODULE
-%token PNAME NAME NUMBER
+%token PNAME NAME LABEL_NAME NUMBER
 %token ARROW DOTDOT
 %token ILLEGAL_TOKEN
 
@@ -222,7 +223,7 @@ model_or_properties : model
 /* ====================================================================== */
 /* Model files. */
 
-model : model_type { prepare_model(); } declarations modules
+model : model_type { prepare_model(); } declarations modules rewards
           { compile_model(); }
       ;
 
@@ -300,9 +301,39 @@ update : PNAME '=' expr { add_update($1, *$3); }
 
 
 /* ====================================================================== */
+/* Rewards. */
+
+rewards : /* empty */
+        | rewards rewards_decl
+        ;
+
+rewards_decl : REWARDS rewards_label reward_rules ENDREWARDS
+             ;
+
+rewards_label : /* empty */
+              | LABEL_NAME
+              ;
+
+reward_rules : /* empty */
+             | reward_rules state_reward
+             | reward_rules transition_reward
+             ;
+
+state_reward : formula ':' rate_expr ';'
+                 { delete $1; delete $3; }
+             ;
+
+transition_reward : '[' NAME ']' formula ':' rate_expr ';'
+                      { delete $2; delete $4; delete $6; }
+                  ;
+
+
+/* ====================================================================== */
 /* Formulas. */
 
-formula : formula '&' formula { $$ = make_conjunction(*$1, *$3); }
+formula : TRUE_TOKEN { $$ = new Conjunction(); }
+        | FALSE_TOKEN { $$ = new Disjunction(); }
+        | formula '&' formula { $$ = make_conjunction(*$1, *$3); }
         | formula '|' formula { $$ = make_disjunction(*$1, *$3); }
         | '!' formula { $$ = new Negation(*$2); }
         | expr '<' expr { $$ = new LessThan(*$1, *$3); }
