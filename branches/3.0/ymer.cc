@@ -126,6 +126,9 @@ static void display_help() {
 	    << "use bound b on false positives with sampling engine"
 	    << std::endl
 	    << "\t\t\t  (default is 1e-2)" << std::endl
+            << "  -c c,  --const=c\t"
+            << "overrides for model constants" << std::endl
+            << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
 	    << "  -D d,  --delta=d\t"
 	    << "use indifference region of width 2*d with sampling"
 	    << std::endl
