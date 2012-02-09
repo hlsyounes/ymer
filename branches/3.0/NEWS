@@ -1,3 +1,16 @@
+Version 3.0.3 (Feb 9, 2012):
+
+* Support for uninitialized constants and constant initialization from command
+  line.
+
+* Support for "true" and "false" in guard expressions.
+
+* Support for addition and subtraction in rate expressions.
+
+* Parser support for rewards specifications (avoids parse errors for model
+  files that contain rewards specifications, but otherwise ignored).
+
+
 Version 3.0.2 (Nov 18, 2011):
 
 * Minor improvements to parser: recognition of "ctmc" model type; "const int"
