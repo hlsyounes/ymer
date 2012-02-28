@@ -2,7 +2,7 @@
  * Sampling-based model checking of CSL formulas.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011 Google Inc
+ * Copyright (C) 2011--2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -24,6 +24,7 @@
 #include "comm.h"
 #include "states.h"
 #include "models.h"
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <queue>
