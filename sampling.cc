@@ -39,6 +39,10 @@ extern int verbosity;
 extern bool memoization;
 /* Fixed nested error. */
 extern double nested_error;
+/* Fixed sample size. */
+extern int fixed_sample_size;
+/* Maximum path length. */
+extern int max_path_length;
 /* Total number of samples (for statistics). */
 extern size_t total_samples;
 /* Number of samples per trial (for statistics). */
@@ -507,16 +511,63 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   p0 = std::min(1.0, (theta + (*delta)(theta))*(1.0 - alphap));
   p1 = std::max(0.0, 1.0 - (1.0 - (theta - (*delta)(theta)))*(1.0 - betap));
+  if (algorithm == FIXED) {
+    int c = 0;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << "Fixed-size sampling";
+      }
+      if (verbosity > 1) {
+        std::cout << std::endl;
+      }
+    }
+    formula_level_++;
+    for (int i = 1; i <= fixed_sample_size; ++i) {
+      if (formula().sample(model, state, delta, alphap, betap, algorithm)) {
+        c++;
+      }
+      if (verbosity == 1) {
+        if (formula_level() == 1) {
+          if (i % 1000 == 0) {
+            std::cout << ':';
+          } else if (i % 100 == 0) {
+            std::cout << '.';
+          }
+        }
+      } else if (verbosity > 1) {
+        for (size_t j = 0; j < 2*(formula_level() - 1); j++) {
+          std::cout << ' ';
+        }
+        std::cout << i << '\t' << c << std::endl;
+      }
+    }
+    formula_level_--;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << fixed_sample_size << " samples." << std::endl;
+      }
+      total_samples += fixed_sample_size;
+      samples.push_back(fixed_sample_size);
+    }
+    double p = double(c)/fixed_sample_size;
+    if (strict()) {
+      return p > theta;
+    } else {
+      return p >= theta;
+    }
+  }
   if (algorithm == ESTIMATE) {
     int c = 0, n = 0;
     double es = (*delta)(theta)*(*delta)(theta);
     double a = 1.0 - 0.5*alpha;
     double p, t, b;
-    if (verbosity > 0) {
-      std::cout << "Sequential estimation";
-    }
-    if (verbosity > 1) {
-      std::cout << std::endl;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << "Sequential estimation";
+      }
+      if (verbosity > 1) {
+        std::cout << std::endl;
+      }
     }
     formula_level_++;
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
@@ -526,25 +577,34 @@ bool Probabilistic::verify(const Model& model, const State& state,
       n++;
       p = double(c)/n;
       if (verbosity == 1) {
-	if (n % 1000 == 0) {
-	  std::cout << ':';
-	} else if (n % 100 == 0) {
-	  std::cout << '.';
-	}
+        if (formula_level() == 1) {
+          if (n % 1000 == 0) {
+            std::cout << ':';
+          } else if (n % 100 == 0) {
+            std::cout << '.';
+          }
+        }
       } else if (verbosity > 1) {
+        for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
+          std::cout << ' ';
+        }
 	std::cout << n << '\t' << c << '\t' << p/(1 + (*delta)(theta)) << '\t'
 		  << p/(1 - (*delta)(theta)) << std::endl;
       }
       t = c*(1.0 - p);
       b = tinv(a, n - 1.0);
     }
-    if (verbosity > 0) {
-      std::cout << n << " samples." << std::endl;
-    }
     formula_level_--;
-    std::cout << "Pr[" << formula() << "] = " << p << " ("
-	      << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
-	      << ")" << std::endl;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << n << " samples." << std::endl;
+      }
+      std::cout << "Pr[" << formula() << "] = " << p << " ("
+                << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
+                << ")" << std::endl;
+      total_samples += n;
+      samples.push_back(n);
+    }
     if (strict()) {
       return p > theta;
     } else {
@@ -898,7 +958,7 @@ bool Until::sample(const Model& model, const State& state,
   double t_max = max_time().double_value();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
-  while (!done) {
+  while (!done && path_length < max_path_length) {
     if (verbosity > 2 && StateFormula::formula_level() == 1) {
       std::cout << "t = " << t << ": ";
       curr_state->print(std::cout);
