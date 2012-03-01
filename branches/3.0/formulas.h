@@ -3,7 +3,7 @@
  * Formulas.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011 Google Inc
+ * Copyright (C) 2011--2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -37,7 +37,7 @@ struct State;
 typedef double (*DeltaFun)(double theta);
 
 /* Sampling algorithm. */
-enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT };
+enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
 
 
 /* ====================================================================== */

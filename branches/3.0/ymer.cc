@@ -2,7 +2,7 @@
  * Main program.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011-2012 Google Inc
+ * Copyright (C) 2011--2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -44,6 +44,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -72,6 +73,10 @@ int verbosity;
 bool memoization = false;
 /* Fixed nested error. */
 double nested_error = -1.0;
+/* Fixed sample size. */
+int fixed_sample_size = 0;
+/* Maxumum path length. */
+int max_path_length = std::numeric_limits<int>::max();
 /* Total number of samples (for statistics). */
 size_t total_samples;
 /* Number of samples per trial (for statistics). */
@@ -98,8 +103,10 @@ static option long_options[] = {
   { "const", required_argument, 0, 'c' },
   { "engine", required_argument, 0, 'e' },
   { "host", required_argument, 0, 'H' },
+  { "max-path-length", required_argument, 0, 'L' },
   { "memoization", no_argument, 0, 'M' },
   { "matching-moments", required_argument, 0, 'm' },
+  { "fixed-sample-size", required_argument, 0, 'N' },
   { "nested-error", required_argument, 0, 'n' },
   { "estimate-probabilities", no_argument, 0, 'p' },
   { "port", required_argument, 0, 'P' },
@@ -111,7 +118,7 @@ static option long_options[] = {
   { "help", no_argument, 0, 'h' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hMm:n:pP:s:S:T:v::V";
+static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hL:Mm:N:n:pP:s:S:T:v::V";
 
 
 /* Displays help. */
@@ -132,8 +139,8 @@ static void display_help() {
 	    << "  -D d,  --delta=d\t"
 	    << "use indifference region of width 2*d with sampling"
 	    << std::endl
-	    << "  -d d,  --relative-delta=d\t"
-	    << "use indifference region of relative with sampling"
+	    << "  -d d,  --relative-delta=d" << std::endl
+	    << "\t\t\tuse indifference region of relative with sampling"
 	    << std::endl
 	    << "\t\t\t  engine (default is 1e-2)" << std::endl
 	    << "  -E e,  --epsilon=e\t"
@@ -145,11 +152,15 @@ static void display_help() {
 	    << "\t\t\t  or `mixed'" << std::endl
 	    << "  -H h,  --host=h\t"
 	    << "connect to server on host h" << std::endl
+            << "  -L l,  --max_path-length=l" << std::endl
+            << "\t\t\tlimit sample path to l states" << std::endl
 	    << "  -M,    --memoization\t"
 	    << "use memoization for sampling engine" << std::endl
 	    << "  -m m,  --matching-moments=m" << std::endl
 	    << "\t\t\tmatch the first m moments of general distributions"
 	    << std::endl
+            << "  -N n,  --fixed-sample-size=n" << std::endl
+            << "\t\t\tuse a fixed sample size" << std::endl
 	    << "  -p,    --estimate-probabilities" << std::endl
 	    << "\t\t\testimates probabilities of path formulae holding"
 	    << std::endl
@@ -398,6 +409,9 @@ int main(int argc, char* argv[]) {
       case 'H':
 	hostname = optarg;
 	break;
+      case 'L':
+        max_path_length = atoi(optarg);
+        break;
       case 'M':
 	memoization = true;
 	break;
@@ -408,6 +422,10 @@ int main(int argc, char* argv[]) {
 	} else if (moments > 3) {
 	  throw std::invalid_argument("cannot match more than three moments");
 	}
+	break;
+      case 'N':
+	algorithm = FIXED;
+        fixed_sample_size = atoi(optarg);
 	break;
       case 'n':
 	nested_error = atof(optarg);
