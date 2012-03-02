@@ -41,9 +41,9 @@ AC_LANG(C++)
 # Whether to use tcmalloc.
 AC_ARG_WITH([tcmalloc],
             [AS_HELP_STRING([--with-tcmalloc],
-                            [a faster malloc @<:@default=check@:>@])],
+                            [a malloc replacement @<:@default=no@:>@])],
             [],
-            [with_tcmalloc=check])
+            [with_tcmalloc=no])
 AS_IF([test "x$with_tcmalloc" != xno],
       [AC_CHECK_LIB(
           [tcmalloc], [tc_malloc], ,

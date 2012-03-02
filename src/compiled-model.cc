@@ -714,6 +714,204 @@ void ExpressionOptimizer<ValueType>::VisitConditional(
       release_optimized_expr());
 }
 
+template <typename ValueType>
+struct SimpleComparison {
+  BinaryOperator op;
+  int variable;
+  ValueType value;
+};
+
+template <typename ValueType>
+class GuardOptimizer : public CompiledExpressionVisitor<ValueType> {
+ public:
+  bool is_valid() const { return error_.empty(); }
+
+  const std::string& error() const { return error_; }
+
+  bool is_conjunction() const { return type_ == CONJUNCTS; }
+
+  const std::vector<SimpleComparison<ValueType> > conjuncts() const {
+    return conjuncts_;
+  }
+
+  virtual void VisitLiteral(const CompiledLiteral<ValueType>& expr);
+  virtual void VisitIdentifier(const CompiledIdentifier<ValueType>& expr);
+  virtual void VisitFunctionCall(const CompiledFunctionCall<ValueType>& expr);
+  virtual void VisitUnaryOperation(
+      const CompiledUnaryOperation<ValueType>& expr);
+  virtual void VisitBinaryOperation(
+      const CompiledBinaryOperation<ValueType>& expr);
+  virtual void VisitConditional(const CompiledConditional<ValueType>& expr);
+
+ private:
+  enum { VALUE, VARIABLE, CONJUNCTS } type_;
+  ValueType value_;
+  int variable_;
+  std::vector<SimpleComparison<ValueType> > conjuncts_;
+  std::string error_;
+};
+
+template <typename ValueType>
+void GuardOptimizer<ValueType>::VisitLiteral(
+    const CompiledLiteral<ValueType>& expr) {
+  type_ = VALUE;
+  value_ = expr.value();
+}
+
+template <typename ValueType>
+void GuardOptimizer<ValueType>::VisitIdentifier(
+    const CompiledIdentifier<ValueType>& expr) {
+  type_ = VARIABLE;
+  variable_ = expr.id();
+}
+
+template <typename ValueType>
+void GuardOptimizer<ValueType>::VisitFunctionCall(
+    const CompiledFunctionCall<ValueType>& expr) {
+  error_ = "cannot optimize expression with function call";
+}
+
+template <typename ValueType>
+void GuardOptimizer<ValueType>::VisitUnaryOperation(
+    const CompiledUnaryOperation<ValueType>& expr) {
+  error_ = "cannot optimize expression with unary operation";
+}
+
+template <typename ValueType>
+void GuardOptimizer<ValueType>::VisitBinaryOperation(
+    const CompiledBinaryOperation<ValueType>& expr) {
+  GuardOptimizer<ValueType> operand1_optimizer;
+  expr.operand1().Accept(&operand1_optimizer);
+  if (!operand1_optimizer.is_valid()) {
+    error_ = operand1_optimizer.error();
+    return;
+  }
+  GuardOptimizer<ValueType> operand2_optimizer;
+  expr.operand2().Accept(&operand2_optimizer);
+  if (!operand2_optimizer.is_valid()) {
+    error_ = operand2_optimizer.error();
+    return;
+  }
+  switch (expr.op()) {
+    case BinaryOperator::MULTIPLY:
+    case BinaryOperator::DIVIDE:
+    case BinaryOperator::PLUS:
+    case BinaryOperator::MINUS:
+    case BinaryOperator::OR:
+    case BinaryOperator::IMPLY: {
+      std::ostringstream out;
+      out << "cannot optimize expression with binary operator " << expr.op();
+      error_ = out.str();
+      return;
+    }
+    case BinaryOperator::LESS:
+    case BinaryOperator::LESS_EQUAL:
+    case BinaryOperator::GREATER_EQUAL:
+    case BinaryOperator::GREATER:
+    case BinaryOperator::EQUAL:
+    case BinaryOperator::NOT_EQUAL:
+      if (operand1_optimizer.type_ != VARIABLE ||
+          operand2_optimizer.type_ != VALUE) {
+        error_ = "cannot optimize expression with comparison when first"
+            " operand is not a variable and second operand is not a value";
+        return;
+      }
+      type_ = CONJUNCTS;
+      conjuncts_.push_back(
+          { expr.op(), operand1_optimizer.variable_, operand2_optimizer.value_ });
+      break;
+    case BinaryOperator::AND:
+      if (operand1_optimizer.type_ != CONJUNCTS ||
+          operand2_optimizer.type_ != CONJUNCTS) {
+        error_ = "cannot optimize expression with conjunction of non-conjuncts";
+        return;
+      }
+      type_ = CONJUNCTS;
+      conjuncts_ = operand1_optimizer.conjuncts_;
+      conjuncts_.insert(conjuncts_.end(),
+                        operand2_optimizer.conjuncts_.begin(),
+                        operand2_optimizer.conjuncts_.end());
+      break;
+  }
+}
+
+template <typename ValueType>
+void GuardOptimizer<ValueType>::VisitConditional(
+    const CompiledConditional<ValueType>& expr) {
+  error_ = "cannot optimize expression with conditional";
+}
+
+template <typename ValueType>
+class OptimizedGuard : public CompiledExpression<ValueType> {
+ public:
+  OptimizedGuard(const std::vector<SimpleComparison<ValueType> >& conjuncts)
+      : conjuncts_(conjuncts) {
+  }
+
+  virtual ~OptimizedGuard() = default;
+
+  static std::unique_ptr<const OptimizedGuard<ValueType> > Create(
+      const std::vector<SimpleComparison<ValueType> >& conjuncts) {
+    return std::unique_ptr<const OptimizedGuard<ValueType> >(
+        new OptimizedGuard(conjuncts));
+  }
+
+  virtual ValueType ValueInState(const CompiledState& state) const {
+    for (const SimpleComparison<ValueType>& comparison: conjuncts_) {
+      bool holds;
+      const int variable_value = state[comparison.variable];
+      switch (comparison.op) {
+        case BinaryOperator::LESS:
+          holds = variable_value < comparison.value;
+          break;
+        case BinaryOperator::LESS_EQUAL:
+          holds = variable_value <= comparison.value;
+          break;
+        case BinaryOperator::GREATER_EQUAL:
+          holds = variable_value >= comparison.value;
+          break;
+        case BinaryOperator::GREATER:
+          holds = variable_value > comparison.value;
+          break;
+        case BinaryOperator::EQUAL:
+          holds = variable_value == comparison.value;
+          break;
+        case BinaryOperator::NOT_EQUAL:
+          holds = variable_value != comparison.value;
+          break;
+      }
+      if (!holds) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  virtual void Accept(CompiledExpressionVisitor<ValueType>* visitor) const {
+    LOG(FATAL) << "internal error";
+  }
+
+ private:
+  std::vector<SimpleComparison<ValueType> > conjuncts_;
+};
+
+template <typename ValueType>
+std::unique_ptr<const CompiledExpression<ValueType> > OptimizeGuard(
+    std::unique_ptr<const CompiledExpression<ValueType> >&& guard) {
+  GuardOptimizer<ValueType> optimizer;
+  guard->Accept(&optimizer);
+  if (!optimizer.is_valid()) {
+    LOG(WARNING) << optimizer.error();
+    return std::move(guard);
+  }
+  if (!optimizer.is_conjunction()) {
+    LOG(WARNING) << "cannot optimize non-conjunction";
+    return std::move(guard);
+  }
+  LOG(INFO) << "optimized guard";
+  return OptimizedGuard<ValueType>::Create(optimizer.conjuncts());
+}
+
 void SetUninitializedConstantError(
     const std::string& name, std::string* error) {
   if (error) {
@@ -948,9 +1146,10 @@ bool CompileCommands(
     for (const ParsedCommand& command: model.module_commands(i)) {
       Optional<int> action = CompileAction(command.action(), actions);
       std::unique_ptr<const CompiledExpression<double> > guard =
-          OptimizeExpression<double>(command.guard(), Type::BOOL,
-                                  constants, formulas, compiled_variables,
-                                  error);
+          OptimizeGuard(OptimizeExpression<double>(
+              command.guard(), Type::BOOL,
+              constants, formulas, compiled_variables,
+              error));
       if (!guard) {
         return false;
       }

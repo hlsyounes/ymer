@@ -1529,7 +1529,7 @@ Optional Packages:
   --with-pic              try to use only PIC/non-PIC objects [default=use
                           both]
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
-  --with-tcmalloc         a faster malloc [default=check]
+  --with-tcmalloc         a malloc replacement [default=no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -14751,7 +14751,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 if test "${with_tcmalloc+set}" = set; then :
   withval=$with_tcmalloc;
 else
-  with_tcmalloc=check
+  with_tcmalloc=no
 fi
 
 if test "x$with_tcmalloc" != xno; then :
