@@ -28,8 +28,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <queue>
-#define __USE_ISOC9X 1
-#include <cmath>
+#ifndef __USE_ISOC99
+#define __USE_ISOC99
+#endif
+#include <math.h>
 #include <cstdio>
 
 
