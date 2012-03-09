@@ -87,7 +87,7 @@ bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h rational.cc rational.h expressions.cc expressions.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la
 
-EXTRA_DIST = getopt.c getopt1.c getopt.h cudd examples scripts
+EXTRA_DIST = cudd examples scripts
 
 CLEANFILES = core
 
