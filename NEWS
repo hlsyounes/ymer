@@ -1,3 +1,8 @@
+Version 3.0.5 (Mar 8, 2012):
+
+* Minor tweaks to make code compile on Mac OS X 10.6 Snow Leopard with XCode.
+
+
 Version 3.0.4 (Mar 1, 2012):
 
 * Support for fixed sample sizes and path lengths.
