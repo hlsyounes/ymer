@@ -1,0 +1,12 @@
+#! /bin/sh
+
+if (test ! -d models) then
+    mkdir models
+fi
+
+for n in 1 2 3 4 8 16 32 64 128 256 512 856 1024 2048 4096 8192 16384 32768 65536; do
+    echo $n
+    if (test ! -f models/cluster$n.sm) then
+	scripts/cluster-model $n > models/cluster$n.sm
+    fi
+done
