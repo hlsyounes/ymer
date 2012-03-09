@@ -35,8 +35,6 @@
 #define _GNU_SOURCE
 #endif
 #include <getopt.h>
-#else
-#include "getopt.h"
 #endif
 #include <algorithm>
 #include <cerrno>
@@ -341,8 +339,12 @@ int main(int argc, char* argv[]) {
      */
     while (1) {
       int option_index = 0;
+#if HAVE_GETOPT_LONG
       int c = getopt_long(argc, argv, OPTION_STRING,
 			  long_options, &option_index);
+#else
+      int c = getopt(argc, argv, OPTION_STRING);
+#endif
       if (c == -1) {
 	break;
       }

@@ -15587,7 +15587,7 @@ _ACEOF
 
 rm -f conftest*
 
-for ac_func in floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror
+for ac_func in floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror getopt_long
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_cxx_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -15596,29 +15596,6 @@ eval as_val=\$$as_ac_var
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
 _ACEOF
-
-fi
-done
-
-for ac_func in getopt_long
-do :
-  ac_fn_cxx_check_func "$LINENO" "getopt_long" "ac_cv_func_getopt_long"
-if test "x$ac_cv_func_getopt_long" = x""yes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_GETOPT_LONG 1
-_ACEOF
-
-else
-  case " $LIBOBJS " in
-  *" getopt.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS getopt.$ac_objext"
- ;;
-esac
- case " $LIBOBJS " in
-  *" getopt1.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS getopt1.$ac_objext"
- ;;
-esac
 
 fi
 done
