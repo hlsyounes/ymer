@@ -26,13 +26,10 @@
 #define DISTRIBUTIONS_H
 
 #include <config.h>
+#include "expressions.h"
 #include "rng.h"
 #include <iostream>
 #include <vector>
-
-struct Expression;
-struct ValueMap;
-struct SubstitutionMap;
 
 
 /* ====================================================================== */
