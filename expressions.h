@@ -22,11 +22,14 @@
 #ifndef EXPRESSIONS_H_
 #define EXPRESSIONS_H_
 
-#include "rational.h"
-#include <cudd.h>
 #include <map>
+#include <ostream>
 #include <set>
 #include <vector>
+
+#include "cudd.h"
+
+#include "rational.h"
 
 class Variable;
 
@@ -39,26 +42,14 @@ typedef std::map<const Variable*, const Variable*> SubstitutionMap;
 // An abstract expression.
 class Expression {
  public:
-  // Deletes this expression.
-  virtual ~Expression() {}
+  virtual ~Expression();
 
   // Increases the reference count for the given expression.
-  static void ref(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_++;
-    }
-  }
+  static void ref(const Expression* e);
 
   // Decreases the reference count for the given expression and
   // deletes it if the the reference count becomes zero.
-  static void destructive_deref(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_--;
-      if (e->ref_count_ == 0) {
-        delete e;
-      }
-    }
-  }
+  static void destructive_deref(const Expression* e);
 
   // Returns the value of this expression.
   virtual Rational value(const ValueMap& values) const = 0;
@@ -78,7 +69,7 @@ class Expression {
 
 protected:
   // Constructs an expression.
-  Expression() : ref_count_(0) {}
+  Expression();
 
 private:
   // Prints this object on the given stream.
@@ -96,7 +87,6 @@ std::ostream& operator<<(std::ostream& os, const Expression& e);
 // A computation expression.
 class Computation : public Expression {
  public:
-  // Deletes this computation.
   virtual ~Computation();
 
   // Returns the first operand for this computation.
@@ -119,6 +109,8 @@ private:
 // An addition expression.
 class Addition : public Computation {
  public:
+  virtual ~Addition();
+
   // Returns an addition of the two expressions.
   static const Expression& make(const Expression& term1,
                                 const Expression& term2);
@@ -140,8 +132,7 @@ class Addition : public Computation {
 
 private:
   // Constructs an addition.
-  Addition(const Expression& term1, const Expression& term2)
-    : Computation(term1, term2) {}
+  Addition(const Expression& term1, const Expression& term2);
 
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
@@ -150,6 +141,8 @@ private:
 // A subtraction expression.
 class Subtraction : public Computation {
  public:
+  virtual ~Subtraction();
+
   // Returns a subtraction of the two expressions.
   static const Expression& make(const Expression& term1,
                                 const Expression& term2);
@@ -171,8 +164,7 @@ class Subtraction : public Computation {
 
 private:
   // Constructs a subtraction.
-  Subtraction(const Expression& term1, const Expression& term2)
-    : Computation(term1, term2) {}
+  Subtraction(const Expression& term1, const Expression& term2);
 
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
@@ -181,6 +173,8 @@ private:
 // A multiplication expression.
 class Multiplication : public Computation {
  public:
+  virtual ~Multiplication();
+
   // Returns a multiplication of the two expressions.
   static const Expression& make(const Expression& factor1,
                                 const Expression& factor2);
@@ -203,8 +197,7 @@ class Multiplication : public Computation {
 
 private:
   // Constructs a multiplication.
-  Multiplication(const Expression& factor1, const Expression& factor2)
-    : Computation(factor1, factor2) {}
+  Multiplication(const Expression& factor1, const Expression& factor2);
 
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
@@ -213,6 +206,8 @@ private:
 // A division expression.
 class Division : public Computation {
  public:
+  virtual ~Division();
+
   // Returns a division of the two expressions.
   static const Expression& make(const Expression& factor1,
                                 const Expression& factor2);
@@ -234,8 +229,7 @@ class Division : public Computation {
 
 private:
   // Constructs a division.
-  Division(const Expression& factor1, const Expression& factor2)
-    : Computation(factor1, factor2) {}
+  Division(const Expression& factor1, const Expression& factor2);
 
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
@@ -246,9 +240,9 @@ class Variable : public Expression {
  public:
   // Constructs a variable.
   Variable();
-
-  // Constructs a variable.
   Variable(int low, int high, int start, int low_bit);
+
+  virtual ~Variable();
 
   // Sets the lower bound for this variable.
   void set_low(int low);
@@ -332,7 +326,9 @@ private:
 class Value : public Expression {
  public:
   // Constructs a value.
-  Value(const Rational& value) : value_(value) {}
+  Value(const Rational& value);
+
+  virtual ~Value();
 
   // Returns the rational value for this value.
   const Rational& value() const { return value_; }
