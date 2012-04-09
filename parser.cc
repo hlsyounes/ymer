@@ -163,10 +163,10 @@ static const Variable* find_rate_or_variable(const std::string* ident);
 /* Returns a range with the given bounds, signaling an error if the
    range is empty. */
 static Range make_range(const Expression* l, const Expression* h);
-/* Returns a value expression. */
-static const Value* make_value(int n);
-/* Returns a value expression. */
-static const Value* make_value(const Rational* q);
+/* Returns a literal expression. */
+static const Literal* make_literal(int n);
+/* Returns a literal expression. */
+static const Literal* make_literal(const Rational* q);
 /* Returns a constant value or a variable for the given identifier. */
 static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
@@ -2108,7 +2108,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 371 "parser.yy"
-    { (yyval.expr) = make_value((yyvsp[(1) - (1)].nat)); }
+    { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 73:
@@ -2150,7 +2150,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 379 "parser.yy"
-    { (yyval.expr) = make_value((yyvsp[(1) - (1)].num)); }
+    { (yyval.expr) = make_literal((yyvsp[(1) - (1)].num)); }
     break;
 
   case 79:
@@ -2199,7 +2199,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 388 "parser.yy"
-    { (yyval.expr) = make_value((yyvsp[(1) - (1)].num)); }
+    { (yyval.expr) = make_literal((yyvsp[(1) - (1)].num)); }
     break;
 
   case 86:
@@ -2241,7 +2241,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 404 "parser.yy"
-    { (yyval.expr) = make_value((yyvsp[(1) - (1)].nat)); }
+    { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 92:
@@ -2430,7 +2430,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 455 "parser.yy"
-    { (yyval.expr) = make_value((yyvsp[(1) - (1)].nat)); }
+    { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 120:
@@ -2835,15 +2835,13 @@ static Range make_range(const Expression* l, const Expression* h) {
 }
 
 
-/* Returns a value expression. */
-static const Value* make_value(int n) {
-  return new Value(n);
+static const Literal* make_literal(int n) {
+  return new Literal(n);
 }
 
 
-/* Returns a value expression. */
-static const Value* make_value(const Rational* q) {
-  const Value* v = new Value(*q);
+static const Literal* make_literal(const Rational* q) {
+  const Literal* v = new Literal(*q);
   delete q;
   return v;
 }
@@ -2855,7 +2853,7 @@ static const Expression* value_or_variable(const std::string* ident) {
     constants.find(*ident);
   if (ci != constants.end()) {
     delete ident;
-    return new Value(constant_values[(*ci).second]);
+    return new Literal(constant_values[(*ci).second]);
   } else {
     Variable* v;
     std::map<std::string, Variable*>::const_iterator vi =
@@ -3044,7 +3042,7 @@ static void declare_constant(const std::string* ident,
         const_overrides.find(*ident);
     if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized constant `" + *ident + "'");
-      value_expr = make_value(0);
+      value_expr = make_literal(0);
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
@@ -3080,7 +3078,7 @@ static void declare_rate(const std::string* ident,
         const_overrides.find(*ident);
     if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized rate `" + *ident + "'");
-      value_expr = make_value(0);
+      value_expr = make_literal(0);
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));

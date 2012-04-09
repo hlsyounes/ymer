@@ -60,7 +60,7 @@ const Update& Update::substitution(const SubstitutionMap& subst) const {
 DdNode* Update::bdd(DdManager* dd_man) const {
   DdNode* ddu;
   DdNode* ddv = variable().primed_mtbdd(dd_man);
-  const Value* value = dynamic_cast<const Value*>(&expr());
+  const Literal* value = dynamic_cast<const Literal*>(&expr());
   if (value != NULL) {
     /* variable' == value  <==>  variable' in [value,value] */
     double threshold = value->value().double_value();

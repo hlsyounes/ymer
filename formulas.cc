@@ -668,7 +668,7 @@ const LessThan& LessThan::substitution(const SubstitutionMap& subst) const {
 /* Returns the `current state' BDD representation for this state formula. */
 DdNode* LessThan::bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
+  const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
     double threshold = value->value().double_value();
@@ -677,7 +677,7 @@ DdNode* LessThan::bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr2());
+    value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
       double threshold = value->value().double_value();
@@ -708,7 +708,7 @@ DdNode* LessThan::bdd(DdManager* dd_man) const {
 /* Returns the `next state' BDD representation for this state formula. */
 DdNode* LessThan::primed_bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
+  const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
     double threshold = value->value().double_value();
@@ -717,7 +717,7 @@ DdNode* LessThan::primed_bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr2());
+    value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
       double threshold = value->value().double_value();
@@ -795,7 +795,7 @@ LessThanOrEqual::substitution(const SubstitutionMap& subst) const {
 /* Returns the `current state' BDD representation for this state formula. */
 DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
+  const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
     double threshold = value->value().double_value();
@@ -804,7 +804,7 @@ DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr2());
+    value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
       double threshold = value->value().double_value();
@@ -835,7 +835,7 @@ DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
 /* Returns the `next state' BDD representation for this state formula. */
 DdNode* LessThanOrEqual::primed_bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr1());
+  const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
     double threshold = value->value().double_value();
@@ -844,7 +844,7 @@ DdNode* LessThanOrEqual::primed_bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr2());
+    value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
       double threshold = value->value().double_value();
@@ -922,7 +922,7 @@ GreaterThanOrEqual::substitution(const SubstitutionMap& subst) const {
 /* Returns the `current state' BDD representation for this state formula. */
 DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 >= value */
     double threshold = value->value().double_value();
@@ -931,7 +931,7 @@ DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
       double threshold = value->value().double_value();
@@ -962,7 +962,7 @@ DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
 /* Returns the `next state' BDD representation for this state formula. */
 DdNode* GreaterThanOrEqual::primed_bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 >= value */
     double threshold = value->value().double_value();
@@ -971,7 +971,7 @@ DdNode* GreaterThanOrEqual::primed_bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
       double threshold = value->value().double_value();
@@ -1047,7 +1047,7 @@ GreaterThan::substitution(const SubstitutionMap& subst) const {
 /* Returns the `current state' BDD representation for this state formula. */
 DdNode* GreaterThan::bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 > value */
     double threshold = value->value().double_value();
@@ -1056,7 +1056,7 @@ DdNode* GreaterThan::bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
       double threshold = value->value().double_value();
@@ -1087,7 +1087,7 @@ DdNode* GreaterThan::bdd(DdManager* dd_man) const {
 /* Returns the `next state' BDD representation for this state formula. */
 DdNode* GreaterThan::primed_bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 > value */
     double threshold = value->value().double_value();
@@ -1096,7 +1096,7 @@ DdNode* GreaterThan::primed_bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
       double threshold = value->value().double_value();
@@ -1171,7 +1171,7 @@ const Equality& Equality::substitution(const SubstitutionMap& subst) const {
 /* Returns the `current state' BDD representation for this state formula. */
 DdNode* Equality::bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
     double threshold = value->value().double_value();
@@ -1180,7 +1180,7 @@ DdNode* Equality::bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
       double threshold = value->value().double_value();
@@ -1208,7 +1208,7 @@ DdNode* Equality::bdd(DdManager* dd_man) const {
 /* Returns the `next state' BDD representation for this state formula. */
 DdNode* Equality::primed_bdd(DdManager* dd_man) const {
   DdNode* dd;
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
     double threshold = value->value().double_value();
@@ -1217,7 +1217,7 @@ DdNode* Equality::primed_bdd(DdManager* dd_man) const {
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
       double threshold = value->value().double_value();
@@ -1289,7 +1289,7 @@ Inequality::substitution(const SubstitutionMap& subst) const {
 
 /* Returns the `current state' BDD representation for this state formula. */
 DdNode* Inequality::bdd(DdManager* dd_man) const {
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   DdNode* ddf;
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
@@ -1299,7 +1299,7 @@ DdNode* Inequality::bdd(DdManager* dd_man) const {
     Cudd_Ref(ddf);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
       double threshold = value->value().double_value();
@@ -1329,7 +1329,7 @@ DdNode* Inequality::bdd(DdManager* dd_man) const {
 
 /* Returns the `next state' BDD representation for this state formula. */
 DdNode* Inequality::primed_bdd(DdManager* dd_man) const {
-  const Value* value = dynamic_cast<const Value*>(&expr2());
+  const Literal* value = dynamic_cast<const Literal*>(&expr2());
   DdNode* ddf;
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
@@ -1339,7 +1339,7 @@ DdNode* Inequality::primed_bdd(DdManager* dd_man) const {
     Cudd_Ref(ddf);
     Cudd_RecursiveDeref(dd_man, dde);
   } else {
-    value = dynamic_cast<const Value*>(&expr1());
+    value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
       double threshold = value->value().double_value();

@@ -116,10 +116,10 @@ static const Variable* find_rate_or_variable(const std::string* ident);
 /* Returns a range with the given bounds, signaling an error if the
    range is empty. */
 static Range make_range(const Expression* l, const Expression* h);
-/* Returns a value expression. */
-static const Value* make_value(int n);
-/* Returns a value expression. */
-static const Value* make_value(const Rational* q);
+/* Returns a literal expression. */
+static const Literal* make_literal(int n);
+/* Returns a literal expression. */
+static const Literal* make_literal(const Rational* q);
 /* Returns a constant value or a variable for the given identifier. */
 static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
@@ -368,7 +368,7 @@ distribution : rate_expr { $$ = &Exponential::make(*$1); }
 /* ====================================================================== */
 /* Expressions. */
 
-expr : integer { $$ = make_value($1); }
+expr : integer { $$ = make_literal($1); }
      | NAME { $$ = find_variable($1); }
      | expr '+' expr { $$ = &Addition::make(*$1, *$3); }
      | expr '-' expr { $$ = &Subtraction::make(*$1, *$3); }
@@ -376,7 +376,7 @@ expr : integer { $$ = make_value($1); }
      | '(' expr ')' { $$ = $2; }
      ;
 
-rate_expr : NUMBER { $$ = make_value($1); }
+rate_expr : NUMBER { $$ = make_literal($1); }
           | NAME { $$ = find_rate_or_variable($1); }
           | rate_expr '+' rate_expr { $$ = &Addition::make(*$1, *$3); }
           | rate_expr '-' rate_expr { $$ = &Subtraction::make(*$1, *$3); }
@@ -385,7 +385,7 @@ rate_expr : NUMBER { $$ = make_value($1); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
 
-const_rate_expr : NUMBER { $$ = make_value($1); }
+const_rate_expr : NUMBER { $$ = make_literal($1); }
                 | NAME { $$ = find_rate($1); }
                 | const_rate_expr '*' const_rate_expr
                     { $$ = &Multiplication::make(*$1, *$3); }
@@ -401,7 +401,7 @@ const_rate_expr : NUMBER { $$ = make_value($1); }
 range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
       ;
 
-const_expr : integer { $$ = make_value($1); }
+const_expr : integer { $$ = make_literal($1); }
            | NAME { $$ = find_constant($1); }
            | const_expr '+' const_expr { $$ = &Addition::make(*$1, *$3); }
            | const_expr '-' const_expr { $$ = &Subtraction::make(*$1, *$3); }
@@ -452,7 +452,7 @@ path_formula : csl_formula 'U' LTE NUMBER csl_formula
 //             | 'X' csl_formula
              ;
 
-csl_expr : integer { $$ = make_value($1); }
+csl_expr : integer { $$ = make_literal($1); }
          | NAME { $$ = value_or_variable($1); }
          | csl_expr '+' csl_expr { $$ = &Addition::make(*$1, *$3); }
          | csl_expr '-' csl_expr { $$ = &Subtraction::make(*$1, *$3); }
@@ -612,15 +612,13 @@ static Range make_range(const Expression* l, const Expression* h) {
 }
 
 
-/* Returns a value expression. */
-static const Value* make_value(int n) {
-  return new Value(n);
+static const Literal* make_literal(int n) {
+  return new Literal(n);
 }
 
 
-/* Returns a value expression. */
-static const Value* make_value(const Rational* q) {
-  const Value* v = new Value(*q);
+static const Literal* make_literal(const Rational* q) {
+  const Literal* v = new Literal(*q);
   delete q;
   return v;
 }
@@ -632,7 +630,7 @@ static const Expression* value_or_variable(const std::string* ident) {
     constants.find(*ident);
   if (ci != constants.end()) {
     delete ident;
-    return new Value(constant_values[(*ci).second]);
+    return new Literal(constant_values[(*ci).second]);
   } else {
     Variable* v;
     std::map<std::string, Variable*>::const_iterator vi =
@@ -821,7 +819,7 @@ static void declare_constant(const std::string* ident,
         const_overrides.find(*ident);
     if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized constant `" + *ident + "'");
-      value_expr = make_value(0);
+      value_expr = make_literal(0);
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
@@ -857,7 +855,7 @@ static void declare_rate(const std::string* ident,
         const_overrides.find(*ident);
     if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized rate `" + *ident + "'");
-      value_expr = make_value(0);
+      value_expr = make_literal(0);
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
