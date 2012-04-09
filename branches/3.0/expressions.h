@@ -360,25 +360,25 @@ private:
   mutable DdNode* identity_bdd_;
 };
 
-// A value expression.
-class Value : public Expression {
+// A literal expression.
+class Literal : public Expression {
  public:
-  // Constructs a value.
-  Value(const Rational& value);
+  // Constructs a literal that represents the given value.
+  Literal(const Rational& value);
 
-  virtual ~Value();
+  virtual ~Literal();
 
-  // Returns the rational value for this value.
+  // Returns the value of this literal.
   const Rational& value() const { return value_; }
 
   // Returns the value of this expression.
   virtual Rational value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
-  virtual const Value& substitution(const ValueMap& values) const;
+  virtual const Literal& substitution(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
-  virtual const Value& substitution(const SubstitutionMap& subst) const;
+  virtual const Literal& substitution(const SubstitutionMap& subst) const;
 
   // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
@@ -399,7 +399,7 @@ private:
 // Abstract base class for expression visitors.
 class ExpressionVisitor {
  public:
-  void VisitValue(const Value& expr);
+  void VisitLiteral(const Literal& expr);
   void VisitVariable(const Variable& expr);
   void VisitComputation(const Computation& expr);
 
@@ -410,7 +410,7 @@ class ExpressionVisitor {
   ~ExpressionVisitor();
 
  private:
-  virtual void DoVisitValue(const Value& expr) = 0;
+  virtual void DoVisitLiteral(const Literal& expr) = 0;
   virtual void DoVisitVariable(const Variable& expr) = 0;
   virtual void DoVisitComputation(const Computation& expr) = 0;
 };

@@ -163,7 +163,7 @@ const Exponential Exponential::EXP1_;
 
 /* Returns an exponential distribution with the given rate. */
 const Exponential& Exponential::make(const Expression& rate) {
-  const Value* value = dynamic_cast<const Value*>(&rate);
+  const Literal* value = dynamic_cast<const Literal*>(&rate);
   if (value != NULL && value->value() == 1) {
     Expression::ref(value);
     Expression::destructive_deref(value);
@@ -176,7 +176,7 @@ const Exponential& Exponential::make(const Expression& rate) {
 
 /* Constructs an exponential distribution with rate 1. */
 Exponential::Exponential()
-  : rate_(new Value(1)) {
+  : rate_(new Literal(1)) {
   Expression::ref(rate_);
   ref(this);
 }
@@ -250,11 +250,11 @@ void Exponential::print(std::ostream& os) const {
 /* Returns a Weibull distribution with the given scale and shape. */
 const Distribution& Weibull::make(const Expression& scale,
 				  const Expression& shape) {
-  const Value* value = dynamic_cast<const Value*>(&shape);
+  const Literal* value = dynamic_cast<const Literal*>(&shape);
   if (value != NULL && value->value() == 1) {
     Expression::ref(value);
     Expression::destructive_deref(value);
-    return Exponential::make(Division::make(*new Value(1), scale));
+    return Exponential::make(Division::make(*new Literal(1), scale));
   } else {
     return *new Weibull(scale, shape);
   }

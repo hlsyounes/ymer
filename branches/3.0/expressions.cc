@@ -79,11 +79,11 @@ Addition::~Addition() {
 
 const Expression& Addition::make(const Expression& term1,
                                  const Expression& term2) {
-  const Value* v1 = dynamic_cast<const Value*>(&term1);
+  const Literal* v1 = dynamic_cast<const Literal*>(&term1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&term2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&term2);
     if (v2 != NULL) {
-      const Value& value = *new Value(v1->value() + v2->value());
+      const Literal& value = *new Literal(v1->value() + v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -151,11 +151,11 @@ Subtraction::~Subtraction() {
 
 const Expression& Subtraction::make(const Expression& term1,
                                     const Expression& term2) {
-  const Value* v1 = dynamic_cast<const Value*>(&term1);
+  const Literal* v1 = dynamic_cast<const Literal*>(&term1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&term2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&term2);
     if (v2 != NULL) {
-      const Value& value = *new Value(v1->value() - v2->value());
+      const Literal& value = *new Literal(v1->value() - v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -234,11 +234,11 @@ Multiplication::~Multiplication() {
 
 const Expression& Multiplication::make(const Expression& factor1,
                                        const Expression& factor2) {
-  const Value* v1 = dynamic_cast<const Value*>(&factor1);
+  const Literal* v1 = dynamic_cast<const Literal*>(&factor1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&factor2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&factor2);
     if (v2 != NULL) {
-      const Value& value = *new Value(v1->value() * v2->value());
+      const Literal& value = *new Literal(v1->value() * v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -325,14 +325,14 @@ Division::~Division() {
 
 const Expression& Division::make(const Expression& factor1,
                                  const Expression& factor2) {
-  const Value* v1 = dynamic_cast<const Value*>(&factor1);
+  const Literal* v1 = dynamic_cast<const Literal*>(&factor1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&factor2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&factor2);
     if (v2 != NULL) {
       if (v2->value() == 0) {
         throw std::invalid_argument("division by zero");
       }
-      const Value& value = *new Value(v1->value() / v2->value());
+      const Literal& value = *new Literal(v1->value() / v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -463,7 +463,7 @@ Rational Variable::value(const ValueMap& values) const {
 const Expression& Variable::substitution(const ValueMap& values) const {
   ValueMap::const_iterator vi = values.find(this);
   if (vi != values.end()) {
-    return *new Value((*vi).second);
+    return *new Literal((*vi).second);
   } else {
     return *this;
   }
@@ -609,42 +609,42 @@ void Variable::print(std::ostream& os) const {
   }
 }
 
-Value::Value(const Rational& value)
+Literal::Literal(const Rational& value)
     : value_(value) {
 }
 
-Value::~Value() {
+Literal::~Literal() {
 }
 
-void Value::DoAccept(ExpressionVisitor* visitor) const {
-  visitor->VisitValue(*this);
+void Literal::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitLiteral(*this);
 }
 
-Rational Value::value(const ValueMap& values) const {
+Rational Literal::value(const ValueMap& values) const {
   return value();
 }
 
-const Value& Value::substitution(const ValueMap& values) const {
+const Literal& Literal::substitution(const ValueMap& values) const {
   return *this;
 }
 
-const Value& Value::substitution(const SubstitutionMap& subst) const {
+const Literal& Literal::substitution(const SubstitutionMap& subst) const {
   return *this;
 }
 
-DdNode* Value::mtbdd(DdManager* dd_man) const {
+DdNode* Literal::mtbdd(DdManager* dd_man) const {
   DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
   Cudd_Ref(ddv);
   return ddv;
 }
 
-DdNode* Value::primed_mtbdd(DdManager* dd_man) const {
+DdNode* Literal::primed_mtbdd(DdManager* dd_man) const {
   DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
   Cudd_Ref(ddv);
   return ddv;
 }
 
-void Value::print(std::ostream& os) const {
+void Literal::print(std::ostream& os) const {
   os << value();
 }
 
@@ -660,8 +660,8 @@ ExpressionVisitor& ExpressionVisitor::operator=(const ExpressionVisitor&) {
 ExpressionVisitor::~ExpressionVisitor() {
 }
 
-void ExpressionVisitor::VisitValue(const Value& expr) {
-  DoVisitValue(expr);
+void ExpressionVisitor::VisitLiteral(const Literal& expr) {
+  DoVisitLiteral(expr);
 }
 
 void ExpressionVisitor::VisitVariable(const Variable& expr) {
