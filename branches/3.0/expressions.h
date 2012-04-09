@@ -17,7 +17,8 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 //
-// Expressions.
+// A class hierarchy for representing expressions that supports the visitor
+// pattern.
 
 #ifndef EXPRESSIONS_H_
 #define EXPRESSIONS_H_
@@ -39,7 +40,20 @@ typedef std::map<const Variable*, Rational> ValueMap;
 // A variable substitution map.
 typedef std::map<const Variable*, const Variable*> SubstitutionMap;
 
-// An abstract expression.
+class ExpressionVisitor;
+
+// Abstract base class for expressions.
+//
+// This class supports the visitor pattern.  Example usage:
+//
+//   class ConcreteExpressionVisitor : public ExpressionVisitor {
+//     ...
+//   };
+//
+//   Expression* expr = ...;
+//   ComcreteExpressionVisitor visitor;
+//   expr->Accept(&visitor);
+//
 class Expression {
  public:
   virtual ~Expression();
@@ -50,6 +64,8 @@ class Expression {
   // Decreases the reference count for the given expression and
   // deletes it if the the reference count becomes zero.
   static void destructive_deref(const Expression* e);
+
+  void Accept(ExpressionVisitor* visitor) const;
 
   // Returns the value of this expression.
   virtual Rational value(const ValueMap& values) const = 0;
@@ -72,6 +88,12 @@ protected:
   Expression();
 
 private:
+  // Disallow copy and assign.
+  Expression(const Expression&);
+  Expression& operator=(const Expression&);
+
+  virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
+
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const = 0;
 
@@ -87,7 +109,15 @@ std::ostream& operator<<(std::ostream& os, const Expression& e);
 // A computation expression.
 class Computation : public Expression {
  public:
+  // Supported computation operators.
+  enum Operator {
+    MULTIPLY, DIVIDE, PLUS, MINUS
+  };
+
   virtual ~Computation();
+
+  // Returns the operator for this computation.
+  const Operator op() const { return op_; }
 
   // Returns the first operand for this computation.
   const Expression& operand1() const { return *operand1_; }
@@ -97,9 +127,15 @@ class Computation : public Expression {
 
 protected:
   // Constructs a computation.
-  Computation(const Expression& operand1, const Expression& operand2);
+  Computation(Operator op,
+              const Expression& operand1,
+              const Expression& operand2);
 
 private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  // The operator for this computation.
+  Operator op_;
   // The first operand for this computation.
   const Expression* operand1_;
   // The second operand for this computation.
@@ -300,6 +336,8 @@ class Variable : public Expression {
   void uncache_dds(DdManager* dd_man) const;
 
 private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
 
@@ -349,11 +387,32 @@ class Value : public Expression {
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
 private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
   // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
 
   // The value.
   Rational value_;
+};
+
+// Abstract base class for expression visitors.
+class ExpressionVisitor {
+ public:
+  void VisitValue(const Value& expr);
+  void VisitVariable(const Variable& expr);
+  void VisitComputation(const Computation& expr);
+
+ protected:
+  ExpressionVisitor();
+  ExpressionVisitor(const ExpressionVisitor&);
+  ExpressionVisitor& operator=(const ExpressionVisitor&);
+  ~ExpressionVisitor();
+
+ private:
+  virtual void DoVisitValue(const Value& expr) = 0;
+  virtual void DoVisitVariable(const Variable& expr) = 0;
+  virtual void DoVisitComputation(const Computation& expr) = 0;
 };
 
 // A list of variables.

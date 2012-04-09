@@ -29,6 +29,10 @@ Expression::Expression()
 Expression::~Expression() {
 }
 
+void Expression::Accept(ExpressionVisitor* visitor) const {
+  DoAccept(visitor);
+}
+
 void Expression::ref(const Expression* e) {
   if (e != NULL) {
     ++e->ref_count_;
@@ -49,9 +53,10 @@ std::ostream& operator<<(std::ostream& os, const Expression& e) {
   return os;
 }
 
-Computation::Computation(const Expression& operand1,
+Computation::Computation(Operator op,
+                         const Expression& operand1,
                          const Expression& operand2)
-    : operand1_(&operand1), operand2_(&operand2) {
+    : op_(op), operand1_(&operand1), operand2_(&operand2) {
   ref(operand1_);
   ref(operand2_);
 }
@@ -61,8 +66,12 @@ Computation::~Computation() {
   destructive_deref(operand2_);
 }
 
+void Computation::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitComputation(*this);
+}
+
 Addition::Addition(const Expression& term1, const Expression& term2)
-    : Computation(term1, term2) {
+    : Computation(PLUS, term1, term2) {
 }
 
 Addition::~Addition() {
@@ -134,7 +143,7 @@ void Addition::print(std::ostream& os) const {
 }
 
 Subtraction::Subtraction(const Expression& term1, const Expression& term2)
-    : Computation(term1, term2) {
+    : Computation(MINUS, term1, term2) {
 }
 
 Subtraction::~Subtraction() {
@@ -217,7 +226,7 @@ void Subtraction::print(std::ostream& os) const {
 
 Multiplication::Multiplication(const Expression& factor1,
                                const Expression& factor2)
-    : Computation(factor1, factor2) {
+    : Computation(MULTIPLY, factor1, factor2) {
 }
 
 Multiplication::~Multiplication() {
@@ -308,7 +317,7 @@ void Multiplication::print(std::ostream& os) const {
 }
 
 Division::Division(const Expression& factor1, const Expression& factor2)
-    : Computation(factor1, factor2) {
+    : Computation(DIVIDE, factor1, factor2) {
 }
 
 Division::~Division() {
@@ -413,6 +422,10 @@ Variable::Variable(int low, int high, int start, int low_bit)
 }
 
 Variable::~Variable() {
+}
+
+void Variable::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitVariable(*this);
 }
 
 void Variable::set_low(int low) {
@@ -603,6 +616,10 @@ Value::Value(const Rational& value)
 Value::~Value() {
 }
 
+void Value::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitValue(*this);
+}
+
 Rational Value::value(const ValueMap& values) const {
   return value();
 }
@@ -629,4 +646,28 @@ DdNode* Value::primed_mtbdd(DdManager* dd_man) const {
 
 void Value::print(std::ostream& os) const {
   os << value();
+}
+
+ExpressionVisitor::ExpressionVisitor() {
+}
+
+ExpressionVisitor::ExpressionVisitor(const ExpressionVisitor&) {
+}
+
+ExpressionVisitor& ExpressionVisitor::operator=(const ExpressionVisitor&) {
+}
+
+ExpressionVisitor::~ExpressionVisitor() {
+}
+
+void ExpressionVisitor::VisitValue(const Value& expr) {
+  DoVisitValue(expr);
+}
+
+void ExpressionVisitor::VisitVariable(const Variable& expr) {
+  DoVisitVariable(expr);
+}
+
+void ExpressionVisitor::VisitComputation(const Computation& expr) {
+  DoVisitComputation(expr);
 }
