@@ -73,4 +73,5 @@ AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror getopt_long])
 
 AC_CONFIG_FILES(Makefile)
+AC_CONFIG_SUBDIRS([gtest])
 AC_OUTPUT
