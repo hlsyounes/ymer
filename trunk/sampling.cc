@@ -2,6 +2,7 @@
  * Sampling-based model checking of CSL formulas.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011--2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -18,18 +19,20 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: sampling.cc,v 4.1 2005-02-01 14:15:28 lorens Exp $
  */
 #include "formulas.h"
 #include "comm.h"
 #include "states.h"
 #include "models.h"
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <queue>
-#define __USE_ISOC9X 1
-#include <cmath>
+#ifndef __USE_ISOC99
+#define __USE_ISOC99
+#endif
+#include <math.h>
+#include <cstdio>
 
 
 /* Verbosity level. */
@@ -38,6 +41,10 @@ extern int verbosity;
 extern bool memoization;
 /* Fixed nested error. */
 extern double nested_error;
+/* Fixed sample size. */
+extern int fixed_sample_size;
+/* Maximum path length. */
+extern int max_path_length;
 /* Total number of samples (for statistics). */
 extern size_t total_samples;
 /* Number of samples per trial (for statistics). */
@@ -395,7 +402,7 @@ double Probabilistic::effort(const Model& model, const State& state,
 			     double alphap, double betap,
 			     SamplingAlgorithm algorithm) const {
   double p0, p1;
-  double theta = threshold().double_value();
+  double theta = threshold().value<double>();
   double nested_effort;
   if (formula().probabilistic()) {
     double r = 0.5*(sqrt(5) - 1.0);
@@ -452,7 +459,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 			   DeltaFun delta, double alpha, double beta,
 			   SamplingAlgorithm algorithm) const {
   double p0, p1;
-  double theta = threshold().double_value();
+  double theta = threshold().value<double>();
   double alphap;
   double betap;
   if (formula().probabilistic()) {
@@ -506,16 +513,63 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   p0 = std::min(1.0, (theta + (*delta)(theta))*(1.0 - alphap));
   p1 = std::max(0.0, 1.0 - (1.0 - (theta - (*delta)(theta)))*(1.0 - betap));
+  if (algorithm == FIXED) {
+    int c = 0;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << "Fixed-size sampling";
+      }
+      if (verbosity > 1) {
+        std::cout << std::endl;
+      }
+    }
+    formula_level_++;
+    for (int i = 1; i <= fixed_sample_size; ++i) {
+      if (formula().sample(model, state, delta, alphap, betap, algorithm)) {
+        c++;
+      }
+      if (verbosity == 1) {
+        if (formula_level() == 1) {
+          if (i % 1000 == 0) {
+            std::cout << ':';
+          } else if (i % 100 == 0) {
+            std::cout << '.';
+          }
+        }
+      } else if (verbosity > 1) {
+        for (size_t j = 0; j < 2*(formula_level() - 1); j++) {
+          std::cout << ' ';
+        }
+        std::cout << i << '\t' << c << std::endl;
+      }
+    }
+    formula_level_--;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << fixed_sample_size << " samples." << std::endl;
+      }
+      total_samples += fixed_sample_size;
+      samples.push_back(fixed_sample_size);
+    }
+    double p = double(c)/fixed_sample_size;
+    if (strict()) {
+      return p > theta;
+    } else {
+      return p >= theta;
+    }
+  }
   if (algorithm == ESTIMATE) {
     int c = 0, n = 0;
     double es = (*delta)(theta)*(*delta)(theta);
     double a = 1.0 - 0.5*alpha;
     double p, t, b;
-    if (verbosity > 0) {
-      std::cout << "Sequential estimation";
-    }
-    if (verbosity > 1) {
-      std::cout << std::endl;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << "Sequential estimation";
+      }
+      if (verbosity > 1) {
+        std::cout << std::endl;
+      }
     }
     formula_level_++;
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
@@ -525,25 +579,34 @@ bool Probabilistic::verify(const Model& model, const State& state,
       n++;
       p = double(c)/n;
       if (verbosity == 1) {
-	if (n % 1000 == 0) {
-	  std::cout << ':';
-	} else if (n % 100 == 0) {
-	  std::cout << '.';
-	}
+        if (formula_level() == 1) {
+          if (n % 1000 == 0) {
+            std::cout << ':';
+          } else if (n % 100 == 0) {
+            std::cout << '.';
+          }
+        }
       } else if (verbosity > 1) {
+        for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
+          std::cout << ' ';
+        }
 	std::cout << n << '\t' << c << '\t' << p/(1 + (*delta)(theta)) << '\t'
 		  << p/(1 - (*delta)(theta)) << std::endl;
       }
       t = c*(1.0 - p);
       b = tinv(a, n - 1.0);
     }
-    if (verbosity > 0) {
-      std::cout << n << " samples." << std::endl;
-    }
     formula_level_--;
-    std::cout << "Pr[" << formula() << "] = " << p << " ("
-	      << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
-	      << ")" << std::endl;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << n << " samples." << std::endl;
+      }
+      std::cout << "Pr[" << formula() << "] = " << p << " ("
+                << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
+                << ")" << std::endl;
+      total_samples += n;
+      samples.push_back(n);
+    }
     if (strict()) {
       return p > theta;
     } else {
@@ -601,7 +664,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   if (server_socket != -1) {
     FD_ZERO(&master_fds);
     FD_SET(server_socket, &master_fds);
-    int fdmax = server_socket;
+    fdmax = server_socket;
     std::set<int> closed_sockets;
     for (std::map<int, short>::const_iterator ci = registered_clients.begin();
 	 ci != registered_clients.end(); ci++) {
@@ -878,8 +941,8 @@ double Until::effort(const Model& model, const State& state,
 		     double q, DeltaFun delta, double alpha, double beta,
 		     double alphap, double betap,
 		     SamplingAlgorithm algorithm) const {
-  double a = max_time().double_value();
-  double b = (max_time() - min_time()).double_value();
+  double a = max_time().value<double>();
+  double b = (max_time() - min_time()).value<double>();
   return q*(a*pre().effort(model, state, q,
 			   delta, alpha, beta, alphap, betap, algorithm)
 	    + b*post().effort(model, state, q,
@@ -893,11 +956,11 @@ bool Until::sample(const Model& model, const State& state,
 		   SamplingAlgorithm algorithm) const {
   double t = 0.0;
   const State* curr_state = &state;
-  double t_min = min_time().double_value();
-  double t_max = max_time().double_value();
+  double t_min = min_time().value<double>();
+  double t_max = max_time().value<double>();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
-  while (!done) {
+  while (!done && path_length < max_path_length) {
     if (verbosity > 2 && StateFormula::formula_level() == 1) {
       std::cout << "t = " << t << ": ";
       curr_state->print(std::cout);
@@ -967,11 +1030,11 @@ bool Until::sample(const Model& model, const State& state,
 
 /* Verifies this path formula using the mixed engine. */
 bool Until::verify(DdManager* dd_man, const Model& model,
-		   const State& state, const Rational& p, bool strict,
+		   const State& state, const TypedValue& p, bool strict,
 		   DeltaFun delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm,
 		   double epsilon) const {
-  double theta = p.double_value();
+  double theta = p.value<double>();
   double p0 = std::min(1.0, theta + (*delta)(theta));
   double p1 = std::max(0.0, theta - (*delta)(theta));
 

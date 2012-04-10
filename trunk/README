@@ -1,9 +1,10 @@
 Copyright (C) 2003--2005 Carnegie Mellon University
+Copyright (C) 2011 Google Inc
 
    This file is free documentation; the copyright holders give
 unlimited permission to copy, distribute and modify it.
 
-Ymer 2.2
+Ymer 3.0
 ========
 
 Ymer is a tool for verifying probabilistic transient properties of
@@ -19,7 +20,7 @@ to generate samples, which can result in significant speedup as each
 sample can be generated independently.
 
 Ymer can also use numerical techniques based on uniformization by
-approximating a GSMP with a CTMC using phase-type distributions .
+approximating a GSMP with a CTMC using phase-type distributions.
 Ymer includes the hybrid engine from the PRISM tool for CTMC model
 checking.  Numerical and statistical techniques can be used in
 combination to solve nested CSL queries.
@@ -47,11 +48,11 @@ provide the server with samples.  To connect a client to a server,
 pass a host name and a port to Ymer.  The following commands give you
 an example of how to use distributed sampling with Ymer:
 
-  cpu1> ymer -p 5000 examples/tandem63.sm examples/tandem500.csl
+  cpu1> ymer -P 5000 examples/tandem63.sm examples/tandem500.csl
 
-  cpu2> ymer -h cpu1 -p 5000 examples/tandem63.sm examples/tandem500.csl
+  cpu2> ymer -H cpu1 -P 5000 examples/tandem63.sm examples/tandem500.csl
 
-  cpu3> ymer -h cpu1 -p 5000 examples/tandem63.sm examples/tandem500.csl
+  cpu3> ymer -H cpu1 -P 5000 examples/tandem63.sm examples/tandem500.csl
 
 This starts a server on a machine called `cpu1' and a client on each
 of the machines called `cpu2' and `cpu3'.  Once enough samples have
