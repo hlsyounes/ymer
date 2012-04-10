@@ -580,7 +580,7 @@ void compute_weights(int& left, int& right, double*& weights,
 
 /* Verifies this path formula using the hybrid engine. */
 DdNode* Until::verify(DdManager* dd_man, const Model& model,
-		      const Rational& p, bool strict, double epsilon,
+		      const TypedValue& p, bool strict, double epsilon,
 		      bool estimate) const {
   /*
    * Detect trivial cases.
@@ -633,9 +633,9 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   /* Transient analysis. */
 
   /* Probability threshold. */
-  double threshold = p.double_value();
+  double threshold = p.value<double>();
   /* Time limit. */
-  double time = max_time().double_value();
+  double time = max_time().value<double>();
   /* ODD for model. */
   ODDNode* odd = model.odd(dd_man);
   /* Number of states. */

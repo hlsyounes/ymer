@@ -1,457 +1,424 @@
-/* -*-C++-*- */
-/*
- * Expressions.
- *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
- *
- * This file is part of Ymer.
- *
- * Ymer is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * Ymer is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Ymer; if not, write to the Free Software Foundation,
- * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: expressions.h,v 2.1 2004-01-25 12:22:13 lorens Exp $
- */
-#ifndef EXPRESSIONS_H
-#define EXPRESSIONS_H
+// Copyright (C) 2003--2005 Carnegie Mellon University
+// Copyright (C) 2011--2012 Google Inc
+//
+// This file is part of Ymer.
+//
+// Ymer is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Ymer is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Ymer; if not, write to the Free Software Foundation,
+// Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+//
+// A class hierarchy for representing expressions that supports the visitor
+// pattern.
 
-#include <config.h>
-#include "rational.h"
-#include <util.h>
-#include <cudd.h>
+#ifndef EXPRESSIONS_H_
+#define EXPRESSIONS_H_
+
 #include <map>
+#include <ostream>
 #include <set>
 #include <vector>
 
+#include "cudd.h"
 
-/* ====================================================================== */
-/* Expression */
+#include "src/typed-value.h"
 
-struct ValueMap;
-struct SubstitutionMap;
+class Variable;
 
-/*
- * An abstract expression.
- */
-struct Expression {
-  /* Increases the reference count for the given expression. */
-  static void ref(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_++;
-    }
-  }
+// A mapping from variables to values.
+typedef std::map<const Variable*, TypedValue> ValueMap;
 
-  /* Decreases the reference count for the given expression. */
-  static void deref(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_--;
-    }
-  }
+// A variable substitution map.
+typedef std::map<const Variable*, const Variable*> SubstitutionMap;
 
-  /* Decreases the reference count for the given expression and
-     deletes it if the the reference count becomes zero. */
-  static void destructive_deref(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_--;
-      if (e->ref_count_ == 0) {
-	delete e;
-      }
-    }
-  }
+class ExpressionVisitor;
 
-  /* Deletes this expression. */
-  virtual ~Expression() {}
+// Abstract base class for expressions.
+//
+// This class supports the visitor pattern.  Example usage:
+//
+//   class ConcreteExpressionVisitor : public ExpressionVisitor {
+//     ...
+//   };
+//
+//   Expression* expr = ...;
+//   ComcreteExpressionVisitor visitor;
+//   expr->Accept(&visitor);
+//
+class Expression {
+ public:
+  virtual ~Expression();
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const = 0;
+  // Increases the reference count for the given expression.
+  static void ref(const Expression* e);
 
-  /* Returns this expression subject to the given substitutions. */
+  // Decreases the reference count for the given expression and
+  // deletes it if the the reference count becomes zero.
+  static void destructive_deref(const Expression* e);
+
+  void Accept(ExpressionVisitor* visitor) const;
+
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const = 0;
+
+  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const = 0;
 
-  /* Returns this expression subject to the given substitutions. */
-  virtual const Expression&
-  substitution(const SubstitutionMap& subst) const = 0;
+  // Returns this expression subject to the given substitutions.
+  virtual const Expression& substitution(
+      const SubstitutionMap& subst) const = 0;
 
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const = 0;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const = 0;
 
 protected:
-  /* Constructs an expression. */
-  Expression() : ref_count_(0) {}
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
+  // Constructs an expression.
+  Expression();
 
 private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
+  // Disallow copy and assign.
+  Expression(const Expression&);
+  Expression& operator=(const Expression&);
+
+  virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
+
+  // Prints this object on the given stream.
+  virtual void print(std::ostream& os) const = 0;
+
+  // Reference counter.
+  mutable int ref_count_;
 
   friend std::ostream& operator<<(std::ostream& os, const Expression& e);
 };
 
-/* Output operator for expressions. */
+// Output operator for expressions.
 std::ostream& operator<<(std::ostream& os, const Expression& e);
 
+// A computation expression.
+class Computation : public Expression {
+ public:
+  // Supported computation operators.
+  enum Operator {
+    MULTIPLY, DIVIDE, PLUS, MINUS
+  };
 
-/* ====================================================================== */
-/* Computation */
-
-/*
- * A computation expression.
- */
-struct Computation : public Expression {
-  /* Deletes this computation. */
   virtual ~Computation();
 
-  /* Returns the first operand for this computation. */
+  // Returns the operator for this computation.
+  const Operator op() const { return op_; }
+
+  // Returns the first operand for this computation.
   const Expression& operand1() const { return *operand1_; }
 
-  /* Returns the second operand for this computation. */
+  // Returns the second operand for this computation.
   const Expression& operand2() const { return *operand2_; }
 
 protected:
-  /* Constructs a computation. */
-  Computation(const Expression& operand1, const Expression& operand2);
+  // Constructs a computation.
+  Computation(Operator op,
+              const Expression& operand1,
+              const Expression& operand2);
 
 private:
-  /* The first operand for this computation. */
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  // The operator for this computation.
+  Operator op_;
+  // The first operand for this computation.
   const Expression* operand1_;
-  /* The second operand for this computation. */
+  // The second operand for this computation.
   const Expression* operand2_;
 };
 
+// An addition expression.
+class Addition : public Computation {
+ public:
+  virtual ~Addition();
 
-/* ====================================================================== */
-/* Addition */
-
-/*
- * An addition expression.
- */
-struct Addition : public Computation {
-  /* Returns an addition of the two expressions. */
+  // Returns an addition of the two expressions.
   static const Expression& make(const Expression& term1,
-				const Expression& term2);
+                                const Expression& term2);
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Addition& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
-  /* Constructs an addition. */
-  Addition(const Expression& term1, const Expression& term2)
-    : Computation(term1, term2) {}
+  // Constructs an addition.
+  Addition(const Expression& term1, const Expression& term2);
+
+  // Prints this object on the given stream.
+  virtual void print(std::ostream& os) const;
 };
 
+// A subtraction expression.
+class Subtraction : public Computation {
+ public:
+  virtual ~Subtraction();
 
-/* ====================================================================== */
-/* Subtraction */
-
-/*
- * A subtraction expression.
- */
-struct Subtraction : public Computation {
-  /* Returns a subtraction of the two expressions. */
+  // Returns a subtraction of the two expressions.
   static const Expression& make(const Expression& term1,
-				const Expression& term2);
+                                const Expression& term2);
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Subtraction& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
-  /* Constructs a subtraction. */
-  Subtraction(const Expression& term1, const Expression& term2)
-    : Computation(term1, term2) {}
+  // Constructs a subtraction.
+  Subtraction(const Expression& term1, const Expression& term2);
+
+  // Prints this object on the given stream.
+  virtual void print(std::ostream& os) const;
 };
 
+// A multiplication expression.
+class Multiplication : public Computation {
+ public:
+  virtual ~Multiplication();
 
-/* ====================================================================== */
-/* Multiplication */
-
-/*
- * A multiplication expression.
- */
-struct Multiplication : public Computation {
-  /* Returns a multiplication of the two expressions. */
+  // Returns a multiplication of the two expressions.
   static const Expression& make(const Expression& factor1,
-				const Expression& factor2);
+                                const Expression& factor2);
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
-  virtual const Multiplication&
-  substitution(const SubstitutionMap& subst) const;
+  // Returns this expression subject to the given substitutions.
+  virtual const Multiplication& substitution(
+      const SubstitutionMap& subst) const;
 
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
-  /* Constructs a multiplication. */
-  Multiplication(const Expression& factor1, const Expression& factor2)
-    : Computation(factor1, factor2) {}
+  // Constructs a multiplication.
+  Multiplication(const Expression& factor1, const Expression& factor2);
+
+  // Prints this object on the given stream.
+  virtual void print(std::ostream& os) const;
 };
 
+// A division expression.
+class Division : public Computation {
+ public:
+  virtual ~Division();
 
-/* ====================================================================== */
-/* Division */
-
-/*
- * A division expression.
- */
-struct Division : public Computation {
-  /* Returns a division of the two expressions. */
+  // Returns a division of the two expressions.
   static const Expression& make(const Expression& factor1,
-				const Expression& factor2);
+                                const Expression& factor2);
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Division& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
-  /* Constructs a division. */
-  Division(const Expression& factor1, const Expression& factor2)
-    : Computation(factor1, factor2) {}
+  // Constructs a division.
+  Division(const Expression& factor1, const Expression& factor2);
+
+  // Prints this object on the given stream.
+  virtual void print(std::ostream& os) const;
 };
 
-
-/* ====================================================================== */
-/* Variable */
-
-/*
- * A variable expression.
- */
-struct Variable : public Expression {
-  /* Constructs a variable. */
+// A variable expression.
+class Variable : public Expression {
+ public:
+  // Constructs a variable.
   Variable();
-
-  /* Constructs a variable. */
   Variable(int low, int high, int start, int low_bit);
 
-  /* Sets the lower bound for this variable. */
+  virtual ~Variable();
+
+  // Sets the lower bound for this variable.
   void set_low(int low);
 
-  /* Sets the upper bound for this variable. */
+  // Sets the upper bound for this variable.
   void set_high(int high);
 
-  /* Sets the initial value for this variable. */
+  // Sets the initial value for this variable.
   void set_start(int start);
 
-  /* Sets the index of the first DD variable used to represent this
-     variable. */
+  // Sets the index of the first DD variable used to represent this
+  // variable.
   void set_low_bit(int low_bit);
 
-  /* Returns the lower bound for this variable. */
+  // Returns the lower bound for this variable.
   int low() const { return low_; }
 
-  /* Returns the upper bound for this variable. */
+  // Returns the upper bound for this variable.
   int high() const { return high_; }
 
-  /* Returns the initial value for this variable. */
+  // Returns the initial value for this variable.
   int start() const { return start_; }
 
-  /* Returns the index of the first DD variable used to represent this
-     variable. */
+  // Returns the index of the first DD variable used to represent this
+  // variable.
   int low_bit() const { return low_bit_; }
 
-  /* Returns the index of the last DD variable used to represent this
-     variable. */
+  // Returns the index of the last DD variable used to represent this
+  // variable.
   int high_bit() const { return high_bit_; }
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
+  // Returns this expression subject to the given substitutions.
   virtual const Variable& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-  /* Returns a BDD representing identity between the `current state'
-     and `next state' versions of this variable. */
+  // Returns a BDD representing identity between the `current state'
+  // and `next state' versions of this variable.
   DdNode* identity_bdd(DdManager* dd_man) const;
 
-  /* Returns a BDD representing the range for this variable. */
+  // Returns a BDD representing the range for this variable.
   DdNode* range_bdd(DdManager* dd_man) const;
 
-  /* Releases any cached DDs for this variable. */
+  // Releases any cached DDs for this variable.
   void uncache_dds(DdManager* dd_man) const;
 
-protected:
-  /* Prints this object on the given stream. */
+private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
 
-private:
-  /* The lower bound for this variable. */
+  // The lower bound for this variable.
   int low_;
-  /* The upper bound for this variable. */
+  // The upper bound for this variable.
   int high_;
-  /* The initial value for this variable. */
+  // The initial value for this variable.
   int start_;
-  /* Index of the first DD variable used to represent this variable. */
+  // Index of the first DD variable used to represent this variable.
   int low_bit_;
-  /* Index of the last DD variable used to represent this variable. */
+  // Index of the last DD variable used to represent this variable.
   int high_bit_;
-  /* Cached `current state' MTBDD representation for this variable. */
+  // Cached `current state' MTBDD representation for this variable.
   mutable DdNode* mtbdd_;
-  /* Cached `next state' MTBDD representation for this variable. */
+  // Cached `next state' MTBDD representation for this variable.
   mutable DdNode* primed_mtbdd_;
-  /* Cached BDD representing identity between the `current state' and
-     `next state' versions of this variable. */
+  // Cached BDD representing identity between the `current state' and
+  // `next state' versions of this variable.
   mutable DdNode* identity_bdd_;
 };
 
+// A literal expression.
+class Literal : public Expression {
+ public:
+  // Constructs a literal that represents the given value.
+  Literal(const TypedValue& value);
 
-/* ====================================================================== */
-/* Value */
+  virtual ~Literal();
 
-/*
- * A value expression.
- */
-struct Value : public Expression {
-  /* Constructs a value. */
-  Value(const Rational& value) : value_(value) {}
+  // Returns the value of this literal.
+  const TypedValue& value() const { return value_; }
 
-  /* Returns the rational value for this value. */
-  const Rational& value() const { return value_; }
+  // Returns the value of this expression.
+  virtual TypedValue value(const ValueMap& values) const;
 
-  /* Returns the value of this expression. */
-  virtual Rational value(const ValueMap& values) const;
+  // Returns this expression subject to the given substitutions.
+  virtual const Literal& substitution(const ValueMap& values) const;
 
-  /* Returns this expression subject to the given substitutions. */
-  virtual const Value& substitution(const ValueMap& values) const;
+  // Returns this expression subject to the given substitutions.
+  virtual const Literal& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns this expression subject to the given substitutions. */
-  virtual const Value& substitution(const SubstitutionMap& subst) const;
-
-  /* Returns the `current state' MTBDD representation for this expression. */
+  // Returns the `current state' MTBDD representation for this expression.
   virtual DdNode* mtbdd(DdManager* dd_man) const;
 
-  /* Returns the `next state' MTBDD representation for this expression. */
+  // Returns the `next state' MTBDD representation for this expression.
   virtual DdNode* primed_mtbdd(DdManager* dd_man) const;
 
-protected:
-  /* Prints this object on the given stream. */
+private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  // Prints this object on the given stream.
   virtual void print(std::ostream& os) const;
 
-private:
-  /* The value. */
-  Rational value_;
+  // The value.
+  TypedValue value_;
 };
 
+// Abstract base class for expression visitors.
+class ExpressionVisitor {
+ public:
+  void VisitLiteral(const Literal& expr);
+  void VisitVariable(const Variable& expr);
+  void VisitComputation(const Computation& expr);
 
-/* ====================================================================== */
-/* VariableList */
+ protected:
+  ExpressionVisitor();
+  ExpressionVisitor(const ExpressionVisitor&);
+  ExpressionVisitor& operator=(const ExpressionVisitor&);
+  ~ExpressionVisitor();
 
-/*
- * A list of variables.
- */
-struct VariableList : public std::vector<const Variable*> {
+ private:
+  virtual void DoVisitLiteral(const Literal& expr) = 0;
+  virtual void DoVisitVariable(const Variable& expr) = 0;
+  virtual void DoVisitComputation(const Computation& expr) = 0;
 };
 
+// A list of variables.
+typedef std::vector<const Variable*> VariableList;
 
-/* ====================================================================== */
-/* VariableSet */
+// A set of variables.
+typedef std::set<const Variable*> VariableSet;
 
-/*
- * A set of variables.
- */
-struct VariableSet : public std::set<const Variable*> {
-};
-
-
-/* ====================================================================== */
-/* ValueMap */
-
-/*
- * A mapping from variables to values.
- */
-struct ValueMap : public std::map<const Variable*, Rational> {
-};
-
-
-/* ====================================================================== */
-/* SubstitutionMap */
-
-/*
- * A variable substitution map.
- */
-struct SubstitutionMap : public std::map<const Variable*, const Variable*> {
-};
-
-
-#endif /* EXPRESSIONS_H */
+#endif  // EXPRESSIONS_H_

@@ -2,6 +2,7 @@
  * Main program.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011--2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -18,15 +19,12 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: ymer.cc,v 4.1 2005-02-01 14:24:49 lorens Exp $
  */
 #include <config.h>
 #include "comm.h"
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
-#include <util.h>
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -37,11 +35,15 @@
 #define _GNU_SOURCE
 #endif
 #include <getopt.h>
-#else
-#include "getopt.h"
 #endif
+#include <algorithm>
 #include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <iostream>
+#include <limits>
+#include <map>
 #include <stdexcept>
 #include <string>
 
@@ -61,12 +63,18 @@ extern void clear_declarations();
 
 /* Name of current file. */
 std::string current_file;
+/* Constant overrides. */
+std::map<std::string, TypedValue> const_overrides;
 /* Verbosity level. */
 int verbosity;
 /* Whether memoization is enabled. */
 bool memoization = false;
 /* Fixed nested error. */
 double nested_error = -1.0;
+/* Fixed sample size. */
+int fixed_sample_size = 0;
+/* Maxumum path length. */
+int max_path_length = std::numeric_limits<int>::max();
 /* Total number of samples (for statistics). */
 size_t total_samples;
 /* Number of samples per trial (for statistics). */
@@ -90,10 +98,13 @@ static option long_options[] = {
   { "delta", required_argument, 0, 'D' },
   { "relative-delta", required_argument, 0, 'd' },
   { "epsilon", required_argument, 0, 'E' },
+  { "const", required_argument, 0, 'c' },
   { "engine", required_argument, 0, 'e' },
   { "host", required_argument, 0, 'H' },
+  { "max-path-length", required_argument, 0, 'L' },
   { "memoization", no_argument, 0, 'M' },
   { "matching-moments", required_argument, 0, 'm' },
+  { "fixed-sample-size", required_argument, 0, 'N' },
   { "nested-error", required_argument, 0, 'n' },
   { "estimate-probabilities", no_argument, 0, 'p' },
   { "port", required_argument, 0, 'P' },
@@ -102,10 +113,10 @@ static option long_options[] = {
   { "trials", required_argument, 0, 'T' },
   { "verbose", optional_argument, 0, 'v' },
   { "version", no_argument, 0, 'V' },
-  { "help", no_argument, 0, '?' },
+  { "help", no_argument, 0, 'h' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:D:d:E:e:H:Mm:n:pP:s:S:T:v::V?";
+static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hL:Mm:N:n:pP:s:S:T:v::V";
 
 
 /* Displays help. */
@@ -120,11 +131,14 @@ static void display_help() {
 	    << "use bound b on false positives with sampling engine"
 	    << std::endl
 	    << "\t\t\t  (default is 1e-2)" << std::endl
+            << "  -c c,  --const=c\t"
+            << "overrides for model constants" << std::endl
+            << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
 	    << "  -D d,  --delta=d\t"
 	    << "use indifference region of width 2*d with sampling"
 	    << std::endl
-	    << "  -d d,  --relative-delta=d\t"
-	    << "use indifference region of relative with sampling"
+	    << "  -d d,  --relative-delta=d" << std::endl
+	    << "\t\t\tuse indifference region of relative with sampling"
 	    << std::endl
 	    << "\t\t\t  engine (default is 1e-2)" << std::endl
 	    << "  -E e,  --epsilon=e\t"
@@ -136,11 +150,15 @@ static void display_help() {
 	    << "\t\t\t  or `mixed'" << std::endl
 	    << "  -H h,  --host=h\t"
 	    << "connect to server on host h" << std::endl
+            << "  -L l,  --max_path-length=l" << std::endl
+            << "\t\t\tlimit sample path to l states" << std::endl
 	    << "  -M,    --memoization\t"
 	    << "use memoization for sampling engine" << std::endl
 	    << "  -m m,  --matching-moments=m" << std::endl
 	    << "\t\t\tmatch the first m moments of general distributions"
 	    << std::endl
+            << "  -N n,  --fixed-sample-size=n" << std::endl
+            << "\t\t\tuse a fixed sample size" << std::endl
 	    << "  -p,    --estimate-probabilities" << std::endl
 	    << "\t\t\testimates probabilities of path formulae holding"
 	    << std::endl
@@ -163,7 +181,7 @@ static void display_help() {
 	    << std::endl
 	    << "  -V,    --version\t"
 	    << "display version information and exit" << std::endl
-	    << "  -?,    --help\t\t"
+	    << "  -h,    --help\t\t"
 	    << "display this help and exit" << std::endl
 	    << "  file ...\t\t"
 	    << "files containing models and properties;" << std::endl
@@ -179,6 +197,7 @@ static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003--2005 Carnegie Mellon University"
 	    << std::endl
+            << "Copyright (C) 2011--2012 Google Inc" << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
@@ -187,9 +206,33 @@ static void display_version() {
 	    << "see the file named COPYING in the " PACKAGE_NAME
 	    << " distribution." << std::endl
 	    << std::endl
-	    << "Written by H\345kan L. S. Younes." << std::endl;
+	    << "Written by Haakan Younes." << std::endl;
 }
 
+
+/* Parses spec for const overrides.  Returns true on success. */
+static bool parse_const_overrides(
+    const std::string& spec,
+    std::map<std::string, TypedValue>* const_overrides) {
+  if (spec.empty()) {
+    return true;
+  }
+  std::string::const_iterator comma = spec.begin() - 1;
+  while (comma != spec.end()) {
+    std::string::const_iterator next_comma = find(comma + 1, spec.end(), ',');
+    std::string::const_iterator assignment = find(comma + 1, next_comma, '=');
+    if (assignment == next_comma) {
+      return false;
+    }
+    const std::string name(comma + 1, assignment);
+    const std::string value(assignment + 1, next_comma);
+    if (!const_overrides->insert(std::make_pair(name, value.c_str())).second) {
+      return false;
+    }
+    comma = next_comma;
+  }
+  return true;
+}
 
 /* Parses the given file, and returns true on success. */
 static bool read_file(const char* name) {
@@ -243,7 +286,7 @@ static bool extract_path_formula(const PathFormula*& pf, double& theta,
   if (qf != 0) {
     if (pf == 0) {
       pf = &qf->formula();
-      theta = qf->threshold().double_value();
+      theta = qf->threshold().value<double>();
       return true;
     } else {
       pf = 0;
@@ -297,8 +340,12 @@ int main(int argc, char* argv[]) {
      */
     while (1) {
       int option_index = 0;
+#if HAVE_GETOPT_LONG
       int c = getopt_long(argc, argv, OPTION_STRING,
 			  long_options, &option_index);
+#else
+      int c = getopt(argc, argv, OPTION_STRING);
+#endif
       if (c == -1) {
 	break;
       }
@@ -319,6 +366,11 @@ int main(int argc, char* argv[]) {
 	  throw std::invalid_argument("beta >= 0.5");
 	}
 	break;
+      case 'c':
+        if (!parse_const_overrides(optarg, &const_overrides)) {
+          throw std::invalid_argument("bad --const specification");
+        }
+        break;
       case 'D':
 	delta = atof(optarg);
 	relative_delta = false;
@@ -360,6 +412,9 @@ int main(int argc, char* argv[]) {
       case 'H':
 	hostname = optarg;
 	break;
+      case 'L':
+        max_path_length = atoi(optarg);
+        break;
       case 'M':
 	memoization = true;
 	break;
@@ -370,6 +425,10 @@ int main(int argc, char* argv[]) {
 	} else if (moments > 3) {
 	  throw std::invalid_argument("cannot match more than three moments");
 	}
+	break;
+      case 'N':
+	algorithm = FIXED;
+        fixed_sample_size = atoi(optarg);
 	break;
       case 'n':
 	nested_error = atof(optarg);
@@ -406,11 +465,9 @@ int main(int argc, char* argv[]) {
       case 'V':
 	display_version();
 	return 0;
-      case '?':
-	if (optopt == '?') {
-	  display_help();
-	  return 0;
-	}
+      case 'h':
+        display_help();
+        return 0;
       case ':':
       default:
 	std::cerr << "Try `" PACKAGE " --help' for more information."

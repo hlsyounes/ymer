@@ -1,69 +1,89 @@
-/*
- * Copyright (C) 2003, 2004 Carnegie Mellon University
- *
- * This file is part of Ymer.
- *
- * Ymer is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * Ymer is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Ymer; if not, write to the Free Software Foundation,
- * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: expressions.cc,v 2.1 2004-01-25 12:21:31 lorens Exp $
- */
+// Copyright (C) 2003--2005 Carnegie Mellon University
+// Copyright (C) 2011--2012 Google Inc
+//
+// This file is part of Ymer.
+//
+// Ymer is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Ymer is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Ymer; if not, write to the Free Software Foundation,
+// Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
 #include "expressions.h"
+
 #include <stdexcept>
 #include <typeinfo>
 
+Expression::Expression()
+    : ref_count_(0) {
+}
 
-/* ====================================================================== */
-/* Expression */
+Expression::~Expression() {
+}
 
-/* Output operator for expressions. */
+void Expression::Accept(ExpressionVisitor* visitor) const {
+  DoAccept(visitor);
+}
+
+void Expression::ref(const Expression* e) {
+  if (e != NULL) {
+    ++e->ref_count_;
+  }
+}
+
+void Expression::destructive_deref(const Expression* e) {
+  if (e != NULL) {
+    --e->ref_count_;
+    if (e->ref_count_ == 0) {
+      delete e;
+    }
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const Expression& e) {
   e.print(os);
   return os;
 }
 
-
-/* ====================================================================== */
-/* Computation */
-
-/* Constructs a computation. */
-Computation::Computation(const Expression& operand1,
-			 const Expression& operand2)
-  : operand1_(&operand1), operand2_(&operand2) {
+Computation::Computation(Operator op,
+                         const Expression& operand1,
+                         const Expression& operand2)
+    : op_(op), operand1_(&operand1), operand2_(&operand2) {
   ref(operand1_);
   ref(operand2_);
 }
 
-
-/* Deletes this computation. */
 Computation::~Computation() {
   destructive_deref(operand1_);
   destructive_deref(operand2_);
 }
 
+void Computation::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitComputation(*this);
+}
 
-/* ====================================================================== */
-/* Addition */
+Addition::Addition(const Expression& term1, const Expression& term2)
+    : Computation(PLUS, term1, term2) {
+}
 
-/* Returns an addition of the two expressions. */
+Addition::~Addition() {
+}
+
 const Expression& Addition::make(const Expression& term1,
-				 const Expression& term2) {
-  const Value* v1 = dynamic_cast<const Value*>(&term1);
+                                 const Expression& term2) {
+  const Literal* v1 = dynamic_cast<const Literal*>(&term1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&term2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&term2);
     if (v2 != NULL) {
-      const Value& value = *new Value(v1->value() + v2->value());
+      const Literal& value = *new Literal(v1->value() + v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -74,14 +94,10 @@ const Expression& Addition::make(const Expression& term1,
   return *new Addition(term1, term2);
 }
 
-
-/* Returns the value of this expression. */
-Rational Addition::value(const ValueMap& values) const {
+TypedValue Addition::value(const ValueMap& values) const {
   return operand1().value(values) + operand2().value(values);
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Expression& Addition::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
@@ -92,8 +108,6 @@ const Expression& Addition::substitution(const ValueMap& values) const {
   }
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Addition& Addition::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
@@ -104,8 +118,6 @@ const Addition& Addition::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
-/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Addition::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -116,8 +128,6 @@ DdNode* Addition::mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Addition::primed_mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
@@ -128,24 +138,24 @@ DdNode* Addition::primed_mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Prints this object on the given stream. */
 void Addition::print(std::ostream& os) const {
   os << operand1() << '+' << operand2();
 }
 
+Subtraction::Subtraction(const Expression& term1, const Expression& term2)
+    : Computation(MINUS, term1, term2) {
+}
 
-/* ====================================================================== */
-/* Subtraction */
+Subtraction::~Subtraction() {
+}
 
-/* Returns a subtraction of the two expressions. */
 const Expression& Subtraction::make(const Expression& term1,
-				    const Expression& term2) {
-  const Value* v1 = dynamic_cast<const Value*>(&term1);
+                                    const Expression& term2) {
+  const Literal* v1 = dynamic_cast<const Literal*>(&term1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&term2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&term2);
     if (v2 != NULL) {
-      const Value& value = *new Value(v1->value() - v2->value());
+      const Literal& value = *new Literal(v1->value() - v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -156,14 +166,10 @@ const Expression& Subtraction::make(const Expression& term1,
   return *new Subtraction(term1, term2);
 }
 
-
-/* Returns the value of this expression. */
-Rational Subtraction::value(const ValueMap& values) const {
+TypedValue Subtraction::value(const ValueMap& values) const {
   return operand1().value(values) - operand2().value(values);
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Expression& Subtraction::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
@@ -174,10 +180,8 @@ const Expression& Subtraction::substitution(const ValueMap& values) const {
   }
 }
 
-
-/* Returns this expression subject to the given substitutions. */
-const Subtraction&
-Subtraction::substitution(const SubstitutionMap& subst) const {
+const Subtraction& Subtraction::substitution(
+    const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
@@ -187,8 +191,6 @@ Subtraction::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
-/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Subtraction::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -199,8 +201,6 @@ DdNode* Subtraction::mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Subtraction::primed_mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
@@ -211,12 +211,10 @@ DdNode* Subtraction::primed_mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Prints this object on the given stream. */
 void Subtraction::print(std::ostream& os) const {
   os << operand1() << '-';
   bool par = (typeid(operand2()) == typeid(Addition)
-	      || typeid(operand2()) == typeid(Subtraction));
+              || typeid(operand2()) == typeid(Subtraction));
   if (par) {
     os << '(';
   }
@@ -226,18 +224,21 @@ void Subtraction::print(std::ostream& os) const {
   }
 }
 
+Multiplication::Multiplication(const Expression& factor1,
+                               const Expression& factor2)
+    : Computation(MULTIPLY, factor1, factor2) {
+}
 
-/* ====================================================================== */
-/* Multiplication */
+Multiplication::~Multiplication() {
+}
 
-/* Returns a multiplication of the two expressions. */
 const Expression& Multiplication::make(const Expression& factor1,
-				       const Expression& factor2) {
-  const Value* v1 = dynamic_cast<const Value*>(&factor1);
+                                       const Expression& factor2) {
+  const Literal* v1 = dynamic_cast<const Literal*>(&factor1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&factor2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&factor2);
     if (v2 != NULL) {
-      const Value& value = *new Value(v1->value() * v2->value());
+      const Literal& value = *new Literal(v1->value() * v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -248,14 +249,10 @@ const Expression& Multiplication::make(const Expression& factor1,
   return *new Multiplication(factor1, factor2);
 }
 
-
-/* Returns the value of this expression. */
-Rational Multiplication::value(const ValueMap& values) const {
+TypedValue Multiplication::value(const ValueMap& values) const {
   return operand1().value(values) * operand2().value(values);
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Expression& Multiplication::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
@@ -266,10 +263,8 @@ const Expression& Multiplication::substitution(const ValueMap& values) const {
   }
 }
 
-
-/* Returns this expression subject to the given substitutions. */
-const Multiplication&
-Multiplication::substitution(const SubstitutionMap& subst) const {
+const Multiplication& Multiplication::substitution(
+    const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
   if (&e1 != &operand1() || &e2 != &operand2()) {
@@ -279,8 +274,6 @@ Multiplication::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
-/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Multiplication::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -291,8 +284,6 @@ DdNode* Multiplication::mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Multiplication::primed_mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
@@ -303,11 +294,9 @@ DdNode* Multiplication::primed_mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Prints this object on the given stream. */
 void Multiplication::print(std::ostream& os) const {
   bool par = (typeid(operand1()) == typeid(Addition)
-	      || typeid(operand1()) == typeid(Subtraction));
+              || typeid(operand1()) == typeid(Subtraction));
   if (par) {
     os << '(';
   }
@@ -317,7 +306,7 @@ void Multiplication::print(std::ostream& os) const {
   }
   os << '*';
   par = (typeid(operand2()) == typeid(Addition)
-	 || typeid(operand2()) == typeid(Subtraction));
+         || typeid(operand2()) == typeid(Subtraction));
   if (par) {
     os << '(';
   }
@@ -327,21 +316,23 @@ void Multiplication::print(std::ostream& os) const {
   }
 }
 
+Division::Division(const Expression& factor1, const Expression& factor2)
+    : Computation(DIVIDE, factor1, factor2) {
+}
 
-/* ====================================================================== */
-/* Division */
+Division::~Division() {
+}
 
-/* Returns a division of the two expressions. */
 const Expression& Division::make(const Expression& factor1,
-				 const Expression& factor2) {
-  const Value* v1 = dynamic_cast<const Value*>(&factor1);
+                                 const Expression& factor2) {
+  const Literal* v1 = dynamic_cast<const Literal*>(&factor1);
   if (v1 != NULL) {
-    const Value* v2 = dynamic_cast<const Value*>(&factor2);
+    const Literal* v2 = dynamic_cast<const Literal*>(&factor2);
     if (v2 != NULL) {
       if (v2->value() == 0) {
-	throw std::invalid_argument("division by zero");
+        throw std::invalid_argument("division by zero");
       }
-      const Value& value = *new Value(v1->value() / v2->value());
+      const Literal& value = *new Literal(v1->value() / v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -352,14 +343,10 @@ const Expression& Division::make(const Expression& factor1,
   return *new Division(factor1, factor2);
 }
 
-
-/* Returns the value of this expression. */
-Rational Division::value(const ValueMap& values) const {
+TypedValue Division::value(const ValueMap& values) const {
   return operand1().value(values) / operand2().value(values);
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Expression& Division::substitution(const ValueMap& values) const {
   const Expression& e1 = operand1().substitution(values);
   const Expression& e2 = operand2().substitution(values);
@@ -370,8 +357,6 @@ const Expression& Division::substitution(const ValueMap& values) const {
   }
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Division& Division::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
@@ -382,8 +367,6 @@ const Division& Division::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
-/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Division::mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
@@ -394,8 +377,6 @@ DdNode* Division::mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Division::primed_mtbdd(DdManager* dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
@@ -406,11 +387,9 @@ DdNode* Division::primed_mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-
-/* Prints this object on the given stream. */
 void Division::print(std::ostream& os) const {
   bool par = (typeid(operand1()) == typeid(Addition)
-	      || typeid(operand1()) == typeid(Subtraction));
+              || typeid(operand1()) == typeid(Subtraction));
   if (par) {
     os << '(';
   }
@@ -420,9 +399,9 @@ void Division::print(std::ostream& os) const {
   }
   os << '/';
   par = (typeid(operand2()) == typeid(Addition)
-	 || typeid(operand2()) == typeid(Subtraction)
-	 || typeid(operand2()) == typeid(Multiplication)
-	 || typeid(operand2()) == typeid(Division));
+         || typeid(operand2()) == typeid(Subtraction)
+         || typeid(operand2()) == typeid(Multiplication)
+         || typeid(operand2()) == typeid(Division));
   if (par) {
     os << '(';
   }
@@ -432,43 +411,35 @@ void Division::print(std::ostream& os) const {
   }
 }
 
-
-/* ====================================================================== */
-/* Variable */
-
-/* Constructs a variable. */
 Variable::Variable()
-  : mtbdd_(NULL), primed_mtbdd_(NULL), identity_bdd_(NULL) {}
+    : mtbdd_(NULL), primed_mtbdd_(NULL), identity_bdd_(NULL) {
+}
 
-
-/* Constructs a variable. */
 Variable::Variable(int low, int high, int start, int low_bit)
-  : low_(low), high_(high), start_(start), mtbdd_(NULL), primed_mtbdd_(NULL),
-    identity_bdd_(NULL) {
+    : low_(low), high_(high), start_(start), mtbdd_(NULL), primed_mtbdd_(NULL),
+      identity_bdd_(NULL) {
   set_low_bit(low_bit);
 }
 
+Variable::~Variable() {
+}
 
-/* Sets the lower bound for this variable. */
+void Variable::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitVariable(*this);
+}
+
 void Variable::set_low(int low) {
   low_ = low;
 }
 
-
-/* Sets the upper bound for this variable. */
 void Variable::set_high(int high) {
   high_ = high;
 }
 
-
-/* Sets the initial value for this variable. */
 void Variable::set_start(int start) {
   start_ = start;
 }
 
-
-/* Sets the index of the first DD variable used to represent this
-   variable. */
 void Variable::set_low_bit(int low_bit) {
   low_bit_ = low_bit;
   int h = high() - low();
@@ -480,9 +451,7 @@ void Variable::set_low_bit(int low_bit) {
   high_bit_ = low_bit_ + nbits - 1;
 }
 
-
-/* Returns the value of this expression. */
-Rational Variable::value(const ValueMap& values) const {
+TypedValue Variable::value(const ValueMap& values) const {
   ValueMap::const_iterator vi = values.find(this);
   if (vi != values.end()) {
     return (*vi).second;
@@ -491,19 +460,15 @@ Rational Variable::value(const ValueMap& values) const {
   }
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Expression& Variable::substitution(const ValueMap& values) const {
   ValueMap::const_iterator vi = values.find(this);
   if (vi != values.end()) {
-    return *new Value((*vi).second);
+    return *new Literal((*vi).second);
   } else {
     return *this;
   }
 }
 
-
-/* Returns this expression subject to the given substitutions. */
 const Variable& Variable::substitution(const SubstitutionMap& subst) const {
   SubstitutionMap::const_iterator si = subst.find(this);
   if (si != subst.end()) {
@@ -513,8 +478,6 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
-/* Returns the `current state' MTBDD representation for this expression. */
 DdNode* Variable::mtbdd(DdManager* dd_man) const {
   if (mtbdd_ == NULL) {
     DdNode* ddv = Cudd_ReadZero(dd_man);
@@ -550,8 +513,6 @@ DdNode* Variable::mtbdd(DdManager* dd_man) const {
   return mtbdd_;
 }
 
-
-/* Returns the `next state' MTBDD representation for this expression. */
 DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
   if (primed_mtbdd_ == NULL) {
     DdNode* ddv = Cudd_ReadZero(dd_man);
@@ -587,9 +548,6 @@ DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
   return primed_mtbdd_;
 }
 
-
-/* Returns a BDD representing identity between the `current state'
-   and `next state' versions of this variable. */
 DdNode* Variable::identity_bdd(DdManager* dd_man) const {
   if (identity_bdd_ == NULL) {
     mtbdd(dd_man);
@@ -607,8 +565,6 @@ DdNode* Variable::identity_bdd(DdManager* dd_man) const {
   return identity_bdd_;
 }
 
-
-/* Returns a BDD representing the range for this variable. */
 DdNode* Variable::range_bdd(DdManager* dd_man) const {
   DdNode* range;
   if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
@@ -631,8 +587,6 @@ DdNode* Variable::range_bdd(DdManager* dd_man) const {
   return range;
 }
 
-
-/* Releases any cached DDs for this variable. */
 void Variable::uncache_dds(DdManager* dd_man) const {
   if (mtbdd_ != NULL) {
     Cudd_RecursiveDeref(dd_man, mtbdd_);
@@ -648,8 +602,6 @@ void Variable::uncache_dds(DdManager* dd_man) const {
   }
 }
 
-
-/* Prints this object on the given stream. */
 void Variable::print(std::ostream& os) const {
   os << 'v' << low_bit();
   if (low_bit() != high_bit()) {
@@ -657,45 +609,65 @@ void Variable::print(std::ostream& os) const {
   }
 }
 
+Literal::Literal(const TypedValue& value)
+    : value_(value) {
+}
 
-/* ====================================================================== */
-/* Value */
+Literal::~Literal() {
+}
 
-/* Returns the value of this expression. */
-Rational Value::value(const ValueMap& values) const {
+void Literal::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitLiteral(*this);
+}
+
+TypedValue Literal::value(const ValueMap& values) const {
   return value();
 }
 
-
-/* Returns this expression subject to the given substitutions. */
-const Value& Value::substitution(const ValueMap& values) const {
+const Literal& Literal::substitution(const ValueMap& values) const {
   return *this;
 }
 
-
-/* Returns this expression subject to the given substitutions. */
-const Value& Value::substitution(const SubstitutionMap& subst) const {
+const Literal& Literal::substitution(const SubstitutionMap& subst) const {
   return *this;
 }
 
-
-/* Returns the `current state' MTBDD representation for this expression. */
-DdNode* Value::mtbdd(DdManager* dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
+DdNode* Literal::mtbdd(DdManager* dd_man) const {
+  DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
 }
 
-
-/* Returns the `next state' MTBDD representation for this expression. */
-DdNode* Value::primed_mtbdd(DdManager* dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
+DdNode* Literal::primed_mtbdd(DdManager* dd_man) const {
+  DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
 }
 
-
-/* Prints this object on the given stream. */
-void Value::print(std::ostream& os) const {
+void Literal::print(std::ostream& os) const {
   os << value();
+}
+
+ExpressionVisitor::ExpressionVisitor() {
+}
+
+ExpressionVisitor::ExpressionVisitor(const ExpressionVisitor&) {
+}
+
+ExpressionVisitor& ExpressionVisitor::operator=(const ExpressionVisitor&) {
+}
+
+ExpressionVisitor::~ExpressionVisitor() {
+}
+
+void ExpressionVisitor::VisitLiteral(const Literal& expr) {
+  DoVisitLiteral(expr);
+}
+
+void ExpressionVisitor::VisitVariable(const Variable& expr) {
+  DoVisitVariable(expr);
+}
+
+void ExpressionVisitor::VisitComputation(const Computation& expr) {
+  DoVisitComputation(expr);
 }
