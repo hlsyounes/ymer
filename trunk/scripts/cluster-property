@@ -1,8 +1,0 @@
-#! /bin/sh
-
-T=$1
-if (test -z "$T") then
-    exit -1
-fi
-
-echo "P<0.10 [ true U<=$T !((left_n>=3 & Toleft_n=1) | (right_n>=3 & Toright_n=1) | ((left_n+right_n)>=3 & Toleft_n=1 & line_n=1 & Toright_n=1)) ]"

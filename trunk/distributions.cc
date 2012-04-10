@@ -1,8 +1,5 @@
 /*
- * Probability distributions.
- *
- * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011 Google Inc
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,110 +16,133 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: distributions.cc,v 2.1 2004-01-25 12:19:50 lorens Exp $
  */
 #include "distributions.h"
-#include "rng.h"
-#include "gsl/gsl_cdf.h"
+#include "expressions.h"
 #include <cmath>
-#include <cstdlib>
-#include <stdexcept>
 
 
 /* ====================================================================== */
 /* Distribution */
 
-/* A process-specific pseudo-random number generator, or 0. */
-static mt_struct* mts = 0;
-/* Whether mts ever has been set. */
-bool mts_set = false;
+/* The standard exponential distribution: Exp(1). */
+const Distribution& Distribution::EXP1 = Exponential::EXP1_;
+
+/* An id-specific random number generator, or NULL. */
+mt_struct* Distribution::mts = NULL;
 
 
-/* Cleanup of mts on program exit. */
-static void free_mts() {
-  if (mts != 0) {
-    free_mt_struct(mts);
-    mts = 0;
+/* Provides the parameters for an acyclic continuous phase-type
+   (ACPH) distribution in the class of EC distributions matching the
+   first three moments of this distribution. */
+void Distribution::acph(ECParameters& params) const {
+  /*
+   * Implements the moment matching algorithm described in:
+   *
+   *   Osogami, Takayuki, and Mor Harchol-Balter.  2003.  "A
+   *     closed-form solution for mapping general distributions to
+   *     minimal PH distributions".  In Proceedings of the 13th
+   *     International Conference on Tools and Algorithms for the
+   *     Construnction and Analysis of Systems.
+   *
+   * This is a slightly modified version avoiding solutions with p<1,
+   * at the price that some positive distributions cannot be properly
+   * represented.  For a distribution that the original algorithm
+   * would map to an EC distribution with p<1, this algorithm modifies
+   * the second and third moments so that the modified distribution
+   * can be matched to an EC distribution with p=1.  This is to avoid
+   * EC distributions with mass probability at zero, which do not fit
+   * well with the model of discrete event systems that we are using.
+   */
+  std::vector<double> m;
+  moments(m, 3);
+  double mu1G = m[0];
+  double mu2G = m[1];
+  double mu3G = m[2];
+  double m2G = mu2G/(mu1G*mu1G);
+  double m3G = mu3G/(mu1G*mu2G);
+  double x = 1.0/(m2G - 1.0);
+  if (fabs(rint(x) - x) < 1e-10) {
+    /*
+     * Adjust second moment so that 1/(m2G - 1) is not an integer.
+     */
+    m2G *= (1.0 - 1e-5);
+    std::cerr << std::endl
+	      << PACKAGE ": second moment for " << *this << " is changed from "
+	      << mu2G << " to " << m2G*mu1G*mu1G << std::endl;
   }
-}
-
-
-/* Seeds a stream of pseudo-random numbers. */
-void Distribution::seed(unsigned long s) {
-  if (mts != 0) {
-    free_mt_struct(mts);
-    mts = 0;
+  if (m3G < 2.0*m2G - 1.0) {
+    /*
+     * Adjust third moment so that the resulting EC distribution has
+     * no mass probability at zero (p=1).
+     */
+    m3G = 2.0*m2G - 1.0;
+    std::cerr << std::endl
+	      << PACKAGE ": third moment for " << *this << " is changed from "
+	      << mu3G << " to " << m3G*mu1G*mu2G << std::endl;
   }
-  init_genrand(s);
-}
-
-
-/* Seeds a process-specific stream of pseudo-random numbers. */
-void Distribution::seed(unsigned short id, unsigned long s) {
-  if (!mts_set) {
-    atexit(free_mts);
-    mts_set = true;
-  } else if (mts != 0) {
-    free_mt_struct(mts);
-  }
-  mts = get_mt_parameter_id(id);
-  init_genrand_id(s, mts);
-}
-
-
-/* Returns a sample from the semi-open interval [0,1). */
-double Distribution::rand01ex() {
-  return genrand_real2_id(mts);
-}
-
-
-/* Returns a sample drawn from this distribution. */
-double Distribution::sample(const Values& values) const {
-  return inv(genrand_real3_id(mts), values);
-}
-
-
-/* Returns a sample drawn from this distribution. */
-double Distribution::sample(double t0, const Values& values) const {
-  return inv(genrand_real3_id(mts), t0, values);
-}
-
-
-/* Conditional probability density function for this distribution. */
-double Distribution::pdf(double t, double t0, const Values& values) const {
-  double p0 = cdf(t0, values);
-  if (p0 >= 1.0) {
-    throw std::out_of_range("cdf(t0) is 1 in pdf(t, t0)");
-  } else if (t <= 0.0) {
-    return 0.0;
+  double n;
+  if (m2G < 2.0 && fabs(m3G - (2.0*m2G - 1.0)) < 1e-10) {
+    n = floor(m2G/(m2G - 1.0));
   } else {
-    return pdf(t + t0, values)/(1.0 - p0);
+    n = floor(m2G/(m2G - 1.0) + 1.0);
   }
-}
-
-
-/* Conditional cumulative distribution function for this distribution. */
-double Distribution::cdf(double t, double t0, const Values& values) const {
-  double p0 = cdf(t0, values);
-  if (p0 >= 1.0) {
-    throw std::out_of_range("cdf(t0) is 1 in cdf(t, t0)");
-  } else if (t <= 0) {
-    return 0.0;
+  double m2X = ((n - 3.0)*m2G - (n - 2.0))/((n - 2.0)*m2G - (n - 1.0));
+  double mu1X = mu1G/((n - 2.0)*m2X - (n - 3.0));
+  double alpha = (n - 2.0)*(m2X - 1.0)*(n*(n - 1.0)*m2X*m2X
+					- n*(2.0*n - 5.0)*m2X
+					+ (n - 1.0)*(n - 3.0));
+  double tmp = (n - 2.0)*m2X - (n - 3.0);
+  double beta = ((n - 1.0)*m2X - (n - 2.0))*tmp*tmp;
+  double m3X = (beta*m3G - alpha)/m2X;
+  double u, v;
+  if (fabs(3.0*m2X - 2.0*m3X) < 1e-10) {
+    u = 1.0;
+    v = 0.0;
   } else {
-    return 1.0 - (1.0 - cdf(t + t0, values))/(1.0 - p0);
+    u = (6.0 - 2.0*m3X)/(3.0*m2X - 2.0*m3X);
+    v = (12.0 - 6.0*m2X)/(m2X*(3.0*m2X - 2.0*m3X));
+  }
+  params.n = int(n + 0.5);
+  params.re = 1.0/((m2X - 1.0)*mu1X);
+  tmp = sqrt(u*u - 4.0*v);
+  params.rc1 = (u + tmp)/(2.0*mu1X);
+  if (fabs(params.rc1*mu1X - 1.0) < 1e-10) {
+    params.pc = 0.0;
+  } else {
+    params.rc2 = (u - tmp)/(2.0*mu1X);
+    params.pc = params.rc2*(params.rc1*mu1X - 1.0)/params.rc1;
   }
 }
 
 
-/* Conditional inverse cumulative distribution function for this
+/* Provides the parameters for an acyclic continuous phase-type
+   (ACPH) distribution matching the first two moments of this
    distribution. */
-double Distribution::inv(double p, double t0, const Values& values) const {
-  double p0 = cdf(t0, values);
-  if (p0 >= 1.0) {
-    throw std::out_of_range("cdf(t0) is 1 in inv(t, t0)");
-  } else if (p < 0.0 || p > 1.0) {
-    throw std::out_of_range("p < 0 or p > 1 in inv(p, t0)");
+void Distribution::acph2(ACPH2Parameters& params) const {
+  std::vector<double> m;
+  moments(m, 2);
+  double mu = m[0];
+  double cv2 = m[1]/(mu*mu) - 1.0;
+  if (cv2 >= 0.5) {
+    params.n = 2;
+    params.p = 1/(2.0*cv2);
+    params.r1 = 2.0/mu;
+    params.r2 = 1.0/(mu*cv2);
   } else {
-    return inv(1.0 - (1.0 - p)*(1.0 - p0), values) - t0;
+    double n = 1.0/cv2;
+    if (fabs(rint(n) - n) < 1e-10) {
+      n = rint(n);
+    } else {
+      n = ceil(n);
+    }
+    params.n = int(n + 0.5);
+    params.p = 1.0 - ((2.0*n*cv2 + n - 2.0 - sqrt(n*n + 4.0 - 4.0*n*cv2))
+		      /2.0/(n - 1.0)/(cv2 + 1.0));
+    params.r1 = (1.0 - params.p + n*params.p)/mu;
+    params.r2 = params.r1;
   }
 }
 
@@ -138,16 +158,16 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
 /* Exponential */
 
 /* The standard exponential distribution: Exp(1). */
-const Exponential Exponential::STANDARD;
+const Exponential Exponential::EXP1_;
 
 
 /* Returns an exponential distribution with the given rate. */
-const Exponential& Exponential::make(const Expression<double>& rate) {
-  const Value<double>* value = dynamic_cast<const Value<double>*>(&rate);
-  if (value != 0 && value->value() == 1.0) {
-    ref(value);
-    deref(value);
-    return STANDARD;
+const Exponential& Exponential::make(const Expression& rate) {
+  const Value* value = dynamic_cast<const Value*>(&rate);
+  if (value != NULL && value->value() == 1) {
+    Expression::ref(value);
+    Expression::destructive_deref(value);
+    return EXP1_;
   } else {
     return *new Exponential(rate);
   }
@@ -156,81 +176,60 @@ const Exponential& Exponential::make(const Expression<double>& rate) {
 
 /* Constructs an exponential distribution with rate 1. */
 Exponential::Exponential()
-  : rate_(new Value<double>(1.0)) {
-  ref(rate_);
+  : rate_(new Value(1)) {
+  Expression::ref(rate_);
   ref(this);
 }
 
 
 /* Constructs an exponential distribution with the given rate. */
-Exponential::Exponential(const Expression<double>& rate)
+Exponential::Exponential(const Expression& rate)
   : rate_(&rate) {
-  ref(rate_);
+  Expression::ref(rate_);
 }
 
 
 /* Deletes this exponential distribution. */
 Exponential::~Exponential() {
-  deref(rate_);
-}
-
-
-/* Tests if this is a state-invariant distribution. */
-bool Exponential::state_invariant() const {
-  return rate().state_invariant();
-}
-
-
-/* Probability density function for this distribution. */
-double Exponential::pdf(double t, const Values& values) const {
-  if (t < 0.0) {
-    return 0.0;
-  } else {
-    double r = rate().value(values);
-    return r*exp(-r*t);
-  }
-}
-
-
-/* Cumulative distribution function for this distribution. */
-double Exponential::cdf(double t, const Values& values) const {
-  if (t <= 0.0) {
-    return 0.0;
-  } else {
-    return 1.0 - exp(-rate().value(values)*t);
-  }
-}
-
-
-/* Inverse cumulative distribution function for this distribution. */
-double Exponential::inv(double p, const Values& values) const {
-  if (p <= 0.0) {
-    return 0.0;
-  } else if (p >= 1.0) {
-    return HUGE_VAL;
-  } else {
-    return -log(1.0 - p)/rate().value(values);
-  }
+  Expression::destructive_deref(rate_);
 }
 
 
 /* Fills the provided list with the first n moments of this distribution. */
-void Exponential::moments(std::vector<double>& m, int n) const {
+void Exponential::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double lambda_inv = 1.0/rate().value(Values());
+  double lambda_inv = 1.0/rate().value(ValueMap()).double_value();
   double mi = 1.0;
-  for (int i = 1; i <= n; i++) {
+  for (size_t i = 1; i <= n; i++) {
     mi *= i*lambda_inv;
     m.push_back(mi);
   }
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Exponential::sample(const ValueMap& values) const {
+  double lambda = rate().value(values).double_value();
+  return -log(genrand_real3_id(mts))/lambda;
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Exponential& Exponential::substitution(const ValueMap& values) const {
+  const Expression& e = rate().substitution(values);
+  if (&e != &rate()) {
+    return make(e);
+  } else {
+    return *this;
+  }
+}
+
+
 /* Returns this distribution subject to the given substitutions. */
 const Exponential&
-Exponential::substitution(const Substitutions& subst) const {
-  const Expression<double>& e = rate().substitution(subst);
+Exponential::substitution(const SubstitutionMap& subst) const {
+  const Expression& e = rate().substitution(subst);
   if (&e != &rate()) {
     return make(e);
   } else {
@@ -249,13 +248,13 @@ void Exponential::print(std::ostream& os) const {
 /* Weibull */
 
 /* Returns a Weibull distribution with the given scale and shape. */
-const Distribution& Weibull::make(const Expression<double>& scale,
-				  const Expression<double>& shape) {
-  const Value<double>* value = dynamic_cast<const Value<double>*>(&shape);
-  if (value != 0 && value->value() == 1.0) {
-    ref(value);
-    deref(value);
-    return Exponential::make(Division::make(*new Value<double>(1.0), scale));
+const Distribution& Weibull::make(const Expression& scale,
+				  const Expression& shape) {
+  const Value* value = dynamic_cast<const Value*>(&shape);
+  if (value != NULL && value->value() == 1) {
+    Expression::ref(value);
+    Expression::destructive_deref(value);
+    return Exponential::make(Division::make(*new Value(1), scale));
   } else {
     return *new Weibull(scale, shape);
   }
@@ -263,70 +262,29 @@ const Distribution& Weibull::make(const Expression<double>& scale,
 
 
 /* Constructs a Weibull distribution with the given scale and shape. */
-Weibull::Weibull(const Expression<double>& scale,
-		 const Expression<double>& shape)
+Weibull::Weibull(const Expression& scale, const Expression& shape)
   : scale_(&scale), shape_(&shape) {
-  ref(scale_);
-  ref(shape_);
+  Expression::ref(scale_);
+  Expression::ref(shape_);
 }
 
 
 /* Deletes this Weibull distribution. */
 Weibull::~Weibull() {
-  deref(scale_);
-  deref(shape_);
-}
-
-
-/* Tests if this is a state-invariant distribution. */
-bool Weibull::state_invariant() const {
-  return scale().state_invariant() && shape().state_invariant();
-}
-
-
-/* Probability density function for this distribution. */
-double Weibull::pdf(double t, const Values& values) const {
-  if (t < 0.0) {
-    return 0.0;
-  } else {
-    double sh = shape().value(values);
-    double x = pow(t/scale().value(values), sh);
-    return sh*x/t*exp(-x);
-  }
-}
-
-
-/* Cumulative distribution function for this distribution. */
-double Weibull::cdf(double t, const Values& values) const {
-  if (t <= 0.0) {
-    return 0.0;
-  } else {
-    return 1.0 - exp(-pow(t/scale().value(values), shape().value(values)));
-  }
-}
-
-
-/* Inverse cumulative distribution function for this distribution. */
-double Weibull::inv(double p, const Values& values) const {
-  if (p <= 0.0) {
-    return 0.0;
-  } else if (p >= 1.0) {
-    return HUGE_VAL;
-  } else {
-    return scale().value(values)*pow(-log(1.0 - p), 1.0/shape().value(values));
-  }
+  Expression::destructive_deref(scale_);
+  Expression::destructive_deref(shape_);
 }
 
 
 /* Fills the provided list with the first n moments of this distribution. */
-void Weibull::moments(std::vector<double>& m, int n) const {
+void Weibull::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double eta = scale().value(Values());
-  double beta_inv = 1.0/shape().value(Values());
+  double eta = scale().value(ValueMap()).double_value();
+  double beta_inv = 1.0/shape().value(ValueMap()).double_value();
   double ei = 1.0;
   double bi = 1.0;
-  for (int i = 1; i <= n; i++) {
+  for (size_t i = 1; i <= n; i++) {
     ei *= eta;
     bi += beta_inv;
     m.push_back(ei*tgamma(bi));
@@ -334,10 +292,30 @@ void Weibull::moments(std::vector<double>& m, int n) const {
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Weibull::sample(const ValueMap& values) const {
+  double eta = scale().value(values).double_value();
+  double beta = shape().value(values).double_value();
+  return eta*pow(-log(genrand_real3_id(mts)), 1.0/beta);
+}
+
+
 /* Returns this distribution subject to the given substitutions. */
-const Weibull& Weibull::substitution(const Substitutions& subst) const {
-  const Expression<double>& e1 = scale().substitution(subst);
-  const Expression<double>& e2 = shape().substitution(subst);
+const Distribution& Weibull::substitution(const ValueMap& values) const {
+  const Expression& e1 = scale().substitution(values);
+  const Expression& e2 = shape().substitution(values);
+  if (&e1 != &scale() || &e2 != &shape()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Weibull& Weibull::substitution(const SubstitutionMap& subst) const {
+  const Expression& e1 = scale().substitution(subst);
+  const Expression& e2 = shape().substitution(subst);
   if (&e1 != &scale() || &e2 != &shape()) {
     return *new Weibull(e1, e2);
   } else {
@@ -356,89 +334,78 @@ void Weibull::print(std::ostream& os) const {
 /* Lognormal */
 
 /* Returns a lognormal distribution with the given scale and shape. */
-const Lognormal& Lognormal::make(const Expression<double>& scale,
-				 const Expression<double>& shape) {
+const Lognormal& Lognormal::make(const Expression& scale,
+				 const Expression& shape) {
   return *new Lognormal(scale, shape);
 }
 
 
 /* Constructs a lognormal distribution with the given scale and shape. */
-Lognormal::Lognormal(const Expression<double>& scale,
-		     const Expression<double>& shape)
-  : scale_(&scale), shape_(&shape) {
-  ref(scale_);
-  ref(shape_);
+Lognormal::Lognormal(const Expression& scale, const Expression& shape)
+  : scale_(&scale), shape_(&shape), have_unused_(false) {
+  Expression::ref(scale_);
+  Expression::ref(shape_);
 }
 
 
 /* Deletes this lognormal distribution. */
 Lognormal::~Lognormal() {
-  deref(scale_);
-  deref(shape_);
-}
-
-
-/* Tests if this is a state-invariant distribution. */
-bool Lognormal::state_invariant() const {
-  return scale().state_invariant() && shape().state_invariant();
-}
-
-
-/* Probability density function for this distribution. */
-double Lognormal::pdf(double t, const Values& values) const {
-  if (t < 0.0) {
-    return 0.0;
-  } else {
-    double sh = shape().value(values);
-    double x = log(t/scale().value(values)) + 0.5*sh*sh;
-    return 1.0/sh/sqrt(2.0*M_PI)/t*exp(-0.5*x*x/sh/sh);
-  }
-}
-
-
-/* Cumulative distribution function for this distribution. */
-double Lognormal::cdf(double t, const Values& values) const {
-  if (t <= 0.0) {
-    return 0.0;
-  } else {
-    double sh = shape().value(values);
-    return 0.5*(1.0
-		+ erf((log(t/scale().value(values))/sh + 0.5*sh)*M_SQRT1_2));
-  }
-}
-
-
-/* Inverse cumulative distribution function for this distribution. */
-double Lognormal::inv(double p, const Values& values) const {
-  if (p <= 0.0) {
-    return 0.0;
-  } else if (p >= 1.0) {
-    return HUGE_VAL;
-  } else {
-    double sh = shape().value(values);
-    return (scale().value(values)
-	    *exp(sh*(gsl_cdf_ugaussian_Pinv(p) - 0.5*sh)));
-  }
+  Expression::destructive_deref(scale_);
+  Expression::destructive_deref(shape_);
 }
 
 
 /* Fills the provided list with the first n moments of this distribution. */
-void Lognormal::moments(std::vector<double>& m, int n) const {
+void Lognormal::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double mu = scale().value(Values());
-  double sigma = shape().value(Values());
+  double mu = scale().value(ValueMap()).double_value();
+  double sigma = shape().value(ValueMap()).double_value();
   double mean = log(mu) - sigma*sigma/2.0;
-  for (int i = 1; i <= n; i++) {
+  for (size_t i = 1; i <= n; i++) {
     m.push_back(exp(i*mean + i*i*sigma*sigma/2.0));
   }
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Lognormal::sample(const ValueMap& values) const {
+  if (have_unused_) {
+    have_unused_ = false;
+    return unused_;
+  } else {
+    /* Generate two N(0,1) samples using the Box-Muller transform. */
+    double mu = scale().value(ValueMap()).double_value();
+    double sigma = shape().value(ValueMap()).double_value();
+    double mean = log(mu) - sigma*sigma/2.0;
+    double u1 = genrand_real3_id(mts);
+    double u2 = genrand_real3_id(mts);
+    double tmp = sqrt(-2.0*log(u2));
+    double x1 = tmp*cos(2*M_PI*u1);
+    double x2 = tmp*sin(2*M_PI*u1);
+    unused_ = exp(x2*sigma + mean);
+    have_unused_ = true;
+    return exp(x1*sigma + mean);
+  }
+}
+
+
 /* Returns this distribution subject to the given substitutions. */
-const Lognormal& Lognormal::substitution(const Substitutions& subst) const {
-  const Expression<double>& e1 = scale().substitution(subst);
-  const Expression<double>& e2 = shape().substitution(subst);
+const Lognormal& Lognormal::substitution(const ValueMap& values) const {
+  const Expression& e1 = scale().substitution(values);
+  const Expression& e2 = shape().substitution(values);
+  if (&e1 != &scale() || &e2 != &shape()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Lognormal& Lognormal::substitution(const SubstitutionMap& subst) const {
+  const Expression& e1 = scale().substitution(subst);
+  const Expression& e2 = shape().substitution(subst);
   if (&e1 != &scale() || &e2 != &shape()) {
     return make(e1, e2);
   } else {
@@ -457,81 +424,35 @@ void Lognormal::print(std::ostream& os) const {
 /* Uniform */
 
 /* Returns a uniform distribution with the given bounds. */
-const Uniform& Uniform::make(const Expression<double>& low,
-			     const Expression<double>& high) {
+const Uniform& Uniform::make(const Expression& low, const Expression& high) {
   return *new Uniform(low, high);
 }
 
 
 /* Constructs a uniform distribution with the given bounds. */
-Uniform::Uniform(const Expression<double>& low, const Expression<double>& high)
+Uniform::Uniform(const Expression& low, const Expression& high)
   : low_(&low), high_(&high) {
-  ref(low_);
-  ref(high_);
+  Expression::ref(low_);
+  Expression::ref(high_);
 }
 
 
 /* Deletes this uniform distribution. */
 Uniform::~Uniform() {
-  deref(low_);
-  deref(high_);
-}
-
-
-/* Tests if this is a state-invariant distribution. */
-bool Uniform::state_invariant() const {
-  return low().state_invariant() && high().state_invariant();
-}
-
-
-/* Probability density function for this distribution. */
-double Uniform::pdf(double t, const Values& values) const {
-  double l = low().value(values);
-  double h = high().value(values);
-  if (t < l || t > h) {
-    return 0.0;
-  } else {
-    return 1.0/(h - l);
-  }
-}
-
-
-/* Cumulative distribution function for this distribution. */
-double Uniform::cdf(double t, const Values& values) const {
-  double l = low().value(values);
-  double h = high().value(values);
-  if (t <= l) {
-    return 0.0;
-  } else if (t >= h) {
-    return 1.0;
-  } else {
-    return (t - l)/(h - l);
-  }
-}
-
-
-/* Inverse cumulative distribution function for this distribution. */
-double Uniform::inv(double p, const Values& values) const {
-  if (p <= 0.0) {
-    return low().value(values);
-  } else if (p >= 1.0) {
-    return high().value(values);
-  } else {
-    double l = low().value(values);
-    return (high().value(values) - l)*p + l;
-  }
+  Expression::destructive_deref(low_);
+  Expression::destructive_deref(high_);
 }
 
 
 /* Fills the provided list with the first n moments of this distribution. */
-void Uniform::moments(std::vector<double>& m, int n) const {
+void Uniform::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double a = low().value(Values());
-  double b = high().value(Values());
+  double a = low().value(ValueMap()).double_value();
+  double b = high().value(ValueMap()).double_value();
   double ai = a;
   double bi = b;
-  for (int i = 1; i <= n; i++) {
+  for (size_t i = 1; i <= n; i++) {
     ai *= a;
     bi *= b;
     m.push_back((bi - ai)/((i + 1)*(b - a)));
@@ -539,10 +460,30 @@ void Uniform::moments(std::vector<double>& m, int n) const {
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Uniform::sample(const ValueMap& values) const {
+  double a = low().value(values).double_value();
+  double b = high().value(values).double_value();
+  return (b - a)*genrand_real3_id(mts) + a;
+}
+
+
 /* Returns this distribution subject to the given substitutions. */
-const Uniform& Uniform::substitution(const Substitutions& subst) const {
-  const Expression<double>& e1 = low().substitution(subst);
-  const Expression<double>& e2 = high().substitution(subst);
+const Uniform& Uniform::substitution(const ValueMap& values) const {
+  const Expression& e1 = low().substitution(values);
+  const Expression& e2 = high().substitution(values);
+  if (&e1 != &low() || &e2 != &high()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Uniform& Uniform::substitution(const SubstitutionMap& subst) const {
+  const Expression& e1 = low().substitution(subst);
+  const Expression& e2 = high().substitution(subst);
   if (&e1 != &low() || &e2 != &high()) {
     return make(e1, e2);
   } else {

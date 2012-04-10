@@ -1,8 +1,7 @@
 /*
  * Interface to MT19937 random number generator.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011 Google Inc
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,6 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: rng.h,v 2.1 2004-01-25 12:41:35 lorens Exp $
  */
 #ifndef RNG_H
 #define RNG_H

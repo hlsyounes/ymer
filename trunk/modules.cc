@@ -1,8 +1,5 @@
 /*
- * Modules.
- *
- * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011 Google Inc
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -19,99 +16,163 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: modules.cc,v 2.1 2004-01-25 12:37:53 lorens Exp $
  */
 #include "modules.h"
+#include "distributions.h"
+#include "formulas.h"
+#include "expressions.h"
 
 
 /* ====================================================================== */
 /* Update */
 
 /* Constructs a variable update. */
-template<typename T>
-Update<T>::Update(const Variable<T>& variable, const Expression<T>& expr)
+Update::Update(const Variable& variable, const Expression& expr)
   : variable_(&variable), expr_(&expr) {
-  RCObject::ref(variable_);
-  RCObject::ref(expr_);
+  Expression::ref(variable_);
+  Expression::ref(expr_);
 }
 
 
 /* Deletes this variable update. */
-template<typename T>
-Update<T>::~Update() {
-  RCObject::deref(variable_);
-  RCObject::deref(expr_);
+Update::~Update() {
+  Expression::destructive_deref(variable_);
+  Expression::destructive_deref(expr_);
 }
 
 
 /* Returns this update subject to the given substitutions. */
-template<typename T>
-const Update<T>& Update<T>::substitution(const Substitutions& subst) const {
+const Update& Update::substitution(const ValueMap& values) const {
+  return *new Update(variable(), expr().substitution(values));
+}
+
+
+/* Returns this update subject to the given substitutions. */
+const Update& Update::substitution(const SubstitutionMap& subst) const {
   return *new Update(variable().substitution(subst),
 		     expr().substitution(subst));
 }
 
 
-/* Explicit instantiations. */
-template struct Update<int>;
-template struct Update<double>;
+/* Returns a BDD representation of this update. */
+DdNode* Update::bdd(DdManager* dd_man) const {
+  DdNode* ddu;
+  DdNode* ddv = variable().primed_mtbdd(dd_man);
+  const Value* value = dynamic_cast<const Value*>(&expr());
+  if (value != NULL) {
+    /* variable' == value  <==>  variable' in [value,value] */
+    double threshold = value->value().double_value();
+    ddu = Cudd_addBddInterval(dd_man, ddv, threshold, threshold);
+    Cudd_Ref(ddu);
+    Cudd_RecursiveDeref(dd_man, ddv);
+  } else {
+    /* variable' == expr  <==>  variable' - expr in [0,0] */
+    DdNode* dde = expr().mtbdd(dd_man);
+    DdNode* ddm = Cudd_addApply(dd_man, Cudd_addMinus, ddv, dde);
+    Cudd_Ref(ddm);
+    Cudd_RecursiveDeref(dd_man, ddv);
+    Cudd_RecursiveDeref(dd_man, dde);
+    ddu = Cudd_addBddInterval(dd_man, ddm, 0, 0);
+    Cudd_Ref(ddu);
+    Cudd_RecursiveDeref(dd_man, ddm);
+  }
+  return ddu;
+}
 
 
 /* ====================================================================== */
 /* Command */
 
 /* Constructs a command. */
-Command::Command(int synch, const StateFormula& guard,
+Command::Command(size_t synch, const StateFormula& guard,
 		 const Distribution& delay)
   : synch_(synch), guard_(&guard), delay_(&delay) {
-  RCObject::ref(guard_);
-  RCObject::ref(delay_);
+  StateFormula::ref(guard_);
+  Distribution::ref(delay_);
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  RCObject::deref(guard_);
-  RCObject::deref(delay_);
-  for (UpdateList<int>::const_iterator ui = int_updates().begin();
-       ui != int_updates().end(); ui++) {
-    delete *ui;
-  }
-  for (UpdateList<double>::const_iterator ui = double_updates().begin();
-       ui != double_updates().end(); ui++) {
+  StateFormula::destructive_deref(guard_);
+  Distribution::destructive_deref(delay_);
+  for (UpdateList::const_iterator ui = updates().begin();
+       ui != updates().end(); ui++) {
     delete *ui;
   }
 }
 
 
-/* Adds an integer-valued update to this command. */
-void Command::add_update(const Update<int>& update) {
-  int_updates_.push_back(&update);
+/* Adds an update to this command. */
+void Command::add_update(const Update& update) {
+  updates_.push_back(&update);
 }
 
 
-/* Adds a double-valued update to this command. */
-void Command::add_update(const Update<double>& update) {
-  double_updates_.push_back(&update);
+/* Returns this command subject to the given substitutions. */
+const Command& Command::substitution(const ValueMap& constants,
+				     const ValueMap& rates) const {
+  Command* subst_comm = new Command(synch(), guard().substitution(constants),
+				    delay().substitution(rates));
+  for (UpdateList::const_iterator ui = updates().begin();
+       ui != updates().end(); ui++) {
+    subst_comm->add_update((*ui)->substitution(constants));
+  }
+  return *subst_comm;
 }
 
 
 /* Returns this command subject to the given substitutions. */
 const Command&
-Command::substitution(const Substitutions& subst,
-		      const SynchSubstitutions& synchs) const {
-  SynchSubstitutions::const_iterator si = synchs.find(synch());
-  int s = (si != synchs.end()) ? (*si).second : synch();
+Command::substitution(const SubstitutionMap& subst,
+		      const SynchSubstitutionMap& synchs) const {
+  size_t s;
+  SynchSubstitutionMap::const_iterator si = synchs.find(synch());
+  if (si == synchs.end()) {
+    s = synch();
+  } else {
+    s = (*si).second;
+  }
   Command* subst_comm = new Command(s, guard().substitution(subst),
 				    delay().substitution(subst));
-  for (UpdateList<int>::const_iterator ui = int_updates().begin();
-       ui != int_updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(subst));
-  }
-  for (UpdateList<double>::const_iterator ui = double_updates().begin();
-       ui != double_updates().end(); ui++) {
+  for (UpdateList::const_iterator ui = updates().begin();
+       ui != updates().end(); ui++) {
     subst_comm->add_update((*ui)->substitution(subst));
   }
   return *subst_comm;
+}
+
+
+/* Returns a BDD representation of this command and fills the
+   provided set with variables updated by this command. */
+DdNode* Command::bdd(VariableSet& updated, DdManager* dd_man) const {
+  /*
+   * Conjunction of BDDs for all updates.
+   */
+  DdNode* ddu = Cudd_ReadOne(dd_man);
+  Cudd_Ref(ddu);
+  for (UpdateList::const_iterator ui = updates().begin();
+       ui != updates().end(); ui++) {
+    const Update& update = **ui;
+    DdNode* ddi = update.bdd(dd_man);
+    DdNode* dda = Cudd_bddAnd(dd_man, ddi, ddu);
+    Cudd_Ref(dda);
+    Cudd_RecursiveDeref(dd_man, ddi);
+    Cudd_RecursiveDeref(dd_man, ddu);
+    ddu = dda;
+    updated.insert(&update.variable());
+  }
+  /*
+   * Conjunction with BDD for guard.
+   */
+  DdNode* ddg = guard().bdd(dd_man);
+  DdNode* dda = Cudd_bddAnd(dd_man, ddg, ddu);
+  Cudd_Ref(dda);
+  Cudd_RecursiveDeref(dd_man, ddg);
+  Cudd_RecursiveDeref(dd_man, ddu);
+  return dda;
 }
 
 
@@ -122,24 +183,12 @@ std::ostream& operator<<(std::ostream& os, const Command& c) {
     os << 's' << c.synch();
   }
   os << "] " << c.guard() << " -> " << c.delay() << " : ";
-  UpdateList<int>::const_iterator ui = c.int_updates().begin();
-  if (ui != c.int_updates().end()) {
-    const Update<int>* u = *ui;
+  UpdateList::const_iterator ui = c.updates().begin();
+  if (ui != c.updates().end()) {
+    const Update* u = *ui;
     os << u->variable() << "\'=" << u->expr();
-    for (ui++; ui != c.int_updates().end(); ui++) {
+    for (ui++; ui != c.updates().end(); ui++) {
       u = *ui;
-      os << " & " << u->variable() << "\'=" << u->expr();
-    }
-  }
-  UpdateList<double>::const_iterator uj = c.double_updates().begin();
-  if (uj != c.double_updates().end()) {
-    const Update<double>* u = *uj;
-    if (!c.int_updates().empty()) {
-      os << " & ";
-    }
-    os << u->variable() << "\'=" << u->expr();
-    for (uj++; uj != c.double_updates().end(); uj++) {
-      u = *uj;
       os << " & " << u->variable() << "\'=" << u->expr();
     }
   }
@@ -150,15 +199,16 @@ std::ostream& operator<<(std::ostream& os, const Command& c) {
 /* ====================================================================== */
 /* Module */
 
+/* Constructs a module. */
+Module::Module()
+  : identity_bdd_(NULL) {}
+
+
 /* Deletes this module. */
 Module::~Module() {
-  for (VariableList<int>::const_iterator vi = int_variables().begin();
-       vi != int_variables().end(); vi++) {
-    RCObject::deref(*vi);
-  }
-  for (VariableList<double>::const_iterator vi = double_variables().begin();
-       vi != double_variables().end(); vi++) {
-    RCObject::deref(*vi);
+  for (VariableList::const_iterator vi = variables().begin();
+       vi != variables().end(); vi++) {
+    Expression::destructive_deref(*vi);
   }
   for (CommandList::const_iterator ci = commands().begin();
        ci != commands().end(); ci++) {
@@ -167,17 +217,10 @@ Module::~Module() {
 }
 
 
-/* Adds an integer-valued variable to this module. */
-void Module::add_variable(const Variable<int>& variable) {
-  int_variables_.push_back(&variable);
-  RCObject::ref(&variable);
-}
-
-
-/* Adds a double-valued variable to this module. */
-void Module::add_variable(const Variable<double>& variable) {
-  double_variables_.push_back(&variable);
-  RCObject::ref(&variable);
+/* Adds a variable to this module. */
+void Module::add_variable(const Variable& variable) {
+  variables_.push_back(&variable);
+  Expression::ref(&variable);
 }
 
 
@@ -187,17 +230,24 @@ void Module::add_command(const Command& command) {
 }
 
 
-/* Returns this module subject to the given substitutions. */
-Module& Module::substitution(const std::string& new_name,
-			     const Substitutions& subst,
-			     const SynchSubstitutions& synchs) const {
-  Module* subst_mod = new Module(new_name);
-  for (VariableList<int>::const_iterator vi = int_variables().begin();
-       vi != int_variables().end(); vi++) {
-    subst_mod->add_variable((*vi)->substitution(subst));
+/* Substitutes constants with values. */
+void Module::compile(const ValueMap& constants, const ValueMap& rates) {
+  size_t n = commands().size();
+  for (size_t i = 0; i < n; i++) {
+    const Command* ci = commands_[i];
+    const Command* cj = &ci->substitution(constants, rates);
+    delete ci;
+    commands_[i] = cj;
   }
-  for (VariableList<double>::const_iterator vi = double_variables().begin();
-       vi != double_variables().end(); vi++) {
+}
+
+
+/* Returns this module subject to the given substitutions. */
+Module& Module::substitution(const SubstitutionMap& subst,
+			     const SynchSubstitutionMap& synchs) const {
+  Module* subst_mod = new Module();
+  for (VariableList::const_iterator vi = variables().begin();
+       vi != variables().end(); vi++) {
     subst_mod->add_variable((*vi)->substitution(subst));
   }
   for (CommandList::const_iterator ci = commands().begin();
@@ -208,36 +258,33 @@ Module& Module::substitution(const std::string& new_name,
 }
 
 
-/* Output operator for modules. */
-std::ostream& operator<<(std::ostream& os, const Module& m) {
-  os << "module " << m.name();
-  VariableList<int>::const_iterator vi = m.int_variables().begin();
-  if (vi != m.int_variables().end()) {
-    os << std::endl;
-    for (; vi != m.int_variables().end(); vi++) {
-      const Variable<int>& v = **vi;
-      os << std::endl << "  " << v
-	 << " : [" << v.low() << ".." << v.high() << "]"
-	 << " init " << v.init() << ';';
+/* Returns a BDD representing the identity between the `current
+   state' and `next state' variables of this module. */
+DdNode* Module::identity_bdd(DdManager* dd_man) const {
+  if (identity_bdd_ == NULL) {
+    DdNode* dd = Cudd_ReadOne(dd_man);
+    Cudd_Ref(dd);
+    for (VariableList::const_reverse_iterator vi = variables().rbegin();
+	 vi != variables().rend(); vi++) {
+      DdNode* ddv = (*vi)->identity_bdd(dd_man);
+      DdNode* ddi = Cudd_bddAnd(dd_man, ddv, dd);
+      Cudd_Ref(ddi);
+      Cudd_RecursiveDeref(dd_man, ddv);
+      Cudd_RecursiveDeref(dd_man, dd);
+      dd = ddi;
     }
+    identity_bdd_ = dd;
+  } else {
+    Cudd_Ref(identity_bdd_);
   }
-  VariableList<double>::const_iterator vj = m.double_variables().begin();
-  if (vj != m.double_variables().end()) {
-    os << std::endl;
-    for (; vj != m.double_variables().end(); vj++) {
-      const Variable<double>& v = **vj;
-      os << std::endl << "  " << v
-	 << " : [" << v.low() << ".." << v.high() << "]"
-	 << " init " << v.init() << ';';
-    }
+  return identity_bdd_;
+}
+
+
+/* Releases any cached DDs for this module. */
+void Module::uncache_dds(DdManager* dd_man) const {
+  if (identity_bdd_ != NULL) {
+    Cudd_RecursiveDeref(dd_man, identity_bdd_);
+    identity_bdd_ = NULL;
   }
-  CommandList::const_iterator ci = m.commands().begin();
-  if (ci != m.commands().end()) {
-    os << std::endl;
-    for (; ci != m.commands().end(); ci++) {
-      os << std::endl << "  " << **ci << ';';
-    }
-  }
-  os << std::endl << std::endl << "endmodule";
-  return os;
 }

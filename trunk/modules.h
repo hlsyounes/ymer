@@ -2,8 +2,7 @@
 /*
  * Modules.
  *
- * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011 Google Inc
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
  *
@@ -20,18 +19,17 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: modules.h,v 2.1 2004-01-25 12:38:08 lorens Exp $
  */
 #ifndef MODULES_H
 #define MODULES_H
 
 #include <config.h>
-#include "distributions.h"
-#include "formulas.h"
 #include "expressions.h"
-#include <iostream>
-#include <map>
-#include <string>
-#include <vector>
+
+struct StateFormula;
+struct Distribution;
 
 
 /* ====================================================================== */
@@ -40,46 +38,50 @@
 /*
  * A variable update.
  */
-template<typename T>
 struct Update {
   /* Constructs a variable update. */
-  Update(const Variable<T>& variable, const Expression<T>& expr);
+  Update(const Variable& variable, const Expression& expr);
 
   /* Deletes this variable update. */
   ~Update();
 
   /* Returns the variable for this update. */
-  const Variable<T>& variable() const { return *variable_; }
+  const Variable& variable() const { return *variable_; }
 
   /* Returns the expression for this update. */
-  const Expression<T>& expr() const { return *expr_; }
+  const Expression& expr() const { return *expr_; }
 
   /* Returns this update subject to the given substitutions. */
-  const Update<T>& substitution(const Substitutions& subst) const;
+  const Update& substitution(const ValueMap& values) const;
+
+  /* Returns this update subject to the given substitutions. */
+  const Update& substitution(const SubstitutionMap& subst) const;
+
+  /* Returns a BDD representation of this update. */
+  DdNode* bdd(DdManager* dd_man) const;
 
 private:
   /* The variable for this update. */
-  const Variable<T>* variable_;
+  const Variable* variable_;
   /* The expression for this update. */
-  const Expression<T>* expr_;
+  const Expression* expr_;
 };
 
 
 /* ====================================================================== */
 /* UpdateList */
 
-template<typename T>
-struct UpdateList : public std::vector<const Update<T>*> {
+struct UpdateList : public std::vector<const Update*> {
 };
 
 
 /* ====================================================================== */
-/* SynchSubstitutions */
+/* SynchronizationMap */
 
 /*
  * Substitution map for synchronizations.
  */
-struct SynchSubstitutions : public std::map<int, int> {
+struct SynchSubstitutionMap : public std::map<size_t, size_t> {
 };
 
 
@@ -91,20 +93,17 @@ struct SynchSubstitutions : public std::map<int, int> {
  */
 struct Command {
   /* Constructs a command. */
-  Command(int synch, const StateFormula& guard, const Distribution& delay);
+  Command(size_t synch, const StateFormula& guard, const Distribution& delay);
 
   /* Deletes this command. */
   ~Command();
 
-  /* Adds an integer-valued update to this command. */
-  void add_update(const Update<int>& update);
-
-  /* Adds a double-valued update to this command. */
-  void add_update(const Update<double>& update);
+  /* Adds an update to this command. */
+  void add_update(const Update& update);
 
   /* Returns the synchronization for this command; 0 if this command
      requires no synchronization. */
-  int synch() const { return synch_; }
+  size_t synch() const { return synch_; }
 
   /* Returns the guard for this command. */
   const StateFormula& guard() const { return *guard_; }
@@ -112,28 +111,31 @@ struct Command {
   /* Returns the delay distribution for this command. */
   const Distribution& delay() const { return *delay_; }
 
-  /* Returns the integer-valued updates for this command. */
-  const UpdateList<int>& int_updates() const { return int_updates_; }
-
-  /* Returns the double-valued updates for this command. */
-  const UpdateList<double>& double_updates() const { return double_updates_; }
+  /* Returns the updates for this command. */
+  const UpdateList& updates() const { return updates_; }
 
   /* Returns this command subject to the given substitutions. */
-  const Command& substitution(const Substitutions& subst,
-			      const SynchSubstitutions& synchs) const;
+  const Command& substitution(const ValueMap& constants,
+			      const ValueMap& rates) const;
+
+  /* Returns this command subject to the given substitutions. */
+  const Command& substitution(const SubstitutionMap& subst,
+			      const SynchSubstitutionMap& synchs) const;
+
+  /* Returns a BDD representation of this command and fills the
+     provided set with variables updated by this command. */
+  DdNode* bdd(VariableSet& updated, DdManager* dd_man) const;
 
 private:
   /* The synchronization for this command; 0 if this command requires
      no synchronization. */
-  int synch_;
+  size_t synch_;
   /* The guard for this command. */
   const StateFormula* guard_;
   /* The rate for this command. */
   const Distribution* delay_;
-  /* The integer-valued updates for this command. */
-  UpdateList<int> int_updates_;
-  /* The double-valued updates for this command. */
-  UpdateList<double> double_updates_;
+  /* The updates for this command. */
+  UpdateList updates_;
 };
 
 /* Output operator for commands. */
@@ -151,67 +153,53 @@ struct CommandList : public std::vector<const Command*> {
 
 
 /* ====================================================================== */
-/* VariableList */
-
-template<typename T>
-struct VariableList : public std::vector<const Variable<T>*> {
-};
-
-
-/* ====================================================================== */
 /* Module */
 
 /*
  * A module.
  */
 struct Module {
-  /* Constructs a module with the given name. */
-  Module(const std::string& name) : name_(name) {}
+  /* Constructs a module. */
+  Module();
 
   /* Deletes this module. */
   ~Module();
 
-  /* Adds an integer-valued variable to this module. */
-  void add_variable(const Variable<int>& variable);
-
-  /* Adds a double-valued variable to this module. */
-  void add_variable(const Variable<double>& variable);
+  /* Adds a variable to this module. */
+  void add_variable(const Variable& variable);
 
   /* Adds a command to this module. */
   void add_command(const Command& command);
 
-  /* Returns the name for this module. */
-  const std::string& name() const { return name_; }
+  /* Substitutes constants with values. */
+  void compile(const ValueMap& constants, const ValueMap& rates);
 
-  /* Returns the integer-valued variables for this module. */
-  const VariableList<int>& int_variables() const { return int_variables_; }
-
-  /* Returns the double-valued variables for this module. */
-  const VariableList<double>& double_variables() const {
-    return double_variables_;
-  }
+  /* Returns the variables for this module. */
+  const VariableList& variables() const { return variables_; }
 
   /* Returns the commands for this module. */
   const CommandList& commands() const { return commands_; }
 
   /* Returns this module subject to the given substitutions. */
-  Module& substitution(const std::string& new_name,
-		       const Substitutions& subst,
-		       const SynchSubstitutions& synchs) const;
+  Module& substitution(const SubstitutionMap& subst,
+		       const SynchSubstitutionMap& synchs) const;
+
+  /* Returns a BDD representing the identity between the `current
+     state' and `next state' variables of this module. */
+  DdNode* identity_bdd(DdManager* dd_man) const;
+
+  /* Releases any cached DDs for this module. */
+  void uncache_dds(DdManager* dd_man) const;
 
 private:
-  /* Module name. */
-  std::string name_;
-  /* The integer-valued variables for this module. */
-  VariableList<int> int_variables_;
-  /* The double-valued variables for this module. */
-  VariableList<double> double_variables_;
+  /* The variables for this module. */
+  VariableList variables_;
   /* The commands for this module. */
   CommandList commands_;
+  /* Cached BDD representing identity between the module variables and
+     their primed versions. */
+  mutable DdNode* identity_bdd_;
 };
-
-/* Output operator for modules. */
-std::ostream& operator<<(std::ostream& os, const Module& m);
 
 
 /* ====================================================================== */
@@ -221,6 +209,16 @@ std::ostream& operator<<(std::ostream& os, const Module& m);
  * A list of modules.
  */
 struct ModuleList : public std::vector<const Module*> {
+};
+
+
+/* ====================================================================== */
+/* ModuleSet */
+
+/*
+ * A set of modules.
+ */
+struct ModuleSet : public std::set<const Module*> {
 };
 
 
