@@ -289,14 +289,8 @@ maintainer-clean-local:
 # this happens, clean them to keep distcleancheck happy.
 CLEANFILES = core
 
-# Disables 'make install' as installing a compiled version of Google
-# Test can lead to undefined behavior due to violation of the
-# One-Definition Rule.
+# Modified for Ymer: Make install a no-op.
 
 install-exec-local:
-	echo "'make install' is dangerous and not supported. Instead, see README for how to integrate Google Test into your build system."
-	false
 
 install-data-local:
-	echo "'make install' is dangerous and not supported. Instead, see README for how to integrate Google Test into your build system."
-	false
