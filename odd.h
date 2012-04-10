@@ -1,7 +1,5 @@
-/* -*-C++-*- */
 /*
- * Client/Server communication.
- *
+ * Copyright (C) 2002 Dave Parker
  * Copyright (C) 2003, 2004 Carnegie Mellon University
  *
  * This file is part of Ymer.
@@ -20,40 +18,34 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: comm.h,v 3.1 2004-03-11 20:19:01 lorens Exp $
+ * $Id: odd.h,v 2.1 2004-01-25 12:38:55 lorens Exp $
  */
-#ifndef COMM_H
-#define COMM_H
+#ifndef ODD_H
+#define ODD_H
 
-#include <cstdlib>
+//------------------------------------------------------------------------------
 
+#include <util.h>
+#include <cudd.h>
 
-/*
- * A client message.
- */
-struct ClientMsg {
-  typedef enum { SAMPLE } MsgId;
+// odd definitions
 
-  MsgId id;
-  bool value;
+struct ODDNode {
+  DdNode *dd;
+  ODDNode *next;
+  ODDNode *e;
+  ODDNode *t;
+  long eoff;
+  long toff;
 };
 
+// function prototypes
 
-/*
- * A server message.
- */
-struct ServerMsg {
-  typedef enum { REGISTER, START, STOP } MsgId;
+ODDNode *build_odd(DdManager *ddman, DdNode *dd, DdNode **vars, int num_vars);
+int get_num_odd_nodes();
 
-  MsgId id;
-  int value;
-};
+//------------------------------------------------------------------------------
 
+#endif
 
-/* Sockets for communication. */
-extern int server_socket;
-/* Current property. */
-extern size_t current_property;
-
-
-#endif /* COMM_H */
+//------------------------------------------------------------------------------

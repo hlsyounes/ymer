@@ -1,8 +1,0 @@
-#! /bin/sh
-
-P=$1
-if test -z "$P"; then
-    P=0.5
-fi
-
-echo "P>=$P[ true U (s1=5) ]"
