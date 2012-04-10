@@ -206,14 +206,14 @@ struct PathFormula {
 
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, const Rational& p, bool strict,
+		      const State& state, const TypedValue& p, bool strict,
 		      DeltaFun delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
 		      double epsilon) const = 0;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 const Rational& p, bool strict,
+			 const TypedValue& p, bool strict,
 			 double epsilon, bool estimate) const = 0;
 
   /* Clears the cache of any probabilistic operator. */
@@ -530,14 +530,14 @@ private:
  */
 struct Probabilistic : public StateFormula {
   /* Constructs a probabilistic path quantification. */
-  Probabilistic(const Rational& threshold, bool strict,
+  Probabilistic(const TypedValue& threshold, bool strict,
 		const PathFormula& formula);
 
   /* Deletes this probabilistic path quantification. */
   virtual ~Probabilistic();
 
   /* Returns the probability threshold. */
-  const Rational& threshold() const { return threshold_; }
+  const TypedValue& threshold() const { return threshold_; }
 
   /* Tests if the threshold is strict. */
   bool strict() const { return strict_; }
@@ -595,7 +595,7 @@ protected:
 
 private:
   /* The probability threshold. */
-  Rational threshold_;
+  TypedValue threshold_;
   /* Whether the threshold is strict. */
   bool strict_;
   /* The path formula. */
@@ -858,7 +858,7 @@ protected:
 struct Until : public PathFormula {
   /* Constructs an until formula. */
   Until(const StateFormula& pre, const StateFormula& post,
-	const Rational& min_time, const Rational& max_time);
+	const TypedValue& min_time, const TypedValue& max_time);
 
   /* Deletes this until formula. */
   virtual ~Until();
@@ -870,10 +870,10 @@ struct Until : public PathFormula {
   const StateFormula& post() const { return *post_; }
 
   /* Returns the lower time bound. */
-  const Rational& min_time() const { return min_time_; }
+  const TypedValue& min_time() const { return min_time_; }
 
   /* Returns the upper time bound. */
-  const Rational& max_time() const { return max_time_; }
+  const TypedValue& max_time() const { return max_time_; }
 
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const;
@@ -902,14 +902,14 @@ struct Until : public PathFormula {
 
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(DdManager* dd_man, const Model& model,
-		      const State& state, const Rational& p, bool strict,
+		      const State& state, const TypedValue& p, bool strict,
 		      DeltaFun delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(DdManager* dd_man, const Model& model,
-			 const Rational& p, bool strict,
+			 const TypedValue& p, bool strict,
 			 double epsilon, bool estimate) const;
 
   /* Clears the cache of any probabilistic operator. */
@@ -925,9 +925,9 @@ private:
   /* The postcondition formula. */
   const StateFormula* post_;
   /* The lower time bound. */
-  Rational min_time_;
+  TypedValue min_time_;
   /* The upper time bound. */
-  Rational max_time_;
+  TypedValue max_time_;
 };
 
 

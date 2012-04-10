@@ -199,7 +199,7 @@ Exponential::~Exponential() {
 void Exponential::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double lambda_inv = 1.0/rate().value(ValueMap()).double_value();
+  double lambda_inv = 1.0/rate().value(ValueMap()).value<double>();
   double mi = 1.0;
   for (size_t i = 1; i <= n; i++) {
     mi *= i*lambda_inv;
@@ -210,7 +210,7 @@ void Exponential::moments(std::vector<double>& m, size_t n) const {
 
 /* Returns a sample drawn from this distribution. */
 double Exponential::sample(const ValueMap& values) const {
-  double lambda = rate().value(values).double_value();
+  double lambda = rate().value(values).value<double>();
   return -log(genrand_real3_id(mts))/lambda;
 }
 
@@ -280,8 +280,8 @@ Weibull::~Weibull() {
 void Weibull::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double eta = scale().value(ValueMap()).double_value();
-  double beta_inv = 1.0/shape().value(ValueMap()).double_value();
+  double eta = scale().value(ValueMap()).value<double>();
+  double beta_inv = 1.0/shape().value(ValueMap()).value<double>();
   double ei = 1.0;
   double bi = 1.0;
   for (size_t i = 1; i <= n; i++) {
@@ -294,8 +294,8 @@ void Weibull::moments(std::vector<double>& m, size_t n) const {
 
 /* Returns a sample drawn from this distribution. */
 double Weibull::sample(const ValueMap& values) const {
-  double eta = scale().value(values).double_value();
-  double beta = shape().value(values).double_value();
+  double eta = scale().value(values).value<double>();
+  double beta = shape().value(values).value<double>();
   return eta*pow(-log(genrand_real3_id(mts)), 1.0/beta);
 }
 
@@ -359,8 +359,8 @@ Lognormal::~Lognormal() {
 void Lognormal::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double mu = scale().value(ValueMap()).double_value();
-  double sigma = shape().value(ValueMap()).double_value();
+  double mu = scale().value(ValueMap()).value<double>();
+  double sigma = shape().value(ValueMap()).value<double>();
   double mean = log(mu) - sigma*sigma/2.0;
   for (size_t i = 1; i <= n; i++) {
     m.push_back(exp(i*mean + i*i*sigma*sigma/2.0));
@@ -375,8 +375,8 @@ double Lognormal::sample(const ValueMap& values) const {
     return unused_;
   } else {
     /* Generate two N(0,1) samples using the Box-Muller transform. */
-    double mu = scale().value(ValueMap()).double_value();
-    double sigma = shape().value(ValueMap()).double_value();
+    double mu = scale().value(ValueMap()).value<double>();
+    double sigma = shape().value(ValueMap()).value<double>();
     double mean = log(mu) - sigma*sigma/2.0;
     double u1 = genrand_real3_id(mts);
     double u2 = genrand_real3_id(mts);
@@ -448,8 +448,8 @@ Uniform::~Uniform() {
 void Uniform::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double a = low().value(ValueMap()).double_value();
-  double b = high().value(ValueMap()).double_value();
+  double a = low().value(ValueMap()).value<double>();
+  double b = high().value(ValueMap()).value<double>();
   double ai = a;
   double bi = b;
   for (size_t i = 1; i <= n; i++) {
@@ -462,8 +462,8 @@ void Uniform::moments(std::vector<double>& m, size_t n) const {
 
 /* Returns a sample drawn from this distribution. */
 double Uniform::sample(const ValueMap& values) const {
-  double a = low().value(values).double_value();
-  double b = high().value(values).double_value();
+  double a = low().value(values).value<double>();
+  double b = high().value(values).value<double>();
   return (b - a)*genrand_real3_id(mts) + a;
 }
 

@@ -194,7 +194,8 @@ const State& ExtendedState::next(const Model& model) const {
   if (trigger_ != NULL) {
     for (UpdateList::const_iterator ui = trigger_->updates().begin();
 	 ui != trigger_->updates().end(); ui++) {
-      next_state->values()[&(*ui)->variable()] = (*ui)->expr().value(values());
+      ValueMap::iterator vi = next_state->values().find(&(*ui)->variable());
+      vi->second = (*ui)->expr().value(values());
     }
     CommandList commands;
     for (CommandList::const_iterator ci = model.commands().begin();

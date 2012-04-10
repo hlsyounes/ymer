@@ -64,7 +64,7 @@ extern void clear_declarations();
 /* Name of current file. */
 std::string current_file;
 /* Constant overrides. */
-std::map<std::string, Rational> const_overrides;
+std::map<std::string, TypedValue> const_overrides;
 /* Verbosity level. */
 int verbosity;
 /* Whether memoization is enabled. */
@@ -212,7 +212,8 @@ static void display_version() {
 
 /* Parses spec for const overrides.  Returns true on success. */
 static bool parse_const_overrides(
-    const std::string& spec, std::map<std::string, Rational>* const_overrides) {
+    const std::string& spec,
+    std::map<std::string, TypedValue>* const_overrides) {
   if (spec.empty()) {
     return true;
   }
@@ -285,7 +286,7 @@ static bool extract_path_formula(const PathFormula*& pf, double& theta,
   if (qf != 0) {
     if (pf == 0) {
       pf = &qf->formula();
-      theta = qf->threshold().double_value();
+      theta = qf->threshold().value<double>();
       return true;
     } else {
       pf = 0;

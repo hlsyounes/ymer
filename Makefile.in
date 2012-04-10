@@ -36,6 +36,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
+check_PROGRAMS = src/typed-value_test$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
@@ -144,16 +145,26 @@ am_cudd_util_libutil_la_OBJECTS = cudd_util_libutil_la-cpu_time.lo \
 	cudd_util_libutil_la-stub.lo cudd_util_libutil_la-tmpfile.lo \
 	cudd_util_libutil_la-datalimit.lo
 cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
+src_libtest_main_la_DEPENDENCIES = gtest/lib/libgtest.la
+am_src_libtest_main_la_OBJECTS = test-main.lo
+src_libtest_main_la_OBJECTS = $(am_src_libtest_main_la_OBJECTS)
+src_libtyped_value_la_LIBADD =
+am_src_libtyped_value_la_OBJECTS = typed-value.lo
+src_libtyped_value_la_OBJECTS = $(am_src_libtyped_value_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
+am_src_typed_value_test_OBJECTS = typed-value_test.$(OBJEXT)
+src_typed_value_test_OBJECTS = $(am_src_typed_value_test_OBJECTS)
+src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
+	src/libtest-main.la
 am_ymer_OBJECTS = ymer.$(OBJEXT) rng.$(OBJEXT) rngdc.$(OBJEXT) \
-	rational.$(OBJEXT) expressions.$(OBJEXT) formulas.$(OBJEXT) \
+	expressions.$(OBJEXT) formulas.$(OBJEXT) \
 	distributions.$(OBJEXT) modules.$(OBJEXT) models.$(OBJEXT) \
 	states.$(OBJEXT) sampling.$(OBJEXT) odd.$(OBJEXT) \
 	hybrid.$(OBJEXT) symbolic.$(OBJEXT) mixed.$(OBJEXT) \
 	parser.$(OBJEXT) tokenizer.$(OBJEXT)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
-ymer_DEPENDENCIES = cudd/cudd/libcudd.la
+ymer_DEPENDENCIES = cudd/cudd/libcudd.la src/libtyped-value.la
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -186,11 +197,15 @@ LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_libtest_main_la_SOURCES) \
+	$(src_libtyped_value_la_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_libtest_main_la_SOURCES) \
+	$(src_libtyped_value_la_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -205,6 +220,8 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir dist dist-all distcheck
 ETAGS = etags
 CTAGS = ctags
+am__tty_colors = \
+red=; grn=; lgn=; blu=; std=
 DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
@@ -375,8 +392,15 @@ SUBDIRS = gtest
 # CUDD library for symbol tables.
 
 # CUDD utility library.
+
+#
+# Ymer libraries.
+#
+
+# Typed-value library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
-	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la
+	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
+	src/libtyped-value.la
 
 #
 # CUDD libraries.
@@ -428,11 +452,29 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
-ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h rational.cc rational.h expressions.cc expressions.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la
+src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
+ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h expressions.cc expressions.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
+ymer_LDADD = cudd/cudd/libcudd.la src/libtyped-value.la
+
+#
+# Ymer tests.
+#
+
+# Library with main function for tests.
+check_LTLIBRARIES = src/libtest-main.la
+src_libtest_main_la_SOURCES = src/test-main.cc
+src_libtest_main_la_LIBADD = gtest/lib/libgtest.la
+src_typed_value_test_SOURCES = src/typed-value_test.cc
+src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
+
+# Note: heap checking is enabled only if tests were linked with tcmalloc.
+TESTS_ENVIRONMENT = HEAPCHECK=normal
+TESTS = $(check_PROGRAMS)
 EXTRA_DIST = cudd examples scripts
 CLEANFILES = core
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
+    -I$(srcdir)/gtest/include
+
 AM_YFLAGS = -d
 ACLOCAL_AMFLAGS = -I m4
 all: config.h
@@ -492,6 +534,15 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 distclean-hdr:
 	-rm -f config.h stamp-h1
 
+clean-checkLTLIBRARIES:
+	-test -z "$(check_LTLIBRARIES)" || rm -f $(check_LTLIBRARIES)
+	@list='$(check_LTLIBRARIES)'; for p in $$list; do \
+	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
+	  test "$$dir" != "$$p" || dir=.; \
+	  echo "rm -f \"$${dir}/so_locations\""; \
+	  rm -f "$${dir}/so_locations"; \
+	done
+
 clean-noinstLTLIBRARIES:
 	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
 	@list='$(noinst_LTLIBRARIES)'; for p in $$list; do \
@@ -525,6 +576,13 @@ cudd/util/$(am__dirstamp):
 	@: > cudd/util/$(am__dirstamp)
 cudd/util/libutil.la: $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_DEPENDENCIES) cudd/util/$(am__dirstamp)
 	$(LINK)  $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_LIBADD) $(LIBS)
+src/$(am__dirstamp):
+	@$(MKDIR_P) src
+	@: > src/$(am__dirstamp)
+src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
+src/libtyped-value.la: $(src_libtyped_value_la_OBJECTS) $(src_libtyped_value_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libtyped_value_la_OBJECTS) $(src_libtyped_value_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
@@ -568,6 +626,18 @@ clean-binPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
+
+clean-checkPROGRAMS:
+	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
+src/typed-value_test$(EXEEXT): $(src_typed_value_test_OBJECTS) $(src_typed_value_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/typed-value_test$(EXEEXT)
+	$(CXXLINK) $(src_typed_value_test_OBJECTS) $(src_typed_value_test_LDADD) $(LIBS)
 parser.h: parser.cc
 	@if test ! -f $@; then \
 	  rm -f parser.cc; \
@@ -670,13 +740,15 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/modules.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/odd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rational.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rngdc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/states.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-main.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokenizer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/typed-value.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/typed-value_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ymer.Po@am__quote@
 
 .c.o:
@@ -1267,6 +1339,34 @@ cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
 
+test-main.lo: src/test-main.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT test-main.lo -MD -MP -MF $(DEPDIR)/test-main.Tpo -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/test-main.Tpo $(DEPDIR)/test-main.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/test-main.cc' object='test-main.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc
+
+typed-value.lo: src/typed-value.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT typed-value.lo -MD -MP -MF $(DEPDIR)/typed-value.Tpo -c -o typed-value.lo `test -f 'src/typed-value.cc' || echo '$(srcdir)/'`src/typed-value.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/typed-value.Tpo $(DEPDIR)/typed-value.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/typed-value.cc' object='typed-value.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o typed-value.lo `test -f 'src/typed-value.cc' || echo '$(srcdir)/'`src/typed-value.cc
+
+typed-value_test.o: src/typed-value_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT typed-value_test.o -MD -MP -MF $(DEPDIR)/typed-value_test.Tpo -c -o typed-value_test.o `test -f 'src/typed-value_test.cc' || echo '$(srcdir)/'`src/typed-value_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/typed-value_test.Tpo $(DEPDIR)/typed-value_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/typed-value_test.cc' object='typed-value_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o typed-value_test.o `test -f 'src/typed-value_test.cc' || echo '$(srcdir)/'`src/typed-value_test.cc
+
+typed-value_test.obj: src/typed-value_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT typed-value_test.obj -MD -MP -MF $(DEPDIR)/typed-value_test.Tpo -c -o typed-value_test.obj `if test -f 'src/typed-value_test.cc'; then $(CYGPATH_W) 'src/typed-value_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/typed-value_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/typed-value_test.Tpo $(DEPDIR)/typed-value_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/typed-value_test.cc' object='typed-value_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o typed-value_test.obj `if test -f 'src/typed-value_test.cc'; then $(CYGPATH_W) 'src/typed-value_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/typed-value_test.cc'; fi`
+
 .ll.cc:
 	$(am__skiplex) $(SHELL) $(YLWRAP) $< $(LEX_OUTPUT_ROOT).c $@ -- $(LEXCOMPILE)
 
@@ -1283,6 +1383,7 @@ clean-libtool:
 	-rm -rf cudd/mtr/.libs cudd/mtr/_libs
 	-rm -rf cudd/st/.libs cudd/st/_libs
 	-rm -rf cudd/util/.libs cudd/util/_libs
+	-rm -rf src/.libs src/_libs
 
 distclean-libtool:
 	-rm -f libtool config.lt
@@ -1421,6 +1522,98 @@ GTAGS:
 
 distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
+
+check-TESTS: $(TESTS)
+	@failed=0; all=0; xfail=0; xpass=0; skip=0; \
+	srcdir=$(srcdir); export srcdir; \
+	list=' $(TESTS) '; \
+	$(am__tty_colors); \
+	if test -n "$$list"; then \
+	  for tst in $$list; do \
+	    if test -f ./$$tst; then dir=./; \
+	    elif test -f $$tst; then dir=; \
+	    else dir="$(srcdir)/"; fi; \
+	    if $(TESTS_ENVIRONMENT) $${dir}$$tst; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *[\ \	]$$tst[\ \	]*) \
+		xpass=`expr $$xpass + 1`; \
+		failed=`expr $$failed + 1`; \
+		col=$$red; res=XPASS; \
+	      ;; \
+	      *) \
+		col=$$grn; res=PASS; \
+	      ;; \
+	      esac; \
+	    elif test $$? -ne 77; then \
+	      all=`expr $$all + 1`; \
+	      case " $(XFAIL_TESTS) " in \
+	      *[\ \	]$$tst[\ \	]*) \
+		xfail=`expr $$xfail + 1`; \
+		col=$$lgn; res=XFAIL; \
+	      ;; \
+	      *) \
+		failed=`expr $$failed + 1`; \
+		col=$$red; res=FAIL; \
+	      ;; \
+	      esac; \
+	    else \
+	      skip=`expr $$skip + 1`; \
+	      col=$$blu; res=SKIP; \
+	    fi; \
+	    echo "$${col}$$res$${std}: $$tst"; \
+	  done; \
+	  if test "$$all" -eq 1; then \
+	    tests="test"; \
+	    All=""; \
+	  else \
+	    tests="tests"; \
+	    All="All "; \
+	  fi; \
+	  if test "$$failed" -eq 0; then \
+	    if test "$$xfail" -eq 0; then \
+	      banner="$$All$$all $$tests passed"; \
+	    else \
+	      if test "$$xfail" -eq 1; then failures=failure; else failures=failures; fi; \
+	      banner="$$All$$all $$tests behaved as expected ($$xfail expected $$failures)"; \
+	    fi; \
+	  else \
+	    if test "$$xpass" -eq 0; then \
+	      banner="$$failed of $$all $$tests failed"; \
+	    else \
+	      if test "$$xpass" -eq 1; then passes=pass; else passes=passes; fi; \
+	      banner="$$failed of $$all $$tests did not behave as expected ($$xpass unexpected $$passes)"; \
+	    fi; \
+	  fi; \
+	  dashes="$$banner"; \
+	  skipped=""; \
+	  if test "$$skip" -ne 0; then \
+	    if test "$$skip" -eq 1; then \
+	      skipped="($$skip test was not run)"; \
+	    else \
+	      skipped="($$skip tests were not run)"; \
+	    fi; \
+	    test `echo "$$skipped" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$skipped"; \
+	  fi; \
+	  report=""; \
+	  if test "$$failed" -ne 0 && test -n "$(PACKAGE_BUGREPORT)"; then \
+	    report="Please report to $(PACKAGE_BUGREPORT)"; \
+	    test `echo "$$report" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$report"; \
+	  fi; \
+	  dashes=`echo "$$dashes" | sed s/./=/g`; \
+	  if test "$$failed" -eq 0; then \
+	    echo "$$grn$$dashes"; \
+	  else \
+	    echo "$$red$$dashes"; \
+	  fi; \
+	  echo "$$banner"; \
+	  test -z "$$skipped" || echo "$$skipped"; \
+	  test -z "$$report" || echo "$$report"; \
+	  echo "$$dashes$$std"; \
+	  test "$$failed" -eq 0; \
+	else :; fi
 
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
@@ -1598,6 +1791,8 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_LTLIBRARIES) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: check-recursive
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) config.h
 installdirs: installdirs-recursive
@@ -1632,6 +1827,7 @@ distclean-generic:
 	-rm -f cudd/mtr/$(am__dirstamp)
 	-rm -f cudd/st/$(am__dirstamp)
 	-rm -f cudd/util/$(am__dirstamp)
+	-rm -f src/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -1641,8 +1837,9 @@ maintainer-clean-generic:
 	-rm -f tokenizer.cc
 clean: clean-recursive
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool \
-	clean-noinstLTLIBRARIES mostlyclean-am
+clean-am: clean-binPROGRAMS clean-checkLTLIBRARIES clean-checkPROGRAMS \
+	clean-generic clean-libtool clean-noinstLTLIBRARIES \
+	mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -1713,11 +1910,12 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS
 
-.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all \
+.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all check-am \
 	ctags-recursive install-am install-strip tags-recursive
 
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
-	all all-am am--refresh check check-am clean clean-binPROGRAMS \
+	all all-am am--refresh check check-TESTS check-am clean \
+	clean-binPROGRAMS clean-checkLTLIBRARIES clean-checkPROGRAMS \
 	clean-generic clean-libtool clean-noinstLTLIBRARIES ctags \
 	ctags-recursive dist dist-all dist-bzip2 dist-gzip dist-lzma \
 	dist-shar dist-tarZ dist-xz dist-zip distcheck distclean \

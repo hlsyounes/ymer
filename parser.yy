@@ -51,7 +51,7 @@ extern size_t line_number;
 /* Name of current file. */
 extern std::string current_file;
 /* Constant overrides. */
-extern std::map<std::string, Rational> const_overrides;
+extern std::map<std::string, TypedValue> const_overrides;
 
 /* Last model parsed. */
 const Model* global_model = NULL;
@@ -104,9 +104,9 @@ static void yyerror(const std::string& s);
 static void yywarning(const std::string& s);
 /* Checks if undeclared variables were used. */
 static void check_undeclared();
-/* Returns the numerator of the given rational, signaling an error if
-   the denominator is not 1. */
-static int integer_value(const Rational* q);
+/* Returns the integer value of the given typed value, signaling an error if
+   the type is not INT. */
+static int integer_value(const TypedValue* q);
 /* Returns a variable representing an integer constant. */
 static const Variable* find_constant(const std::string* ident);
 /* Returns a variable representing a rate constant. */
@@ -119,7 +119,7 @@ static Range make_range(const Expression* l, const Expression* h);
 /* Returns a literal expression. */
 static const Literal* make_literal(int n);
 /* Returns a literal expression. */
-static const Literal* make_literal(const Rational* q);
+static const Literal* make_literal(const TypedValue* q);
 /* Returns a constant value or a variable for the given identifier. */
 static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
@@ -131,12 +131,12 @@ static Conjunction* make_conjunction(StateFormula& f1,
 static Disjunction* make_disjunction(StateFormula& f1,
 				     const StateFormula& f2);
 /* Returns a probabilistic path quantification. */
-static StateFormula* make_probabilistic(const Rational* p,
+static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
 					const PathFormula& f);
 /* Returns an until formula. */
 static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
-			       const Rational* t1, const Rational* t2);
+			       const TypedValue* t1, const TypedValue* t2);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression& expr);
 /* Returns the value of the given synchronization. */
@@ -173,7 +173,7 @@ static void compile_model();
 %}
 
 %token STOCHASTIC CTMC
-%token CONST_TOKEN INT DOUBLE RATE GLOBAL INIT
+%token CONST_TOKEN INT_TOKEN DOUBLE RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
 %token EXP
 %token REWARDS ENDREWARDS
@@ -198,7 +198,7 @@ static void compile_model();
   Range range;
   int nat;
   const std::string* str;
-  const Rational* num;
+  const TypedValue* num;
 }
 
 %type <synch> synchronization
@@ -241,8 +241,8 @@ declarations : /* empty */
 
 declaration : CONST_TOKEN NAME ';' { declare_constant($2, NULL); }
             | CONST_TOKEN NAME '=' const_expr ';' { declare_constant($2, $4); }
-            | CONST_TOKEN INT NAME ';' { declare_constant($3, NULL); }
-            | CONST_TOKEN INT NAME '=' const_expr ';'
+            | CONST_TOKEN INT_TOKEN NAME ';' { declare_constant($3, NULL); }
+            | CONST_TOKEN INT_TOKEN NAME '=' const_expr ';'
                 { declare_constant($3, $5); }
             | RATE NAME ';' { declare_rate($2, NULL); }
             | RATE NAME '=' const_rate_expr ';' { declare_rate($2, $4); }
@@ -527,15 +527,13 @@ static void check_undeclared() {
 }
 
 
-/* Returns the numerator of the given rational, signaling an error if
-   the denominator is not 1. */
-static int integer_value(const Rational* q) {
+static int integer_value(const TypedValue* q) {
   int n;
-  if (q->denominator() != 1) {
+  if (q->type() != TypedValue::INT) {
     yyerror("expecting integer");
     n = 0;
   } else {
-    n = q->numerator();
+    n = q->value<int>();
   }
   delete q;
   return n;
@@ -617,7 +615,7 @@ static const Literal* make_literal(int n) {
 }
 
 
-static const Literal* make_literal(const Rational* q) {
+static const Literal* make_literal(const TypedValue* q) {
   const Literal* v = new Literal(*q);
   delete q;
   return v;
@@ -630,7 +628,7 @@ static const Expression* value_or_variable(const std::string* ident) {
     constants.find(*ident);
   if (ci != constants.end()) {
     delete ident;
-    return new Literal(constant_values[(*ci).second]);
+    return new Literal(constant_values.find((*ci).second)->second);
   } else {
     Variable* v;
     std::map<std::string, Variable*>::const_iterator vi =
@@ -699,7 +697,7 @@ static Disjunction* make_disjunction(StateFormula& f1,
 
 
 /* Returns a probabilistic path quantification. */
-static StateFormula* make_probabilistic(const Rational* p,
+static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
 					const PathFormula& f) {
   if (*p < 0 || *p > 1) {
@@ -717,7 +715,7 @@ static StateFormula* make_probabilistic(const Rational* p,
 
 /* Returns an until formula. */
 static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
-			       const Rational* t1, const Rational* t2) {
+			       const TypedValue* t1, const TypedValue* t2) {
   const Until* until;
   if (t1 == NULL) {
     if (*t2 < 0) {
@@ -815,7 +813,7 @@ static void declare_constant(const std::string* ident,
     yyerror("ignoring declaration of constant `" + *ident
 	    + "' previously declared as synchronization");
   } else {
-    std::map<std::string, Rational>::iterator override =
+    std::map<std::string, TypedValue>::iterator override =
         const_overrides.find(*ident);
     if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized constant `" + *ident + "'");
@@ -827,7 +825,7 @@ static void declare_constant(const std::string* ident,
     constants.insert(std::make_pair(*ident, v));
     const int value =
         ((override != const_overrides.end()) ?
-         override->second : value_expr->value(constant_values)).numerator();
+         override->second : value_expr->value(constant_values)).value<int>();
     rate_values.insert(std::make_pair(v, value));
     constant_values.insert(std::make_pair(v, value));
   }
@@ -851,7 +849,7 @@ static void declare_rate(const std::string* ident,
     yyerror("ignoring declaration of rate `" + *ident
 	    + "' previously declared as synchronization");
   } else {
-    std::map<std::string, Rational>::iterator override =
+    std::map<std::string, TypedValue>::iterator override =
         const_overrides.find(*ident);
     if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized rate `" + *ident + "'");
@@ -860,7 +858,7 @@ static void declare_rate(const std::string* ident,
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
     rates.insert(std::make_pair(*ident, v));
-    const Rational value = (override != const_overrides.end()) ?
+    const TypedValue value = (override != const_overrides.end()) ?
         override->second : value_expr->value(rate_values);
     rate_values.insert(std::make_pair(v, value));
   }
@@ -890,11 +888,11 @@ static const Variable* declare_variable(const std::string* ident,
     if (vi != variables.end()) {
       if (undeclared.find(*ident) != undeclared.end()) {
 	v = (*vi).second;
-	int low = range.l->value(constant_values).numerator();
+	int low = range.l->value(constant_values).value<int>();
 	v->set_low(low);
-	v->set_high(range.h->value(constant_values).numerator());
+	v->set_high(range.h->value(constant_values).value<int>());
 	if (start != NULL) {
-	  v->set_start(start->value(constant_values).numerator());
+	  v->set_start(start->value(constant_values).value<int>());
 	} else {
 	  v->set_start(low);
 	}
@@ -904,10 +902,10 @@ static const Variable* declare_variable(const std::string* ident,
 	yyerror("ignoring repeated declaration of variable `" + *ident + "'");
       }
     } else {
-      int low = range.l->value(constant_values).numerator();
+      int low = range.l->value(constant_values).value<int>();
       int s = ((start != NULL)
-	       ? start->value(constant_values).numerator() : low);
-      v = new Variable(low, range.h->value(constant_values).numerator(), s,
+	       ? start->value(constant_values).value<int>() : low);
+      v = new Variable(low, range.h->value(constant_values).value<int>(), s,
 		       num_model_bits);
     }
   }

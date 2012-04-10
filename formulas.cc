@@ -536,7 +536,7 @@ void Implication::print(std::ostream& os) const {
 /* Probabilistic */
 
 /* Constructs a probabilistic path quantification. */
-Probabilistic::Probabilistic(const Rational& threshold, bool strict,
+Probabilistic::Probabilistic(const TypedValue& threshold, bool strict,
 			     const PathFormula& formula)
   : threshold_(threshold), strict_(strict), formula_(&formula) {
   PathFormula::ref(formula_);
@@ -671,7 +671,7 @@ DdNode* LessThan::bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr2().mtbdd(dd_man);
     dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -680,7 +680,7 @@ DdNode* LessThan::bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr1().mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -711,7 +711,7 @@ DdNode* LessThan::primed_bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr2().primed_mtbdd(dd_man);
     dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -720,7 +720,7 @@ DdNode* LessThan::primed_bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr1().primed_mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -798,7 +798,7 @@ DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr2().mtbdd(dd_man);
     dd = Cudd_addBddThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -807,7 +807,7 @@ DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr1().mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -838,7 +838,7 @@ DdNode* LessThanOrEqual::primed_bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr2().primed_mtbdd(dd_man);
     dd = Cudd_addBddThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -847,7 +847,7 @@ DdNode* LessThanOrEqual::primed_bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr1().primed_mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -925,7 +925,7 @@ DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 >= value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
     dd = Cudd_addBddThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -934,7 +934,7 @@ DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -965,7 +965,7 @@ DdNode* GreaterThanOrEqual::primed_bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 >= value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
     dd = Cudd_addBddThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -974,7 +974,7 @@ DdNode* GreaterThanOrEqual::primed_bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -1050,7 +1050,7 @@ DdNode* GreaterThan::bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 > value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
     dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -1059,7 +1059,7 @@ DdNode* GreaterThan::bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -1090,7 +1090,7 @@ DdNode* GreaterThan::primed_bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 > value */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
     dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
     Cudd_Ref(dd);
@@ -1099,7 +1099,7 @@ DdNode* GreaterThan::primed_bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
       DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
       Cudd_Ref(ddf);
@@ -1174,7 +1174,7 @@ DdNode* Equality::bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
     dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
     Cudd_Ref(dd);
@@ -1183,7 +1183,7 @@ DdNode* Equality::bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
       dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
       Cudd_Ref(dd);
@@ -1211,7 +1211,7 @@ DdNode* Equality::primed_bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
     dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
     Cudd_Ref(dd);
@@ -1220,7 +1220,7 @@ DdNode* Equality::primed_bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
       dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
       Cudd_Ref(dd);
@@ -1293,7 +1293,7 @@ DdNode* Inequality::bdd(DdManager* dd_man) const {
   DdNode* ddf;
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
     ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
     Cudd_Ref(ddf);
@@ -1302,7 +1302,7 @@ DdNode* Inequality::bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
       ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
       Cudd_Ref(ddf);
@@ -1333,7 +1333,7 @@ DdNode* Inequality::primed_bdd(DdManager* dd_man) const {
   DdNode* ddf;
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
     ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
     Cudd_Ref(ddf);
@@ -1342,7 +1342,7 @@ DdNode* Inequality::primed_bdd(DdManager* dd_man) const {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
-      double threshold = value->value().double_value();
+      double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
       ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
       Cudd_Ref(ddf);
@@ -1378,7 +1378,7 @@ void Inequality::print(std::ostream& os) const {
 
 /* Constructs an until formula. */
 Until::Until(const StateFormula& pre, const StateFormula& post,
-	     const Rational& min_time, const Rational& max_time)
+	     const TypedValue& min_time, const TypedValue& max_time)
   : pre_(&pre), post_(&post), min_time_(min_time), max_time_(max_time) {
   StateFormula::ref(pre_);
   StateFormula::ref(post_);

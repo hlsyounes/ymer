@@ -94,7 +94,7 @@ const Expression& Addition::make(const Expression& term1,
   return *new Addition(term1, term2);
 }
 
-Rational Addition::value(const ValueMap& values) const {
+TypedValue Addition::value(const ValueMap& values) const {
   return operand1().value(values) + operand2().value(values);
 }
 
@@ -166,7 +166,7 @@ const Expression& Subtraction::make(const Expression& term1,
   return *new Subtraction(term1, term2);
 }
 
-Rational Subtraction::value(const ValueMap& values) const {
+TypedValue Subtraction::value(const ValueMap& values) const {
   return operand1().value(values) - operand2().value(values);
 }
 
@@ -249,7 +249,7 @@ const Expression& Multiplication::make(const Expression& factor1,
   return *new Multiplication(factor1, factor2);
 }
 
-Rational Multiplication::value(const ValueMap& values) const {
+TypedValue Multiplication::value(const ValueMap& values) const {
   return operand1().value(values) * operand2().value(values);
 }
 
@@ -343,7 +343,7 @@ const Expression& Division::make(const Expression& factor1,
   return *new Division(factor1, factor2);
 }
 
-Rational Division::value(const ValueMap& values) const {
+TypedValue Division::value(const ValueMap& values) const {
   return operand1().value(values) / operand2().value(values);
 }
 
@@ -451,7 +451,7 @@ void Variable::set_low_bit(int low_bit) {
   high_bit_ = low_bit_ + nbits - 1;
 }
 
-Rational Variable::value(const ValueMap& values) const {
+TypedValue Variable::value(const ValueMap& values) const {
   ValueMap::const_iterator vi = values.find(this);
   if (vi != values.end()) {
     return (*vi).second;
@@ -609,7 +609,7 @@ void Variable::print(std::ostream& os) const {
   }
 }
 
-Literal::Literal(const Rational& value)
+Literal::Literal(const TypedValue& value)
     : value_(value) {
 }
 
@@ -620,7 +620,7 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
 }
 
-Rational Literal::value(const ValueMap& values) const {
+TypedValue Literal::value(const ValueMap& values) const {
   return value();
 }
 
@@ -633,13 +633,13 @@ const Literal& Literal::substitution(const SubstitutionMap& subst) const {
 }
 
 DdNode* Literal::mtbdd(DdManager* dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
+  DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
 }
 
 DdNode* Literal::primed_mtbdd(DdManager* dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man, value().double_value());
+  DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
 }

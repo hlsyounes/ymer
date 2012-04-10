@@ -42,7 +42,7 @@
      STOCHASTIC = 258,
      CTMC = 259,
      CONST_TOKEN = 260,
-     INT = 261,
+     INT_TOKEN = 261,
      DOUBLE = 262,
      RATE = 263,
      GLOBAL = 264,
@@ -72,7 +72,7 @@
 #define STOCHASTIC 258
 #define CTMC 259
 #define CONST_TOKEN 260
-#define INT 261
+#define INT_TOKEN 261
 #define DOUBLE 262
 #define RATE 263
 #define GLOBAL 264
@@ -115,7 +115,7 @@ typedef union YYSTYPE
   Range range;
   int nat;
   const std::string* str;
-  const Rational* num;
+  const TypedValue* num;
 
 
 
