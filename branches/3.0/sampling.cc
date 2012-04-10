@@ -402,7 +402,7 @@ double Probabilistic::effort(const Model& model, const State& state,
 			     double alphap, double betap,
 			     SamplingAlgorithm algorithm) const {
   double p0, p1;
-  double theta = threshold().double_value();
+  double theta = threshold().value<double>();
   double nested_effort;
   if (formula().probabilistic()) {
     double r = 0.5*(sqrt(5) - 1.0);
@@ -459,7 +459,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 			   DeltaFun delta, double alpha, double beta,
 			   SamplingAlgorithm algorithm) const {
   double p0, p1;
-  double theta = threshold().double_value();
+  double theta = threshold().value<double>();
   double alphap;
   double betap;
   if (formula().probabilistic()) {
@@ -941,8 +941,8 @@ double Until::effort(const Model& model, const State& state,
 		     double q, DeltaFun delta, double alpha, double beta,
 		     double alphap, double betap,
 		     SamplingAlgorithm algorithm) const {
-  double a = max_time().double_value();
-  double b = (max_time() - min_time()).double_value();
+  double a = max_time().value<double>();
+  double b = (max_time() - min_time()).value<double>();
   return q*(a*pre().effort(model, state, q,
 			   delta, alpha, beta, alphap, betap, algorithm)
 	    + b*post().effort(model, state, q,
@@ -956,8 +956,8 @@ bool Until::sample(const Model& model, const State& state,
 		   SamplingAlgorithm algorithm) const {
   double t = 0.0;
   const State* curr_state = &state;
-  double t_min = min_time().double_value();
-  double t_max = max_time().double_value();
+  double t_min = min_time().value<double>();
+  double t_max = max_time().value<double>();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
   while (!done && path_length < max_path_length) {
@@ -1030,11 +1030,11 @@ bool Until::sample(const Model& model, const State& state,
 
 /* Verifies this path formula using the mixed engine. */
 bool Until::verify(DdManager* dd_man, const Model& model,
-		   const State& state, const Rational& p, bool strict,
+		   const State& state, const TypedValue& p, bool strict,
 		   DeltaFun delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm,
 		   double epsilon) const {
-  double theta = p.double_value();
+  double theta = p.value<double>();
   double p0 = std::min(1.0, theta + (*delta)(theta));
   double p1 = std::max(0.0, theta - (*delta)(theta));
 

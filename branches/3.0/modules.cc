@@ -63,7 +63,7 @@ DdNode* Update::bdd(DdManager* dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr());
   if (value != NULL) {
     /* variable' == value  <==>  variable' in [value,value] */
-    double threshold = value->value().double_value();
+    double threshold = value->value().value<double>();
     ddu = Cudd_addBddInterval(dd_man, ddv, threshold, threshold);
     Cudd_Ref(ddu);
     Cudd_RecursiveDeref(dd_man, ddv);

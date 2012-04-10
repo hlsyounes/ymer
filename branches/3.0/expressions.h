@@ -30,12 +30,12 @@
 
 #include "cudd.h"
 
-#include "rational.h"
+#include "src/typed-value.h"
 
 class Variable;
 
 // A mapping from variables to values.
-typedef std::map<const Variable*, Rational> ValueMap;
+typedef std::map<const Variable*, TypedValue> ValueMap;
 
 // A variable substitution map.
 typedef std::map<const Variable*, const Variable*> SubstitutionMap;
@@ -68,7 +68,7 @@ class Expression {
   void Accept(ExpressionVisitor* visitor) const;
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const = 0;
+  virtual TypedValue value(const ValueMap& values) const = 0;
 
   // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const = 0;
@@ -152,7 +152,7 @@ class Addition : public Computation {
                                 const Expression& term2);
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const;
+  virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
@@ -184,7 +184,7 @@ class Subtraction : public Computation {
                                 const Expression& term2);
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const;
+  virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
@@ -216,7 +216,7 @@ class Multiplication : public Computation {
                                 const Expression& factor2);
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const;
+  virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
@@ -249,7 +249,7 @@ class Division : public Computation {
                                 const Expression& factor2);
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const;
+  virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
@@ -311,7 +311,7 @@ class Variable : public Expression {
   int high_bit() const { return high_bit_; }
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const;
+  virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(const ValueMap& values) const;
@@ -364,15 +364,15 @@ private:
 class Literal : public Expression {
  public:
   // Constructs a literal that represents the given value.
-  Literal(const Rational& value);
+  Literal(const TypedValue& value);
 
   virtual ~Literal();
 
   // Returns the value of this literal.
-  const Rational& value() const { return value_; }
+  const TypedValue& value() const { return value_; }
 
   // Returns the value of this expression.
-  virtual Rational value(const ValueMap& values) const;
+  virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Literal& substitution(const ValueMap& values) const;
@@ -393,7 +393,7 @@ private:
   virtual void print(std::ostream& os) const;
 
   // The value.
-  Rational value_;
+  TypedValue value_;
 };
 
 // Abstract base class for expression visitors.

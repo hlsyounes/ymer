@@ -149,7 +149,7 @@ static DdNode* state_bdd(DdManager* dd_man, const ValueMap& values) {
   for (ValueMap::const_iterator vi = values.begin();
        vi != values.end(); vi++) {
     DdNode* ddv = (*vi).first->mtbdd(dd_man);
-    double x = (*vi).second.double_value();
+    double x = (*vi).second.value<double>();
     DdNode* ddx = Cudd_addBddInterval(dd_man, ddv, x, x);
     Cudd_Ref(ddx);
     Cudd_RecursiveDeref(dd_man, ddv);
@@ -170,7 +170,7 @@ bool Until::sample(DdManager* dd_man, const Model& model, const State& state,
   size_t path_size = 1;
   const State* curr_state = &state;
   bool result = false;
-  double t_max = max_time().double_value();
+  double t_max = max_time().value<double>();
   while (true) {
     if (t <= t_max) {
       DdNode* dds = NULL;

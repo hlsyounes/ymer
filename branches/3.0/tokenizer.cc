@@ -578,7 +578,9 @@ char *yytext;
  */
 #line 26 "tokenizer.ll"
 #include <config.h>
-#include "rational.h"
+#include "src/typed-value.h"
+#include <cstdlib>
+#include <stdexcept>
 #include <string>
 
 struct StateFormula;
@@ -600,7 +602,7 @@ static int make_string(const char* s, int token);
 /* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s);
 
-#line 604 "tokenizer.cc"
+#line 606 "tokenizer.cc"
 
 #define INITIAL 0
 
@@ -785,10 +787,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 55 "tokenizer.ll"
+#line 57 "tokenizer.ll"
 
 
-#line 792 "tokenizer.cc"
+#line 794 "tokenizer.cc"
 
 	if ( !(yy_init) )
 		{
@@ -869,137 +871,137 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 57 "tokenizer.ll"
+#line 59 "tokenizer.ll"
 return STOCHASTIC;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 58 "tokenizer.ll"
+#line 60 "tokenizer.ll"
 return CTMC;
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 59 "tokenizer.ll"
+#line 61 "tokenizer.ll"
 return CONST_TOKEN;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 60 "tokenizer.ll"
-return INT;
+#line 62 "tokenizer.ll"
+return INT_TOKEN;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 61 "tokenizer.ll"
+#line 63 "tokenizer.ll"
 return DOUBLE;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 62 "tokenizer.ll"
+#line 64 "tokenizer.ll"
 return RATE;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 63 "tokenizer.ll"
+#line 65 "tokenizer.ll"
 return GLOBAL;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 64 "tokenizer.ll"
+#line 66 "tokenizer.ll"
 return MODULE;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 65 "tokenizer.ll"
+#line 67 "tokenizer.ll"
 return ENDMODULE;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 66 "tokenizer.ll"
+#line 68 "tokenizer.ll"
 return INIT;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 67 "tokenizer.ll"
+#line 69 "tokenizer.ll"
 return REWARDS;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 68 "tokenizer.ll"
+#line 70 "tokenizer.ll"
 return ENDREWARDS;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 69 "tokenizer.ll"
+#line 71 "tokenizer.ll"
 return TRUE_TOKEN;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 70 "tokenizer.ll"
+#line 72 "tokenizer.ll"
 return FALSE_TOKEN;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 71 "tokenizer.ll"
+#line 73 "tokenizer.ll"
 return EXP;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 72 "tokenizer.ll"
+#line 74 "tokenizer.ll"
 return yytext[0];
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 73 "tokenizer.ll"
+#line 75 "tokenizer.ll"
 return make_string(yytext, PNAME);
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 74 "tokenizer.ll"
+#line 76 "tokenizer.ll"
 return make_string(yytext, NAME);
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 75 "tokenizer.ll"
+#line 77 "tokenizer.ll"
 return LABEL_NAME;
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 76 "tokenizer.ll"
+#line 78 "tokenizer.ll"
 return make_number(yytext);
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 77 "tokenizer.ll"
+#line 79 "tokenizer.ll"
 return ARROW;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 78 "tokenizer.ll"
+#line 80 "tokenizer.ll"
 return IMPLY;
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 79 "tokenizer.ll"
+#line 81 "tokenizer.ll"
 return LTE;
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 80 "tokenizer.ll"
+#line 82 "tokenizer.ll"
 return GTE;
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 81 "tokenizer.ll"
+#line 83 "tokenizer.ll"
 return NEQ;
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 82 "tokenizer.ll"
+#line 84 "tokenizer.ll"
 return DOTDOT;
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 83 "tokenizer.ll"
+#line 85 "tokenizer.ll"
 return yytext[0];
 	YY_BREAK
 case 28:
@@ -1007,31 +1009,31 @@ case 28:
 (yy_c_buf_p) = yy_cp -= 1;
 YY_DO_BEFORE_ACTION; /* set up yytext again */
 YY_RULE_SETUP
-#line 84 "tokenizer.ll"
+#line 86 "tokenizer.ll"
 /* comment */
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 85 "tokenizer.ll"
+#line 87 "tokenizer.ll"
 /* whitespace */
 	YY_BREAK
 case 30:
 /* rule 30 can match eol */
 YY_RULE_SETUP
-#line 86 "tokenizer.ll"
+#line 88 "tokenizer.ll"
 line_number++;
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 87 "tokenizer.ll"
+#line 89 "tokenizer.ll"
 return ILLEGAL_TOKEN;
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 89 "tokenizer.ll"
+#line 91 "tokenizer.ll"
 ECHO;
 	YY_BREAK
-#line 1035 "tokenizer.cc"
+#line 1037 "tokenizer.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1989,7 +1991,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 89 "tokenizer.ll"
+#line 91 "tokenizer.ll"
 
 
 
@@ -2009,7 +2011,26 @@ static int make_string(const char* s, int token) {
 
 /* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s) {
-  yylval.num = new Rational(s);
+  const char* si = s;
+  int numerator = 0;
+  for (; *si != '\0' && *si != '.' && *si != '/'; si++) {
+    numerator = 10*numerator + (*si - '0');
+  }
+  if (*si == '/') {
+    int denominator = 0;
+    for (si++; *si != '\0'; si++) {
+      denominator = 10*denominator + (*si - '0');
+    }
+    if (denominator == 0) {
+      throw std::invalid_argument("division by zero");
+    }
+    yylval.num =
+        new TypedValue(static_cast<double>(numerator) / denominator);
+  } else if (*si == '.') {
+    yylval.num = new TypedValue(atof(s));
+  } else {
+    yylval.num = new TypedValue(numerator);
+  }
   return NUMBER;
 }
 

@@ -24,7 +24,9 @@
  */
 %{
 #include <config.h>
-#include "rational.h"
+#include "src/typed-value.h"
+#include <cstdlib>
+#include <stdexcept>
 #include <string>
 
 struct StateFormula;
@@ -57,7 +59,7 @@ IDENT	[A-Za-z]([A-Za-z0-9_])*
 stochastic		return STOCHASTIC;
 ctmc                    return CTMC;
 const			return CONST_TOKEN;
-int                     return INT;
+int                     return INT_TOKEN;
 double                  return DOUBLE;
 rate			return RATE;
 global			return GLOBAL;
@@ -104,6 +106,25 @@ static int make_string(const char* s, int token) {
 
 /* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s) {
-  yylval.num = new Rational(s);
+  const char* si = s;
+  int numerator = 0;
+  for (; *si != '\0' && *si != '.' && *si != '/'; si++) {
+    numerator = 10*numerator + (*si - '0');
+  }
+  if (*si == '/') {
+    int denominator = 0;
+    for (si++; *si != '\0'; si++) {
+      denominator = 10*denominator + (*si - '0');
+    }
+    if (denominator == 0) {
+      throw std::invalid_argument("division by zero");
+    }
+    yylval.num =
+        new TypedValue(static_cast<double>(numerator) / denominator);
+  } else if (*si == '.') {
+    yylval.num = new TypedValue(atof(s));
+  } else {
+    yylval.num = new TypedValue(numerator);
+  }
   return NUMBER;
 }
