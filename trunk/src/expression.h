@@ -94,9 +94,6 @@ private:
 
   virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
 
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const = 0;
-
   // Reference counter.
   mutable int ref_count_;
 
@@ -169,9 +166,6 @@ class Addition : public Computation {
 private:
   // Constructs an addition.
   Addition(const Expression& term1, const Expression& term2);
-
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const;
 };
 
 // A subtraction expression.
@@ -201,9 +195,6 @@ class Subtraction : public Computation {
 private:
   // Constructs a subtraction.
   Subtraction(const Expression& term1, const Expression& term2);
-
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const;
 };
 
 // A multiplication expression.
@@ -234,9 +225,6 @@ class Multiplication : public Computation {
 private:
   // Constructs a multiplication.
   Multiplication(const Expression& factor1, const Expression& factor2);
-
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const;
 };
 
 // A division expression.
@@ -266,9 +254,6 @@ class Division : public Computation {
 private:
   // Constructs a division.
   Division(const Expression& factor1, const Expression& factor2);
-
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const;
 };
 
 // A variable expression.
@@ -338,9 +323,6 @@ class Variable : public Expression {
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const;
-
   // The lower bound for this variable.
   int low_;
   // The upper bound for this variable.
@@ -388,9 +370,6 @@ class Literal : public Expression {
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
-
-  // Prints this object on the given stream.
-  virtual void print(std::ostream& os) const;
 
   // The value.
   TypedValue value_;

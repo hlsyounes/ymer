@@ -48,8 +48,84 @@ void Expression::destructive_deref(const Expression* e) {
   }
 }
 
+namespace {
+
+// An expression visitor that prints an expression to an output stream.
+class ExpressionPrinter : public ExpressionVisitor {
+ public:
+  explicit ExpressionPrinter(std::ostream* os);
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  std::ostream* os_;
+  std::set<Computation::Operator> need_parentheses_;
+};
+
+ExpressionPrinter::ExpressionPrinter(std::ostream* os)
+    : os_(os) {
+}
+
+void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
+  *os_ << expr.value();
+}
+
+void ExpressionPrinter::DoVisitVariable(const Variable& expr) {
+  *os_ << 'v' << expr.low_bit();
+  if (expr.low_bit() != expr.high_bit()) {
+    *os_ << '_' << expr.high_bit();
+  }
+}
+
+void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
+  std::set<Computation::Operator> need_parentheses;
+  swap(need_parentheses_, need_parentheses);
+  const bool outer = need_parentheses.find(expr.op()) != need_parentheses.end();
+  if (outer) {
+    *os_ << '(';
+  }
+  if (expr.op() == Computation::MULTIPLY || expr.op() == Computation::DIVIDE) {
+    need_parentheses_.insert(Computation::PLUS);
+    need_parentheses_.insert(Computation::MINUS);
+  }
+  expr.operand1().Accept(this);
+  switch (expr.op()) {
+    case Computation::MULTIPLY:
+      *os_ << '*';
+      break;
+    case Computation::DIVIDE:
+      *os_ << '/';
+      break;
+    case Computation::PLUS:
+      *os_ << '+';
+      break;
+    case Computation::MINUS:
+      *os_ << '-';
+      break;
+  }
+  need_parentheses_.clear();
+  if (expr.op() != Computation::PLUS) {
+    need_parentheses_.insert(Computation::PLUS);
+    need_parentheses_.insert(Computation::MINUS);
+  }
+  if (expr.op() == Computation::DIVIDE) {
+    need_parentheses_.insert(Computation::MULTIPLY);
+    need_parentheses_.insert(Computation::DIVIDE);
+  }
+  expr.operand2().Accept(this);
+  if (outer) {
+    *os_ << ')';
+  }
+  swap(need_parentheses_, need_parentheses);
+}
+
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, const Expression& e) {
-  e.print(os);
+  ExpressionPrinter printer(&os);
+  e.Accept(&printer);
   return os;
 }
 
@@ -138,10 +214,6 @@ DdNode* Addition::primed_mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-void Addition::print(std::ostream& os) const {
-  os << operand1() << '+' << operand2();
-}
-
 Subtraction::Subtraction(const Expression& term1, const Expression& term2)
     : Computation(MINUS, term1, term2) {
 }
@@ -209,19 +281,6 @@ DdNode* Subtraction::primed_mtbdd(DdManager* dd_man) const {
   Cudd_RecursiveDeref(dd_man, dd1);
   Cudd_RecursiveDeref(dd_man, dd2);
   return ddc;
-}
-
-void Subtraction::print(std::ostream& os) const {
-  os << operand1() << '-';
-  bool par = (typeid(operand2()) == typeid(Addition)
-              || typeid(operand2()) == typeid(Subtraction));
-  if (par) {
-    os << '(';
-  }
-  os << operand2();
-  if (par) {
-    os << ')';
-  }
 }
 
 Multiplication::Multiplication(const Expression& factor1,
@@ -294,28 +353,6 @@ DdNode* Multiplication::primed_mtbdd(DdManager* dd_man) const {
   return ddc;
 }
 
-void Multiplication::print(std::ostream& os) const {
-  bool par = (typeid(operand1()) == typeid(Addition)
-              || typeid(operand1()) == typeid(Subtraction));
-  if (par) {
-    os << '(';
-  }
-  os << operand1();
-  if (par) {
-    os << ')';
-  }
-  os << '*';
-  par = (typeid(operand2()) == typeid(Addition)
-         || typeid(operand2()) == typeid(Subtraction));
-  if (par) {
-    os << '(';
-  }
-  os << operand2();
-  if (par) {
-    os << ')';
-  }
-}
-
 Division::Division(const Expression& factor1, const Expression& factor2)
     : Computation(DIVIDE, factor1, factor2) {
 }
@@ -385,30 +422,6 @@ DdNode* Division::primed_mtbdd(DdManager* dd_man) const {
   Cudd_RecursiveDeref(dd_man, dd1);
   Cudd_RecursiveDeref(dd_man, dd2);
   return ddc;
-}
-
-void Division::print(std::ostream& os) const {
-  bool par = (typeid(operand1()) == typeid(Addition)
-              || typeid(operand1()) == typeid(Subtraction));
-  if (par) {
-    os << '(';
-  }
-  os << operand1();
-  if (par) {
-    os << ')';
-  }
-  os << '/';
-  par = (typeid(operand2()) == typeid(Addition)
-         || typeid(operand2()) == typeid(Subtraction)
-         || typeid(operand2()) == typeid(Multiplication)
-         || typeid(operand2()) == typeid(Division));
-  if (par) {
-    os << '(';
-  }
-  os << operand2();
-  if (par) {
-    os << ')';
-  }
 }
 
 Variable::Variable()
@@ -602,13 +615,6 @@ void Variable::uncache_dds(DdManager* dd_man) const {
   }
 }
 
-void Variable::print(std::ostream& os) const {
-  os << 'v' << low_bit();
-  if (low_bit() != high_bit()) {
-    os << '_' << high_bit();
-  }
-}
-
 Literal::Literal(const TypedValue& value)
     : value_(value) {
 }
@@ -642,10 +648,6 @@ DdNode* Literal::primed_mtbdd(DdManager* dd_man) const {
   DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
-}
-
-void Literal::print(std::ostream& os) const {
-  os << value();
 }
 
 ExpressionVisitor::ExpressionVisitor() {
