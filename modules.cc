@@ -22,7 +22,7 @@
 #include "modules.h"
 #include "distributions.h"
 #include "formulas.h"
-#include "expressions.h"
+#include "src/expression.h"
 
 
 /* ====================================================================== */

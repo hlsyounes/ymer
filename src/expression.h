@@ -20,8 +20,8 @@
 // A class hierarchy for representing expressions that supports the visitor
 // pattern.
 
-#ifndef EXPRESSIONS_H_
-#define EXPRESSIONS_H_
+#ifndef EXPRESSION_H_
+#define EXPRESSION_H_
 
 #include <map>
 #include <ostream>
@@ -30,7 +30,7 @@
 
 #include "cudd.h"
 
-#include "src/typed-value.h"
+#include "typed-value.h"
 
 class Variable;
 
@@ -421,4 +421,4 @@ typedef std::vector<const Variable*> VariableList;
 // A set of variables.
 typedef std::set<const Variable*> VariableSet;
 
-#endif  // EXPRESSIONS_H_
+#endif  // EXPRESSION_H_

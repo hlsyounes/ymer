@@ -26,7 +26,7 @@
 #define STATES_H
 
 #include <config.h>
-#include "expressions.h"
+#include "src/expression.h"
 
 struct Command;
 struct Model;

@@ -20,7 +20,7 @@
  * $Id: distributions.cc,v 2.1 2004-01-25 12:19:50 lorens Exp $
  */
 #include "distributions.h"
-#include "expressions.h"
+#include "src/expression.h"
 #include <cmath>
 
 
