@@ -25,7 +25,7 @@
 #define FORMULAS_H
 
 #include <config.h>
-#include "expressions.h"
+#include "src/expression.h"
 #include <cudd.h>
 #include <deque>
 

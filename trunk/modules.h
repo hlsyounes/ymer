@@ -26,7 +26,7 @@
 #define MODULES_H
 
 #include <config.h>
-#include "expressions.h"
+#include "src/expression.h"
 
 struct StateFormula;
 struct Distribution;

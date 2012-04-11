@@ -26,7 +26,7 @@
 #define DISTRIBUTIONS_H
 
 #include <config.h>
-#include "expressions.h"
+#include "src/expression.h"
 #include "rng.h"
 #include <iostream>
 #include <vector>

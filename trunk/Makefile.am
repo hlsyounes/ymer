@@ -93,13 +93,18 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 noinst_LTLIBRARIES += src/libtyped-value.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 
+# Expression library.
+noinst_LTLIBRARIES += src/libexpression.la
+src_libexpression_la_SOURCES = src/expression.h src/expression.cc
+src_libexpression_la_LIBADD = cudd/cudd/libcudd.la src/libtyped-value.la
+
 #
 # Ymer binaries.
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h expressions.cc expressions.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la src/libtyped-value.la
+ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
+ymer_LDADD = cudd/cudd/libcudd.la src/libtyped-value.la src/libexpression.la
 
 #
 # Ymer tests.
@@ -118,6 +123,11 @@ check_PROGRAMS =
 check_PROGRAMS += src/typed-value_test
 src_typed_value_test_SOURCES = src/typed-value_test.cc
 src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
+
+# Test for expression library.
+check_PROGRAMS += src/expression_test
+src_expression_test_SOURCES = src/expression_test.cc
+src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal
