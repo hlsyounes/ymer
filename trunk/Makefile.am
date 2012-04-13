@@ -19,7 +19,7 @@
 ## along with Ymer; if not, write to the Free Software Foundation,
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-SUBDIRS = gtest
+SUBDIRS = glog gtest
 
 noinst_LTLIBRARIES =
 
@@ -89,6 +89,11 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 # Ymer libraries.
 #
 
+# Decision diagram utility library.
+noinst_LTLIBRARIES += src/libddutil.la
+src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
+src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
+
 # Typed-value library.
 noinst_LTLIBRARIES += src/libtyped-value.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
@@ -97,6 +102,7 @@ src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 noinst_LTLIBRARIES += src/libexpression.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = cudd/cudd/libcudd.la src/libtyped-value.la
+
 
 #
 # Ymer binaries.
@@ -119,6 +125,11 @@ src_libtest_main_la_LIBADD = gtest/lib/libgtest.la
 
 check_PROGRAMS =
 
+# Test for decision diagram utility library.
+check_PROGRAMS += src/ddutil_test
+src_ddutil_test_SOURCES = src/ddutil_test.cc
+src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
+
 # Test for typed-value library.
 check_PROGRAMS += src/typed-value_test
 src_typed_value_test_SOURCES = src/typed-value_test.cc
@@ -138,7 +149,7 @@ EXTRA_DIST = cudd examples scripts
 CLEANFILES = core
 
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/gtest/include
+    -I$(srcdir)/glog/src -I$(builddir)/glog/src -I$(srcdir)/gtest/include
 AM_YFLAGS = -d
 
 ACLOCAL_AMFLAGS = -I m4
