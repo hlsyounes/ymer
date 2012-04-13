@@ -36,8 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-check_PROGRAMS = src/typed-value_test$(EXEEXT) \
-	src/expression_test$(EXEEXT)
+check_PROGRAMS = src/ddutil_test$(EXEEXT) \
+	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
@@ -146,6 +146,9 @@ am_cudd_util_libutil_la_OBJECTS = cudd_util_libutil_la-cpu_time.lo \
 	cudd_util_libutil_la-stub.lo cudd_util_libutil_la-tmpfile.lo \
 	cudd_util_libutil_la-datalimit.lo
 cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
+src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
+am_src_libddutil_la_OBJECTS = ddutil.lo
+src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
 src_libexpression_la_DEPENDENCIES = cudd/cudd/libcudd.la \
 	src/libtyped-value.la
 am_src_libexpression_la_OBJECTS = expression.lo
@@ -158,6 +161,9 @@ am_src_libtyped_value_la_OBJECTS = typed-value.lo
 src_libtyped_value_la_OBJECTS = $(am_src_libtyped_value_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
+am_src_ddutil_test_OBJECTS = ddutil_test.$(OBJEXT)
+src_ddutil_test_OBJECTS = $(am_src_ddutil_test_OBJECTS)
+src_ddutil_test_DEPENDENCIES = src/libddutil.la src/libtest-main.la
 am_src_expression_test_OBJECTS = expression_test.$(OBJEXT)
 src_expression_test_OBJECTS = $(am_src_expression_test_OBJECTS)
 src_expression_test_DEPENDENCIES = src/libexpression.la \
@@ -206,15 +212,17 @@ LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libexpression_la_SOURCES) $(src_libtest_main_la_SOURCES) \
-	$(src_libtyped_value_la_SOURCES) \
+	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) \
+	$(src_libtyped_value_la_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_typed_value_test_SOURCES) \
 	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(src_libexpression_la_SOURCES) $(src_libtest_main_la_SOURCES) \
-	$(src_libtyped_value_la_SOURCES) \
+	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) \
+	$(src_libtyped_value_la_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_typed_value_test_SOURCES) \
 	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
@@ -392,7 +400,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = gtest
+SUBDIRS = glog gtest
 
 # The main CUDD library.
 
@@ -408,12 +416,14 @@ SUBDIRS = gtest
 # Ymer libraries.
 #
 
+# Decision diagram utility library.
+
 # Typed-value library.
 
 # Expression library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
-	src/libtyped-value.la src/libexpression.la
+	src/libddutil.la src/libtyped-value.la src/libexpression.la
 
 #
 # CUDD libraries.
@@ -465,6 +475,8 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
+src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
+src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = cudd/cudd/libcudd.la src/libtyped-value.la
@@ -479,6 +491,8 @@ ymer_LDADD = cudd/cudd/libcudd.la src/libtyped-value.la src/libexpression.la
 check_LTLIBRARIES = src/libtest-main.la
 src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = gtest/lib/libgtest.la
+src_ddutil_test_SOURCES = src/ddutil_test.cc
+src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
 src_typed_value_test_SOURCES = src/typed-value_test.cc
 src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 src_expression_test_SOURCES = src/expression_test.cc
@@ -490,7 +504,7 @@ TESTS = $(check_PROGRAMS)
 EXTRA_DIST = cudd examples scripts
 CLEANFILES = core
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/gtest/include
+    -I$(srcdir)/glog/src -I$(builddir)/glog/src -I$(srcdir)/gtest/include
 
 AM_YFLAGS = -d
 ACLOCAL_AMFLAGS = -I m4
@@ -596,6 +610,8 @@ cudd/util/libutil.la: $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_DEP
 src/$(am__dirstamp):
 	@$(MKDIR_P) src
 	@: > src/$(am__dirstamp)
+src/libddutil.la: $(src_libddutil_la_OBJECTS) $(src_libddutil_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libddutil_la_OBJECTS) $(src_libddutil_la_LIBADD) $(LIBS)
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -654,6 +670,9 @@ clean-checkPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
+src/ddutil_test$(EXEEXT): $(src_ddutil_test_OBJECTS) $(src_ddutil_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/ddutil_test$(EXEEXT)
+	$(CXXLINK) $(src_ddutil_test_OBJECTS) $(src_ddutil_test_LDADD) $(LIBS)
 src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/expression_test$(EXEEXT)
 	$(CXXLINK) $(src_expression_test_OBJECTS) $(src_expression_test_LDADD) $(LIBS)
@@ -753,6 +772,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-stub.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-texpand.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_util_libutil_la-tmpfile.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddutil.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ddutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/distributions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/expression_test.Po@am__quote@
@@ -1362,6 +1383,13 @@ cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
 
+ddutil.lo: src/ddutil.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil.lo -MD -MP -MF $(DEPDIR)/ddutil.Tpo -c -o ddutil.lo `test -f 'src/ddutil.cc' || echo '$(srcdir)/'`src/ddutil.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/ddutil.Tpo $(DEPDIR)/ddutil.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil.cc' object='ddutil.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil.lo `test -f 'src/ddutil.cc' || echo '$(srcdir)/'`src/ddutil.cc
+
 expression.lo: src/expression.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression.lo -MD -MP -MF $(DEPDIR)/expression.Tpo -c -o expression.lo `test -f 'src/expression.cc' || echo '$(srcdir)/'`src/expression.cc
 @am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/expression.Tpo $(DEPDIR)/expression.Plo
@@ -1382,6 +1410,20 @@ typed-value.lo: src/typed-value.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/typed-value.cc' object='typed-value.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o typed-value.lo `test -f 'src/typed-value.cc' || echo '$(srcdir)/'`src/typed-value.cc
+
+ddutil_test.o: src/ddutil_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil_test.o -MD -MP -MF $(DEPDIR)/ddutil_test.Tpo -c -o ddutil_test.o `test -f 'src/ddutil_test.cc' || echo '$(srcdir)/'`src/ddutil_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/ddutil_test.Tpo $(DEPDIR)/ddutil_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil_test.cc' object='ddutil_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil_test.o `test -f 'src/ddutil_test.cc' || echo '$(srcdir)/'`src/ddutil_test.cc
+
+ddutil_test.obj: src/ddutil_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil_test.obj -MD -MP -MF $(DEPDIR)/ddutil_test.Tpo -c -o ddutil_test.obj `if test -f 'src/ddutil_test.cc'; then $(CYGPATH_W) 'src/ddutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/ddutil_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/ddutil_test.Tpo $(DEPDIR)/ddutil_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/ddutil_test.cc' object='ddutil_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o ddutil_test.obj `if test -f 'src/ddutil_test.cc'; then $(CYGPATH_W) 'src/ddutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/ddutil_test.cc'; fi`
 
 expression_test.o: src/expression_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT expression_test.o -MD -MP -MF $(DEPDIR)/expression_test.Tpo -c -o expression_test.o `test -f 'src/expression_test.cc' || echo '$(srcdir)/'`src/expression_test.cc
