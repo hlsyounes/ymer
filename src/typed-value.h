@@ -42,6 +42,10 @@ class TypedValue {
   template <typename T> T value() const;
 
  private:
+  // Avoid implicit conversion from pointer through TypedValue(bool).
+  template <typename T>
+  TypedValue(T*);
+
   Type type_;
   union {
     int i;

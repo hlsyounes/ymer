@@ -29,6 +29,7 @@
 #include "modules.h"
 #include "odd.h"
 #include "distributions.h"
+#include "src/ddutil.h"
 #include <map>
 
 
@@ -78,37 +79,37 @@ struct Model {
   const CommandList& commands() const { return commands_; }
 
   /* Caches DDs for this model. */
-  void cache_dds(DdManager* dd_man, size_t moments) const;
+  void cache_dds(const DecisionDiagramManager& dd_man, size_t moments) const;
 
   /* Returns an MTBDD representing the rate matrix for this model. */
-  DdNode* rate_mtbdd(DdManager* dd_man) const;
+  DdNode* rate_mtbdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns a reachability BDD for this model. */
-  DdNode* reachability_bdd(DdManager* dd_man) const;
+  DdNode* reachability_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns an ODD for this model. */
-  ODDNode* odd(DdManager* dd_man) const;
+  ODDNode* odd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns a BDD representing the initial state for this model. */
-  DdNode* init_bdd(DdManager* dd_man) const;
+  DdNode* init_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the index associated with the initial state for this model. */
-  int init_index(DdManager* dd_man) const;
+  int init_index(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the row variables for this model. */
-  DdNode** row_variables(DdManager* dd_man) const;
+  DdNode** row_variables(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the column variables for this model. */
-  DdNode** column_variables(DdManager* dd_man) const;
+  DdNode** column_variables(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the number of states for this model. */
-  double num_states(DdManager* dd_man) const;
+  double num_states(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the number of transitions for this model. */
-  double num_transitions(DdManager* dd_man) const;
+  double num_transitions(const DecisionDiagramManager& dd_man) const;
 
   /* Releases all DDs cached for this model. */
-  void uncache_dds(DdManager* dd_man) const;
+  void uncache_dds(const DecisionDiagramManager& dd_man) const;
 
 private:
   /* The global variables for this model. */
@@ -135,11 +136,12 @@ private:
   mutable DdNode** column_variables_;
 
   /* Returns a BDD representing the range for all model variables. */
-  DdNode* range_bdd(DdManager* dd_man) const;
+  DdNode* range_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns a BDD representing the conjunction of dd_start with the
      BDDs for updates of all variables not explicitly mentioned. */
-  DdNode* variable_updates(DdManager* dd_man, DdNode* dd_start,
+  DdNode* variable_updates(const DecisionDiagramManager& dd_man,
+                           DdNode* dd_start,
 			   const ModuleSet& touched_modules,
 			   const VariableSet& updated_variables,
 			   const Variable* phase_variable,
