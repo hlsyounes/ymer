@@ -110,7 +110,8 @@ src_libexpression_la_LIBADD = cudd/cudd/libcudd.la src/libtyped-value.la
 
 bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la src/libtyped-value.la src/libexpression.la
+ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/libtyped-value.la \
+    src/libexpression.la
 
 #
 # Ymer tests.

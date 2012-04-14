@@ -90,7 +90,7 @@ class DecisionDiagramManager {
   // as 0.  By default, epsilon is set to std::numeric_limits<double>::min().
   // Increasing epsilon can siplify ADDs, and thereby reducing memory
   // requirements, but it can result in unintended numeric imprecision.
-  void SetEpsilon(double epsilon);
+  void SetEpsilon(double epsilon) const;
 
   // Returns the epsilon parameter of this manager.
   double GetEpsilon() const;
@@ -98,12 +98,15 @@ class DecisionDiagramManager {
   // Returns an ADD for the given constant value.
   ADD GetConstant(double value) const;
 
+  // TODO(hlsyounes): remove once all code is using wrapper classes.
+  DdManager* manager() const { return manager_; }
+
  private:
   // Disallow copy and assign.
   DecisionDiagramManager(const DecisionDiagramManager&);
   DecisionDiagramManager& operator=(const DecisionDiagramManager&);
 
-  DdManager* const manager_;
+  DdManager* manager_;
 };
 
 #endif  // DDUTIL_H_

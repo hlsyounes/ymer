@@ -38,16 +38,17 @@ extern int verbosity;
 /* Conjunction */
 
 /* Verifies this state formula using the hybrid engine. */
-DdNode* Conjunction::verify(DdManager* dd_man, const Model& model,
+DdNode* Conjunction::verify(const DecisionDiagramManager& dd_man,
+                            const Model& model,
 			    double epsilon, bool estimate) const {
   DdNode* sol = model.reachability_bdd(dd_man);
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
-    DdNode* dda = Cudd_bddAnd(dd_man, ddf, sol);
+    DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddf, sol);
     Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, sol);
+    Cudd_RecursiveDeref(dd_man.manager(), ddf);
+    Cudd_RecursiveDeref(dd_man.manager(), sol);
     sol = dda;
   }
   return sol;
@@ -58,24 +59,25 @@ DdNode* Conjunction::verify(DdManager* dd_man, const Model& model,
 /* Disjunction */
 
 /* Verifies this state formula using the hybrid engine. */
-DdNode* Disjunction::verify(DdManager* dd_man, const Model& model,
+DdNode* Disjunction::verify(const DecisionDiagramManager& dd_man,
+                            const Model& model,
 			    double epsilon, bool estimate) const {
-  DdNode* sol = Cudd_ReadLogicZero(dd_man);
+  DdNode* sol = Cudd_ReadLogicZero(dd_man.manager());
   Cudd_Ref(sol);
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
-    DdNode* ddo = Cudd_bddOr(dd_man, ddf, sol);
+    DdNode* ddo = Cudd_bddOr(dd_man.manager(), ddf, sol);
     Cudd_Ref(ddo);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, sol);
+    Cudd_RecursiveDeref(dd_man.manager(), ddf);
+    Cudd_RecursiveDeref(dd_man.manager(), sol);
     sol = ddo;
   }
   DdNode* ddr = model.reachability_bdd(dd_man);
-  DdNode* dda = Cudd_bddAnd(dd_man, ddr, sol);
+  DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddr, sol);
   Cudd_Ref(dda);
-  Cudd_RecursiveDeref(dd_man, ddr);
-  Cudd_RecursiveDeref(dd_man, sol);
+  Cudd_RecursiveDeref(dd_man.manager(), ddr);
+  Cudd_RecursiveDeref(dd_man.manager(), sol);
   return dda;
 }
 
@@ -84,17 +86,18 @@ DdNode* Disjunction::verify(DdManager* dd_man, const Model& model,
 /* Negation */
 
 /* Verifies this state formula using the hybrid engine. */
-DdNode* Negation::verify(DdManager* dd_man, const Model& model,
+DdNode* Negation::verify(const DecisionDiagramManager& dd_man,
+                         const Model& model,
 			 double epsilon, bool estimate) const {
   DdNode* ddf = negand().verify(dd_man, model, epsilon, estimate);
   DdNode* sol = Cudd_Not(ddf);
   Cudd_Ref(sol);
-  Cudd_RecursiveDeref(dd_man, ddf);
+  Cudd_RecursiveDeref(dd_man.manager(), ddf);
   DdNode* ddr = model.reachability_bdd(dd_man);
-  DdNode* dda = Cudd_bddAnd(dd_man, ddr, sol);
+  DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddr, sol);
   Cudd_Ref(dda);
-  Cudd_RecursiveDeref(dd_man, ddr);
-  Cudd_RecursiveDeref(dd_man, sol);
+  Cudd_RecursiveDeref(dd_man.manager(), ddr);
+  Cudd_RecursiveDeref(dd_man.manager(), sol);
   return dda;
 }
 
@@ -103,22 +106,23 @@ DdNode* Negation::verify(DdManager* dd_man, const Model& model,
 /* Implication */
 
 /* Verifies this state formula using the hybrid engine. */
-DdNode* Implication::verify(DdManager* dd_man, const Model& model,
+DdNode* Implication::verify(const DecisionDiagramManager& dd_man,
+                            const Model& model,
 			    double epsilon, bool estimate) const {
   DdNode* dda = antecedent().verify(dd_man, model, epsilon, estimate);
   DdNode* ddn = Cudd_Not(dda);
   Cudd_Ref(ddn);
-  Cudd_RecursiveDeref(dd_man, dda);
+  Cudd_RecursiveDeref(dd_man.manager(), dda);
   DdNode* ddc = consequent().verify(dd_man, model, epsilon, estimate);
-  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
+  DdNode* ddi = Cudd_bddOr(dd_man.manager(), ddn, ddc);
   Cudd_Ref(ddi);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  Cudd_RecursiveDeref(dd_man, ddc);
+  Cudd_RecursiveDeref(dd_man.manager(), ddn);
+  Cudd_RecursiveDeref(dd_man.manager(), ddc);
   DdNode* ddr = model.reachability_bdd(dd_man);
-  DdNode* sol = Cudd_bddAnd(dd_man, ddr, ddi);
+  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddr, ddi);
   Cudd_Ref(sol);
-  Cudd_RecursiveDeref(dd_man, ddr);
-  Cudd_RecursiveDeref(dd_man, ddi);
+  Cudd_RecursiveDeref(dd_man.manager(), ddr);
+  Cudd_RecursiveDeref(dd_man.manager(), ddi);
   return sol;
 }
 
@@ -127,7 +131,8 @@ DdNode* Implication::verify(DdManager* dd_man, const Model& model,
 /* Probabilistic */
 
 /* Verifies this state formula using the hybrid engine. */
-DdNode* Probabilistic::verify(DdManager* dd_man, const Model& model,
+DdNode* Probabilistic::verify(const DecisionDiagramManager& dd_man,
+                              const Model& model,
 			      double epsilon, bool estimate) const {
   formula_level_++;
   DdNode* res = formula().verify(dd_man, model, threshold(), strict(),
@@ -141,14 +146,15 @@ DdNode* Probabilistic::verify(DdManager* dd_man, const Model& model,
 /* Comparison */
 
 /* Verifies this state formula using the hybrid engine. */
-DdNode* Comparison::verify(DdManager* dd_man, const Model& model,
+DdNode* Comparison::verify(const DecisionDiagramManager& dd_man,
+                           const Model& model,
 			   double epsilon, bool estimate) const {
-  DdNode* ddc = bdd(dd_man);
+  DdNode* ddc = bdd(dd_man.manager());
   DdNode* ddr = model.reachability_bdd(dd_man);
-  DdNode* sol = Cudd_bddAnd(dd_man, ddc, ddr);
+  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddc, ddr);
   Cudd_Ref(sol);
-  Cudd_RecursiveDeref(dd_man, ddc);
-  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man.manager(), ddc);
+  Cudd_RecursiveDeref(dd_man.manager(), ddr);
   return sol;
 }
 
@@ -579,7 +585,7 @@ void compute_weights(int& left, int& right, double*& weights,
 
 
 /* Verifies this path formula using the hybrid engine. */
-DdNode* Until::verify(DdManager* dd_man, const Model& model,
+DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const TypedValue& p, bool strict, double epsilon,
 		      bool estimate) const {
   /*
@@ -590,7 +596,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
     return model.reachability_bdd(dd_man);
   } else if (p == 1 && strict) {
     /* Not satisfied by any states. */
-    DdNode* sol = Cudd_ReadLogicZero(dd_man);
+    DdNode* sol = Cudd_ReadLogicZero(dd_man.manager());
     Cudd_Ref(sol);
     return sol;
   }
@@ -619,13 +625,13 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
    */
   DdNode* ddn = Cudd_Not(dd2);
   Cudd_Ref(ddn);
-  DdNode* maybe = Cudd_bddAnd(dd_man, dd1, ddn);
+  DdNode* maybe = Cudd_bddAnd(dd_man.manager(), dd1, ddn);
   Cudd_Ref(maybe);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  if (maybe == Cudd_ReadLogicZero(dd_man)) {
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), ddn);
+  if (maybe == Cudd_ReadLogicZero(dd_man.manager())) {
     /* All states are absorbing so solution is simply dd2. */
-    Cudd_RecursiveDeref(dd_man, maybe);
+    Cudd_RecursiveDeref(dd_man.manager(), maybe);
     return dd2;
   }
 
@@ -647,18 +653,19 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   if (verbosity > 0) {
     std::cout << "Building hybrid MTBDD matrix...";
   }
-  DdNode* ddm = Cudd_BddToAdd(dd_man, maybe);
+  DdNode* ddm = Cudd_BddToAdd(dd_man.manager(), maybe);
   Cudd_Ref(ddm);
-  Cudd_RecursiveDeref(dd_man, maybe);
+  Cudd_RecursiveDeref(dd_man.manager(), maybe);
   DdNode* ddT = model.rate_mtbdd(dd_man);
-  DdNode* ddR = Cudd_addApply(dd_man, Cudd_addTimes, ddT, ddm);
+  DdNode* ddR = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddT, ddm);
   Cudd_Ref(ddR);
-  Cudd_RecursiveDeref(dd_man, ddT);
-  Cudd_RecursiveDeref(dd_man, ddm);
+  Cudd_RecursiveDeref(dd_man.manager(), ddT);
+  Cudd_RecursiveDeref(dd_man.manager(), ddm);
   DdNode** rvars = model.row_variables(dd_man);
   DdNode** cvars = model.column_variables(dd_man);
-  int nvars = Cudd_ReadSize(dd_man) / 2;
-  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars, cvars, nvars, odd);
+  int nvars = dd_man.GetNumVariables() / 2;
+  HDDMatrix* hddm =
+      build_hdd_matrix(dd_man.manager(), ddR, rvars, cvars, nvars, odd);
   if (verbosity > 0) {
     std::cout << hddm->num_nodes << " nodes." << std::endl;
   }
@@ -702,11 +709,12 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   /*
    * Create solution/iteration vectors.
    */
-  DdNode* yes = Cudd_BddToAdd(dd_man, dd2);
+  DdNode* yes = Cudd_BddToAdd(dd_man.manager(), dd2);
   Cudd_Ref(yes);
-  Cudd_RecursiveDeref(dd_man, dd2);
-  double* soln = mtbdd_to_double_vector(dd_man, yes, rvars, nvars, odd);
-  Cudd_RecursiveDeref(dd_man, yes);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
+  double* soln =
+      mtbdd_to_double_vector(dd_man.manager(), yes, rvars, nvars, odd);
+  Cudd_RecursiveDeref(dd_man.manager(), yes);
   double* soln2 = new double[nstates];
   double* sum;
   int init = ((StateFormula::formula_level() == 1)
@@ -914,7 +922,7 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
   /*
    * Free memory.
    */
-  Cudd_RecursiveDeref(dd_man, ddR);
+  Cudd_RecursiveDeref(dd_man.manager(), ddR);
   free_hdd_matrix(hddm);
   delete diags;
   delete soln;
@@ -926,11 +934,11 @@ DdNode* Until::verify(DdManager* dd_man, const Model& model,
     if ((strict && sum[0] > threshold) || (!strict && sum[0] >= threshold)) {
       sol = model.init_bdd(dd_man);
     } else {
-      sol = Cudd_ReadLogicZero(dd_man);
+      sol = Cudd_ReadLogicZero(dd_man.manager());
       Cudd_Ref(sol);
     }
   } else {
-    sol = double_vector_to_bdd(dd_man, sum, strict, threshold,
+    sol = double_vector_to_bdd(dd_man.manager(), sum, strict, threshold,
 			       rvars, nvars, odd);
   }
   delete sum;

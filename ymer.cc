@@ -25,6 +25,7 @@
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
+#include "src/ddutil.h"
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -226,7 +227,15 @@ static bool parse_const_overrides(
     }
     const std::string name(comma + 1, assignment);
     const std::string value(assignment + 1, next_comma);
-    if (!const_overrides->insert(std::make_pair(name, value.c_str())).second) {
+    char* endptr;
+    TypedValue v = static_cast<int>(strtol(value.c_str(), &endptr, 10));
+    if (*endptr != '\0') {
+      v = strtod(value.c_str(), &endptr);
+    }
+    if (endptr == value.c_str()) {
+      return false;
+    }
+    if (!const_overrides->insert(std::make_pair(name, v)).second) {
       return false;
     }
     comma = next_comma;
@@ -799,9 +808,7 @@ int main(int argc, char* argv[]) {
       }
     } else if (engine == HYBRID_ENGINE) {
       std::cout << "Hybrid engine: epsilon=" << epsilon << std::endl;
-      DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
-				    CUDD_CACHE_SLOTS, 0);
-      Cudd_SetEpsilon(dd_man, 1e-15);
+      DecisionDiagramManager dd_man(2*num_model_bits);
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -828,8 +835,8 @@ int main(int argc, char* argv[]) {
 		  << std::endl;
 	DdNode* ddR = global_model->rate_mtbdd(dd_man);
 	std::cout << "Rate matrix";
-	Cudd_PrintDebug(dd_man, ddR, Cudd_ReadSize(dd_man), 1);
-	Cudd_RecursiveDeref(dd_man, ddR);
+	Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
+	Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
 		  << std::endl;
       }
@@ -854,9 +861,9 @@ int main(int argc, char* argv[]) {
 #endif
 	  DdNode* ddf = (*fi)->verify(dd_man, *global_model, epsilon,
 				      estimate);
-	  DdNode* sol = Cudd_bddAnd(dd_man, ddf, init);
+	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddf, init);
 	  Cudd_Ref(sol);
-	  Cudd_RecursiveDeref(dd_man, ddf);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddf);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -866,8 +873,8 @@ int main(int argc, char* argv[]) {
 	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
 	  double t = std::max(0.0, sec + usec*1e-6);
 	  total_time += t;
-	  accepted = (sol != Cudd_ReadLogicZero(dd_man));
-	  Cudd_RecursiveDeref(dd_man, sol);
+	  accepted = (sol != Cudd_ReadLogicZero(dd_man.manager()));
+	  Cudd_RecursiveDeref(dd_man.manager(), sol);
 	  if (t > 1.0) {
 	    total_time *= trials;
 	    break;
@@ -885,21 +892,14 @@ int main(int argc, char* argv[]) {
 	  std::cout << "Property is false in the initial state." << std::endl;
 	}
       }
-      Cudd_RecursiveDeref(dd_man, init);
+      Cudd_RecursiveDeref(dd_man.manager(), init);
       global_model->uncache_dds(dd_man);
-      int unrel = Cudd_CheckZeroRef(dd_man);
-      if (unrel != 0) {
-	std::cerr << unrel << " unreleased DDs" << std::endl;
-      }
-      Cudd_Quit(dd_man);
     } else if (engine == MIXED_ENGINE) {
       init_genrand(seed);
       std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", epsilon=" << epsilon
 		<< ", seed=" << seed << std::endl;
-      DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
-				    CUDD_CACHE_SLOTS, 0);
-      Cudd_SetEpsilon(dd_man, 1e-15);
+      DecisionDiagramManager dd_man(2*num_model_bits);
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -930,8 +930,8 @@ int main(int argc, char* argv[]) {
 		  << std::endl;
 	DdNode* ddR = global_model->rate_mtbdd(dd_man);
 	std::cout << "Rate matrix";
-	Cudd_PrintDebug(dd_man, ddR, Cudd_ReadSize(dd_man), 1);
-	Cudd_RecursiveDeref(dd_man, ddR);
+	Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
+	Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
 		  << std::endl;
       }
@@ -1012,12 +1012,6 @@ int main(int argc, char* argv[]) {
 	}
       }
       global_model->uncache_dds(dd_man);
-      int unrel = Cudd_CheckZeroRef(dd_man);
-      if (unrel != 0) {
-	std::cerr << unrel << " unreleased DDs" << std::endl;
-      }
-      Cudd_DebugCheck(dd_man);
-      Cudd_Quit(dd_man);
     }
     delete global_model;
     for (FormulaList::const_iterator fi = properties.begin();
