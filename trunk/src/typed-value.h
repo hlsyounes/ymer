@@ -42,6 +42,10 @@ class TypedValue {
   template <typename T> T value() const;
 
  private:
+  // Disallow implicit construction from C string through TypedValue(bool)
+  // constructor.
+  TypedValue(const char*);
+
   Type type_;
   union {
     int i;

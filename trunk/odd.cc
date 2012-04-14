@@ -22,6 +22,8 @@
  */
 #include "odd.h"
 
+#include <set>
+
 // static variables
 static int num_odd_nodes = 0;
 
@@ -135,3 +137,23 @@ int get_num_odd_nodes()
 }
 
 //------------------------------------------------------------------------------
+
+namespace {
+
+void free_odd_impl(ODDNode *odd, std::set<ODDNode*>* deleted) {
+  if (deleted->find(odd) == deleted->end()) {
+    deleted->insert(odd);
+    free_odd_impl(odd->next, deleted);
+    free_odd_impl(odd->e, deleted);
+    free_odd_impl(odd->t, deleted);
+    delete odd;
+  }
+}
+
+}  // namespace
+
+void free_odd(ODDNode *odd) {
+  std::set<ODDNode*> deleted;
+  deleted.insert(NULL);
+  free_odd_impl(odd, &deleted);
+}

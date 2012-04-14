@@ -78,14 +78,14 @@ DecisionDiagramManager::DecisionDiagramManager(int num_variables)
 }
 
 DecisionDiagramManager::~DecisionDiagramManager() {
-  CHECK_EQ(0, Cudd_CheckZeroRef(manager_));
+  CHECK_EQ(0, Cudd_CheckZeroRef(manager_)) << "unreleased DDs";
   Cudd_Quit(manager_);
 }
 int DecisionDiagramManager::GetNumVariables() const {
   return Cudd_ReadSize(manager_);
 }
 
-void DecisionDiagramManager::SetEpsilon(double epsilon) {
+void DecisionDiagramManager::SetEpsilon(double epsilon) const {
   Cudd_SetEpsilon(manager_, epsilon);
 }
 

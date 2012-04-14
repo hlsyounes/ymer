@@ -41,7 +41,8 @@ extern double total_path_lengths;
 /* Conjunction */
 
 /* Verifies this state formula using the mixed engine. */
-bool Conjunction::verify(DdManager* dd_man, const Model& model,
+bool Conjunction::verify(const DecisionDiagramManager& dd_man,
+                         const Model& model,
 			 const State& state, DeltaFun delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
@@ -61,7 +62,8 @@ bool Conjunction::verify(DdManager* dd_man, const Model& model,
 /* Disjunction */
 
 /* Verifies this state formula using the mixed engine. */
-bool Disjunction::verify(DdManager* dd_man, const Model& model,
+bool Disjunction::verify(const DecisionDiagramManager& dd_man,
+                         const Model& model,
 			 const State& state, DeltaFun delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
@@ -81,7 +83,7 @@ bool Disjunction::verify(DdManager* dd_man, const Model& model,
 /* Negation */
 
 /* Verifies this state formula using the mixed engine. */
-bool Negation::verify(DdManager* dd_man, const Model& model,
+bool Negation::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, DeltaFun delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const {
@@ -94,7 +96,8 @@ bool Negation::verify(DdManager* dd_man, const Model& model,
 /* Implication */
 
 /* Verifies this state formula using the mixed engine. */
-bool Implication::verify(DdManager* dd_man, const Model& model,
+bool Implication::verify(const DecisionDiagramManager& dd_man,
+                         const Model& model,
 			 const State& state, DeltaFun delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
@@ -113,7 +116,8 @@ bool Implication::verify(DdManager* dd_man, const Model& model,
 /* Probabilistic */
 
 /* Verifies this state formula using the mixed engine. */
-bool Probabilistic::verify(DdManager* dd_man, const Model& model,
+bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
+                           const Model& model,
 			   const State& state, DeltaFun delta,
 			   double alpha, double beta,
 			   SamplingAlgorithm algorithm,
@@ -130,7 +134,8 @@ bool Probabilistic::verify(DdManager* dd_man, const Model& model,
 /* Comparison */
 
 /* Verifies this state formula using the mixed engine. */
-bool Comparison::verify(DdManager* dd_man, const Model& model,
+bool Comparison::verify(const DecisionDiagramManager& dd_man,
+                        const Model& model,
 			const State& state, DeltaFun delta,
 			double alpha, double beta, SamplingAlgorithm algorithm,
 			double epsilon) const {
@@ -164,7 +169,8 @@ static DdNode* state_bdd(DdManager* dd_man, const ValueMap& values) {
 
 
 /* Generates a sample for this path formula. */
-bool Until::sample(DdManager* dd_man, const Model& model, const State& state,
+bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
+                   const State& state,
 		   double epsilon, DdNode* dd1, DdNode* dd2) const {
   double t = 0.0;
   size_t path_size = 1;
@@ -175,44 +181,44 @@ bool Until::sample(DdManager* dd_man, const Model& model, const State& state,
     if (t <= t_max) {
       DdNode* dds = NULL;
       if (dd2 != NULL) {
-	dds = state_bdd(dd_man, curr_state->values());
-	DdNode* sol = Cudd_bddAnd(dd_man, dd2, dds);
+	dds = state_bdd(dd_man.manager(), curr_state->values());
+	DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
 	Cudd_Ref(sol);
-	if (sol != Cudd_ReadLogicZero(dd_man)) {
+	if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
 	  result = true;
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  Cudd_RecursiveDeref(dd_man, sol);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  Cudd_RecursiveDeref(dd_man.manager(), sol);
 	  break;
 	}
-	Cudd_RecursiveDeref(dd_man, sol);
+	Cudd_RecursiveDeref(dd_man.manager(), sol);
       } else if (post().holds(curr_state->values())) {
 	result = true;
 	break;
       }
       if (dd1 != NULL) {
-	if (dd1 == Cudd_ReadLogicZero(dd_man)) {
+	if (dd1 == Cudd_ReadLogicZero(dd_man.manager())) {
 	  result = false;
 	  break;
-	} else if (dd1 != Cudd_ReadOne(dd_man)) {
+	} else if (dd1 != Cudd_ReadOne(dd_man.manager())) {
 	  if (dds == NULL) {
-	    dds = state_bdd(dd_man, curr_state->values());
+	    dds = state_bdd(dd_man.manager(), curr_state->values());
 	  }
-	  DdNode* sol = Cudd_bddAnd(dd_man, dd1, dds);
+	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
 	  Cudd_Ref(sol);
-	  if (sol == Cudd_ReadLogicZero(dd_man)) {
+	  if (sol == Cudd_ReadLogicZero(dd_man.manager())) {
 	    result = false;
-	    Cudd_RecursiveDeref(dd_man, dds);
-	    Cudd_RecursiveDeref(dd_man, sol);
+	    Cudd_RecursiveDeref(dd_man.manager(), dds);
+	    Cudd_RecursiveDeref(dd_man.manager(), sol);
 	    break;
 	  }
-	  Cudd_RecursiveDeref(dd_man, sol);
+	  Cudd_RecursiveDeref(dd_man.manager(), sol);
 	}
       } else if (!pre().holds(curr_state->values())) {
 	result = false;
 	break;
       }
       if (dds != NULL) {
-	Cudd_RecursiveDeref(dd_man, dds);
+	Cudd_RecursiveDeref(dd_man.manager(), dds);
       }
     } else {
       result = false;
