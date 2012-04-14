@@ -42,6 +42,7 @@ struct ODDNode {
 
 ODDNode *build_odd(DdManager *ddman, DdNode *dd, DdNode **vars, int num_vars);
 int get_num_odd_nodes();
+void free_odd(ODDNode *odd);
 
 //------------------------------------------------------------------------------
 

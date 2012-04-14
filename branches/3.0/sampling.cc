@@ -1029,7 +1029,7 @@ bool Until::sample(const Model& model, const State& state,
 
 
 /* Verifies this path formula using the mixed engine. */
-bool Until::verify(DdManager* dd_man, const Model& model,
+bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
 		   DeltaFun delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm,
@@ -1043,11 +1043,11 @@ bool Until::verify(DdManager* dd_man, const Model& model,
   if (dd1 != NULL) {
     DdNode* ddr = model.reachability_bdd(dd_man);
     if (dd1 == ddr) {
-      Cudd_RecursiveDeref(dd_man, dd1);
-      dd1 = Cudd_ReadOne(dd_man);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      dd1 = Cudd_ReadOne(dd_man.manager());
       Cudd_Ref(dd1);
     }
-    Cudd_RecursiveDeref(dd_man, ddr);
+    Cudd_RecursiveDeref(dd_man.manager(), ddr);
   }
   DdNode* dd2 = (post().probabilistic()
 		 ? post().verify(dd_man, model, epsilon, false) : NULL);
@@ -1089,10 +1089,10 @@ bool Until::verify(DdManager* dd_man, const Model& model,
 	      << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
 	      << ")" << std::endl;
     if (dd1 != NULL) {
-      Cudd_RecursiveDeref(dd_man, dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
     }
     if (dd2 != NULL) {
-      Cudd_RecursiveDeref(dd_man, dd2);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
     }
     if (strict) {
       return p > theta;
@@ -1181,10 +1181,10 @@ bool Until::verify(DdManager* dd_man, const Model& model,
   total_samples += m;
   samples.push_back(m);
   if (dd1 != NULL) {
-    Cudd_RecursiveDeref(dd_man, dd1);
+    Cudd_RecursiveDeref(dd_man.manager(), dd1);
   }
   if (dd2 != NULL) {
-    Cudd_RecursiveDeref(dd_man, dd2);
+    Cudd_RecursiveDeref(dd_man.manager(), dd2);
   }
   if (algorithm == SEQUENTIAL) {
     return d > c;

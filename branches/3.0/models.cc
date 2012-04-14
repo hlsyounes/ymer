@@ -73,7 +73,7 @@ static void match_first_moment(ECParameters& params,
 
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
-static DdNode* reachability_bdd(DdManager* dd_man,
+static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
 				DdNode* init, DdNode* rates,
 				DdNode** row_variables) {
   if (verbosity > 0) {
@@ -82,7 +82,7 @@ static DdNode* reachability_bdd(DdManager* dd_man,
   /*
    * Precompute variable permutations and cubes.
    */
-  size_t nvars = Cudd_ReadSize(dd_man)/2;
+  size_t nvars = dd_man.GetNumVariables()/2;
   int* row_to_col = new int[2*nvars];
   int* col_to_row = new int[2*nvars];
   for (size_t i = 0; i < nvars; i++) {
@@ -91,16 +91,17 @@ static DdNode* reachability_bdd(DdManager* dd_man,
     col_to_row[2*i] = 2*i;
     col_to_row[2*i + 1] = 2*i;
   }
-  DdNode* row_cube = Cudd_bddComputeCube(dd_man, row_variables, NULL, nvars);
+  DdNode* row_cube =
+      Cudd_bddComputeCube(dd_man.manager(), row_variables, NULL, nvars);
   Cudd_Ref(row_cube);
   /*
    * Fixpoint computation of reachability.
    */
-  DdNode* trans = Cudd_addBddStrictThreshold(dd_man, rates, 0);
+  DdNode* trans = Cudd_addBddStrictThreshold(dd_man.manager(), rates, 0);
   Cudd_Ref(trans);
   DdNode* solr = init;
   Cudd_Ref(solr);
-  DdNode* solc = Cudd_bddPermute(dd_man, solr, row_to_col);
+  DdNode* solc = Cudd_bddPermute(dd_man.manager(), solr, row_to_col);
   Cudd_Ref(solc);
   bool done = false;
   size_t iters = 0;
@@ -113,27 +114,27 @@ static DdNode* reachability_bdd(DdManager* dd_man,
 	std::cout << '.';
       }
     }
-    DdNode* dda = Cudd_bddAnd(dd_man, trans, solr);
+    DdNode* dda = Cudd_bddAnd(dd_man.manager(), trans, solr);
     Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man, solr);
-    DdNode* dde = Cudd_bddExistAbstract(dd_man, dda, row_cube);
+    Cudd_RecursiveDeref(dd_man.manager(), solr);
+    DdNode* dde = Cudd_bddExistAbstract(dd_man.manager(), dda, row_cube);
     Cudd_Ref(dde);
-    Cudd_RecursiveDeref(dd_man, dda);
-    DdNode* ddo = Cudd_bddOr(dd_man, solc, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dda);
+    DdNode* ddo = Cudd_bddOr(dd_man.manager(), solc, dde);
     if (ddo == solc) {
       done = true;
     } else {
       Cudd_Ref(ddo);
-      Cudd_RecursiveDeref(dd_man, solc);
+      Cudd_RecursiveDeref(dd_man.manager(), solc);
       solc = ddo;
     }
-    Cudd_RecursiveDeref(dd_man, dde);
-    solr = Cudd_bddPermute(dd_man, solc, col_to_row);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
+    solr = Cudd_bddPermute(dd_man.manager(), solc, col_to_row);
     Cudd_Ref(solr);
   }
-  Cudd_RecursiveDeref(dd_man, solc);
-  Cudd_RecursiveDeref(dd_man, trans);
-  Cudd_RecursiveDeref(dd_man, row_cube);
+  Cudd_RecursiveDeref(dd_man.manager(), solc);
+  Cudd_RecursiveDeref(dd_man.manager(), trans);
+  Cudd_RecursiveDeref(dd_man.manager(), row_cube);
   delete row_to_col;
   delete col_to_row;
   if (verbosity > 0) {
@@ -146,30 +147,32 @@ static DdNode* reachability_bdd(DdManager* dd_man,
 /*
  * Returns a BDD representing equality of the given MTBDDs.
  */
-static DdNode* equality_bdd(DdManager* dd_man, DdNode* dd1, DdNode* dd2) {
-  DdNode* ddm = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+static DdNode* equality_bdd(const DecisionDiagramManager& dd_man,
+                            DdNode* dd1, DdNode* dd2) {
+  DdNode* ddm = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
   Cudd_Ref(ddm);
-  DdNode* dde = Cudd_addBddInterval(dd_man, ddm, 0, 0);
+  DdNode* dde = Cudd_addBddInterval(dd_man.manager(), ddm, 0, 0);
   Cudd_Ref(dde);
-  Cudd_RecursiveDeref(dd_man, ddm);
+  Cudd_RecursiveDeref(dd_man.manager(), ddm);
   return dde;
 }
 
 
 /* Returns a BDD representing the conjunction of dd_start with the
    identity BDDs for the given variables. */
-static DdNode* variable_identities(DdManager* dd_man, DdNode* dd_start,
+static DdNode* variable_identities(const DecisionDiagramManager& dd_man,
+                                   DdNode* dd_start,
 				   const VariableList& variables,
 				   const VariableSet& excluded) {
   DdNode* ddu = dd_start;
   for (VariableList::const_reverse_iterator vi = variables.rbegin();
        vi != variables.rend(); vi++) {
     if (excluded.find(*vi) == excluded.end()) {
-      DdNode* ddv = (*vi)->identity_bdd(dd_man);
-      DdNode* dda = Cudd_bddAnd(dd_man, ddv, ddu);
+      DdNode* ddv = (*vi)->identity_bdd(dd_man.manager());
+      DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddv, ddu);
       Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man, ddv);
-      Cudd_RecursiveDeref(dd_man, ddu);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), ddu);
       ddu = dda;
     }
   }
@@ -309,7 +312,8 @@ void Model::compile() {
 
 
 /* Caches DDs for for this model. */
-void Model::cache_dds(DdManager* dd_man, size_t moments) const {
+void Model::cache_dds(const DecisionDiagramManager& dd_man,
+                      size_t moments) const {
   if (rate_mtbdd_ == NULL) {
     if (verbosity > 0) {
       std::cout << "Buidling model...";
@@ -318,7 +322,7 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
      * Precomute DDs for variables and modules.
      */
     /* BDD for initial state. */
-    init_bdd_ = Cudd_ReadOne(dd_man);
+    init_bdd_ = Cudd_ReadOne(dd_man.manager());
     Cudd_Ref(init_bdd_);
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
@@ -326,33 +330,35 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
       for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
 	   vi != mod.variables().rend(); vi++) {
 	const Variable& v = **vi;
-	DdNode* ddv = v.mtbdd(dd_man);
-	DdNode* dds = Cudd_addBddInterval(dd_man, ddv, v.start(), v.start());
+	DdNode* ddv = v.mtbdd(dd_man.manager());
+	DdNode* dds =
+            Cudd_addBddInterval(dd_man.manager(), ddv, v.start(), v.start());
 	Cudd_Ref(dds);
-	DdNode* dda = Cudd_bddAnd(dd_man, dds, init_bdd_);
+	DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, init_bdd_);
 	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man, dds);
-	Cudd_RecursiveDeref(dd_man, init_bdd_);
+	Cudd_RecursiveDeref(dd_man.manager(), dds);
+	Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	init_bdd_ = dda;
-	v.primed_mtbdd(dd_man);
-	v.identity_bdd(dd_man);
+	v.primed_mtbdd(dd_man.manager());
+	v.identity_bdd(dd_man.manager());
       }
-      mod.identity_bdd(dd_man);
+      mod.identity_bdd(dd_man.manager());
     }
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
-      DdNode* ddv = v.mtbdd(dd_man);
-      DdNode* dds = Cudd_addBddInterval(dd_man, ddv, v.start(), v.start());
+      DdNode* ddv = v.mtbdd(dd_man.manager());
+      DdNode* dds =
+          Cudd_addBddInterval(dd_man.manager(), ddv, v.start(), v.start());
       Cudd_Ref(dds);
-      Cudd_RecursiveDeref(dd_man, ddv);
-      DdNode* dda = Cudd_bddAnd(dd_man, dds, init_bdd_);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
+      DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, init_bdd_);
       Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man, dds);
-      Cudd_RecursiveDeref(dd_man, init_bdd_);
+      Cudd_RecursiveDeref(dd_man.manager(), dds);
+      Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
       init_bdd_ = dda;
-      v.primed_mtbdd(dd_man);
-      v.identity_bdd(dd_man);
+      v.primed_mtbdd(dd_man.manager());
+      v.identity_bdd(dd_man.manager());
     }
     /* BDD for variable ranges. */
     DdNode* range = range_bdd(dd_man);
@@ -360,7 +366,7 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
      * Generate phase-type distributions for commands with
      * non-exponential delay.
      */
-    size_t nvars = Cudd_ReadSize(dd_man)/2;
+    size_t nvars = dd_man.GetNumVariables()/2;
     std::map<size_t, PHData> ph_commands;
     for (int i = commands().size() - 1; i >= 0; i--) {
       const Command& command = *commands_[i];
@@ -387,60 +393,61 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	  nvars = data.s->high_bit() + 1;
 	  int nbits = data.s->high_bit() - data.s->low_bit() + 1;
 	  for (int b = 0; b < nbits; b++) {
-	    Cudd_bddNewVarAtLevel(dd_man, 2*b);
-	    Cudd_bddNewVarAtLevel(dd_man, 2*b + 1);
+	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b);
+	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b + 1);
 	  }
-	  DdNode* ddv = data.s->mtbdd(dd_man);
-	  DdNode* dds = Cudd_addBddInterval(dd_man, ddv, data.s->start(),
-					    data.s->start());
+	  DdNode* ddv = data.s->mtbdd(dd_man.manager());
+	  DdNode* dds =
+              Cudd_addBddInterval(dd_man.manager(), ddv, data.s->start(),
+                                  data.s->start());
 	  Cudd_Ref(dds);
-	  DdNode* dda = Cudd_bddAnd(dd_man, dds, init_bdd_);
+	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, init_bdd_);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  Cudd_RecursiveDeref(dd_man, init_bdd_);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	  init_bdd_ = dda;
-	  DdNode* ddvp = data.s->primed_mtbdd(dd_man);
-	  DdNode* ddid = data.s->identity_bdd(dd_man);
-	  DdNode* ddr = data.s->range_bdd(dd_man);
-	  dda = Cudd_bddAnd(dd_man, ddr, range);
+	  DdNode* ddvp = data.s->primed_mtbdd(dd_man.manager());
+	  DdNode* ddid = data.s->identity_bdd(dd_man.manager());
+	  DdNode* ddr = data.s->range_bdd(dd_man.manager());
+	  dda = Cudd_bddAnd(dd_man.manager(), ddr, range);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, ddr);
-	  Cudd_RecursiveDeref(dd_man, range);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), range);
 	  range = dda;
 	  /*
 	   * Constructs BDD representing phase update:
 	   *
 	   *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
 	   */
-	  DdNode* ddg = command.guard().bdd(dd_man);
-	  dds = Cudd_addBddInterval(dd_man, ddv, 0, 0);
+	  DdNode* ddg = command.guard().bdd(dd_man.manager());
+	  dds = Cudd_addBddInterval(dd_man.manager(), ddv, 0, 0);
 	  Cudd_Ref(dds);
-	  DdNode* ddo = Cudd_bddOr(dd_man, ddg, dds);
+	  DdNode* ddo = Cudd_bddOr(dd_man.manager(), ddg, dds);
 	  Cudd_Ref(ddo);
-	  Cudd_RecursiveDeref(dd_man, ddg);
-	  Cudd_RecursiveDeref(dd_man, dds);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddg);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
 	  data.update_bdd = ddo;
-	  ddg = command.guard().primed_bdd(dd_man);
-	  dds = Cudd_addBddInterval(dd_man, ddvp, 0, 0);
+	  ddg = command.guard().primed_bdd(dd_man.manager());
+	  dds = Cudd_addBddInterval(dd_man.manager(), ddvp, 0, 0);
 	  Cudd_Ref(dds);
-	  ddo = Cudd_bddOr(dd_man, ddg, dds);
+	  ddo = Cudd_bddOr(dd_man.manager(), ddg, dds);
 	  Cudd_Ref(ddo);
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  dda = Cudd_bddAnd(dd_man, data.update_bdd, ddo);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  dda = Cudd_bddAnd(dd_man.manager(), data.update_bdd, ddo);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, data.update_bdd);
-	  Cudd_RecursiveDeref(dd_man, ddo);
+	  Cudd_RecursiveDeref(dd_man.manager(), data.update_bdd);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddo);
 	  data.update_bdd = dda;
 	  DdNode* ddn = Cudd_Not(ddg);
 	  Cudd_Ref(ddn);
-	  Cudd_RecursiveDeref(dd_man, ddg);
-	  ddo = Cudd_bddOr(dd_man, ddn, ddid);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddg);
+	  ddo = Cudd_bddOr(dd_man.manager(), ddn, ddid);
 	  Cudd_Ref(ddo);
-	  Cudd_RecursiveDeref(dd_man, ddn);
-	  dda = Cudd_bddAnd(dd_man, data.update_bdd, ddo);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddn);
+	  dda = Cudd_bddAnd(dd_man.manager(), data.update_bdd, ddo);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, data.update_bdd);
-	  Cudd_RecursiveDeref(dd_man, ddo);
+	  Cudd_RecursiveDeref(dd_man.manager(), data.update_bdd);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddo);
 	  data.update_bdd = dda;
 	} else {
 	  data.s = NULL;
@@ -450,7 +457,7 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
     /*
      * Compute rate matrix for all commands.
      */
-    DdNode* ddR = Cudd_ReadZero(dd_man);
+    DdNode* ddR = Cudd_ReadZero(dd_man.manager());
     Cudd_Ref(ddR);
     for (int i = commands().size() - 1; i >= 0; i--) {
       const Command& command = *commands_[i];
@@ -458,10 +465,10 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	std::cout << std::endl << "processing " << command << std::endl;
       }
       /* BDD for guard. */
-      DdNode* ddg = command.guard().bdd(dd_man);
+      DdNode* ddg = command.guard().bdd(dd_man.manager());
       /* BDD for command. */
       VariableSet updated_variables;
-      DdNode* ddc = command.bdd(updated_variables, dd_man);
+      DdNode* ddc = command.bdd(updated_variables, dd_man.manager());
       const Exponential* exp_delay =
 	dynamic_cast<const Exponential*>(&command.delay());
       PHData* ph_data = (exp_delay != NULL) ? NULL : &ph_commands[i];
@@ -475,144 +482,145 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	/*
 	 * Event 1: phi & s=0 => s'=1
 	 */
-	DdNode* ddv = ph_data->s->mtbdd(dd_man);
-	DdNode* dds = Cudd_addBddInterval(dd_man, ddv, 0, 0);
+	DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv, 0, 0);
 	Cudd_Ref(dds);
-	DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
-	DdNode* ddu = Cudd_addBddInterval(dd_man, ddvp, 1, 1);
+	DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	DdNode* ddu = Cudd_addBddInterval(dd_man.manager(), ddvp, 1, 1);
 	Cudd_Ref(ddu);
-	DdNode* dda = Cudd_bddAnd(dd_man, dds, ddu);
+	DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, ddu);
 	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man, ddu);
-	ddu = Cudd_bddAnd(dd_man, dda, ddg);
+	Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	ddu = Cudd_bddAnd(dd_man.manager(), dda, ddg);
 	Cudd_Ref(ddu);
-	Cudd_RecursiveDeref(dd_man, dda);
+	Cudd_RecursiveDeref(dd_man.manager(), dda);
 	ddu = variable_updates(dd_man, ddu, ModuleSet(),
 			       VariableSet(), ph_data->s, ph_commands);
-	DdNode* ddt = Cudd_BddToAdd(dd_man, ddu);
+	DdNode* ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	Cudd_Ref(ddt);
-	Cudd_RecursiveDeref(dd_man, ddu);
-	DdNode* ddr = Cudd_addConst(dd_man,
+	Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	DdNode* ddr = Cudd_addConst(dd_man.manager(),
 				    ph_data->params2.p*ph_data->params2.r1);
 	Cudd_Ref(ddr);
-	DdNode* ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	DdNode* ddq = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	Cudd_Ref(ddq);
-	Cudd_RecursiveDeref(dd_man, ddt);
-	Cudd_RecursiveDeref(dd_man, ddr);
+	Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	if (verbosity > 1) {
-	  Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	  Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	}
-	ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	Cudd_Ref(ddt);
-	Cudd_RecursiveDeref(dd_man, ddq);
-	Cudd_RecursiveDeref(dd_man, ddR);
+	Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	ddR = ddt;
 	/*
 	 * Event 2: phi & s=0 => s'=0 & effects
 	 */
-	DdNode* ddp = Cudd_addBddInterval(dd_man, ddvp, 0, 0);
+	DdNode* ddp = Cudd_addBddInterval(dd_man.manager(), ddvp, 0, 0);
 	Cudd_Ref(ddp);
-	dda = Cudd_bddAnd(dd_man, dds, ddp);
+	dda = Cudd_bddAnd(dd_man.manager(), dds, ddp);
 	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man, dds);
-	ddu = Cudd_bddAnd(dd_man, ddc, dda);
+	Cudd_RecursiveDeref(dd_man.manager(), dds);
+	ddu = Cudd_bddAnd(dd_man.manager(), ddc, dda);
 	Cudd_Ref(ddu);
-	Cudd_RecursiveDeref(dd_man, dda);
+	Cudd_RecursiveDeref(dd_man.manager(), dda);
 	ddu = variable_updates(dd_man, ddu, command_modules_[i],
 			       updated_variables, ph_data->s, ph_commands);
-	ddt = Cudd_BddToAdd(dd_man, ddu);
+	ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	Cudd_Ref(ddt);
-	Cudd_RecursiveDeref(dd_man, ddu);
-	ddr = Cudd_addConst(dd_man,
+	Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	ddr = Cudd_addConst(dd_man.manager(),
 			    (1.0 - ph_data->params2.p)*ph_data->params2.r1);
 	Cudd_Ref(ddr);
-	ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	ddq = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	Cudd_Ref(ddq);
-	Cudd_RecursiveDeref(dd_man, ddt);
-	Cudd_RecursiveDeref(dd_man, ddr);
+	Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	if (verbosity > 1) {
-	  Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	  Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	}
-	ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	Cudd_Ref(ddt);
-	Cudd_RecursiveDeref(dd_man, ddq);
-	Cudd_RecursiveDeref(dd_man, ddR);
+	Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	ddR = ddt;
 	/*
 	 * Event 3: phi & s=n-1 => s'=0 & effects
 	 */
-	dds = Cudd_addBddInterval(dd_man, ddv, ph_data->params2.n - 1,
+	dds = Cudd_addBddInterval(dd_man.manager(), ddv, ph_data->params2.n - 1,
 				  ph_data->params2.n - 1);
 	Cudd_Ref(dds);
-	dda = Cudd_bddAnd(dd_man, dds, ddp);
+	dda = Cudd_bddAnd(dd_man.manager(), dds, ddp);
 	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man, dds);
-	Cudd_RecursiveDeref(dd_man, ddp);
-	ddu = Cudd_bddAnd(dd_man, ddc, dda);
+	Cudd_RecursiveDeref(dd_man.manager(), dds);
+	Cudd_RecursiveDeref(dd_man.manager(), ddp);
+	ddu = Cudd_bddAnd(dd_man.manager(), ddc, dda);
 	Cudd_Ref(ddu);
-	Cudd_RecursiveDeref(dd_man, dda);
+	Cudd_RecursiveDeref(dd_man.manager(), dda);
 	ddu = variable_updates(dd_man, ddu, command_modules_[i],
 			       updated_variables, ph_data->s, ph_commands);
-	ddt = Cudd_BddToAdd(dd_man, ddu);
+	ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	Cudd_Ref(ddt);
-	Cudd_RecursiveDeref(dd_man, ddu);
-	ddr = Cudd_addConst(dd_man, ph_data->params2.r2);
+	Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	ddr = Cudd_addConst(dd_man.manager(), ph_data->params2.r2);
 	Cudd_Ref(ddr);
-	ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	ddq = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	Cudd_Ref(ddq);
-	Cudd_RecursiveDeref(dd_man, ddt);
-	Cudd_RecursiveDeref(dd_man, ddr);
+	Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	if (verbosity > 1) {
-	  Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	  Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	}
-	ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	Cudd_Ref(ddt);
-	Cudd_RecursiveDeref(dd_man, ddq);
-	Cudd_RecursiveDeref(dd_man, ddR);
+	Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	ddR = ddt;
 	if (ph_data->params2.n > 2) {
 	  /*
 	   * Event 4: phi & s>=1 & s<=n-2 => s'=s+1
 	   */
-	  DdNode* dds = Cudd_addBddInterval(dd_man, ddv, 1,
+	  DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv, 1,
 					    ph_data->params2.n - 2);
 	  Cudd_Ref(dds);
-	  DdNode* dd1 = Cudd_addConst(dd_man, 1);
+	  DdNode* dd1 = Cudd_addConst(dd_man.manager(), 1);
 	  Cudd_Ref(dd1);
-	  DdNode* ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddv, dd1);
+	  DdNode* ddp = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddv, dd1);
 	  Cudd_Ref(ddp);
-	  Cudd_RecursiveDeref(dd_man, dd1);
+	  Cudd_RecursiveDeref(dd_man.manager(), dd1);
 	  DdNode* ddu = equality_bdd(dd_man, ddvp, ddp);
-	  Cudd_RecursiveDeref(dd_man, ddp);
-	  DdNode* dda = Cudd_bddAnd(dd_man, dds, ddu);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddp);
+	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, ddu);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  ddu = Cudd_bddAnd(dd_man, dda, ddg);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  ddu = Cudd_bddAnd(dd_man.manager(), dda, ddg);
 	  Cudd_Ref(ddu);
-	  Cudd_RecursiveDeref(dd_man, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dda);
 	  ddu = variable_updates(dd_man, ddu, ModuleSet(),
 				 VariableSet(), ph_data->s, ph_commands);
-	  DdNode* ddt = Cudd_BddToAdd(dd_man, ddu);
+	  DdNode* ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  DdNode* ddr = Cudd_addConst(dd_man, ph_data->params2.r1);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  DdNode* ddr = Cudd_addConst(dd_man.manager(), ph_data->params2.r1);
 	  Cudd_Ref(ddr);
-	  DdNode* ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	  DdNode* ddq =
+              Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	  Cudd_Ref(ddq);
-	  Cudd_RecursiveDeref(dd_man, ddt);
-	  Cudd_RecursiveDeref(dd_man, ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	  if (verbosity > 1) {
-	    Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	    Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	  }
-	  ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	  ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddq);
-	  Cudd_RecursiveDeref(dd_man, ddR);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	  ddR = ddt;
 	}
-	Cudd_RecursiveDeref(dd_man, ddv);
-	Cudd_RecursiveDeref(dd_man, ddvp);
+	Cudd_RecursiveDeref(dd_man.manager(), ddv);
+	Cudd_RecursiveDeref(dd_man.manager(), ddvp);
       } else {
 	if (ph_data != NULL && verbosity > 1) {
 	  std::cout << "n=" << ph_data->params.n;
@@ -633,45 +641,46 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	   *
 	   *   phi & s<n-2 => s'=s+1
 	   */
-	  DdNode* ddv = ph_data->s->mtbdd(dd_man);
-	  DdNode* dds = Cudd_addBddInterval(dd_man, ddv, 0,
+	  DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	  DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv, 0,
 					    ph_data->params.n - 3);
 	  Cudd_Ref(dds);
-	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
-	  DdNode* dd1 = Cudd_addConst(dd_man, 1);
+	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	  DdNode* dd1 = Cudd_addConst(dd_man.manager(), 1);
 	  Cudd_Ref(dd1);
-	  DdNode* ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddv, dd1);
+	  DdNode* ddp = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddv, dd1);
 	  Cudd_Ref(ddp);
-	  Cudd_RecursiveDeref(dd_man, ddv);
-	  Cudd_RecursiveDeref(dd_man, dd1);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddv);
+	  Cudd_RecursiveDeref(dd_man.manager(), dd1);
 	  DdNode* ddu = equality_bdd(dd_man, ddvp, ddp);
-	  Cudd_RecursiveDeref(dd_man, ddvp);
-	  Cudd_RecursiveDeref(dd_man, ddp);
-	  DdNode* dda = Cudd_bddAnd(dd_man, dds, ddu);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddvp);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddp);
+	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, ddu);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  ddu = Cudd_bddAnd(dd_man, dda, ddg);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  ddu = Cudd_bddAnd(dd_man.manager(), dda, ddg);
 	  Cudd_Ref(ddu);
-	  Cudd_RecursiveDeref(dd_man, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dda);
 	  ddu = variable_updates(dd_man, ddu, ModuleSet(),
 				 VariableSet(), ph_data->s, ph_commands);
-	  DdNode* ddt = Cudd_BddToAdd(dd_man, ddu);
+	  DdNode* ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  DdNode* ddr = Cudd_addConst(dd_man, ph_data->params.re);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  DdNode* ddr = Cudd_addConst(dd_man.manager(), ph_data->params.re);
 	  Cudd_Ref(ddr);
-	  DdNode* ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	  DdNode* ddq =
+              Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	  Cudd_Ref(ddq);
-	  Cudd_RecursiveDeref(dd_man, ddt);
-	  Cudd_RecursiveDeref(dd_man, ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	  if (verbosity > 1) {
-	    Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	    Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	  }
-	  ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	  ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddq);
-	  Cudd_RecursiveDeref(dd_man, ddR);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	  ddR = ddt;
 	}
 	if (ph_data != NULL && ph_data->params.pc > 0.0) {
@@ -681,40 +690,42 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	   *
 	   *   phi & s=n-2 => s'=n-1
 	   */
-	  DdNode* ddv = ph_data->s->mtbdd(dd_man);
-	  DdNode* dds = Cudd_addBddInterval(dd_man, ddv, ph_data->params.n - 2,
+	  DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	  DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv,
+                                            ph_data->params.n - 2,
 					    ph_data->params.n - 2);
 	  Cudd_Ref(dds);
-	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
-	  DdNode* ddu = Cudd_addBddInterval(dd_man, ddvp,
+	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	  DdNode* ddu = Cudd_addBddInterval(dd_man.manager(), ddvp,
 					    ph_data->params.n - 1,
 					    ph_data->params.n - 1);
 	  Cudd_Ref(ddu);
-	  DdNode* dda = Cudd_bddAnd(dd_man, dds, ddu);
+	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, ddu);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  ddu = Cudd_bddAnd(dd_man, dda, ddg);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  ddu = Cudd_bddAnd(dd_man.manager(), dda, ddg);
 	  Cudd_Ref(ddu);
-	  Cudd_RecursiveDeref(dd_man, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dda);
 	  ddu = variable_updates(dd_man, ddu, ModuleSet(),
 				 VariableSet(), ph_data->s, ph_commands);
-	  DdNode* ddt = Cudd_BddToAdd(dd_man, ddu);
+	  DdNode* ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  DdNode* ddr = Cudd_addConst(dd_man,
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  DdNode* ddr = Cudd_addConst(dd_man.manager(),
 				      ph_data->params.pc*ph_data->params.rc1);
 	  Cudd_Ref(ddr);
-	  DdNode* ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	  DdNode* ddq =
+              Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	  Cudd_Ref(ddq);
-	  Cudd_RecursiveDeref(dd_man, ddt);
-	  Cudd_RecursiveDeref(dd_man, ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	  if (verbosity > 1) {
-	    Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	    Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	  }
-	  ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	  ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddq);
-	  Cudd_RecursiveDeref(dd_man, ddR);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	  ddR = ddt;
 	  /*
 	   * Event 2 for phase transition in Coxian part of phase-type
@@ -722,34 +733,34 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	   *
 	   *   phi & s=n-2 => s'=0 & effects
 	   */
-	  DdNode* ddp = Cudd_addBddInterval(dd_man, ddvp, 0, 0);
+	  DdNode* ddp = Cudd_addBddInterval(dd_man.manager(), ddvp, 0, 0);
 	  Cudd_Ref(ddp);
-	  Cudd_RecursiveDeref(dd_man, ddvp);
-	  dda = Cudd_bddAnd(dd_man, dds, ddp);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddvp);
+	  dda = Cudd_bddAnd(dd_man.manager(), dds, ddp);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  ddu = Cudd_bddAnd(dd_man, ddc, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  ddu = Cudd_bddAnd(dd_man.manager(), ddc, dda);
 	  Cudd_Ref(ddu);
-	  Cudd_RecursiveDeref(dd_man, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dda);
 	  ddu = variable_updates(dd_man, ddu, command_modules_[i],
 				 updated_variables, ph_data->s, ph_commands);
-	  ddt = Cudd_BddToAdd(dd_man, ddu);
+	  ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  ddr = Cudd_addConst(dd_man,
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  ddr = Cudd_addConst(dd_man.manager(),
 			      (1.0 - ph_data->params.pc)*ph_data->params.rc1);
 	  Cudd_Ref(ddr);
-	  ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	  ddq = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	  Cudd_Ref(ddq);
-	  Cudd_RecursiveDeref(dd_man, ddt);
-	  Cudd_RecursiveDeref(dd_man, ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	  if (verbosity > 1) {
-	    Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	    Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	  }
-	  ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	  ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddq);
-	  Cudd_RecursiveDeref(dd_man, ddR);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	  ddR = ddt;
 	  /*
 	   * Event 3 for phase transition in Coxian part of phase-type
@@ -757,35 +768,36 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	   *
 	   *   phi & s=n-1 => s'=0 & effects
 	   */
-	  dds = Cudd_addBddInterval(dd_man, ddv, ph_data->params.n - 1,
+	  dds = Cudd_addBddInterval(dd_man.manager(), ddv,
+                                    ph_data->params.n - 1,
 				    ph_data->params.n - 1);
 	  Cudd_Ref(dds);
-	  Cudd_RecursiveDeref(dd_man, ddv);
-	  dda = Cudd_bddAnd(dd_man, dds, ddp);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddv);
+	  dda = Cudd_bddAnd(dd_man.manager(), dds, ddp);
 	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man, dds);
-	  Cudd_RecursiveDeref(dd_man, ddp);
-	  ddu = Cudd_bddAnd(dd_man, ddc, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dds);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddp);
+	  ddu = Cudd_bddAnd(dd_man.manager(), ddc, dda);
 	  Cudd_Ref(ddu);
-	  Cudd_RecursiveDeref(dd_man, dda);
+	  Cudd_RecursiveDeref(dd_man.manager(), dda);
 	  ddu = variable_updates(dd_man, ddu, command_modules_[i],
 				 updated_variables, ph_data->s, ph_commands);
-	  ddt = Cudd_BddToAdd(dd_man, ddu);
+	  ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddu);
-	  ddr = Cudd_addConst(dd_man, ph_data->params.rc2);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
+	  ddr = Cudd_addConst(dd_man.manager(), ph_data->params.rc2);
 	  Cudd_Ref(ddr);
-	  ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	  ddq = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	  Cudd_Ref(ddq);
-	  Cudd_RecursiveDeref(dd_man, ddt);
-	  Cudd_RecursiveDeref(dd_man, ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	  if (verbosity > 1) {
-	    Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	    Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	  }
-	  ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	  ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddq);
-	  Cudd_RecursiveDeref(dd_man, ddR);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	  ddR = ddt;
 	} else {
 	  /*
@@ -794,69 +806,70 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
 	  DdNode* dda;
 	  if (ph_data != NULL && ph_data->s != NULL) {
 	    /* Coxian: s=n-2 => s'=0 */
-	    DdNode* ddv = ph_data->s->mtbdd(dd_man);
-	    DdNode* dds = Cudd_addBddInterval(dd_man, ddv,
+	    DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	    DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv,
 					      ph_data->params.n - 2,
 					      ph_data->params.n - 2);
 	    Cudd_Ref(dds);
-	    Cudd_RecursiveDeref(dd_man, ddv);
-	    DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
-	    DdNode* ddp = Cudd_addBddInterval(dd_man, ddvp, 0, 0);
+	    Cudd_RecursiveDeref(dd_man.manager(), ddv);
+	    DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	    DdNode* ddp = Cudd_addBddInterval(dd_man.manager(), ddvp, 0, 0);
 	    Cudd_Ref(ddp);
-	    Cudd_RecursiveDeref(dd_man, ddvp);
-	    dda = Cudd_bddAnd(dd_man, dds, ddp);
+	    Cudd_RecursiveDeref(dd_man.manager(), ddvp);
+	    dda = Cudd_bddAnd(dd_man.manager(), dds, ddp);
 	    Cudd_Ref(dda);
-	    Cudd_RecursiveDeref(dd_man, dds);
-	    Cudd_RecursiveDeref(dd_man, ddp);
+	    Cudd_RecursiveDeref(dd_man.manager(), dds);
+	    Cudd_RecursiveDeref(dd_man.manager(), ddp);
 	    dda = variable_updates(dd_man, dda, command_modules_[i],
 				   updated_variables, ph_data->s, ph_commands);
 	  } else {
-	    dda = Cudd_ReadOne(dd_man);
+	    dda = Cudd_ReadOne(dd_man.manager());
 	    Cudd_Ref(dda);
 	    dda = variable_updates(dd_man, dda, command_modules_[i],
 				   updated_variables, NULL, ph_commands);
 	  }
-	  DdNode* ddu = Cudd_bddAnd(dd_man, ddc, dda);
+	  DdNode* ddu = Cudd_bddAnd(dd_man.manager(), ddc, dda);
 	  Cudd_Ref(ddu);
-	  Cudd_RecursiveDeref(dd_man, dda);
-	  DdNode* ddt = Cudd_BddToAdd(dd_man, ddu);
+	  Cudd_RecursiveDeref(dd_man.manager(), dda);
+	  DdNode* ddt = Cudd_BddToAdd(dd_man.manager(), ddu);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddu);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
 	  DdNode* ddr;
 	  if (exp_delay != NULL) {
-	    ddr = exp_delay->rate().mtbdd(dd_man);
+	    ddr = exp_delay->rate().mtbdd(dd_man.manager());
 	  } else {
-	    ddr = Cudd_addConst(dd_man, ph_data->params.rc1);
+	    ddr = Cudd_addConst(dd_man.manager(), ph_data->params.rc1);
 	    Cudd_Ref(ddr);
 	  }
-	  DdNode* ddq = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+	  DdNode* ddq =
+              Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddt, ddr);
 	  Cudd_Ref(ddq);
-	  Cudd_RecursiveDeref(dd_man, ddt);
-	  Cudd_RecursiveDeref(dd_man, ddr);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddt);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
 	  if (verbosity > 1) {
-	    Cudd_PrintDebug(dd_man, ddq, Cudd_ReadSize(dd_man), 2);
+	    Cudd_PrintDebug(dd_man.manager(), ddq, dd_man.GetNumVariables(), 2);
 	  }
-	  ddt = Cudd_addApply(dd_man, Cudd_addPlus, ddq, ddR);
+	  ddt = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddq, ddR);
 	  Cudd_Ref(ddt);
-	  Cudd_RecursiveDeref(dd_man, ddq);
-	  Cudd_RecursiveDeref(dd_man, ddR);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddq);
+	  Cudd_RecursiveDeref(dd_man.manager(), ddR);
 	  ddR = ddt;
 	}
       }
-      Cudd_RecursiveDeref(dd_man, ddg);
-      Cudd_RecursiveDeref(dd_man, ddc);
+      Cudd_RecursiveDeref(dd_man.manager(), ddg);
+      Cudd_RecursiveDeref(dd_man.manager(), ddc);
     }
     /* Release BDD for variable ranges. */
-    Cudd_RecursiveDeref(dd_man, range);
+    Cudd_RecursiveDeref(dd_man.manager(), range);
     /*
      * Release DDs for phase variables.
      */
     for (std::map<size_t, PHData>::const_iterator ci = ph_commands.begin();
 	 ci != ph_commands.end(); ci++) {
       if ((*ci).second.s != NULL) {
-	(*ci).second.s->uncache_dds(dd_man);
+	(*ci).second.s->uncache_dds(dd_man.manager());
 	Expression::destructive_deref((*ci).second.s);
-	Cudd_RecursiveDeref(dd_man, (*ci).second.update_bdd);
+	Cudd_RecursiveDeref(dd_man.manager(), (*ci).second.update_bdd);
       }
     }
     /*
@@ -864,15 +877,15 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
      */
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
-      (*mi)->uncache_dds(dd_man);
+      (*mi)->uncache_dds(dd_man.manager());
     }
     if (verbosity > 0) {
-      std::cout << Cudd_ReadSize(dd_man) << " variables." << std::endl;
+      std::cout << dd_man.GetNumVariables() << " variables." << std::endl;
     }
     /*
      * Collect row and column variables.
      */
-    nvars = Cudd_ReadSize(dd_man)/2;
+    nvars = dd_man.GetNumVariables()/2;
     if (row_variables_ != NULL) {
       /* Row and column variables have been computed before, but
 	 without phase variables.  Clear and recompute the arrays. */
@@ -882,28 +895,29 @@ void Model::cache_dds(DdManager* dd_man, size_t moments) const {
     row_variables_ = new DdNode*[nvars];
     column_variables_ = new DdNode*[nvars];
     for (size_t i = 0; i < nvars; i++) {
-      row_variables_[i] = Cudd_bddIthVar(dd_man, 2*i);
-      column_variables_[i] = Cudd_bddIthVar(dd_man, 2*i + 1);
+      row_variables_[i] = Cudd_bddIthVar(dd_man.manager(), 2*i);
+      column_variables_[i] = Cudd_bddIthVar(dd_man.manager(), 2*i + 1);
     }
     /*
      * Reachability analysis.
      */
     reach_bdd_ = ::reachability_bdd(dd_man, init_bdd_, ddR, row_variables_);
-    DdNode* reach_add = Cudd_BddToAdd(dd_man, reach_bdd_);
+    DdNode* reach_add = Cudd_BddToAdd(dd_man.manager(), reach_bdd_);
     Cudd_Ref(reach_add);
-    DdNode* ddT = Cudd_addApply(dd_man, Cudd_addTimes, reach_add, ddR);
+    DdNode* ddT =
+        Cudd_addApply(dd_man.manager(), Cudd_addTimes, reach_add, ddR);
     Cudd_Ref(ddT);
-    Cudd_RecursiveDeref(dd_man, ddR);
+    Cudd_RecursiveDeref(dd_man.manager(), ddR);
     rate_mtbdd_ = ddT;
     /* Build ODD. */
-    odd_ = build_odd(dd_man, reach_add, row_variables_, nvars);
-    Cudd_RecursiveDeref(dd_man, reach_add);
+    odd_ = build_odd(dd_man.manager(), reach_add, row_variables_, nvars);
+    Cudd_RecursiveDeref(dd_man.manager(), reach_add);
   }
 }
 
 
 /* Returns an MTBDD representing the rate matrix for this model. */
-DdNode* Model::rate_mtbdd(DdManager* dd_man) const {
+DdNode* Model::rate_mtbdd(const DecisionDiagramManager& dd_man) const {
   if (rate_mtbdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -913,7 +927,7 @@ DdNode* Model::rate_mtbdd(DdManager* dd_man) const {
 
 
 /* Returns a reachability BDD for this model. */
-DdNode* Model::reachability_bdd(DdManager* dd_man) const {
+DdNode* Model::reachability_bdd(const DecisionDiagramManager& dd_man) const {
   if (reach_bdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -923,7 +937,7 @@ DdNode* Model::reachability_bdd(DdManager* dd_man) const {
 
 
 /* Returns an ODD for this model. */
-ODDNode* Model::odd(DdManager* dd_man) const {
+ODDNode* Model::odd(const DecisionDiagramManager& dd_man) const {
   if (odd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -932,7 +946,7 @@ ODDNode* Model::odd(DdManager* dd_man) const {
 
 
 /* Returns a BDD representing the initial state for this model. */
-DdNode* Model::init_bdd(DdManager* dd_man) const {
+DdNode* Model::init_bdd(const DecisionDiagramManager& dd_man) const {
   if (init_bdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -942,21 +956,21 @@ DdNode* Model::init_bdd(DdManager* dd_man) const {
 
 
 /* Returns the index associated with the initial state for this model. */
-int Model::init_index(DdManager* dd_man) const {
+int Model::init_index(const DecisionDiagramManager& dd_man) const {
   if (init_index_ == -1) {
     if (init_bdd_ == NULL) {
       throw std::logic_error("must cache DDs before use");
     }
-    DdNode* init_add_ = Cudd_BddToAdd(dd_man, init_bdd_);
+    DdNode* init_add_ = Cudd_BddToAdd(dd_man.manager(), init_bdd_);
     Cudd_Ref(init_add_);
     DdNode* d = init_add_;
     ODDNode* o = odd_;
     init_index_ = 0;
-    size_t nvars = Cudd_ReadSize(dd_man)/2;
+    size_t nvars = dd_man.GetNumVariables()/2;
     for (size_t i = 1; i <= nvars; i++) {
       bool bit;
       if (i == nvars) {
-	bit = (Cudd_T(d) == Cudd_ReadOne(dd_man));
+	bit = (Cudd_T(d) == Cudd_ReadOne(dd_man.manager()));
       } else {
 	DdNode* t = Cudd_T(d);
 	if (Cudd_IsConstant(t)) {
@@ -974,14 +988,14 @@ int Model::init_index(DdManager* dd_man) const {
 	o = o->e;
       }
     }
-    Cudd_RecursiveDeref(dd_man, init_add_);
+    Cudd_RecursiveDeref(dd_man.manager(), init_add_);
   }
   return init_index_;
 }
 
 
 /* Returns the row variables for this model. */
-DdNode** Model::row_variables(DdManager* dd_man) const {
+DdNode** Model::row_variables(const DecisionDiagramManager& dd_man) const {
   if (row_variables_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -990,7 +1004,7 @@ DdNode** Model::row_variables(DdManager* dd_man) const {
 
 
 /* Returns the column variables for this model. */
-DdNode** Model::column_variables(DdManager* dd_man) const {
+DdNode** Model::column_variables(const DecisionDiagramManager& dd_man) const {
   if (column_variables_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -999,27 +1013,29 @@ DdNode** Model::column_variables(DdManager* dd_man) const {
 
 
 /* Returns the number of states for this model. */
-double Model::num_states(DdManager* dd_man) const {
+double Model::num_states(const DecisionDiagramManager& dd_man) const {
   if (reach_bdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
-  return Cudd_CountMinterm(dd_man, reach_bdd_, Cudd_ReadSize(dd_man)/2);
+  return Cudd_CountMinterm(dd_man.manager(),
+                           reach_bdd_, dd_man.GetNumVariables()/2);
 }
 
 
 /* Returns the number of transitions for this model. */
-double Model::num_transitions(DdManager* dd_man) const {
+double Model::num_transitions(const DecisionDiagramManager& dd_man) const {
   if (rate_mtbdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
-  return Cudd_CountMinterm(dd_man, rate_mtbdd_, Cudd_ReadSize(dd_man));
+  return Cudd_CountMinterm(dd_man.manager(),
+                           rate_mtbdd_, dd_man.GetNumVariables());
 }
 
 
 /* Releases all DDs cached for this model. */
-void Model::uncache_dds(DdManager* dd_man) const {
+void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
   if (rate_mtbdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, rate_mtbdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), rate_mtbdd_);
     rate_mtbdd_ = NULL;
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
@@ -1027,22 +1043,23 @@ void Model::uncache_dds(DdManager* dd_man) const {
       for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
 	   vi != mod.variables().rend(); vi++) {
 	const Variable& v = **vi;
-	v.uncache_dds(dd_man);
+	v.uncache_dds(dd_man.manager());
       }
     }
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
-      v.uncache_dds(dd_man);
+      v.uncache_dds(dd_man.manager());
     }
   }
   if (reach_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, reach_bdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), reach_bdd_);
     reach_bdd_ = NULL;
   }
+  free_odd(odd_);
   odd_ = NULL;
   if (init_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, init_bdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
     init_bdd_ = NULL;
   }
   init_index_ = -1;
@@ -1058,29 +1075,29 @@ void Model::uncache_dds(DdManager* dd_man) const {
 
 
 /* Returns a BDD representing the range for all model variables. */
-DdNode* Model::range_bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadOne(dd_man);
+DdNode* Model::range_bdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* dd = Cudd_ReadOne(dd_man.manager());
   Cudd_Ref(dd);
   for (ModuleList::const_reverse_iterator mi = modules().rbegin();
        mi != modules().rend(); mi++) {
     const VariableList& mod_variables = (*mi)->variables();
     for (VariableList::const_reverse_iterator vi = mod_variables.rbegin();
 	 vi != mod_variables.rend(); vi++) {
-      DdNode* ddv = (*vi)->range_bdd(dd_man);
-      DdNode* ddr = Cudd_bddAnd(dd_man, ddv, dd);
+      DdNode* ddv = (*vi)->range_bdd(dd_man.manager());
+      DdNode* ddr = Cudd_bddAnd(dd_man.manager(), ddv, dd);
       Cudd_Ref(ddr);
-      Cudd_RecursiveDeref(dd_man, ddv);
-      Cudd_RecursiveDeref(dd_man, dd);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), dd);
       dd = ddr;
     }
   }
   for (VariableList::const_reverse_iterator vi = variables().rbegin();
        vi != variables().rend(); vi++) {
-    DdNode* ddv = (*vi)->range_bdd(dd_man);
-    DdNode* ddr = Cudd_bddAnd(dd_man, ddv, dd);
+    DdNode* ddv = (*vi)->range_bdd(dd_man.manager());
+    DdNode* ddr = Cudd_bddAnd(dd_man.manager(), ddv, dd);
     Cudd_Ref(ddr);
-    Cudd_RecursiveDeref(dd_man, ddv);
-    Cudd_RecursiveDeref(dd_man, dd);
+    Cudd_RecursiveDeref(dd_man.manager(), ddv);
+    Cudd_RecursiveDeref(dd_man.manager(), dd);
     dd = ddr;
   }
   return dd;
@@ -1090,7 +1107,7 @@ DdNode* Model::range_bdd(DdManager* dd_man) const {
 /* Returns a BDD representing the conjunction of dd_start with the
    BDDs for updates of all variables not explicitly mentioned. */
 DdNode*
-Model::variable_updates(DdManager* dd_man, DdNode* dd_start,
+Model::variable_updates(const DecisionDiagramManager& dd_man, DdNode* dd_start,
 			const ModuleSet& touched_modules,
 			const VariableSet& updated_variables,
 			const Variable* phase_variable,
@@ -1105,11 +1122,11 @@ Model::variable_updates(DdManager* dd_man, DdNode* dd_start,
       ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
 				updated_variables);
     } else {
-      DdNode* ddm = (*mi)->identity_bdd(dd_man);
-      DdNode* dda = Cudd_bddAnd(dd_man, ddm, ddu);
+      DdNode* ddm = (*mi)->identity_bdd(dd_man.manager());
+      DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddm, ddu);
       Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man, ddm);
-      Cudd_RecursiveDeref(dd_man, ddu);
+      Cudd_RecursiveDeref(dd_man.manager(), ddm);
+      Cudd_RecursiveDeref(dd_man.manager(), ddu);
       ddu = dda;
     }
   }
@@ -1123,9 +1140,9 @@ Model::variable_updates(DdManager* dd_man, DdNode* dd_start,
        ci != ph_commands.rend(); ci++) {
     const Variable* var = (*ci).second.s;
     if (var != phase_variable && var != NULL) {
-      DdNode* dda = Cudd_bddAnd(dd_man, (*ci).second.update_bdd, ddu);
+      DdNode* dda = Cudd_bddAnd(dd_man.manager(), (*ci).second.update_bdd, ddu);
       Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man, ddu);
+      Cudd_RecursiveDeref(dd_man.manager(), ddu);
       ddu = dda;
     }
   }
