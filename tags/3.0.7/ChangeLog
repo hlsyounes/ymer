@@ -1,0 +1,108 @@
+2005-02-01  Haakan L. S. Younes  <lorens@sweden.autonomy.ri.cmu.edu>
+
+	* README: Release 3.0.
+
+	* NEWS: Announcing release 3.0.
+
+	* ymer.cc: Added several new command line options.  Fixed timing
+	of verification and model building.
+
+	* symbolic.cc: Added support for probability estimation.
+
+	* states.h: Added resampled method to State class.
+
+	* mixed.cc, sampling.cc: Improved verification procedure for
+	conjunction, disjunction, implication, and path formulae.
+
+	* formulas.h: Added support for sequential single sampling plans.
+	Added estimated effort heuristic.
+
+	* distributions.h: Added memoryless method to Distribution class.
+
+2004-03-11  Håkan L. S. Younes  <lorens@younes.pc.cs.cmu.edu>
+
+	* README: Release 2.1.
+
+	* NEWS: Announcing release 2.1.
+
+	* configure.ac: Release 2.1.
+
+	* ymer.cc, sampling.cc, comm.h: Changes due to transition to
+	TCP-based communication.
+
+2004-01-25  Håkan L. S. Younes  <lorens@younes.pc.cs.cmu.edu>
+
+	* ymer.cc: Added support for GSMP models and distributed
+	acceptance sampling.
+
+	* tokenizer.ll, states.h, states.cc: Added support for
+	non-exponential distributions.
+
+	* sampling.cc: Added support for distributed acceptance sampling.
+
+	* rng.h: Added support for dynamic creation of random number
+	generators.
+
+	* parser.yy: Added support for non-exponential distributions.
+
+	* models.h, models.cc: Added support for GSMP models through the
+	use of phase-type distributions.
+
+	* formulas.h, formulas.cc: Added primed_bdd method to all
+	formulas.
+
+	* expressions.h, expressions.cc: Added primed_mtbdd method to all
+	expressions.
+
+	* distributions.h, distributions.cc: Added support for
+	non-exponential distributions.
+
+
+2003-11-11  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Indicating progress of reachability analysis with ':' for every
+	1000 iterations and '.' for every 100 iterations.
+
+	* Changed print methods of formulas and expressions to minimize
+	use of parentheses.
+
+2003-11-06  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Using standard C++ exceptions instead of custom Exception class.
+
+	* Removed all use of hashing.
+
+	* Added support for mixed engine.
+
+2003-08-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed bug that caused segmentation fault on some systems when
+	deleting a model with cached commands.
+
+2003-08-15  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Release variable DDs at the very end instead of after rate
+	matrix has been computed to avoid problem with reference counts.
+
+2003-08-14  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Make sure fox_glynn_weighter is called even when verbosity is 0.
+
+2003-08-13  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Making sure BDD returned by verify only is for reachable states.
+
+	* Added holds method to state formulas.
+
+2003-08-10  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Added sanity checks for probability and time bounds.
+
+	* Added unregistering of rate for command.
+
+	* Added tokens needed for CSL properties.
+
+	* Added grammar for CSL properties.
+
+	* Added Implication, Probabilistic, PathFormula, and Until
+	classes.
