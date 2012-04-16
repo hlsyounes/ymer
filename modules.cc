@@ -59,7 +59,7 @@ const Update& Update::substitution(const SubstitutionMap& subst) const {
 /* Returns a BDD representation of this update. */
 DdNode* Update::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* ddu;
-  DdNode* ddv = variable().primed_mtbdd(dd_man.manager());
+  DdNode* ddv = variable().primed_mtbdd(dd_man);
   const Literal* value = dynamic_cast<const Literal*>(&expr());
   if (value != NULL) {
     /* variable' == value  <==>  variable' in [value,value] */
@@ -69,7 +69,7 @@ DdNode* Update::bdd(const DecisionDiagramManager& dd_man) const {
     Cudd_RecursiveDeref(dd_man.manager(), ddv);
   } else {
     /* variable' == expr  <==>  variable' - expr in [0,0] */
-    DdNode* dde = expr().mtbdd(dd_man.manager());
+    DdNode* dde = expr().mtbdd(dd_man);
     DdNode* ddm = Cudd_addApply(dd_man.manager(), Cudd_addMinus, ddv, dde);
     Cudd_Ref(ddm);
     Cudd_RecursiveDeref(dd_man.manager(), ddv);

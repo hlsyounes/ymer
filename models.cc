@@ -330,7 +330,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
 	   vi != mod.variables().rend(); vi++) {
 	const Variable& v = **vi;
-	DdNode* ddv = v.mtbdd(dd_man.manager());
+	DdNode* ddv = v.mtbdd(dd_man);
 	DdNode* dds =
             Cudd_addBddInterval(dd_man.manager(), ddv, v.start(), v.start());
 	Cudd_Ref(dds);
@@ -339,7 +339,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	Cudd_RecursiveDeref(dd_man.manager(), dds);
 	Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	init_bdd_ = dda;
-	v.primed_mtbdd(dd_man.manager());
+	v.primed_mtbdd(dd_man);
 	v.identity_bdd(dd_man);
       }
       mod.identity_bdd(dd_man);
@@ -347,7 +347,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
-      DdNode* ddv = v.mtbdd(dd_man.manager());
+      DdNode* ddv = v.mtbdd(dd_man);
       DdNode* dds =
           Cudd_addBddInterval(dd_man.manager(), ddv, v.start(), v.start());
       Cudd_Ref(dds);
@@ -357,7 +357,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       Cudd_RecursiveDeref(dd_man.manager(), dds);
       Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
       init_bdd_ = dda;
-      v.primed_mtbdd(dd_man.manager());
+      v.primed_mtbdd(dd_man);
       v.identity_bdd(dd_man);
     }
     /* BDD for variable ranges. */
@@ -396,7 +396,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b);
 	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b + 1);
 	  }
-	  DdNode* ddv = data.s->mtbdd(dd_man.manager());
+	  DdNode* ddv = data.s->mtbdd(dd_man);
 	  DdNode* dds =
               Cudd_addBddInterval(dd_man.manager(), ddv, data.s->start(),
                                   data.s->start());
@@ -406,9 +406,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  Cudd_RecursiveDeref(dd_man.manager(), dds);
 	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	  init_bdd_ = dda;
-	  DdNode* ddvp = data.s->primed_mtbdd(dd_man.manager());
+	  DdNode* ddvp = data.s->primed_mtbdd(dd_man);
 	  DdNode* ddid = data.s->identity_bdd(dd_man);
-	  DdNode* ddr = data.s->range_bdd(dd_man.manager());
+	  DdNode* ddr = data.s->range_bdd(dd_man);
 	  dda = Cudd_bddAnd(dd_man.manager(), ddr, range);
 	  Cudd_Ref(dda);
 	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
@@ -482,10 +482,10 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	/*
 	 * Event 1: phi & s=0 => s'=1
 	 */
-	DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	DdNode* ddv = ph_data->s->mtbdd(dd_man);
 	DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv, 0, 0);
 	Cudd_Ref(dds);
-	DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
 	DdNode* ddu = Cudd_addBddInterval(dd_man.manager(), ddvp, 1, 1);
 	Cudd_Ref(ddu);
 	DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, ddu);
@@ -641,11 +641,11 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   *
 	   *   phi & s<n-2 => s'=s+1
 	   */
-	  DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	  DdNode* ddv = ph_data->s->mtbdd(dd_man);
 	  DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv, 0,
 					    ph_data->params.n - 3);
 	  Cudd_Ref(dds);
-	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
 	  DdNode* dd1 = Cudd_addConst(dd_man.manager(), 1);
 	  Cudd_Ref(dd1);
 	  DdNode* ddp = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddv, dd1);
@@ -690,12 +690,12 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   *
 	   *   phi & s=n-2 => s'=n-1
 	   */
-	  DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	  DdNode* ddv = ph_data->s->mtbdd(dd_man);
 	  DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv,
                                             ph_data->params.n - 2,
 					    ph_data->params.n - 2);
 	  Cudd_Ref(dds);
-	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	  DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
 	  DdNode* ddu = Cudd_addBddInterval(dd_man.manager(), ddvp,
 					    ph_data->params.n - 1,
 					    ph_data->params.n - 1);
@@ -806,13 +806,13 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  DdNode* dda;
 	  if (ph_data != NULL && ph_data->s != NULL) {
 	    /* Coxian: s=n-2 => s'=0 */
-	    DdNode* ddv = ph_data->s->mtbdd(dd_man.manager());
+	    DdNode* ddv = ph_data->s->mtbdd(dd_man);
 	    DdNode* dds = Cudd_addBddInterval(dd_man.manager(), ddv,
 					      ph_data->params.n - 2,
 					      ph_data->params.n - 2);
 	    Cudd_Ref(dds);
 	    Cudd_RecursiveDeref(dd_man.manager(), ddv);
-	    DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man.manager());
+	    DdNode* ddvp = ph_data->s->primed_mtbdd(dd_man);
 	    DdNode* ddp = Cudd_addBddInterval(dd_man.manager(), ddvp, 0, 0);
 	    Cudd_Ref(ddp);
 	    Cudd_RecursiveDeref(dd_man.manager(), ddvp);
@@ -836,7 +836,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  Cudd_RecursiveDeref(dd_man.manager(), ddu);
 	  DdNode* ddr;
 	  if (exp_delay != NULL) {
-	    ddr = exp_delay->rate().mtbdd(dd_man.manager());
+	    ddr = exp_delay->rate().mtbdd(dd_man);
 	  } else {
 	    ddr = Cudd_addConst(dd_man.manager(), ph_data->params.rc1);
 	    Cudd_Ref(ddr);
@@ -867,7 +867,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     for (std::map<size_t, PHData>::const_iterator ci = ph_commands.begin();
 	 ci != ph_commands.end(); ci++) {
       if ((*ci).second.s != NULL) {
-	(*ci).second.s->uncache_dds(dd_man.manager());
+	(*ci).second.s->uncache_dds(dd_man);
 	Expression::destructive_deref((*ci).second.s);
 	Cudd_RecursiveDeref(dd_man.manager(), (*ci).second.update_bdd);
       }
@@ -910,7 +910,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     Cudd_RecursiveDeref(dd_man.manager(), ddR);
     rate_mtbdd_ = ddT;
     /* Build ODD. */
-    odd_ = build_odd(dd_man.manager(), reach_add, row_variables_, nvars);
+    odd_ = build_odd(dd_man, reach_add, row_variables_, nvars);
     Cudd_RecursiveDeref(dd_man.manager(), reach_add);
   }
 }
@@ -1043,13 +1043,13 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
       for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
 	   vi != mod.variables().rend(); vi++) {
 	const Variable& v = **vi;
-	v.uncache_dds(dd_man.manager());
+	v.uncache_dds(dd_man);
       }
     }
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
-      v.uncache_dds(dd_man.manager());
+      v.uncache_dds(dd_man);
     }
   }
   if (reach_bdd_ != NULL) {
@@ -1083,7 +1083,7 @@ DdNode* Model::range_bdd(const DecisionDiagramManager& dd_man) const {
     const VariableList& mod_variables = (*mi)->variables();
     for (VariableList::const_reverse_iterator vi = mod_variables.rbegin();
 	 vi != mod_variables.rend(); vi++) {
-      DdNode* ddv = (*vi)->range_bdd(dd_man.manager());
+      DdNode* ddv = (*vi)->range_bdd(dd_man);
       DdNode* ddr = Cudd_bddAnd(dd_man.manager(), ddv, dd);
       Cudd_Ref(ddr);
       Cudd_RecursiveDeref(dd_man.manager(), ddv);
@@ -1093,7 +1093,7 @@ DdNode* Model::range_bdd(const DecisionDiagramManager& dd_man) const {
   }
   for (VariableList::const_reverse_iterator vi = variables().rbegin();
        vi != variables().rend(); vi++) {
-    DdNode* ddv = (*vi)->range_bdd(dd_man.manager());
+    DdNode* ddv = (*vi)->range_bdd(dd_man);
     DdNode* ddr = Cudd_bddAnd(dd_man.manager(), ddv, dd);
     Cudd_Ref(ddr);
     Cudd_RecursiveDeref(dd_man.manager(), ddv);

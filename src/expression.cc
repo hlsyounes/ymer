@@ -22,6 +22,8 @@
 #include <stdexcept>
 #include <typeinfo>
 
+#include "cudd.h"
+
 Expression::Expression()
     : ref_count_(0) {
 }
@@ -194,23 +196,23 @@ const Addition& Addition::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-DdNode* Addition::mtbdd(DdManager* dd_man) const {
+DdNode* Addition::mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addPlus, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
-DdNode* Addition::primed_mtbdd(DdManager* dd_man) const {
+DdNode* Addition::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addPlus, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
@@ -263,23 +265,23 @@ const Subtraction& Subtraction::substitution(
   }
 }
 
-DdNode* Subtraction::mtbdd(DdManager* dd_man) const {
+DdNode* Subtraction::mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
-DdNode* Subtraction::primed_mtbdd(DdManager* dd_man) const {
+DdNode* Subtraction::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
@@ -333,23 +335,24 @@ const Multiplication& Multiplication::substitution(
   }
 }
 
-DdNode* Multiplication::mtbdd(DdManager* dd_man) const {
+DdNode* Multiplication::mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addTimes, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addTimes, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
-DdNode* Multiplication::primed_mtbdd(DdManager* dd_man) const {
+DdNode* Multiplication::primed_mtbdd(
+    const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addTimes, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addTimes, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
@@ -404,23 +407,23 @@ const Division& Division::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-DdNode* Division::mtbdd(DdManager* dd_man) const {
+DdNode* Division::mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().mtbdd(dd_man);
   DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addDivide, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addDivide, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
-DdNode* Division::primed_mtbdd(DdManager* dd_man) const {
+DdNode* Division::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd1 = operand1().primed_mtbdd(dd_man);
   DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man, Cudd_addDivide, dd1, dd2);
+  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addDivide, dd1, dd2);
   Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man, dd1);
-  Cudd_RecursiveDeref(dd_man, dd2);
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return ddc;
 }
 
@@ -491,32 +494,32 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-DdNode* Variable::mtbdd(DdManager* dd_man) const {
+DdNode* Variable::mtbdd(const DecisionDiagramManager& dd_man) const {
   if (mtbdd_ == NULL) {
-    DdNode* ddv = Cudd_ReadZero(dd_man);
+    DdNode* ddv = Cudd_ReadZero(dd_man.manager());
     Cudd_Ref(ddv);
     for (int i = high_bit(); i >= low_bit(); i--) {
-      DdNode* ddc = Cudd_addConst(dd_man, 1 << (high_bit() - i));
+      DdNode* ddc = Cudd_addConst(dd_man.manager(), 1 << (high_bit() - i));
       Cudd_Ref(ddc);
-      DdNode* ddi = Cudd_addIthVar(dd_man, 2*i);
+      DdNode* ddi = Cudd_addIthVar(dd_man.manager(), 2*i);
       Cudd_Ref(ddi);
-      DdNode* dd_mul = Cudd_addApply(dd_man, Cudd_addTimes, ddc, ddi);
+      DdNode* dd_mul = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddc, ddi);
       Cudd_Ref(dd_mul);
-      Cudd_RecursiveDeref(dd_man, ddc);
-      Cudd_RecursiveDeref(dd_man, ddi);
-      ddi = Cudd_addApply(dd_man, Cudd_addPlus, dd_mul, ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), ddc);
+      Cudd_RecursiveDeref(dd_man.manager(), ddi);
+      ddi = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd_mul, ddv);
       Cudd_Ref(ddi);
-      Cudd_RecursiveDeref(dd_man, dd_mul);
-      Cudd_RecursiveDeref(dd_man, ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), dd_mul);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
       ddv = ddi;
     }
     if (low() > 0) {
-      DdNode* ddl = Cudd_addConst(dd_man, low());
+      DdNode* ddl = Cudd_addConst(dd_man.manager(), low());
       Cudd_Ref(ddl);
-      mtbdd_ = Cudd_addApply(dd_man, Cudd_addPlus, ddl, ddv);
+      mtbdd_ = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddl, ddv);
       Cudd_Ref(mtbdd_);
-      Cudd_RecursiveDeref(dd_man, ddl);
-      Cudd_RecursiveDeref(dd_man, ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), ddl);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
     } else {
       mtbdd_ = ddv;
     }
@@ -526,32 +529,32 @@ DdNode* Variable::mtbdd(DdManager* dd_man) const {
   return mtbdd_;
 }
 
-DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
+DdNode* Variable::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
   if (primed_mtbdd_ == NULL) {
-    DdNode* ddv = Cudd_ReadZero(dd_man);
+    DdNode* ddv = Cudd_ReadZero(dd_man.manager());
     Cudd_Ref(ddv);
     for (int i = high_bit(); i >= low_bit(); i--) {
-      DdNode* ddc = Cudd_addConst(dd_man, 1 << (high_bit() - i));
+      DdNode* ddc = Cudd_addConst(dd_man.manager(), 1 << (high_bit() - i));
       Cudd_Ref(ddc);
-      DdNode* ddi = Cudd_addIthVar(dd_man, 2*i + 1);
+      DdNode* ddi = Cudd_addIthVar(dd_man.manager(), 2*i + 1);
       Cudd_Ref(ddi);
-      DdNode* dd_mul = Cudd_addApply(dd_man, Cudd_addTimes, ddc, ddi);
+      DdNode* dd_mul = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddc, ddi);
       Cudd_Ref(dd_mul);
-      Cudd_RecursiveDeref(dd_man, ddc);
-      Cudd_RecursiveDeref(dd_man, ddi);
-      ddi = Cudd_addApply(dd_man, Cudd_addPlus, dd_mul, ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), ddc);
+      Cudd_RecursiveDeref(dd_man.manager(), ddi);
+      ddi = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd_mul, ddv);
       Cudd_Ref(ddi);
-      Cudd_RecursiveDeref(dd_man, dd_mul);
-      Cudd_RecursiveDeref(dd_man, ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), dd_mul);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
       ddv = ddi;
     }
     if (low() > 0) {
-      DdNode* ddl = Cudd_addConst(dd_man, low());
+      DdNode* ddl = Cudd_addConst(dd_man.manager(), low());
       Cudd_Ref(ddl);
-      primed_mtbdd_ = Cudd_addApply(dd_man, Cudd_addPlus, ddl, ddv);
+      primed_mtbdd_ = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddl, ddv);
       Cudd_Ref(primed_mtbdd_);
-      Cudd_RecursiveDeref(dd_man, ddl);
-      Cudd_RecursiveDeref(dd_man, ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), ddl);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
     } else {
       primed_mtbdd_ = ddv;
     }
@@ -563,8 +566,8 @@ DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
 
 DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
   if (identity_bdd_ == NULL) {
-    mtbdd(dd_man.manager());
-    primed_mtbdd(dd_man.manager());
+    mtbdd(dd_man);
+    primed_mtbdd(dd_man);
     DdNode* dde =
         Cudd_addApply(dd_man.manager(), Cudd_addMinus, mtbdd_, primed_mtbdd_);
     Cudd_Ref(dde);
@@ -579,39 +582,40 @@ DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
   return identity_bdd_;
 }
 
-DdNode* Variable::range_bdd(DdManager* dd_man) const {
+DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* range;
   if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
-    range = Cudd_ReadOne(dd_man);
+    range = Cudd_ReadOne(dd_man.manager());
     Cudd_Ref(range);
   } else {
     mtbdd(dd_man);
-    DdNode* ddr = Cudd_addBddInterval(dd_man, mtbdd_, low(), high());
+    DdNode* ddr = Cudd_addBddInterval(dd_man.manager(), mtbdd_, low(), high());
     Cudd_Ref(ddr);
-    Cudd_RecursiveDeref(dd_man, mtbdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
     primed_mtbdd(dd_man);
-    DdNode* ddp = Cudd_addBddInterval(dd_man, primed_mtbdd_, low(), high());
+    DdNode* ddp =
+        Cudd_addBddInterval(dd_man.manager(), primed_mtbdd_, low(), high());
     Cudd_Ref(ddp);
-    Cudd_RecursiveDeref(dd_man, primed_mtbdd_);
-    range = Cudd_bddAnd(dd_man, ddr, ddp);
+    Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
+    range = Cudd_bddAnd(dd_man.manager(), ddr, ddp);
     Cudd_Ref(range);
-    Cudd_RecursiveDeref(dd_man, ddr);
-    Cudd_RecursiveDeref(dd_man, ddp);
+    Cudd_RecursiveDeref(dd_man.manager(), ddr);
+    Cudd_RecursiveDeref(dd_man.manager(), ddp);
   }
   return range;
 }
 
-void Variable::uncache_dds(DdManager* dd_man) const {
+void Variable::uncache_dds(const DecisionDiagramManager& dd_man) const {
   if (mtbdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, mtbdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
     mtbdd_ = NULL;
   }
   if (primed_mtbdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, primed_mtbdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
     primed_mtbdd_ = NULL;
   }
   if (identity_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, identity_bdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), identity_bdd_);
     identity_bdd_ = NULL;
   }
 }
@@ -639,14 +643,14 @@ const Literal& Literal::substitution(const SubstitutionMap& subst) const {
   return *this;
 }
 
-DdNode* Literal::mtbdd(DdManager* dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
+DdNode* Literal::mtbdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* ddv = Cudd_addConst(dd_man.manager(), value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
 }
 
-DdNode* Literal::primed_mtbdd(DdManager* dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man, value().value<double>());
+DdNode* Literal::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* ddv = Cudd_addConst(dd_man.manager(), value().value<double>());
   Cudd_Ref(ddv);
   return ddv;
 }

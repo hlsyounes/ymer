@@ -22,18 +22,21 @@
  */
 #include "odd.h"
 
+#include <cstdio>
 #include <set>
+
+#include "cudd.h"
 
 // static variables
 static int num_odd_nodes = 0;
 
 // local prototypes
-static ODDNode *build_odd_rec(DdManager *ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables);
-static long add_offsets(DdManager *ddman, ODDNode *dd, int level, int num_vars);
+static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables);
+static long add_offsets(const DecisionDiagramManager &ddman, ODDNode *dd, int level, int num_vars);
 
 //------------------------------------------------------------------------------
 
-ODDNode *build_odd(DdManager *ddman, DdNode *dd, DdNode **vars, int num_vars)
+ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **vars, int num_vars)
 {
   int i;
   ODDNode **tables;
@@ -62,7 +65,7 @@ ODDNode *build_odd(DdManager *ddman, DdNode *dd, DdNode **vars, int num_vars)
 
 //------------------------------------------------------------------------------
 
-static ODDNode *build_odd_rec(DdManager *ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables)
+static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables)
 {
   ODDNode *ptr;
 	
@@ -108,11 +111,11 @@ static ODDNode *build_odd_rec(DdManager *ddman, DdNode *dd, int level, DdNode **
 
 //------------------------------------------------------------------------------
 
-long add_offsets(DdManager *ddman, ODDNode *odd, int level, int num_vars)
+long add_offsets(const DecisionDiagramManager &ddman, ODDNode *odd, int level, int num_vars)
 {
   if ((odd->eoff == -1) || (odd->toff == -1)) {
     if (level == num_vars) {
-      if (odd->dd == Cudd_ReadZero(ddman)) {
+      if (odd->dd == Cudd_ReadZero(ddman.manager())) {
 	odd->eoff = 0;
 	odd->toff = 0;
       }
