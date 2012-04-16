@@ -27,14 +27,15 @@ namespace {
 
 TEST(LiteralTest, Output) {
   std::ostringstream out;
-  out << Literal(17) << ';' << Literal(0.5) << ';' << Literal(true);
-  EXPECT_EQ("17;0.5;true", out.str());
+  Literal a(17), b(0.5), c(true), d(false);
+  out << a << ';' << b << ';' << c << ';' << d;
+  EXPECT_EQ("17;0.5;true;false", out.str());
 }
 
 TEST(VariableTest, Output) {
   std::ostringstream out;
-  out << Variable(0, 3, 0, 1) << ';' << Variable(2, 6, 6, 0) << ';'
-      << Variable(0, 1, 0, 3);
+  Variable a(0, 3, 0, 1), b(2, 6, 6, 0), c(0, 1, 0, 3);
+  out << a << ';' << b << ';' << c;
   EXPECT_EQ("v1_2;v0_2;v3", out.str());
 }
 
