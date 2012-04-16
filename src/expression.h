@@ -30,6 +30,7 @@
 
 #include "cudd.h"
 
+#include "ddutil.h"
 #include "typed-value.h"
 
 class Variable;
@@ -312,7 +313,7 @@ class Variable : public Expression {
 
   // Returns a BDD representing identity between the `current state'
   // and `next state' versions of this variable.
-  DdNode* identity_bdd(DdManager* dd_man) const;
+  DdNode* identity_bdd(const DecisionDiagramManager& dd_man) const;
 
   // Returns a BDD representing the range for this variable.
   DdNode* range_bdd(DdManager* dd_man) const;

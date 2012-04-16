@@ -561,17 +561,18 @@ DdNode* Variable::primed_mtbdd(DdManager* dd_man) const {
   return primed_mtbdd_;
 }
 
-DdNode* Variable::identity_bdd(DdManager* dd_man) const {
+DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
   if (identity_bdd_ == NULL) {
-    mtbdd(dd_man);
-    primed_mtbdd(dd_man);
-    DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, mtbdd_, primed_mtbdd_);
+    mtbdd(dd_man.manager());
+    primed_mtbdd(dd_man.manager());
+    DdNode* dde =
+        Cudd_addApply(dd_man.manager(), Cudd_addMinus, mtbdd_, primed_mtbdd_);
     Cudd_Ref(dde);
-    Cudd_RecursiveDeref(dd_man, mtbdd_);
-    Cudd_RecursiveDeref(dd_man, primed_mtbdd_);
-    identity_bdd_ = Cudd_addBddInterval(dd_man, dde, 0, 0);
+    Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
+    identity_bdd_ = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
     Cudd_Ref(identity_bdd_);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     Cudd_Ref(identity_bdd_);
   }
