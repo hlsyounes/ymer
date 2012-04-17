@@ -496,33 +496,12 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
 
 DdNode* Variable::mtbdd(const DecisionDiagramManager& dd_man) const {
   if (mtbdd_ == NULL) {
-    DdNode* ddv = Cudd_ReadZero(dd_man.manager());
-    Cudd_Ref(ddv);
-    for (int i = high_bit(); i >= low_bit(); i--) {
-      DdNode* ddc = Cudd_addConst(dd_man.manager(), 1 << (high_bit() - i));
-      Cudd_Ref(ddc);
-      DdNode* ddi = Cudd_addIthVar(dd_man.manager(), 2*i);
-      Cudd_Ref(ddi);
-      DdNode* dd_mul = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddc, ddi);
-      Cudd_Ref(dd_mul);
-      Cudd_RecursiveDeref(dd_man.manager(), ddc);
-      Cudd_RecursiveDeref(dd_man.manager(), ddi);
-      ddi = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd_mul, ddv);
-      Cudd_Ref(ddi);
-      Cudd_RecursiveDeref(dd_man.manager(), dd_mul);
-      Cudd_RecursiveDeref(dd_man.manager(), ddv);
-      ddv = ddi;
+    ADD dd = dd_man.GetConstant(0);
+    for (int i = high_bit(); i >= low_bit(); --i) {
+      dd = dd + (dd_man.GetAddVariable(2*i) *
+                 dd_man.GetConstant(1 << (high_bit() - i)));
     }
-    if (low() > 0) {
-      DdNode* ddl = Cudd_addConst(dd_man.manager(), low());
-      Cudd_Ref(ddl);
-      mtbdd_ = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddl, ddv);
-      Cudd_Ref(mtbdd_);
-      Cudd_RecursiveDeref(dd_man.manager(), ddl);
-      Cudd_RecursiveDeref(dd_man.manager(), ddv);
-    } else {
-      mtbdd_ = ddv;
-    }
+    mtbdd_ = (dd + dd_man.GetConstant(low())).release();
   } else {
     Cudd_Ref(mtbdd_);
   }
@@ -531,33 +510,12 @@ DdNode* Variable::mtbdd(const DecisionDiagramManager& dd_man) const {
 
 DdNode* Variable::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
   if (primed_mtbdd_ == NULL) {
-    DdNode* ddv = Cudd_ReadZero(dd_man.manager());
-    Cudd_Ref(ddv);
-    for (int i = high_bit(); i >= low_bit(); i--) {
-      DdNode* ddc = Cudd_addConst(dd_man.manager(), 1 << (high_bit() - i));
-      Cudd_Ref(ddc);
-      DdNode* ddi = Cudd_addIthVar(dd_man.manager(), 2*i + 1);
-      Cudd_Ref(ddi);
-      DdNode* dd_mul = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddc, ddi);
-      Cudd_Ref(dd_mul);
-      Cudd_RecursiveDeref(dd_man.manager(), ddc);
-      Cudd_RecursiveDeref(dd_man.manager(), ddi);
-      ddi = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd_mul, ddv);
-      Cudd_Ref(ddi);
-      Cudd_RecursiveDeref(dd_man.manager(), dd_mul);
-      Cudd_RecursiveDeref(dd_man.manager(), ddv);
-      ddv = ddi;
+    ADD dd = dd_man.GetConstant(0);
+    for (int i = high_bit(); i >= low_bit(); --i) {
+      dd = dd + (dd_man.GetAddVariable(2*i + 1) *
+                 dd_man.GetConstant(1 << (high_bit() - i)));
     }
-    if (low() > 0) {
-      DdNode* ddl = Cudd_addConst(dd_man.manager(), low());
-      Cudd_Ref(ddl);
-      primed_mtbdd_ = Cudd_addApply(dd_man.manager(), Cudd_addPlus, ddl, ddv);
-      Cudd_Ref(primed_mtbdd_);
-      Cudd_RecursiveDeref(dd_man.manager(), ddl);
-      Cudd_RecursiveDeref(dd_man.manager(), ddv);
-    } else {
-      primed_mtbdd_ = ddv;
-    }
+    primed_mtbdd_ = (dd + dd_man.GetConstant(low())).release();
   } else {
     Cudd_Ref(primed_mtbdd_);
   }
@@ -585,8 +543,7 @@ DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
 DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* range;
   if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
-    range = Cudd_ReadOne(dd_man.manager());
-    Cudd_Ref(range);
+    range = dd_man.GetConstant(1).release();
   } else {
     mtbdd(dd_man);
     DdNode* ddr = Cudd_addBddInterval(dd_man.manager(), mtbdd_, low(), high());
@@ -644,15 +601,11 @@ const Literal& Literal::substitution(const SubstitutionMap& subst) const {
 }
 
 DdNode* Literal::mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man.manager(), value().value<double>());
-  Cudd_Ref(ddv);
-  return ddv;
+  return dd_man.GetConstant(value().value<double>()).release();
 }
 
 DdNode* Literal::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* ddv = Cudd_addConst(dd_man.manager(), value().value<double>());
-  Cudd_Ref(ddv);
-  return ddv;
+  return dd_man.GetConstant(value().value<double>()).release();
 }
 
 ExpressionVisitor::ExpressionVisitor() {
