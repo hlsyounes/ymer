@@ -22,6 +22,8 @@
 #ifndef DDUTIL_H_
 #define DDUTIL_H_
 
+#include <vector>
+
 class DdManager;
 class DdNode;
 
@@ -31,6 +33,9 @@ class DecisionDiagram {
  public:
   // Returns true if this decision diagram is a constant.
   bool IsConstant() const;
+
+  // TODO(hlsyounes): remove once all code is using wrapper classes.
+  DdNode* release();
 
  protected:
   DecisionDiagram(DdManager* manager, DdNode* node);
@@ -52,26 +57,52 @@ class DecisionDiagram {
   DdNode* node_;
 };
 
+class ADD;
+
+// Wrapper class for BDDs, with automatic referencing and dereferencing.
+class BDD : public DecisionDiagram {
+ public:
+  // Returns the value of this BDD.  Requires that this BDD is constant.
+  bool Value() const;
+
+  // Returns the value of this BDD for the given variable assignment.
+  bool ValueInState(const std::vector<bool>& state) const;
+
+ private:
+  BDD(DdManager* manager, DdNode* node);
+
+  friend class DecisionDiagramManager;
+  friend ADD Ite(const BDD&, const ADD&, const ADD&);
+};
+
 // Wrapper class for ADDs, with automatic referencing and dereferencing.
 class ADD : public DecisionDiagram {
  public:
-  ADD(const ADD& dd);
-  ADD& operator=(const ADD& dd);
-
   // Returns the value of this ADD.  Requires that this ADD is constant.
   double Value() const;
 
+  // Returns the value of this BDD for the given variable assignment.
+  double ValueInState(const std::vector<bool>& state) const;
+
   // Arithmetic operators for ADDs.
   ADD operator+(const ADD& dd) const;
-  ADD operator-(const ADD& dd) const;
   ADD operator*(const ADD& dd) const;
-  ADD operator/(const ADD& dd) const;
 
  private:
-  ADD(DdManager* manager_, DdNode* node);
+  // An ADD operator to use with Apply().
+  typedef DdNode* (*Op)(DdManager*, DdNode**, DdNode**);
+
+  ADD(DdManager* manager, DdNode* node);
+
+  // Returns the result of applying op to ADDs dd1 and dd2.
+  static ADD Apply(Op op, const ADD& dd1, const ADD& dd2);
 
   friend class DecisionDiagramManager;
+  friend ADD Ite(const BDD&, const ADD&, const ADD&);
 };
+
+// Returns the ADD for dd1 ? dd2 : dd3.
+ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3);
 
 // Wrapper class for DdManager.
 class DecisionDiagramManager {
@@ -95,8 +126,18 @@ class DecisionDiagramManager {
   // Returns the epsilon parameter of this manager.
   double GetEpsilon() const;
 
-  // Returns an ADD for the given constant value.
+  // Returns the BDD for the given constant value.
+  BDD GetConstant(bool value) const;
+
+  // Returns the ADD for the given constant value.
+  ADD GetConstant(int value) const;
   ADD GetConstant(double value) const;
+
+  // Returns the BDD for the ith variable.
+  BDD GetBddVariable(int i) const;
+
+  // Returns the ADD for the ith variable.
+  ADD GetAddVariable(int i) const;
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdManager* manager() const { return manager_; }
