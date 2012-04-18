@@ -428,12 +428,11 @@ DdNode* Division::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
 }
 
 Variable::Variable()
-    : mtbdd_(NULL), primed_mtbdd_(NULL), identity_bdd_(NULL) {
+    : identity_bdd_(NULL) {
 }
 
 Variable::Variable(int low, int high, int start, int low_bit)
-    : low_(low), high_(high), start_(start), mtbdd_(NULL), primed_mtbdd_(NULL),
-      identity_bdd_(NULL) {
+    : low_(low), high_(high), start_(start), identity_bdd_(NULL) {
   set_low_bit(low_bit);
 }
 
@@ -495,37 +494,27 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
 }
 
 DdNode* Variable::mtbdd(const DecisionDiagramManager& dd_man) const {
-  if (mtbdd_ == NULL) {
-    ADD dd = dd_man.GetConstant(0);
-    for (int i = high_bit(); i >= low_bit(); --i) {
-      dd = dd + (dd_man.GetAddVariable(2*i) *
-                 dd_man.GetConstant(1 << (high_bit() - i)));
-    }
-    mtbdd_ = (dd + dd_man.GetConstant(low())).release();
-  } else {
-    Cudd_Ref(mtbdd_);
+  ADD dd = dd_man.GetConstant(0);
+  for (int i = high_bit(); i >= low_bit(); --i) {
+    dd = dd + (dd_man.GetAddVariable(2*i) *
+               dd_man.GetConstant(1 << (high_bit() - i)));
   }
-  return mtbdd_;
+  return (dd + dd_man.GetConstant(low())).release();
 }
 
 DdNode* Variable::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  if (primed_mtbdd_ == NULL) {
-    ADD dd = dd_man.GetConstant(0);
-    for (int i = high_bit(); i >= low_bit(); --i) {
-      dd = dd + (dd_man.GetAddVariable(2*i + 1) *
-                 dd_man.GetConstant(1 << (high_bit() - i)));
-    }
-    primed_mtbdd_ = (dd + dd_man.GetConstant(low())).release();
-  } else {
-    Cudd_Ref(primed_mtbdd_);
+  ADD dd = dd_man.GetConstant(0);
+  for (int i = high_bit(); i >= low_bit(); --i) {
+    dd = dd + (dd_man.GetAddVariable(2*i + 1) *
+               dd_man.GetConstant(1 << (high_bit() - i)));
   }
-  return primed_mtbdd_;
+  return (dd + dd_man.GetConstant(low())).release();
 }
 
 DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
   if (identity_bdd_ == NULL) {
-    mtbdd(dd_man);
-    primed_mtbdd(dd_man);
+    DdNode* mtbdd_ = mtbdd(dd_man);
+    DdNode* primed_mtbdd_ = primed_mtbdd(dd_man);
     DdNode* dde =
         Cudd_addApply(dd_man.manager(), Cudd_addMinus, mtbdd_, primed_mtbdd_);
     Cudd_Ref(dde);
@@ -545,11 +534,11 @@ DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
   if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
     range = dd_man.GetConstant(1).release();
   } else {
-    mtbdd(dd_man);
+    DdNode* mtbdd_ = mtbdd(dd_man);
     DdNode* ddr = Cudd_addBddInterval(dd_man.manager(), mtbdd_, low(), high());
     Cudd_Ref(ddr);
     Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
-    primed_mtbdd(dd_man);
+    DdNode* primed_mtbdd_ = primed_mtbdd(dd_man);
     DdNode* ddp =
         Cudd_addBddInterval(dd_man.manager(), primed_mtbdd_, low(), high());
     Cudd_Ref(ddp);
@@ -563,14 +552,6 @@ DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
 }
 
 void Variable::uncache_dds(const DecisionDiagramManager& dd_man) const {
-  if (mtbdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
-    mtbdd_ = NULL;
-  }
-  if (primed_mtbdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
-    primed_mtbdd_ = NULL;
-  }
   if (identity_bdd_ != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), identity_bdd_);
     identity_bdd_ = NULL;

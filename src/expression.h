@@ -332,10 +332,6 @@ private:
   int low_bit_;
   // Index of the last DD variable used to represent this variable.
   int high_bit_;
-  // Cached `current state' MTBDD representation for this variable.
-  mutable DdNode* mtbdd_;
-  // Cached `next state' MTBDD representation for this variable.
-  mutable DdNode* primed_mtbdd_;
   // Cached BDD representing identity between the `current state' and
   // `next state' versions of this variable.
   mutable DdNode* identity_bdd_;
