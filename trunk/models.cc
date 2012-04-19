@@ -340,7 +340,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	Cudd_RecursiveDeref(dd_man.manager(), dds);
 	Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	init_bdd_ = dda;
-	v.identity_bdd(dd_man);
       }
       mod.identity_bdd(dd_man);
     }
@@ -357,7 +356,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       Cudd_RecursiveDeref(dd_man.manager(), dds);
       Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
       init_bdd_ = dda;
-      v.identity_bdd(dd_man);
     }
     /* BDD for variable ranges. */
     DdNode* range = range_bdd(dd_man);
@@ -445,6 +443,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ddo = Cudd_bddOr(dd_man.manager(), ddn, ddid);
 	  Cudd_Ref(ddo);
 	  Cudd_RecursiveDeref(dd_man.manager(), ddn);
+          Cudd_RecursiveDeref(dd_man.manager(), ddid);
 	  dda = Cudd_bddAnd(dd_man.manager(), data.update_bdd, ddo);
 	  Cudd_Ref(dda);
 	  Cudd_RecursiveDeref(dd_man.manager(), data.update_bdd);
@@ -868,7 +867,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     for (std::map<size_t, PHData>::const_iterator ci = ph_commands.begin();
 	 ci != ph_commands.end(); ci++) {
       if ((*ci).second.s != NULL) {
-	(*ci).second.s->uncache_dds(dd_man);
 	Expression::destructive_deref((*ci).second.s);
 	Cudd_RecursiveDeref(dd_man.manager(), (*ci).second.update_bdd);
       }
@@ -1038,20 +1036,6 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
   if (rate_mtbdd_ != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), rate_mtbdd_);
     rate_mtbdd_ = NULL;
-    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-	 mi != modules().rend(); mi++) {
-      const Module& mod = **mi;
-      for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
-	   vi != mod.variables().rend(); vi++) {
-	const Variable& v = **vi;
-	v.uncache_dds(dd_man);
-      }
-    }
-    for (VariableList::const_reverse_iterator vi = variables().rbegin();
-	 vi != variables().rend(); vi++) {
-      const Variable& v = **vi;
-      v.uncache_dds(dd_man);
-    }
   }
   if (reach_bdd_ != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), reach_bdd_);

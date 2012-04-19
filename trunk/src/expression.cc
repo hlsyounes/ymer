@@ -427,12 +427,11 @@ DdNode* Division::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
   return ddc;
 }
 
-Variable::Variable()
-    : identity_bdd_(NULL) {
+Variable::Variable() {
 }
 
 Variable::Variable(int low, int high, int start, int low_bit)
-    : low_(low), high_(high), start_(start), identity_bdd_(NULL) {
+    : low_(low), high_(high), start_(start) {
   set_low_bit(low_bit);
 }
 
@@ -512,20 +511,16 @@ DdNode* Variable::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
 }
 
 DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
-  if (identity_bdd_ == NULL) {
-    DdNode* mtbdd_ = mtbdd(dd_man);
-    DdNode* primed_mtbdd_ = primed_mtbdd(dd_man);
-    DdNode* dde =
-        Cudd_addApply(dd_man.manager(), Cudd_addMinus, mtbdd_, primed_mtbdd_);
-    Cudd_Ref(dde);
-    Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
-    Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
-    identity_bdd_ = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
-    Cudd_Ref(identity_bdd_);
-    Cudd_RecursiveDeref(dd_man.manager(), dde);
-  } else {
-    Cudd_Ref(identity_bdd_);
-  }
+  DdNode* mtbdd_ = mtbdd(dd_man);
+  DdNode* primed_mtbdd_ = primed_mtbdd(dd_man);
+  DdNode* dde =
+      Cudd_addApply(dd_man.manager(), Cudd_addMinus, mtbdd_, primed_mtbdd_);
+  Cudd_Ref(dde);
+  Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
+  Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
+  DdNode* identity_bdd_ = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
+  Cudd_Ref(identity_bdd_);
+  Cudd_RecursiveDeref(dd_man.manager(), dde);
   return identity_bdd_;
 }
 
@@ -549,13 +544,6 @@ DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
     Cudd_RecursiveDeref(dd_man.manager(), ddp);
   }
   return range;
-}
-
-void Variable::uncache_dds(const DecisionDiagramManager& dd_man) const {
-  if (identity_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), identity_bdd_);
-    identity_bdd_ = NULL;
-  }
 }
 
 Literal::Literal(const TypedValue& value)

@@ -316,9 +316,6 @@ class Variable : public Expression {
   // Returns a BDD representing the range for this variable.
   DdNode* range_bdd(const DecisionDiagramManager& dd_man) const;
 
-  // Releases any cached DDs for this variable.
-  void uncache_dds(const DecisionDiagramManager& dd_man) const;
-
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
@@ -332,9 +329,6 @@ private:
   int low_bit_;
   // Index of the last DD variable used to represent this variable.
   int high_bit_;
-  // Cached BDD representing identity between the `current state' and
-  // `next state' versions of this variable.
-  mutable DdNode* identity_bdd_;
 };
 
 // A literal expression.
