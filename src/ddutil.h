@@ -69,10 +69,26 @@ class BDD : public DecisionDiagram {
   // Returns the value of this BDD for the given variable assignment.
   bool ValueInState(const std::vector<bool>& state) const;
 
+  // Logical operators for BDDs.
+  BDD operator!() const;
+  BDD operator&&(const BDD& dd) const;
+  BDD operator||(const BDD& dd) const;
+
+  // Comparison operators for BDDs.
+  BDD operator==(const BDD& dd2) const;
+  BDD operator!=(const BDD& dd2) const;
+
  private:
+  // A BDD operator to use with Apply().
+  typedef DdNode* (*Op)(DdManager*, DdNode*, DdNode*);
+
   BDD(DdManager* manager, DdNode* node);
 
+  // Returns the result of applying op to BDDs dd1 and dd2.
+  static BDD Apply(Op op, const BDD& dd1, const BDD& dd2);
+
   friend class DecisionDiagramManager;
+  friend class ADD;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
 };
 
@@ -85,11 +101,18 @@ class ADD : public DecisionDiagram {
   // Returns the value of this BDD for the given variable assignment.
   double ValueInState(const std::vector<bool>& state) const;
 
+  // Returns the BDD representing low <= *this <= high.
+  BDD Interval(double low, double high) const;
+
   // Arithmetic operators for ADDs.
   ADD operator+(const ADD& dd) const;
   ADD operator-(const ADD& dd) const;
   ADD operator*(const ADD& dd) const;
   ADD operator/(const ADD& dd) const;
+
+  // Comparison operators for ADDs.
+  BDD operator==(const ADD& dd) const;
+  BDD operator!=(const ADD& dd) const;
 
  private:
   // An ADD operator to use with Apply().

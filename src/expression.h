@@ -281,10 +281,10 @@ class Variable : public Expression {
 
   // Returns a BDD representing identity between the `current state'
   // and `next state' versions of this variable.
-  DdNode* identity_bdd(const DecisionDiagramManager& dd_man) const;
+  BDD identity_bdd(const DecisionDiagramManager& manager) const;
 
   // Returns a BDD representing the range for this variable.
-  DdNode* range_bdd(const DecisionDiagramManager& dd_man) const;
+  BDD range_bdd(const DecisionDiagramManager& manager) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;

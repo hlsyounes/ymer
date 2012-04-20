@@ -267,7 +267,7 @@ DdNode* Module::identity_bdd(const DecisionDiagramManager& dd_man) const {
     Cudd_Ref(dd);
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
-      DdNode* ddv = (*vi)->identity_bdd(dd_man);
+      DdNode* ddv = (*vi)->identity_bdd(dd_man).release();
       DdNode* ddi = Cudd_bddAnd(dd_man.manager(), ddv, dd);
       Cudd_Ref(ddi);
       Cudd_RecursiveDeref(dd_man.manager(), ddv);

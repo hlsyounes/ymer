@@ -120,6 +120,31 @@ bool BDD::ValueInState(const std::vector<bool>& state) const {
   return ValueInStateImpl<bool>(node(), state);
 }
 
+BDD BDD::operator!() const {
+  return BDD(manager(), Cudd_Not(node()));
+}
+
+BDD BDD::operator&&(const BDD& dd) const {
+  return Apply(Cudd_bddAnd, *this, dd);
+}
+
+BDD BDD::operator||(const BDD& dd) const {
+  return Apply(Cudd_bddOr, *this, dd);
+}
+
+BDD BDD::operator==(const BDD& dd) const {
+  return Apply(Cudd_bddXnor, *this, dd);
+}
+
+BDD BDD::operator!=(const BDD& dd) const {
+  return !(*this == dd);
+}
+
+BDD BDD::Apply(Op op, const BDD& dd1, const BDD& dd2) {
+  DdManager* const manager = dd1.manager();
+  return BDD(manager, op(manager, dd1.node(), dd2.node()));
+}
+
 ADD::ADD(DdManager* manager, DdNode* node)
     : DecisionDiagram(manager, node) {
 }
@@ -132,6 +157,10 @@ double ADD::Value() const {
 double ADD::ValueInState(const std::vector<bool>& state) const {
   CHECK_EQ(Cudd_ReadSize(manager()), state.size());
   return ValueInStateImpl<double>(node(), state);
+}
+
+BDD ADD::Interval(double low, double high) const {
+  return BDD(manager(), Cudd_addBddInterval(manager(), node(), low, high));
 }
 
 ADD ADD::operator+(const ADD& dd) const {
@@ -150,9 +179,17 @@ ADD ADD::operator/(const ADD& dd) const {
   return Apply(Cudd_addDivide, *this, dd);
 }
 
+BDD ADD::operator==(const ADD& dd) const {
+  return (*this - dd).Interval(0.0, 0.0);
+}
+
+BDD ADD::operator!=(const ADD& dd) const {
+  return !(*this == dd);
+}
+
 ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {
-  return ADD(dd1.manager(),
-             Cudd_addApply(dd1.manager(), op, dd1.node(), dd2.node()));
+  DdManager* const manager = dd1.manager();
+  return ADD(manager, Cudd_addApply(manager, op, dd1.node(), dd2.node()));
 }
 
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3) {
