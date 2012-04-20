@@ -482,33 +482,17 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
-  ADD dde = mtbdd(dd_man, *this) - primed_mtbdd(dd_man, *this);
-  DdNode* identity_bdd_ =
-      Cudd_addBddInterval(dd_man.manager(), dde.get(), 0, 0);
-  Cudd_Ref(identity_bdd_);
-  return identity_bdd_;
+BDD Variable::identity_bdd(const DecisionDiagramManager& manager) const {
+  return mtbdd(manager, *this) == primed_mtbdd(manager, *this);
 }
 
-DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* range;
+BDD Variable::range_bdd(const DecisionDiagramManager& manager) const {
   if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
-    range = dd_man.GetConstant(1).release();
+    return manager.GetConstant(true);
   } else {
-    DdNode* ddr =
-        Cudd_addBddInterval(dd_man.manager(),
-                            mtbdd(dd_man, *this).get(), low(), high());
-    Cudd_Ref(ddr);
-    DdNode* ddp =
-        Cudd_addBddInterval(dd_man.manager(),
-                            primed_mtbdd(dd_man, *this).get(), low(), high());
-    Cudd_Ref(ddp);
-    range = Cudd_bddAnd(dd_man.manager(), ddr, ddp);
-    Cudd_Ref(range);
-    Cudd_RecursiveDeref(dd_man.manager(), ddr);
-    Cudd_RecursiveDeref(dd_man.manager(), ddp);
+    return mtbdd(manager, *this).Interval(low(), high())
+        && primed_mtbdd(manager, *this).Interval(low(), high());
   }
-  return range;
 }
 
 Literal::Literal(const TypedValue& value)

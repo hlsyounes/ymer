@@ -25,6 +25,10 @@
 
 namespace {
 
+std::vector<bool> sv(bool b1) {
+  return std::vector<bool>(1, b1);
+}
+
 std::vector<bool> sv(bool b1, bool b2) {
   std::vector<bool> result;
   result.push_back(b1);
@@ -68,6 +72,29 @@ TEST(DecisionDiagramTest, Value) {
   EXPECT_EQ(17.0, manager.GetConstant(17.0).Value());
   EXPECT_EQ(-42.0, manager.GetConstant(-42.0).Value());
   EXPECT_EQ(3.14159, manager.GetConstant(3.14159).Value());
+}
+
+TEST(DecisionDiagramTest, IntervalConstants) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_TRUE(manager.GetConstant(3).Interval(3, 4).Value());
+  EXPECT_TRUE(manager.GetConstant(-3).Interval(-4, -3).Value());
+  EXPECT_TRUE(manager.GetConstant(3).Interval(-3, 4).Value());
+  EXPECT_FALSE(manager.GetConstant(3).Interval(0, 2).Value());
+  EXPECT_FALSE(manager.GetConstant(3).Interval(4, 17).Value());
+}
+
+TEST(DecisionDiagramTest, IntervalNonConstants) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd =
+      Ite(manager.GetBddVariable(0),
+          Ite(manager.GetBddVariable(1),
+              manager.GetConstant(2), manager.GetConstant(5)),
+          Ite(manager.GetBddVariable(1),
+              manager.GetConstant(3), manager.GetConstant(7))).Interval(3, 6);
+  EXPECT_FALSE(dd.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd.ValueInState(sv(true, false)));
+  EXPECT_TRUE(dd.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd.ValueInState(sv(false, false)));
 }
 
 TEST(DecisionDiagramTest, AddsConstants) {
@@ -144,6 +171,133 @@ TEST(DecisionDiagramTest, DividesNonConstants) {
   EXPECT_EQ(2.0 / 7.0, dd.ValueInState(sv(true, false)));
   EXPECT_EQ(5.0 / 3.0, dd.ValueInState(sv(false, true)));
   EXPECT_EQ(5.0 / 7.0, dd.ValueInState(sv(false, false)));
+}
+
+TEST(DecisionDiagramTest, NotConstant) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_FALSE((!manager.GetConstant(true)).Value());
+  EXPECT_TRUE((!manager.GetConstant(false)).Value());
+}
+
+TEST(DecisionDiagramTest, NotNonConstant) {
+  const DecisionDiagramManager manager(1);
+  const BDD dd = !manager.GetBddVariable(0);
+  EXPECT_FALSE(dd.ValueInState(sv(true)));
+  EXPECT_TRUE(dd.ValueInState(sv(false)));
+}
+
+TEST(DecisionDiagramTest, AndConstants) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_TRUE((manager.GetConstant(true) &&
+               manager.GetConstant(true)).Value());
+  EXPECT_FALSE((manager.GetConstant(true) &&
+                manager.GetConstant(false)).Value());
+  EXPECT_FALSE((manager.GetConstant(false) &&
+                manager.GetConstant(true)).Value());
+  EXPECT_FALSE((manager.GetConstant(false) &&
+                manager.GetConstant(false)).Value());
+}
+
+TEST(DecisionDiagramTest, AndNonConstants) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd = manager.GetBddVariable(0) && manager.GetBddVariable(1);
+  EXPECT_TRUE(dd.ValueInState(sv(true, true)));
+  EXPECT_FALSE(dd.ValueInState(sv(true, false)));
+  EXPECT_FALSE(dd.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd.ValueInState(sv(false, false)));
+}
+
+TEST(DecisionDiagramTest, OrConstants) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_TRUE((manager.GetConstant(true) ||
+               manager.GetConstant(true)).Value());
+  EXPECT_TRUE((manager.GetConstant(true) ||
+               manager.GetConstant(false)).Value());
+  EXPECT_TRUE((manager.GetConstant(false) ||
+               manager.GetConstant(true)).Value());
+  EXPECT_FALSE((manager.GetConstant(false) ||
+                manager.GetConstant(false)).Value());
+}
+
+TEST(DecisionDiagramTest, OrNonConstants) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd = manager.GetBddVariable(0) || manager.GetBddVariable(1);
+  EXPECT_TRUE(dd.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd.ValueInState(sv(true, false)));
+  EXPECT_TRUE(dd.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd.ValueInState(sv(false, false)));
+}
+
+TEST(DecisionDiagramTest, EqualsConstants) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_TRUE((manager.GetConstant(17.0) ==
+               manager.GetConstant(17.0)).Value());
+  EXPECT_FALSE((manager.GetConstant(17.0) ==
+                manager.GetConstant(42.0)).Value());
+  EXPECT_FALSE((manager.GetConstant(42.0) ==
+                manager.GetConstant(17.0)).Value());
+  EXPECT_TRUE((manager.GetConstant(true) ==
+               manager.GetConstant(true)).Value());
+  EXPECT_FALSE((manager.GetConstant(true) ==
+                manager.GetConstant(false)).Value());
+  EXPECT_FALSE((manager.GetConstant(false) ==
+                manager.GetConstant(true)).Value());
+  EXPECT_TRUE((manager.GetConstant(false) ==
+               manager.GetConstant(false)).Value());
+}
+
+TEST(DecisionDiagramTest, EqualsNonConstants) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd1 =
+      Ite(manager.GetBddVariable(0),
+          manager.GetConstant(2), manager.GetConstant(5)) ==
+      Ite(manager.GetBddVariable(1),
+          manager.GetConstant(5), manager.GetConstant(7));
+  EXPECT_FALSE(dd1.ValueInState(sv(true, true)));
+  EXPECT_FALSE(dd1.ValueInState(sv(true, false)));
+  EXPECT_TRUE(dd1.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd1.ValueInState(sv(false, false)));
+  const BDD dd2 = manager.GetBddVariable(0) == manager.GetBddVariable(1);
+  EXPECT_TRUE(dd2.ValueInState(sv(true, true)));
+  EXPECT_FALSE(dd2.ValueInState(sv(true, false)));
+  EXPECT_FALSE(dd2.ValueInState(sv(false, true)));
+  EXPECT_TRUE(dd2.ValueInState(sv(false, false)));
+}
+
+TEST(DecisionDiagramTest, NotEqualsConstants) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_FALSE((manager.GetConstant(17.0) !=
+                manager.GetConstant(17.0)).Value());
+  EXPECT_TRUE((manager.GetConstant(17.0) !=
+               manager.GetConstant(42.0)).Value());
+  EXPECT_TRUE((manager.GetConstant(42.0) !=
+               manager.GetConstant(17.0)).Value());
+  EXPECT_FALSE((manager.GetConstant(true) !=
+                manager.GetConstant(true)).Value());
+  EXPECT_TRUE((manager.GetConstant(true) !=
+               manager.GetConstant(false)).Value());
+  EXPECT_TRUE((manager.GetConstant(false) !=
+               manager.GetConstant(true)).Value());
+  EXPECT_FALSE((manager.GetConstant(false) !=
+                manager.GetConstant(false)).Value());
+}
+
+TEST(DecisionDiagramTest, NotEqualsNonConstants) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd1 =
+      Ite(manager.GetBddVariable(0),
+          manager.GetConstant(2), manager.GetConstant(5)) !=
+      Ite(manager.GetBddVariable(1),
+          manager.GetConstant(5), manager.GetConstant(7));
+  EXPECT_TRUE(dd1.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd1.ValueInState(sv(true, false)));
+  EXPECT_FALSE(dd1.ValueInState(sv(false, true)));
+  EXPECT_TRUE(dd1.ValueInState(sv(false, false)));
+  const BDD dd2 = manager.GetBddVariable(0) != manager.GetBddVariable(1);
+  EXPECT_FALSE(dd2.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd2.ValueInState(sv(true, false)));
+  EXPECT_TRUE(dd2.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd2.ValueInState(sv(false, false)));
 }
 
 }  // namespace

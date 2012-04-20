@@ -168,7 +168,7 @@ static DdNode* variable_identities(const DecisionDiagramManager& dd_man,
   for (VariableList::const_reverse_iterator vi = variables.rbegin();
        vi != variables.rend(); vi++) {
     if (excluded.find(*vi) == excluded.end()) {
-      DdNode* ddv = (*vi)->identity_bdd(dd_man);
+      DdNode* ddv = (*vi)->identity_bdd(dd_man).release();
       DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddv, ddu);
       Cudd_Ref(dda);
       Cudd_RecursiveDeref(dd_man.manager(), ddv);
@@ -404,8 +404,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	  init_bdd_ = dda;
 	  DdNode* ddvp = primed_mtbdd(dd_man, *data.s).release();
-	  DdNode* ddid = data.s->identity_bdd(dd_man);
-	  DdNode* ddr = data.s->range_bdd(dd_man);
+	  DdNode* ddid = data.s->identity_bdd(dd_man).release();
+	  DdNode* ddr = data.s->range_bdd(dd_man).release();
 	  dda = Cudd_bddAnd(dd_man.manager(), ddr, range);
 	  Cudd_Ref(dda);
 	  Cudd_RecursiveDeref(dd_man.manager(), ddr);
@@ -1068,7 +1068,7 @@ DdNode* Model::range_bdd(const DecisionDiagramManager& dd_man) const {
     const VariableList& mod_variables = (*mi)->variables();
     for (VariableList::const_reverse_iterator vi = mod_variables.rbegin();
 	 vi != mod_variables.rend(); vi++) {
-      DdNode* ddv = (*vi)->range_bdd(dd_man);
+      DdNode* ddv = (*vi)->range_bdd(dd_man).release();
       DdNode* ddr = Cudd_bddAnd(dd_man.manager(), ddv, dd);
       Cudd_Ref(ddr);
       Cudd_RecursiveDeref(dd_man.manager(), ddv);
@@ -1078,7 +1078,7 @@ DdNode* Model::range_bdd(const DecisionDiagramManager& dd_man) const {
   }
   for (VariableList::const_reverse_iterator vi = variables().rbegin();
        vi != variables().rend(); vi++) {
-    DdNode* ddv = (*vi)->range_bdd(dd_man);
+    DdNode* ddv = (*vi)->range_bdd(dd_man).release();
     DdNode* ddr = Cudd_bddAnd(dd_man.manager(), ddv, dd);
     Cudd_Ref(ddr);
     Cudd_RecursiveDeref(dd_man.manager(), ddv);
