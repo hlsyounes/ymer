@@ -672,7 +672,7 @@ DdNode* LessThan::bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr2().mtbdd(dd_man);
+    DdNode* dde = mtbdd(dd_man, expr2()).release();
     dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -681,7 +681,7 @@ DdNode* LessThan::bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr1().mtbdd(dd_man);
+      DdNode* dde = mtbdd(dd_man, expr1()).release();
       DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -690,8 +690,8 @@ DdNode* LessThan::bdd(const DecisionDiagramManager& dd_man) const {
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 < expr2  <==>  expr2 - expr1 > 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
+      DdNode* dd1 = mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -712,7 +712,7 @@ DdNode* LessThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr2().primed_mtbdd(dd_man);
+    DdNode* dde = primed_mtbdd(dd_man, expr2()).release();
     dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -721,7 +721,7 @@ DdNode* LessThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr1().primed_mtbdd(dd_man);
+      DdNode* dde = primed_mtbdd(dd_man, expr1()).release();
       DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -730,8 +730,8 @@ DdNode* LessThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 < expr2  <==>  expr2 - expr1 > 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
+      DdNode* dd1 = primed_mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = primed_mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -799,7 +799,7 @@ DdNode* LessThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr2().mtbdd(dd_man);
+    DdNode* dde = mtbdd(dd_man, expr2()).release();
     dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -808,7 +808,7 @@ DdNode* LessThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr1().mtbdd(dd_man);
+      DdNode* dde = mtbdd(dd_man, expr1()).release();
       DdNode* ddf =
           Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
@@ -818,8 +818,8 @@ DdNode* LessThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 <= expr2  <==>  expr2 - expr1 >= 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
+      DdNode* dd1 = mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -841,7 +841,7 @@ DdNode* LessThanOrEqual::primed_bdd(
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr2().primed_mtbdd(dd_man);
+    DdNode* dde = primed_mtbdd(dd_man, expr2()).release();
     dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -850,7 +850,7 @@ DdNode* LessThanOrEqual::primed_bdd(
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr1().primed_mtbdd(dd_man);
+      DdNode* dde = primed_mtbdd(dd_man, expr1()).release();
       DdNode* ddf =
           Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
@@ -860,8 +860,8 @@ DdNode* LessThanOrEqual::primed_bdd(
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 <= expr2  <==>  expr2 - expr1 >= 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
+      DdNode* dd1 = primed_mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = primed_mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -929,7 +929,7 @@ DdNode* GreaterThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 >= value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().mtbdd(dd_man);
+    DdNode* dde = mtbdd(dd_man, expr1()).release();
     dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -938,7 +938,7 @@ DdNode* GreaterThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().mtbdd(dd_man);
+      DdNode* dde = mtbdd(dd_man, expr2()).release();
       DdNode* ddf =
           Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
@@ -948,8 +948,8 @@ DdNode* GreaterThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 >= expr2  <==>  expr1 - expr2 >= 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
+      DdNode* dd1 = mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -971,7 +971,7 @@ DdNode* GreaterThanOrEqual::primed_bdd(
   if (value != NULL) {
     /* expr1 >= value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
+    DdNode* dde = primed_mtbdd(dd_man, expr1()).release();
     dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -980,7 +980,7 @@ DdNode* GreaterThanOrEqual::primed_bdd(
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
+      DdNode* dde = primed_mtbdd(dd_man, expr2()).release();
       DdNode* ddf =
           Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
@@ -990,8 +990,8 @@ DdNode* GreaterThanOrEqual::primed_bdd(
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 >= expr2  <==>  expr1 - expr2 >= 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
+      DdNode* dd1 = primed_mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = primed_mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -1057,7 +1057,7 @@ DdNode* GreaterThan::bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 > value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().mtbdd(dd_man);
+    DdNode* dde = mtbdd(dd_man, expr1()).release();
     dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1066,7 +1066,7 @@ DdNode* GreaterThan::bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().mtbdd(dd_man);
+      DdNode* dde = mtbdd(dd_man, expr2()).release();
       DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1075,8 +1075,8 @@ DdNode* GreaterThan::bdd(const DecisionDiagramManager& dd_man) const {
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 > expr2  <==>  expr1 - expr2 > 0 */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
+      DdNode* dd1 = mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -1097,7 +1097,7 @@ DdNode* GreaterThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 > value */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
+    DdNode* dde = primed_mtbdd(dd_man, expr1()).release();
     dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1106,7 +1106,7 @@ DdNode* GreaterThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
+      DdNode* dde = primed_mtbdd(dd_man, expr2()).release();
       DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1115,8 +1115,8 @@ DdNode* GreaterThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
       Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 > expr2  <==>  expr1 - expr2 > 0 */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
+      DdNode* dd1 = primed_mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = primed_mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -1181,7 +1181,7 @@ DdNode* Equality::bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().mtbdd(dd_man);
+    DdNode* dde = mtbdd(dd_man, expr1()).release();
     dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1190,14 +1190,14 @@ DdNode* Equality::bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().mtbdd(dd_man);
+      DdNode* dde = mtbdd(dd_man, expr2()).release();
       dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(dd);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 == expr2  <==>  expr1 - expr2 in [0,0] */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
+      DdNode* dd1 = mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -1218,7 +1218,7 @@ DdNode* Equality::primed_bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
+    DdNode* dde = primed_mtbdd(dd_man, expr1()).release();
     dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(dd);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1227,14 +1227,14 @@ DdNode* Equality::primed_bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
+      DdNode* dde = primed_mtbdd(dd_man, expr2()).release();
       dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(dd);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 == expr2  <==>  expr1 - expr2 in [0,0] */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
+      DdNode* dd1 = primed_mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = primed_mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -1300,7 +1300,7 @@ DdNode* Inequality::bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().mtbdd(dd_man);
+    DdNode* dde = mtbdd(dd_man, expr1()).release();
     ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(ddf);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1309,14 +1309,14 @@ DdNode* Inequality::bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().mtbdd(dd_man);
+      DdNode* dde = mtbdd(dd_man, expr2()).release();
       ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(ddf);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 != expr2  <==>  !(expr1 - expr2 in [0,0]) */
-      DdNode* dd1 = expr1().mtbdd(dd_man);
-      DdNode* dd2 = expr2().mtbdd(dd_man);
+      DdNode* dd1 = mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -1340,7 +1340,7 @@ DdNode* Inequality::primed_bdd(const DecisionDiagramManager& dd_man) const {
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
     double threshold = value->value().value<double>();
-    DdNode* dde = expr1().primed_mtbdd(dd_man);
+    DdNode* dde = primed_mtbdd(dd_man, expr1()).release();
     ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(ddf);
     Cudd_RecursiveDeref(dd_man.manager(), dde);
@@ -1349,14 +1349,14 @@ DdNode* Inequality::primed_bdd(const DecisionDiagramManager& dd_man) const {
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
       double threshold = value->value().value<double>();
-      DdNode* dde = expr2().primed_mtbdd(dd_man);
+      DdNode* dde = primed_mtbdd(dd_man, expr2()).release();
       ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(ddf);
       Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 != expr2  <==>  !(expr1 - expr2 in [0,0]) */
-      DdNode* dd1 = expr1().primed_mtbdd(dd_man);
-      DdNode* dd2 = expr2().primed_mtbdd(dd_man);
+      DdNode* dd1 = primed_mtbdd(dd_man, expr1()).release();
+      DdNode* dd2 = primed_mtbdd(dd_man, expr2()).release();
       DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
