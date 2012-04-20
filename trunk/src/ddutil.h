@@ -75,8 +75,12 @@ class BDD : public DecisionDiagram {
   BDD operator||(const BDD& dd) const;
 
   // Comparison operators for BDDs.
-  BDD operator==(const BDD& dd2) const;
-  BDD operator!=(const BDD& dd2) const;
+  BDD operator==(const BDD& dd) const;
+  BDD operator!=(const BDD& dd) const;
+  BDD operator<(const BDD& dd) const;
+  BDD operator<=(const BDD& dd) const;
+  BDD operator>=(const BDD& dd) const;
+  BDD operator>(const BDD& dd) const;
 
  private:
   // A BDD operator to use with Apply().
@@ -113,6 +117,10 @@ class ADD : public DecisionDiagram {
   // Comparison operators for ADDs.
   BDD operator==(const ADD& dd) const;
   BDD operator!=(const ADD& dd) const;
+  BDD operator<(const ADD& dd) const;
+  BDD operator<=(const ADD& dd) const;
+  BDD operator>=(const ADD& dd) const;
+  BDD operator>(const ADD& dd) const;
 
  private:
   // An ADD operator to use with Apply().
@@ -122,6 +130,9 @@ class ADD : public DecisionDiagram {
 
   // Returns the result of applying op to ADDs dd1 and dd2.
   static ADD Apply(Op op, const ADD& dd1, const ADD& dd2);
+
+  // Returns the BDD representing *this > 0.
+  BDD Positive() const;
 
   friend class DecisionDiagramManager;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
