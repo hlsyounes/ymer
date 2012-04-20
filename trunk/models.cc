@@ -468,7 +468,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       DdNode* ddg = command.guard().bdd(dd_man).release();
       /* BDD for command. */
       VariableSet updated_variables;
-      DdNode* ddc = command.bdd(updated_variables, dd_man);
+      DdNode* ddc = command.bdd(updated_variables, dd_man).release();
       const Exponential* exp_delay =
 	dynamic_cast<const Exponential*>(&command.delay());
       PHData* ph_data = (exp_delay != NULL) ? NULL : &ph_commands[i];
@@ -871,13 +871,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	Cudd_RecursiveDeref(dd_man.manager(), (*ci).second.update_bdd);
       }
     }
-    /*
-     * Release DDs for modules.
-     */
-    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-	 mi != modules().rend(); mi++) {
-      (*mi)->uncache_dds(dd_man);
-    }
     if (verbosity > 0) {
       std::cout << dd_man.GetNumVariables() << " variables." << std::endl;
     }
@@ -1107,7 +1100,7 @@ Model::variable_updates(const DecisionDiagramManager& dd_man, DdNode* dd_start,
       ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
 				updated_variables);
     } else {
-      DdNode* ddm = (*mi)->identity_bdd(dd_man);
+      DdNode* ddm = (*mi)->identity_bdd(dd_man).release();
       DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddm, ddu);
       Cudd_Ref(dda);
       Cudd_RecursiveDeref(dd_man.manager(), ddm);
