@@ -58,7 +58,7 @@ struct Update {
   const Update& substitution(const SubstitutionMap& subst) const;
 
   /* Returns a BDD representation of this update. */
-  DdNode* bdd(const DecisionDiagramManager& dd_man) const;
+  BDD bdd(const DecisionDiagramManager& dd_man) const;
 
 private:
   /* The variable for this update. */
@@ -124,7 +124,7 @@ struct Command {
 
   /* Returns a BDD representation of this command and fills the
      provided set with variables updated by this command. */
-  DdNode* bdd(VariableSet& updated, const DecisionDiagramManager& dd_man) const;
+  BDD bdd(VariableSet& updated, const DecisionDiagramManager& dd_man) const;
 
 private:
   /* The synchronization for this command; 0 if this command requires
@@ -186,19 +186,13 @@ struct Module {
 
   /* Returns a BDD representing the identity between the `current
      state' and `next state' variables of this module. */
-  DdNode* identity_bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Releases any cached DDs for this module. */
-  void uncache_dds(const DecisionDiagramManager& dd_man) const;
+  BDD identity_bdd(const DecisionDiagramManager& dd_man) const;
 
 private:
   /* The variables for this module. */
   VariableList variables_;
   /* The commands for this module. */
   CommandList commands_;
-  /* Cached BDD representing identity between the module variables and
-     their primed versions. */
-  mutable DdNode* identity_bdd_;
 };
 
 
