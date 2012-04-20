@@ -76,12 +76,6 @@ class Expression {
   virtual const Expression& substitution(
       const SubstitutionMap& subst) const = 0;
 
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const = 0;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const = 0;
-
 protected:
   // Constructs an expression.
   Expression();
@@ -99,6 +93,12 @@ private:
   friend std::ostream& operator<<(std::ostream& os, const Expression& e);
 };
 
+// Returns the `current state' MTBDD representation for an expression.
+ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);
+
+// Returns the `next state' MTBDD representation for an expression.
+ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e);
+
 // Output operator for expressions.
 std::ostream& operator<<(std::ostream& os, const Expression& e);
 
@@ -107,7 +107,7 @@ class Computation : public Expression {
  public:
   // Supported computation operators.
   enum Operator {
-    MULTIPLY, DIVIDE, PLUS, MINUS
+    PLUS, MINUS, MULTIPLY, DIVIDE
   };
 
   virtual ~Computation();
@@ -156,12 +156,6 @@ class Addition : public Computation {
   // Returns this expression subject to the given substitutions.
   virtual const Addition& substitution(const SubstitutionMap& subst) const;
 
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
-
 private:
   // Constructs an addition.
   Addition(const Expression& term1, const Expression& term2);
@@ -184,12 +178,6 @@ class Subtraction : public Computation {
 
   // Returns this expression subject to the given substitutions.
   virtual const Subtraction& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
 
 private:
   // Constructs a subtraction.
@@ -215,12 +203,6 @@ class Multiplication : public Computation {
   virtual const Multiplication& substitution(
       const SubstitutionMap& subst) const;
 
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
-
 private:
   // Constructs a multiplication.
   Multiplication(const Expression& factor1, const Expression& factor2);
@@ -243,12 +225,6 @@ class Division : public Computation {
 
   // Returns this expression subject to the given substitutions.
   virtual const Division& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
 
 private:
   // Constructs a division.
@@ -303,12 +279,6 @@ class Variable : public Expression {
   // Returns this expression subject to the given substitutions.
   virtual const Variable& substitution(const SubstitutionMap& subst) const;
 
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
-
   // Returns a BDD representing identity between the `current state'
   // and `next state' versions of this variable.
   DdNode* identity_bdd(const DecisionDiagramManager& dd_man) const;
@@ -350,12 +320,6 @@ class Literal : public Expression {
 
   // Returns this expression subject to the given substitutions.
   virtual const Literal& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;

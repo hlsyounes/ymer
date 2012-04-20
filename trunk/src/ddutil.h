@@ -36,6 +36,7 @@ class DecisionDiagram {
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdNode* release();
+  DdNode* get() const { return node(); }
 
  protected:
   DecisionDiagram(DdManager* manager, DdNode* node);
@@ -86,7 +87,9 @@ class ADD : public DecisionDiagram {
 
   // Arithmetic operators for ADDs.
   ADD operator+(const ADD& dd) const;
+  ADD operator-(const ADD& dd) const;
   ADD operator*(const ADD& dd) const;
+  ADD operator/(const ADD& dd) const;
 
  private:
   // An ADD operator to use with Apply().

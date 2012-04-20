@@ -138,8 +138,16 @@ ADD ADD::operator+(const ADD& dd) const {
   return Apply(Cudd_addPlus, *this, dd);
 }
 
+ADD ADD::operator-(const ADD& dd) const {
+  return Apply(Cudd_addMinus, *this, dd);
+}
+
 ADD ADD::operator*(const ADD& dd) const {
   return Apply(Cudd_addTimes, *this, dd);
+}
+
+ADD ADD::operator/(const ADD& dd) const {
+  return Apply(Cudd_addDivide, *this, dd);
 }
 
 ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {

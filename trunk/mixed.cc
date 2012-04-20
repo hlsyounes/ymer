@@ -154,7 +154,7 @@ static DdNode* state_bdd(const DecisionDiagramManager& dd_man,
   Cudd_Ref(dds);
   for (ValueMap::const_iterator vi = values.begin();
        vi != values.end(); vi++) {
-    DdNode* ddv = (*vi).first->mtbdd(dd_man);
+    DdNode* ddv = mtbdd(dd_man, *vi->first).release();
     double x = (*vi).second.value<double>();
     DdNode* ddx = Cudd_addBddInterval(dd_man.manager(), ddv, x, x);
     Cudd_Ref(ddx);
