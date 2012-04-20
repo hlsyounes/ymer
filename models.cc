@@ -416,7 +416,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   *
 	   *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
 	   */
-	  DdNode* ddg = command.guard().bdd(dd_man);
+	  DdNode* ddg = command.guard().bdd(dd_man).release();
 	  dds = Cudd_addBddInterval(dd_man.manager(), ddv, 0, 0);
 	  Cudd_Ref(dds);
           Cudd_RecursiveDeref(dd_man.manager(), ddv);
@@ -425,7 +425,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  Cudd_RecursiveDeref(dd_man.manager(), ddg);
 	  Cudd_RecursiveDeref(dd_man.manager(), dds);
 	  data.update_bdd = ddo;
-	  ddg = command.guard().primed_bdd(dd_man);
+	  ddg = command.guard().primed_bdd(dd_man).release();
 	  dds = Cudd_addBddInterval(dd_man.manager(), ddvp, 0, 0);
 	  Cudd_Ref(dds);
           Cudd_RecursiveDeref(dd_man.manager(), ddvp);
@@ -465,7 +465,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	std::cout << std::endl << "processing " << command << std::endl;
       }
       /* BDD for guard. */
-      DdNode* ddg = command.guard().bdd(dd_man);
+      DdNode* ddg = command.guard().bdd(dd_man).release();
       /* BDD for command. */
       VariableSet updated_variables;
       DdNode* ddc = command.bdd(updated_variables, dd_man);

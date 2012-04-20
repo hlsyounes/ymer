@@ -168,7 +168,7 @@ DdNode* Command::bdd(VariableSet& updated,
   /*
    * Conjunction with BDD for guard.
    */
-  DdNode* ddg = guard().bdd(dd_man);
+  DdNode* ddg = guard().bdd(dd_man).release();
   DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddg, ddu);
   Cudd_Ref(dda);
   Cudd_RecursiveDeref(dd_man.manager(), ddg);

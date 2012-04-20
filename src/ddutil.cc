@@ -140,6 +140,22 @@ BDD BDD::operator!=(const BDD& dd) const {
   return !(*this == dd);
 }
 
+BDD BDD::operator<(const BDD& dd) const {
+  return !*this && dd;
+}
+
+BDD BDD::operator<=(const BDD& dd) const {
+  return !(*this > dd);
+}
+
+BDD BDD::operator>=(const BDD& dd) const {
+  return !(*this < dd);
+}
+
+BDD BDD::operator>(const BDD& dd) const {
+  return *this && !dd;
+}
+
 BDD BDD::Apply(Op op, const BDD& dd1, const BDD& dd2) {
   DdManager* const manager = dd1.manager();
   return BDD(manager, op(manager, dd1.node(), dd2.node()));
@@ -187,9 +203,29 @@ BDD ADD::operator!=(const ADD& dd) const {
   return !(*this == dd);
 }
 
+BDD ADD::operator<(const ADD& dd) const {
+  return (dd - *this).Positive();
+}
+
+BDD ADD::operator<=(const ADD& dd) const {
+  return !(*this > dd);
+}
+
+BDD ADD::operator>=(const ADD& dd) const {
+  return !(*this < dd);
+}
+
+BDD ADD::operator>(const ADD& dd) const {
+  return (*this - dd).Positive();
+}
+
 ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {
   DdManager* const manager = dd1.manager();
   return ADD(manager, Cudd_addApply(manager, op, dd1.node(), dd2.node()));
+}
+
+BDD ADD::Positive() const {
+  return BDD(manager(), Cudd_addBddStrictThreshold(manager(), node(), 0.0));
 }
 
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3) {
