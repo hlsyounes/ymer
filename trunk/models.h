@@ -128,12 +128,12 @@ private:
 
   /* Returns a BDD representing the conjunction of dd_start with the
      BDDs for updates of all variables not explicitly mentioned. */
-  DdNode* variable_updates(const DecisionDiagramManager& dd_man,
-                           DdNode* dd_start,
-			   const ModuleSet& touched_modules,
-			   const VariableSet& updated_variables,
-			   const Variable* phase_variable,
-			   const std::map<size_t, PHData>& ph_commands) const;
+  BDD variable_updates(const DecisionDiagramManager& dd_man,
+                       const BDD& dd_start,
+                       const ModuleSet& touched_modules,
+                       const VariableSet& updated_variables,
+                       const Variable* phase_variable,
+                       const std::map<size_t, PHData>& ph_commands) const;
 };
 
 /* Output operator for models. */

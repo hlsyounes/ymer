@@ -165,6 +165,10 @@ ADD::ADD(DdManager* manager, DdNode* node)
     : DecisionDiagram(manager, node) {
 }
 
+ADD::ADD(const BDD& dd)
+    : DecisionDiagram(dd.manager(), Cudd_BddToAdd(dd.manager(), dd.node())) {
+}
+
 double ADD::Value() const {
   CHECK(IsConstant());
   return NodeValue<double>(node());
