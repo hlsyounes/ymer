@@ -34,21 +34,9 @@
 
 
 /* ====================================================================== */
-/* PHData */
-
-/*
- * Data for phase-type distribution.
- */
-struct PHData {
-  ECParameters params;
-  ACPH2Parameters params2;
-  Variable* s;
-  DdNode* update_bdd;
-};
-
-
-/* ====================================================================== */
 /* Model */
+
+struct PHData;
 
 /*
  * A model.
@@ -136,7 +124,7 @@ private:
   mutable DdNode** column_variables_;
 
   /* Returns a BDD representing the range for all model variables. */
-  DdNode* range_bdd(const DecisionDiagramManager& dd_man) const;
+  BDD range_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns a BDD representing the conjunction of dd_start with the
      BDDs for updates of all variables not explicitly mentioned. */
