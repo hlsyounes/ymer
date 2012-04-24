@@ -99,6 +99,9 @@ class BDD : public DecisionDiagram {
 // Wrapper class for ADDs, with automatic referencing and dereferencing.
 class ADD : public DecisionDiagram {
  public:
+  // Explicit conversion from BDD to ADD.
+  explicit ADD(const BDD& dd);
+
   // Returns the value of this ADD.  Requires that this ADD is constant.
   double Value() const;
 
