@@ -486,15 +486,6 @@ BDD Variable::identity_bdd(const DecisionDiagramManager& manager) const {
   return mtbdd(manager, *this) == primed_mtbdd(manager, *this);
 }
 
-BDD Variable::range_bdd(const DecisionDiagramManager& manager) const {
-  if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
-    return manager.GetConstant(true);
-  } else {
-    return mtbdd(manager, *this).Interval(low(), high())
-        && primed_mtbdd(manager, *this).Interval(low(), high());
-  }
-}
-
 Literal::Literal(const TypedValue& value)
     : value_(value) {
 }

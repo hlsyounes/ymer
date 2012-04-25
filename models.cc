@@ -355,8 +355,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
       init_bdd_ = dda;
     }
-    /* BDD for variable ranges. */
-    BDD range = range_bdd(dd_man);
     /*
      * Generate phase-type distributions for commands with
      * non-exponential delay.
@@ -400,7 +398,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  init_bdd_ = dda;
 	  ADD ddvp = primed_mtbdd(dd_man, *data.s);
 	  BDD ddid = data.s->identity_bdd(dd_man);
-	  range = data.s->range_bdd(dd_man) && range;
 	  /*
 	   * Constructs BDD representing phase update:
 	   *
@@ -808,25 +805,6 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
     delete column_variables_;
     column_variables_ = NULL;
   }
-}
-
-
-/* Returns a BDD representing the range for all model variables. */
-BDD Model::range_bdd(const DecisionDiagramManager& dd_man) const {
-  BDD dd = dd_man.GetConstant(true);
-  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-       mi != modules().rend(); mi++) {
-    const VariableList& mod_variables = (*mi)->variables();
-    for (VariableList::const_reverse_iterator vi = mod_variables.rbegin();
-	 vi != mod_variables.rend(); vi++) {
-      dd = (*vi)->range_bdd(dd_man) && dd;
-    }
-  }
-  for (VariableList::const_reverse_iterator vi = variables().rbegin();
-       vi != variables().rend(); vi++) {
-    dd = (*vi)->range_bdd(dd_man) && dd;
-  }
-  return dd;
 }
 
 
