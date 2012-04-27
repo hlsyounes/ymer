@@ -92,7 +92,7 @@ static void match_first_moment(ECParameters& params,
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
 static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
-				DdNode* init, DdNode* rates,
+				DdNode* init, const ADD& rates,
 				DdNode** row_variables) {
   if (verbosity > 0) {
     std::cout << "Computing reachable states";
@@ -115,8 +115,7 @@ static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
   /*
    * Fixpoint computation of reachability.
    */
-  DdNode* trans = Cudd_addBddStrictThreshold(dd_man.manager(), rates, 0);
-  Cudd_Ref(trans);
+  BDD trans = rates.StrictThreshold(0);
   DdNode* solr = init;
   Cudd_Ref(solr);
   DdNode* solc = Cudd_bddPermute(dd_man.manager(), solr, row_to_col);
@@ -132,7 +131,7 @@ static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
 	std::cout << '.';
       }
     }
-    DdNode* dda = Cudd_bddAnd(dd_man.manager(), trans, solr);
+    DdNode* dda = Cudd_bddAnd(dd_man.manager(), trans.get(), solr);
     Cudd_Ref(dda);
     Cudd_RecursiveDeref(dd_man.manager(), solr);
     DdNode* dde = Cudd_bddExistAbstract(dd_man.manager(), dda, row_cube);
@@ -151,7 +150,6 @@ static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
     Cudd_Ref(solr);
   }
   Cudd_RecursiveDeref(dd_man.manager(), solc);
-  Cudd_RecursiveDeref(dd_man.manager(), trans);
   Cudd_RecursiveDeref(dd_man.manager(), row_cube);
   delete row_to_col;
   delete col_to_row;
@@ -329,14 +327,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
 	   vi != mod.variables().rend(); vi++) {
 	const Variable& v = **vi;
-	DdNode* ddv = mtbdd(dd_man, v).release();
-	DdNode* dds =
-            Cudd_addBddInterval(dd_man.manager(), ddv, v.start(), v.start());
-	Cudd_Ref(dds);
-        Cudd_RecursiveDeref(dd_man.manager(), ddv);
-	DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, init_bdd_);
+        BDD dds = mtbdd(dd_man, v).Interval(v.start(), v.start());
+	DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
 	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man.manager(), dds);
 	Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	init_bdd_ = dda;
       }
@@ -344,14 +337,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
-      DdNode* ddv = mtbdd(dd_man, v).release();
-      DdNode* dds =
-          Cudd_addBddInterval(dd_man.manager(), ddv, v.start(), v.start());
-      Cudd_Ref(dds);
-      Cudd_RecursiveDeref(dd_man.manager(), ddv);
-      DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds, init_bdd_);
+      BDD dds = mtbdd(dd_man, v).Interval(v.start(), v.start());
+      DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
       Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man.manager(), dds);
       Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
       init_bdd_ = dda;
     }
@@ -649,8 +637,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     /*
      * Reachability analysis.
      */
-    reach_bdd_ = ::reachability_bdd(dd_man,
-                                    init_bdd_, ddR.get(), row_variables_);
+    reach_bdd_ = ::reachability_bdd(dd_man, init_bdd_, ddR, row_variables_);
     DdNode* reach_add = Cudd_BddToAdd(dd_man.manager(), reach_bdd_);
     Cudd_Ref(reach_add);
     DdNode* ddT =

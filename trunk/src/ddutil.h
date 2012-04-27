@@ -111,6 +111,9 @@ class ADD : public DecisionDiagram {
   // Returns the BDD representing low <= *this <= high.
   BDD Interval(double low, double high) const;
 
+  // Returns the BDD representing *this > threshold.
+  BDD StrictThreshold(double threshold) const;
+
   // Arithmetic operators for ADDs.
   ADD operator+(const ADD& dd) const;
   ADD operator-(const ADD& dd) const;
@@ -133,9 +136,6 @@ class ADD : public DecisionDiagram {
 
   // Returns the result of applying op to ADDs dd1 and dd2.
   static ADD Apply(Op op, const ADD& dd1, const ADD& dd2);
-
-  // Returns the BDD representing *this > 0.
-  BDD Positive() const;
 
   friend class DecisionDiagramManager;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);

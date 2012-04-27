@@ -112,6 +112,29 @@ TEST(DecisionDiagramTest, IntervalNonConstants) {
   EXPECT_FALSE(dd.ValueInState(sv(false, false)));
 }
 
+TEST(DecisionDiagramTest, StrictThresholdConstants) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_TRUE(manager.GetConstant(4).StrictThreshold(3).Value());
+  EXPECT_FALSE(manager.GetConstant(3).StrictThreshold(3).Value());
+  EXPECT_TRUE(manager.GetConstant(-3).StrictThreshold(-4).Value());
+  EXPECT_FALSE(manager.GetConstant(-4).StrictThreshold(-4).Value());
+}
+
+TEST(DecisionDiagramTest, StrictThresholdNonConstants) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd =
+      Ite(manager.GetBddVariable(0),
+          Ite(manager.GetBddVariable(1),
+              manager.GetConstant(2),manager.GetConstant(5)),
+          Ite(manager.GetBddVariable(1),
+              manager.GetConstant(3), manager.GetConstant(7)))
+      .StrictThreshold(3);
+  EXPECT_FALSE(dd.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd.ValueInState(sv(true, false)));
+  EXPECT_FALSE(dd.ValueInState(sv(false, true)));
+  EXPECT_TRUE(dd.ValueInState(sv(false, false)));
+}
+
 TEST(DecisionDiagramTest, AddsConstants) {
   const DecisionDiagramManager manager(0);
   const ADD dd = manager.GetConstant(2) + manager.GetConstant(3);
