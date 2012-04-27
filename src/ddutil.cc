@@ -183,6 +183,11 @@ BDD ADD::Interval(double low, double high) const {
   return BDD(manager(), Cudd_addBddInterval(manager(), node(), low, high));
 }
 
+BDD ADD::StrictThreshold(double threshold) const {
+  return BDD(manager(),
+             Cudd_addBddStrictThreshold(manager(), node(), threshold));
+}
+
 ADD ADD::operator+(const ADD& dd) const {
   return Apply(Cudd_addPlus, *this, dd);
 }
@@ -208,7 +213,7 @@ BDD ADD::operator!=(const ADD& dd) const {
 }
 
 BDD ADD::operator<(const ADD& dd) const {
-  return (dd - *this).Positive();
+  return (dd - *this).StrictThreshold(0);
 }
 
 BDD ADD::operator<=(const ADD& dd) const {
@@ -220,16 +225,12 @@ BDD ADD::operator>=(const ADD& dd) const {
 }
 
 BDD ADD::operator>(const ADD& dd) const {
-  return (*this - dd).Positive();
+  return (*this - dd).StrictThreshold(0);
 }
 
 ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {
   DdManager* const manager = dd1.manager();
   return ADD(manager, Cudd_addApply(manager, op, dd1.node(), dd2.node()));
-}
-
-BDD ADD::Positive() const {
-  return BDD(manager(), Cudd_addBddStrictThreshold(manager(), node(), 0.0));
 }
 
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3) {
