@@ -840,7 +840,6 @@ int main(int argc, char* argv[]) {
 	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
 		  << std::endl;
       }
-      global_model->init_index(dd_man);
       DdNode* init = global_model->init_bdd(dd_man);
       for (FormulaList::const_iterator fi = properties.begin();
 	   fi != properties.end(); fi++) {
