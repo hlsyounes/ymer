@@ -65,8 +65,10 @@ struct PHData {
 /* ====================================================================== */
 /* Model */
 
+namespace {
+
 /* Returns the number of phases of the given PH distribution. */
-static int ph_phases(const PHData& data) {
+int ph_phases(const PHData& data) {
   if (data.params.n == 0) {
     return data.params2.n;
   } else {
@@ -74,13 +76,11 @@ static int ph_phases(const PHData& data) {
   }
 }
 
-
 /*
  * Returns the EC distribution matching the first moment of the given
  * distribution.
  */
-static void match_first_moment(ECParameters& params,
-			       const Distribution& dist) {
+void match_first_moment(ECParameters& params, const Distribution& dist) {
   params.n = 2;
   std::vector<double> mu;
   dist.moments(mu, 1);
@@ -88,12 +88,11 @@ static void match_first_moment(ECParameters& params,
   params.pc = 0.0;
 }
 
-
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
-static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
-				DdNode* init, const ADD& rates,
-				DdNode** row_variables) {
+DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
+                         DdNode* init, const ADD& rates,
+                         DdNode** row_variables) {
   if (verbosity > 0) {
     std::cout << "Computing reachable states";
   }
@@ -159,23 +158,89 @@ static DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
   return solr;
 }
 
+// Returns a BDD representing identity between the `current state' and `next
+// state' versions of the given variable.
+BDD identity_bdd(const DecisionDiagramManager& manager, const Variable& v) {
+  return mtbdd(manager, v) == primed_mtbdd(manager, v);
+}
 
 /* Returns a BDD representing the conjunction of dd_start with the
    identity BDDs for the given variables. */
-static BDD variable_identities(const DecisionDiagramManager& dd_man,
-                               const BDD& dd_start,
-                               const VariableList& variables,
-                               const VariableSet& excluded) {
+BDD variable_identities(const DecisionDiagramManager& dd_man,
+                        const BDD& dd_start,
+                        const VariableList& variables,
+                        const std::set<const Variable*>& excluded) {
   BDD ddu = dd_start;
   for (VariableList::const_reverse_iterator vi = variables.rbegin();
        vi != variables.rend(); vi++) {
     if (excluded.find(*vi) == excluded.end()) {
-      ddu = (*vi)->identity_bdd(dd_man) && ddu;
+      ddu = identity_bdd(dd_man, **vi) && ddu;
     }
   }
   return ddu;
 }
 
+// Returns a BDD representation of the given update.
+BDD update_bdd(const DecisionDiagramManager& manager, const Update& update) {
+  return primed_mtbdd(manager, update.variable())
+      == mtbdd(manager, update.expr());
+}
+
+// Returns a BDD representation of the given command and fills the provided
+// set with variables updated by the command.
+BDD command_bdd(const DecisionDiagramManager& manager, const Command& command,
+                std::set<const Variable*>* updated_variables) {
+  BDD ddu = manager.GetConstant(true);
+  for (UpdateList::const_iterator ui = command.updates().begin();
+       ui != command.updates().end(); ++ui) {
+    const Update& update = **ui;
+    ddu = update_bdd(manager, update) && ddu;
+    updated_variables->insert(&update.variable());
+  }
+  return command.guard().bdd(manager) && ddu;
+}
+
+
+// Returns a BDD representing the conjunction of dd_start with the BDDs for
+// updates of all variables for the given model not explicitly mentioned.
+BDD variable_updates(const DecisionDiagramManager& manager,
+                     const BDD& dd_start,
+                     const Model& model,
+                     const ModuleSet& touched_modules,
+                     const std::set<const Variable*>& updated_variables,
+                     const Variable* phase_variable,
+                     const std::map<size_t, PHData>& ph_commands) {
+  BDD ddu = dd_start;
+  // Conjunction with identity BDD for untouched module variables.
+  for (ModuleList::const_reverse_iterator mi = model.modules().rbegin();
+       mi != model.modules().rend(); mi++) {
+    const Module* module = *mi;
+    if (touched_modules.find(module) != touched_modules.end()) {
+      ddu = variable_identities(
+          manager, ddu, module->variables(), updated_variables);
+    } else {
+      for (VariableList::const_reverse_iterator vi =
+               module->variables().rbegin();
+           vi != module->variables().rend(); ++vi) {
+        ddu = identity_bdd(manager, **vi) && ddu;
+      }
+    }
+  }
+  // Conjunction with identity BDD for untouched global variables.
+  ddu = variable_identities(manager, ddu, model.variables(), updated_variables);
+  // Conjunction with update rules for phase variables.
+  for (std::map<size_t, PHData>::const_reverse_iterator ci =
+	 ph_commands.rbegin();
+       ci != ph_commands.rend(); ci++) {
+    const Variable* var = (*ci).second.s;
+    if (var != phase_variable && var != NULL) {
+      ddu = (*ci).second.update_bdd && ddu;
+    }
+  }
+  return ddu;
+}
+
+}  // namespace
 
 /* Constructs a model. */
 Model::Model()
@@ -385,7 +450,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	  init_bdd_ = dda;
 	  ADD ddvp = primed_mtbdd(dd_man, *data.s);
-	  BDD ddid = data.s->identity_bdd(dd_man);
+	  BDD ddid = identity_bdd(dd_man, *data.s);
 	  /*
 	   * Constructs BDD representing phase update:
 	   *
@@ -412,8 +477,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       /* BDD for guard. */
       BDD ddg = command.guard().bdd(dd_man);
       /* BDD for command. */
-      VariableSet updated_variables;
-      BDD ddc = command.bdd(updated_variables, dd_man);
+      std::set<const Variable*> updated_variables;
+      BDD ddc = command_bdd(dd_man, command, &updated_variables);
       const Exponential* exp_delay =
 	dynamic_cast<const Exponential*>(&command.delay());
       PHData* ph_data =
@@ -432,8 +497,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	BDD dds = ddv.Interval(0, 0);
 	ADD ddvp = primed_mtbdd(dd_man, *ph_data->s);
 	BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
-	ddu = variable_updates(dd_man, ddu, ModuleSet(),
-			       VariableSet(), ph_data->s, ph_commands);
+	ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
+			       std::set<const Variable*>(),
+                               ph_data->s, ph_commands);
 	ADD ddr = dd_man.GetConstant(ph_data->params2.p*ph_data->params2.r1);
 	ADD ddq = ADD(ddu) * ddr;
 	if (verbosity > 1) {
@@ -446,7 +512,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	 */
 	BDD ddp = ddvp.Interval(0, 0);
 	ddu = ddc && dds && ddp;
-	ddu = variable_updates(dd_man, ddu, command_modules_[i],
+	ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
 			       updated_variables, ph_data->s, ph_commands);
 	ddr = dd_man.GetConstant(
             (1.0 - ph_data->params2.p) * ph_data->params2.r1);
@@ -461,7 +527,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	 */
 	dds = ddv.Interval(ph_data->params2.n - 1, ph_data->params2.n - 1);
 	ddu = ddc && dds && ddp;
-	ddu = variable_updates(dd_man, ddu, command_modules_[i],
+	ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
 			       updated_variables, ph_data->s, ph_commands);
 	ddr = dd_man.GetConstant(ph_data->params2.r2);
 	ddq = ADD(ddu) * ddr;
@@ -476,8 +542,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   */
 	  dds = ddv.Interval(1, ph_data->params2.n - 2);
 	  ddu = dds && ddvp == ddv + dd_man.GetConstant(1) && ddg;
-	  ddu = variable_updates(dd_man, ddu, ModuleSet(),
-				 VariableSet(), ph_data->s, ph_commands);
+	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
+				 std::set<const Variable*>(),
+                                 ph_data->s, ph_commands);
 	  ddr = dd_man.GetConstant(ph_data->params2.r1);
 	  ddq = ADD(ddu) * ddr;
 	  if (verbosity > 1) {
@@ -511,8 +578,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ADD ddvp = primed_mtbdd(dd_man, *ph_data->s);
 	  ADD ddp = ddv + dd_man.GetConstant(1);
 	  BDD ddu = dds && ddvp == ddp && ddg;
-	  ddu = variable_updates(dd_man, ddu, ModuleSet(),
-				 VariableSet(), ph_data->s, ph_commands);
+	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
+				 std::set<const Variable*>(),
+                                 ph_data->s, ph_commands);
 	  ADD ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.re);
 	  if (verbosity > 1) {
 	    Cudd_PrintDebug(dd_man.manager(),
@@ -532,8 +600,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ADD ddvp = primed_mtbdd(dd_man, *ph_data->s);
 	  BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
 	  ddu = dds && ddu && ddg;
-	  ddu = variable_updates(dd_man, ddu, ModuleSet(),
-				 VariableSet(), ph_data->s, ph_commands);
+	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
+				 std::set<const Variable*>(),
+                                 ph_data->s, ph_commands);
 	  ADD ddr = dd_man.GetConstant(ph_data->params.pc*ph_data->params.rc1);
 	  ADD ddq = ADD(ddu) * ddr;
 	  if (verbosity > 1) {
@@ -549,7 +618,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   */
 	  BDD ddp = ddvp.Interval(0, 0);
 	  ddu = ddc && dds && ddp;
-	  ddu = variable_updates(dd_man, ddu, command_modules_[i],
+	  ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
 				 updated_variables, ph_data->s, ph_commands);
 	  ddr = dd_man.GetConstant(
               (1.0 - ph_data->params.pc)*ph_data->params.rc1);
@@ -567,7 +636,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   */
 	  dds = ddv.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
 	  ddu = ddc && dds && ddp;
-	  ddu = variable_updates(dd_man, ddu, command_modules_[i],
+	  ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
 				 updated_variables, ph_data->s, ph_commands);
 	  ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.rc2);
 	  if (verbosity > 1) {
@@ -586,11 +655,11 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
                 .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
 	    BDD ddp = primed_mtbdd(dd_man, *ph_data->s).Interval(0, 0);
 	    dda = dds && ddp;
-	    dda = variable_updates(dd_man, dda, command_modules_[i],
+	    dda = variable_updates(dd_man, dda, *this, command_modules_[i],
 				   updated_variables, ph_data->s, ph_commands);
 	  } else {
 	    dda = dd_man.GetConstant(true);
-	    dda = variable_updates(dd_man, dda, command_modules_[i],
+	    dda = variable_updates(dd_man, dda, *this, command_modules_[i],
 				   updated_variables, NULL, ph_commands);
 	  }
 	  BDD ddu = ddc && dda;
@@ -792,44 +861,6 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
     delete column_variables_;
     column_variables_ = NULL;
   }
-}
-
-
-/* Returns a BDD representing the conjunction of dd_start with the
-   BDDs for updates of all variables not explicitly mentioned. */
-BDD Model::variable_updates(const DecisionDiagramManager& dd_man,
-                            const BDD& dd_start,
-                            const ModuleSet& touched_modules,
-                            const VariableSet& updated_variables,
-                            const Variable* phase_variable,
-                            const std::map<size_t, PHData>& ph_commands) const {
-  BDD ddu = dd_start;
-  /*
-   * Conjunction with identity BDD for untouched module variables.
-   */
-  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-       mi != modules().rend(); mi++) {
-    if (touched_modules.find(*mi) != touched_modules.end()) {
-      ddu = variable_identities(dd_man, ddu, (*mi)->variables(),
-				updated_variables);
-    } else {
-      ddu = (*mi)->identity_bdd(dd_man) && ddu;
-    }
-  }
-  /* Conjunction with identity BDD for untouched global variables. */
-  ddu = variable_identities(dd_man, ddu, variables(), updated_variables);
-  /*
-   * Conjunction with update rules for phase variables.
-   */
-  for (std::map<size_t, PHData>::const_reverse_iterator ci =
-	 ph_commands.rbegin();
-       ci != ph_commands.rend(); ci++) {
-    const Variable* var = (*ci).second.s;
-    if (var != phase_variable && var != NULL) {
-      ddu = (*ci).second.update_bdd && ddu;
-    }
-  }
-  return ddu;
 }
 
 

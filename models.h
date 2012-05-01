@@ -122,15 +122,6 @@ private:
   mutable DdNode** row_variables_;
   /* Cached column variables. */
   mutable DdNode** column_variables_;
-
-  /* Returns a BDD representing the conjunction of dd_start with the
-     BDDs for updates of all variables not explicitly mentioned. */
-  BDD variable_updates(const DecisionDiagramManager& dd_man,
-                       const BDD& dd_start,
-                       const ModuleSet& touched_modules,
-                       const VariableSet& updated_variables,
-                       const Variable* phase_variable,
-                       const std::map<size_t, PHData>& ph_commands) const;
 };
 
 /* Output operator for models. */

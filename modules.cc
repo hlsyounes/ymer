@@ -56,12 +56,6 @@ const Update& Update::substitution(const SubstitutionMap& subst) const {
 }
 
 
-/* Returns a BDD representation of this update. */
-BDD Update::bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, variable()) == mtbdd(dd_man, expr());
-}
-
-
 /* ====================================================================== */
 /* Command */
 
@@ -122,27 +116,6 @@ Command::substitution(const SubstitutionMap& subst,
     subst_comm->add_update((*ui)->substitution(subst));
   }
   return *subst_comm;
-}
-
-
-/* Returns a BDD representation of this command and fills the
-   provided set with variables updated by this command. */
-BDD Command::bdd(VariableSet& updated,
-                 const DecisionDiagramManager& dd_man) const {
-  /*
-   * Conjunction of BDDs for all updates.
-   */
-  BDD ddu = dd_man.GetConstant(true);
-  for (UpdateList::const_iterator ui = updates().begin();
-       ui != updates().end(); ++ui) {
-    const Update& update = **ui;
-    ddu = update.bdd(dd_man) && ddu;
-    updated.insert(&update.variable());
-  }
-  /*
-   * Conjunction with BDD for guard.
-   */
-  return guard().bdd(dd_man) && ddu;
 }
 
 
@@ -225,16 +198,4 @@ Module& Module::substitution(const SubstitutionMap& subst,
     subst_mod->add_command((*ci)->substitution(subst, synchs));
   }
   return *subst_mod;
-}
-
-
-/* Returns a BDD representing the identity between the `current
-   state' and `next state' variables of this module. */
-BDD Module::identity_bdd(const DecisionDiagramManager& dd_man) const {
-  BDD dd = dd_man.GetConstant(true);
-  for (VariableList::const_reverse_iterator vi = variables().rbegin();
-       vi != variables().rend(); ++vi) {
-    dd = (*vi)->identity_bdd(dd_man) && dd;
-  }
-  return dd;
 }
