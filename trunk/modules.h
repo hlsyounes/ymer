@@ -57,9 +57,6 @@ struct Update {
   /* Returns this update subject to the given substitutions. */
   const Update& substitution(const SubstitutionMap& subst) const;
 
-  /* Returns a BDD representation of this update. */
-  BDD bdd(const DecisionDiagramManager& dd_man) const;
-
 private:
   /* The variable for this update. */
   const Variable* variable_;
@@ -122,10 +119,6 @@ struct Command {
   const Command& substitution(const SubstitutionMap& subst,
 			      const SynchSubstitutionMap& synchs) const;
 
-  /* Returns a BDD representation of this command and fills the
-     provided set with variables updated by this command. */
-  BDD bdd(VariableSet& updated, const DecisionDiagramManager& dd_man) const;
-
 private:
   /* The synchronization for this command; 0 if this command requires
      no synchronization. */
@@ -183,10 +176,6 @@ struct Module {
   /* Returns this module subject to the given substitutions. */
   Module& substitution(const SubstitutionMap& subst,
 		       const SynchSubstitutionMap& synchs) const;
-
-  /* Returns a BDD representing the identity between the `current
-     state' and `next state' variables of this module. */
-  BDD identity_bdd(const DecisionDiagramManager& dd_man) const;
 
 private:
   /* The variables for this module. */

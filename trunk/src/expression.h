@@ -279,10 +279,6 @@ class Variable : public Expression {
   // Returns this expression subject to the given substitutions.
   virtual const Variable& substitution(const SubstitutionMap& subst) const;
 
-  // Returns a BDD representing identity between the `current state'
-  // and `next state' versions of this variable.
-  BDD identity_bdd(const DecisionDiagramManager& manager) const;
-
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
@@ -346,8 +342,5 @@ class ExpressionVisitor {
 
 // A list of variables.
 typedef std::vector<const Variable*> VariableList;
-
-// A set of variables.
-typedef std::set<const Variable*> VariableSet;
 
 #endif  // EXPRESSION_H_

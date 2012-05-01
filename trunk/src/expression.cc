@@ -482,10 +482,6 @@ const Variable& Variable::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-BDD Variable::identity_bdd(const DecisionDiagramManager& manager) const {
-  return mtbdd(manager, *this) == primed_mtbdd(manager, *this);
-}
-
 Literal::Literal(const TypedValue& value)
     : value_(value) {
 }
