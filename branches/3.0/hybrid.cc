@@ -21,6 +21,10 @@
  */
 #include "hybrid.h"
 
+#include <cstdio>
+
+#include "cudd.h"
+
 // static variables
 static int sb_max_mem = 1024;
 static int num_sb_levels = -1;
@@ -31,8 +35,8 @@ static double sparse_bits_memory;
 static HDDNode *zero = NULL;
 
 // local prototypes
-static HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
-static HDDNode *build_hdd_matrix_colrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
+static HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
+static HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
 static int compute_n_and_nnz_rec(HDDNode *hdd, int level, int num_levels, ODDNode *row);
 static SparseBit *build_sparse_bit(HDDNode *hdd, int level, int num_levels);
 static void fill_sparse_bit_rec(HDDNode *hdd, int level, int num_levels, long row, long col, SparseBit *sb, int code);
@@ -44,7 +48,7 @@ static void hdd_negative_row_sums_rec(HDDNode *hdd, int level, int num_levels, l
 
 // builds hybrid mtbdd matrix from mtbdd
 
-HDDMatrix *build_hdd_matrix(DdManager *ddman, DdNode *matrix, DdNode **rvars, DdNode **cvars, int num_vars, ODDNode *odd)
+HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, DdNode *matrix, DdNode **rvars, DdNode **cvars, int num_vars, ODDNode *odd)
 {
 	int i;
 	HDDMatrix *res;
@@ -150,13 +154,13 @@ HDDMatrix *build_hdd_matrix(DdManager *ddman, DdNode *matrix, DdNode **rvars, Dd
 
 // recursive part of build_hdd_matrix
 
-HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
+HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
 {
 	HDDNode *ptr, *hdd_e, *hdd_t;
 	DdNode *e, *t;
 
 	// check for zero terminal
-	if (dd == Cudd_ReadZero(ddman))
+	if (dd == Cudd_ReadZero(ddman.manager()))
 	{
 		return hddm->zero;
 	}
@@ -211,13 +215,13 @@ HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, D
 	return ptr;
 }
 
-HDDNode *build_hdd_matrix_colrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
+HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
 {
 	HDDNode *ptr, *hdd_e, *hdd_t;
 	DdNode *e, *t;
 
 	// check for zero terminal
-	if (dd == Cudd_ReadZero(ddman))
+	if (dd == Cudd_ReadZero(ddman.manager()))
 	{
 		return hddm->zero;
 	}

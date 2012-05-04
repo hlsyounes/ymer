@@ -57,26 +57,26 @@ const Update& Update::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns a BDD representation of this update. */
-DdNode* Update::bdd(DdManager* dd_man) const {
+DdNode* Update::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* ddu;
   DdNode* ddv = variable().primed_mtbdd(dd_man);
   const Literal* value = dynamic_cast<const Literal*>(&expr());
   if (value != NULL) {
     /* variable' == value  <==>  variable' in [value,value] */
     double threshold = value->value().value<double>();
-    ddu = Cudd_addBddInterval(dd_man, ddv, threshold, threshold);
+    ddu = Cudd_addBddInterval(dd_man.manager(), ddv, threshold, threshold);
     Cudd_Ref(ddu);
-    Cudd_RecursiveDeref(dd_man, ddv);
+    Cudd_RecursiveDeref(dd_man.manager(), ddv);
   } else {
     /* variable' == expr  <==>  variable' - expr in [0,0] */
     DdNode* dde = expr().mtbdd(dd_man);
-    DdNode* ddm = Cudd_addApply(dd_man, Cudd_addMinus, ddv, dde);
+    DdNode* ddm = Cudd_addApply(dd_man.manager(), Cudd_addMinus, ddv, dde);
     Cudd_Ref(ddm);
-    Cudd_RecursiveDeref(dd_man, ddv);
-    Cudd_RecursiveDeref(dd_man, dde);
-    ddu = Cudd_addBddInterval(dd_man, ddm, 0, 0);
+    Cudd_RecursiveDeref(dd_man.manager(), ddv);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
+    ddu = Cudd_addBddInterval(dd_man.manager(), ddm, 0, 0);
     Cudd_Ref(ddu);
-    Cudd_RecursiveDeref(dd_man, ddm);
+    Cudd_RecursiveDeref(dd_man.manager(), ddm);
   }
   return ddu;
 }
@@ -147,20 +147,21 @@ Command::substitution(const SubstitutionMap& subst,
 
 /* Returns a BDD representation of this command and fills the
    provided set with variables updated by this command. */
-DdNode* Command::bdd(VariableSet& updated, DdManager* dd_man) const {
+DdNode* Command::bdd(VariableSet& updated,
+                     const DecisionDiagramManager& dd_man) const {
   /*
    * Conjunction of BDDs for all updates.
    */
-  DdNode* ddu = Cudd_ReadOne(dd_man);
+  DdNode* ddu = Cudd_ReadOne(dd_man.manager());
   Cudd_Ref(ddu);
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     const Update& update = **ui;
     DdNode* ddi = update.bdd(dd_man);
-    DdNode* dda = Cudd_bddAnd(dd_man, ddi, ddu);
+    DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddi, ddu);
     Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man, ddi);
-    Cudd_RecursiveDeref(dd_man, ddu);
+    Cudd_RecursiveDeref(dd_man.manager(), ddi);
+    Cudd_RecursiveDeref(dd_man.manager(), ddu);
     ddu = dda;
     updated.insert(&update.variable());
   }
@@ -168,10 +169,10 @@ DdNode* Command::bdd(VariableSet& updated, DdManager* dd_man) const {
    * Conjunction with BDD for guard.
    */
   DdNode* ddg = guard().bdd(dd_man);
-  DdNode* dda = Cudd_bddAnd(dd_man, ddg, ddu);
+  DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddg, ddu);
   Cudd_Ref(dda);
-  Cudd_RecursiveDeref(dd_man, ddg);
-  Cudd_RecursiveDeref(dd_man, ddu);
+  Cudd_RecursiveDeref(dd_man.manager(), ddg);
+  Cudd_RecursiveDeref(dd_man.manager(), ddu);
   return dda;
 }
 
@@ -260,17 +261,17 @@ Module& Module::substitution(const SubstitutionMap& subst,
 
 /* Returns a BDD representing the identity between the `current
    state' and `next state' variables of this module. */
-DdNode* Module::identity_bdd(DdManager* dd_man) const {
+DdNode* Module::identity_bdd(const DecisionDiagramManager& dd_man) const {
   if (identity_bdd_ == NULL) {
-    DdNode* dd = Cudd_ReadOne(dd_man);
+    DdNode* dd = Cudd_ReadOne(dd_man.manager());
     Cudd_Ref(dd);
     for (VariableList::const_reverse_iterator vi = variables().rbegin();
 	 vi != variables().rend(); vi++) {
       DdNode* ddv = (*vi)->identity_bdd(dd_man);
-      DdNode* ddi = Cudd_bddAnd(dd_man, ddv, dd);
+      DdNode* ddi = Cudd_bddAnd(dd_man.manager(), ddv, dd);
       Cudd_Ref(ddi);
-      Cudd_RecursiveDeref(dd_man, ddv);
-      Cudd_RecursiveDeref(dd_man, dd);
+      Cudd_RecursiveDeref(dd_man.manager(), ddv);
+      Cudd_RecursiveDeref(dd_man.manager(), dd);
       dd = ddi;
     }
     identity_bdd_ = dd;
@@ -282,9 +283,9 @@ DdNode* Module::identity_bdd(DdManager* dd_man) const {
 
 
 /* Releases any cached DDs for this module. */
-void Module::uncache_dds(DdManager* dd_man) const {
+void Module::uncache_dds(const DecisionDiagramManager& dd_man) const {
   if (identity_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man, identity_bdd_);
+    Cudd_RecursiveDeref(dd_man.manager(), identity_bdd_);
     identity_bdd_ = NULL;
   }
 }

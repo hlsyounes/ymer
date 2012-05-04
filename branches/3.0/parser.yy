@@ -467,6 +467,10 @@ csl_expr : integer { $$ = make_literal($1); }
 void clear_declarations() {
   constants.clear();
   constant_values.clear();
+  for (std::map<std::string, Variable*>::const_iterator i = variables.begin();
+       i != variables.end(); ++i) {
+    Expression::destructive_deref(i->second);
+  }
   variables.clear();
 }
 
@@ -557,6 +561,7 @@ static const Variable* find_constant(const std::string* ident) {
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
+    Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
     constants.insert(std::make_pair(*ident, v));
     rate_values.insert(std::make_pair(v, 0));
@@ -582,6 +587,7 @@ static const Variable* find_rate(const std::string* ident) {
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
+    Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
     rate_values.insert(std::make_pair(v, 0));
     delete ident;
@@ -636,6 +642,7 @@ static const Expression* value_or_variable(const std::string* ident) {
     if (vi == variables.end()) {
       v = new Variable();
       variables.insert(std::make_pair(*ident, v));
+      Expression::ref(v);
       undeclared.insert(*ident);
     } else {
       v = (*vi).second;
@@ -660,6 +667,7 @@ static const Variable* find_variable(const std::string* ident) {
     if (vi == variables.end()) {
       v = new Variable();
       variables.insert(std::make_pair(*ident, v));
+      Expression::ref(v);
       undeclared.insert(*ident);
     } else {
       v = (*vi).second;
@@ -821,6 +829,7 @@ static void declare_constant(const std::string* ident,
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
+    Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
     constants.insert(std::make_pair(*ident, v));
     const int value =
@@ -857,6 +866,7 @@ static void declare_rate(const std::string* ident,
     }
     Variable* v = new Variable();
     variables.insert(std::make_pair(*ident, v));
+    Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
     const TypedValue value = (override != const_overrides.end()) ?
         override->second : value_expr->value(rate_values);
@@ -918,6 +928,7 @@ static const Variable* declare_variable(const std::string* ident,
     Expression::ref(start);
     num_model_bits = v->high_bit() + 1;
     variables.insert(std::make_pair(*ident, v));
+    Expression::ref(v);
     if (!delayed_addition) {
       if (module != NULL) {
 	module->add_variable(*v);

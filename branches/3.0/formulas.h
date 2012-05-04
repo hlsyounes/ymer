@@ -93,10 +93,10 @@ struct StateFormula {
   substitution(const SubstitutionMap& subst) const = 0;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const = 0;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const = 0;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const = 0;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const = 0;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -276,10 +276,10 @@ struct Conjunction : public StateFormula {
   virtual const Conjunction& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -343,10 +343,10 @@ struct Disjunction : public StateFormula {
   virtual const Disjunction& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -413,10 +413,10 @@ struct Negation : public StateFormula {
   virtual const Negation& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -486,10 +486,10 @@ struct Implication : public StateFormula {
   virtual const Implication& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -566,10 +566,10 @@ struct Probabilistic : public StateFormula {
   substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -690,10 +690,10 @@ struct LessThan : public Comparison {
   virtual const LessThan& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -722,10 +722,10 @@ struct LessThanOrEqual : public Comparison {
   substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -754,10 +754,10 @@ struct GreaterThanOrEqual : public Comparison {
   substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -785,10 +785,10 @@ struct GreaterThan : public Comparison {
   virtual const GreaterThan& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -816,10 +816,10 @@ struct Equality : public Comparison {
   virtual const Equality& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -847,10 +847,10 @@ struct Inequality : public Comparison {
   virtual const Inequality& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
-  virtual DdNode* bdd(DdManager* dd_man) const;
+  virtual DdNode* bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Returns the `next state' BDD representation for this state formula. */
-  virtual DdNode* primed_bdd(DdManager* dd_man) const;
+  virtual DdNode* primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
