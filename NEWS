@@ -1,3 +1,10 @@
+Version 3.0.8 (May 4, 2012):
+
+* Fixed memory corruption bug in parser.
+
+* Fixed test breakage when using GCC 4.2.
+
+
 Version 3.0.7 (Apr 14, 2012):
 
 * Fixed bug in parsing of constant overrides introduced in version 3.0.6,
