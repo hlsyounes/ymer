@@ -19,9 +19,14 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-#include <cstdio>
-#include <cudd.h>
-#include <odd.h>
+
+#ifndef HYBRID_H_
+#define HYBRID_H_
+
+#include <cstddef>
+
+#include "odd.h"
+#include "src/ddutil.h"
 
 //------------------------------------------------------------------------------
 
@@ -114,9 +119,11 @@ struct HDDMatrices {
 
 // function prototypes
 
-HDDMatrix *build_hdd_matrix(DdManager *ddman, DdNode *matrix, DdNode **rvars, DdNode **cvars, int num_vars, ODDNode *odd);
+HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, DdNode *matrix, DdNode **rvars, DdNode **cvars, int num_vars, ODDNode *odd);
 void add_sparse_bits(HDDMatrix *hddm);
 double *hdd_negative_row_sums(HDDMatrix *hddm, int n);
 void free_hdd_matrix(HDDMatrix *hddm);
 
 //------------------------------------------------------------------------------
+
+#endif  // HYBRID_H_

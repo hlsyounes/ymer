@@ -129,16 +129,16 @@ Conjunction::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Conjunction::bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadOne(dd_man);
+DdNode* Conjunction::bdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* dd = Cudd_ReadOne(dd_man.manager());
   Cudd_Ref(dd);
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddAnd(dd_man, ddf, dd);
+    DdNode* dd_tmp = Cudd_bddAnd(dd_man.manager(), ddf, dd);
     Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
+    Cudd_RecursiveDeref(dd_man.manager(), ddf);
+    Cudd_RecursiveDeref(dd_man.manager(), dd);
     dd = dd_tmp;
   }
   return dd;
@@ -146,16 +146,16 @@ DdNode* Conjunction::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Conjunction::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadOne(dd_man);
+DdNode* Conjunction::primed_bdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* dd = Cudd_ReadOne(dd_man.manager());
   Cudd_Ref(dd);
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->primed_bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddAnd(dd_man, ddf, dd);
+    DdNode* dd_tmp = Cudd_bddAnd(dd_man.manager(), ddf, dd);
     Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
+    Cudd_RecursiveDeref(dd_man.manager(), ddf);
+    Cudd_RecursiveDeref(dd_man.manager(), dd);
     dd = dd_tmp;
   }
   return dd;
@@ -280,16 +280,16 @@ Disjunction::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Disjunction::bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadLogicZero(dd_man);
+DdNode* Disjunction::bdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* dd = Cudd_ReadLogicZero(dd_man.manager());
   Cudd_Ref(dd);
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddOr(dd_man, ddf, dd);
+    DdNode* dd_tmp = Cudd_bddOr(dd_man.manager(), ddf, dd);
     Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
+    Cudd_RecursiveDeref(dd_man.manager(), ddf);
+    Cudd_RecursiveDeref(dd_man.manager(), dd);
     dd = dd_tmp;
   }
   return dd;
@@ -297,16 +297,16 @@ DdNode* Disjunction::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Disjunction::primed_bdd(DdManager* dd_man) const {
-  DdNode* dd = Cudd_ReadLogicZero(dd_man);
+DdNode* Disjunction::primed_bdd(const DecisionDiagramManager& dd_man) const {
+  DdNode* dd = Cudd_ReadLogicZero(dd_man.manager());
   Cudd_Ref(dd);
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     DdNode* ddf = (*fi)->primed_bdd(dd_man);
-    DdNode* dd_tmp = Cudd_bddOr(dd_man, ddf, dd);
+    DdNode* dd_tmp = Cudd_bddOr(dd_man.manager(), ddf, dd);
     Cudd_Ref(dd_tmp);
-    Cudd_RecursiveDeref(dd_man, ddf);
-    Cudd_RecursiveDeref(dd_man, dd);
+    Cudd_RecursiveDeref(dd_man.manager(), ddf);
+    Cudd_RecursiveDeref(dd_man.manager(), dd);
     dd = dd_tmp;
   }
   return dd;
@@ -397,21 +397,21 @@ const Negation& Negation::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Negation::bdd(DdManager* dd_man) const {
+DdNode* Negation::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* ddn = negand().bdd(dd_man);
   DdNode* dd = Cudd_Not(ddn);
   Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddn);
+  Cudd_RecursiveDeref(dd_man.manager(), ddn);
   return dd;
 }
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Negation::primed_bdd(DdManager* dd_man) const {
+DdNode* Negation::primed_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* ddn = negand().primed_bdd(dd_man);
   DdNode* dd = Cudd_Not(ddn);
   Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddn);
+  Cudd_RecursiveDeref(dd_man.manager(), ddn);
   return dd;
 }
 
@@ -489,31 +489,31 @@ Implication::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Implication::bdd(DdManager* dd_man) const {
+DdNode* Implication::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dda = antecedent().bdd(dd_man);
   DdNode* ddn = Cudd_Not(dda);
   Cudd_Ref(ddn);
-  Cudd_RecursiveDeref(dd_man, dda);
+  Cudd_RecursiveDeref(dd_man.manager(), dda);
   DdNode* ddc = consequent().bdd(dd_man);
-  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
+  DdNode* ddi = Cudd_bddOr(dd_man.manager(), ddn, ddc);
   Cudd_Ref(ddi);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  Cudd_RecursiveDeref(dd_man, ddc);
+  Cudd_RecursiveDeref(dd_man.manager(), ddn);
+  Cudd_RecursiveDeref(dd_man.manager(), ddc);
   return ddi;
 }
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Implication::primed_bdd(DdManager* dd_man) const {
+DdNode* Implication::primed_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dda = antecedent().primed_bdd(dd_man);
   DdNode* ddn = Cudd_Not(dda);
   Cudd_Ref(ddn);
-  Cudd_RecursiveDeref(dd_man, dda);
+  Cudd_RecursiveDeref(dd_man.manager(), dda);
   DdNode* ddc = consequent().primed_bdd(dd_man);
-  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
+  DdNode* ddi = Cudd_bddOr(dd_man.manager(), ddn, ddc);
   Cudd_Ref(ddi);
-  Cudd_RecursiveDeref(dd_man, ddn);
-  Cudd_RecursiveDeref(dd_man, ddc);
+  Cudd_RecursiveDeref(dd_man.manager(), ddn);
+  Cudd_RecursiveDeref(dd_man.manager(), ddc);
   return ddi;
 }
 
@@ -585,13 +585,13 @@ Probabilistic::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Probabilistic::bdd(DdManager* dd_man) const {
+DdNode* Probabilistic::bdd(const DecisionDiagramManager& dd_man) const {
   throw std::logic_error("Probabilistic::bdd not implemented");
 }
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Probabilistic::primed_bdd(DdManager* dd_man) const {
+DdNode* Probabilistic::primed_bdd(const DecisionDiagramManager& dd_man) const {
   throw std::logic_error("Probabilistic::primed_bdd not implemented");
 }
 
@@ -666,39 +666,39 @@ const LessThan& LessThan::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* LessThan::bdd(DdManager* dd_man) const {
+DdNode* LessThan::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr2().mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr1().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
+      DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 < expr2  <==>  expr2 - expr1 > 0 */
       DdNode* dd1 = expr1().mtbdd(dd_man);
       DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -706,39 +706,39 @@ DdNode* LessThan::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* LessThan::primed_bdd(DdManager* dd_man) const {
+DdNode* LessThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value < expr2  <==>  expr2 > value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr2().primed_mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 < value  <==>  !(expr1 >= value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr1().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
+      DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 < expr2  <==>  expr2 - expr1 > 0 */
       DdNode* dd1 = expr1().primed_mtbdd(dd_man);
       DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -793,39 +793,40 @@ LessThanOrEqual::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
+DdNode* LessThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr2().mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr1().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+      DdNode* ddf =
+          Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 <= expr2  <==>  expr2 - expr1 >= 0 */
       DdNode* dd1 = expr1().mtbdd(dd_man);
       DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -833,39 +834,41 @@ DdNode* LessThanOrEqual::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* LessThanOrEqual::primed_bdd(DdManager* dd_man) const {
+DdNode* LessThanOrEqual::primed_bdd(
+    const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr1());
   if (value != NULL) {
     /* value <= expr2  <==>  expr2 >= value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr2().primed_mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr2());
     if (value != NULL) {
       /* expr1 <= value  <==>  !(expr1 > value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr1().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+      DdNode* ddf =
+          Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 <= expr2  <==>  expr2 - expr1 >= 0 */
       DdNode* dd1 = expr1().primed_mtbdd(dd_man);
       DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd2, dd1);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd2, dd1);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -920,39 +923,40 @@ GreaterThanOrEqual::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
+DdNode* GreaterThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 >= value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+      DdNode* ddf =
+          Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 >= expr2  <==>  expr1 - expr2 >= 0 */
       DdNode* dd1 = expr1().mtbdd(dd_man);
       DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -960,39 +964,41 @@ DdNode* GreaterThanOrEqual::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* GreaterThanOrEqual::primed_bdd(DdManager* dd_man) const {
+DdNode* GreaterThanOrEqual::primed_bdd(
+    const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 >= value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
-    dd = Cudd_addBddThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value >= expr2  <==>  !(expr2 > value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+      DdNode* ddf =
+          Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 >= expr2  <==>  expr1 - expr2 >= 0 */
       DdNode* dd1 = expr1().primed_mtbdd(dd_man);
       DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -1045,39 +1051,39 @@ GreaterThan::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* GreaterThan::bdd(DdManager* dd_man) const {
+DdNode* GreaterThan::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 > value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
+      DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 > expr2  <==>  expr1 - expr2 > 0 */
       DdNode* dd1 = expr1().mtbdd(dd_man);
       DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -1085,39 +1091,39 @@ DdNode* GreaterThan::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* GreaterThan::primed_bdd(DdManager* dd_man) const {
+DdNode* GreaterThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 > value */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
-    dd = Cudd_addBddStrictThreshold(dd_man, dde, threshold);
+    dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value > expr2  <==>  !(expr2 >= value) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
-      DdNode* ddf = Cudd_addBddThreshold(dd_man, dde, threshold);
+      DdNode* ddf = Cudd_addBddThreshold(dd_man.manager(), dde, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
       dd = Cudd_Not(ddf);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, ddf);
+      Cudd_RecursiveDeref(dd_man.manager(), ddf);
     } else {
       /* expr1 > expr2  <==>  expr1 - expr2 > 0 */
       DdNode* dd1 = expr1().primed_mtbdd(dd_man);
       DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddStrictThreshold(dd_man, dde, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddStrictThreshold(dd_man.manager(), dde, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -1169,36 +1175,36 @@ const Equality& Equality::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Equality::bdd(DdManager* dd_man) const {
+DdNode* Equality::bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
-    dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+    dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
-      dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+      dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 == expr2  <==>  expr1 - expr2 in [0,0] */
       DdNode* dd1 = expr1().mtbdd(dd_man);
       DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddInterval(dd_man, dde, 0, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -1206,36 +1212,36 @@ DdNode* Equality::bdd(DdManager* dd_man) const {
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Equality::primed_bdd(DdManager* dd_man) const {
+DdNode* Equality::primed_bdd(const DecisionDiagramManager& dd_man) const {
   DdNode* dd;
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   if (value != NULL) {
     /* expr1 == value  <==>  expr1 in [value,value] */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
-    dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+    dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(dd);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value == expr2  <==>  expr2 in [value,value] */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
-      dd = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+      dd = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 == expr2  <==>  expr1 - expr2 in [0,0] */
       DdNode* dd1 = expr1().primed_mtbdd(dd_man);
       DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      dd = Cudd_addBddInterval(dd_man, dde, 0, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      dd = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   return dd;
@@ -1288,81 +1294,81 @@ Inequality::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns the `current state' BDD representation for this state formula. */
-DdNode* Inequality::bdd(DdManager* dd_man) const {
+DdNode* Inequality::bdd(const DecisionDiagramManager& dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   DdNode* ddf;
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().mtbdd(dd_man);
-    ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+    ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(ddf);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().mtbdd(dd_man);
-      ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+      ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 != expr2  <==>  !(expr1 - expr2 in [0,0]) */
       DdNode* dd1 = expr1().mtbdd(dd_man);
       DdNode* dd2 = expr2().mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      ddf = Cudd_addBddInterval(dd_man, dde, 0, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      ddf = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   DdNode* dd = Cudd_Not(ddf);
   Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddf);
+  Cudd_RecursiveDeref(dd_man.manager(), ddf);
   return dd;
 }
 
 
 /* Returns the `next state' BDD representation for this state formula. */
-DdNode* Inequality::primed_bdd(DdManager* dd_man) const {
+DdNode* Inequality::primed_bdd(const DecisionDiagramManager& dd_man) const {
   const Literal* value = dynamic_cast<const Literal*>(&expr2());
   DdNode* ddf;
   if (value != NULL) {
     /* expr1 != value  <==>  !(expr1 in [value,value]) */
     double threshold = value->value().value<double>();
     DdNode* dde = expr1().primed_mtbdd(dd_man);
-    ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+    ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
     Cudd_Ref(ddf);
-    Cudd_RecursiveDeref(dd_man, dde);
+    Cudd_RecursiveDeref(dd_man.manager(), dde);
   } else {
     value = dynamic_cast<const Literal*>(&expr1());
     if (value != NULL) {
       /* value != expr2  <==>  !(expr2 in [value,value]) */
       double threshold = value->value().value<double>();
       DdNode* dde = expr2().primed_mtbdd(dd_man);
-      ddf = Cudd_addBddInterval(dd_man, dde, threshold, threshold);
+      ddf = Cudd_addBddInterval(dd_man.manager(), dde, threshold, threshold);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     } else {
       /* expr1 != expr2  <==>  !(expr1 - expr2 in [0,0]) */
       DdNode* dd1 = expr1().primed_mtbdd(dd_man);
       DdNode* dd2 = expr2().primed_mtbdd(dd_man);
-      DdNode* dde = Cudd_addApply(dd_man, Cudd_addMinus, dd1, dd2);
+      DdNode* dde = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
       Cudd_Ref(dde);
-      Cudd_RecursiveDeref(dd_man, dd1);
-      Cudd_RecursiveDeref(dd_man, dd2);
-      ddf = Cudd_addBddInterval(dd_man, dde, 0, 0);
+      Cudd_RecursiveDeref(dd_man.manager(), dd1);
+      Cudd_RecursiveDeref(dd_man.manager(), dd2);
+      ddf = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
       Cudd_Ref(ddf);
-      Cudd_RecursiveDeref(dd_man, dde);
+      Cudd_RecursiveDeref(dd_man.manager(), dde);
     }
   }
   DdNode* dd = Cudd_Not(ddf);
   Cudd_Ref(dd);
-  Cudd_RecursiveDeref(dd_man, ddf);
+  Cudd_RecursiveDeref(dd_man.manager(), ddf);
   return dd;
 }
 

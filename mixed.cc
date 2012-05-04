@@ -148,20 +148,21 @@ bool Comparison::verify(const DecisionDiagramManager& dd_man,
 
 
 /* Returns a BDD representing the given state. */
-static DdNode* state_bdd(DdManager* dd_man, const ValueMap& values) {
-  DdNode* dds = Cudd_ReadOne(dd_man);
+static DdNode* state_bdd(const DecisionDiagramManager& dd_man,
+                         const ValueMap& values) {
+  DdNode* dds = Cudd_ReadOne(dd_man.manager());
   Cudd_Ref(dds);
   for (ValueMap::const_iterator vi = values.begin();
        vi != values.end(); vi++) {
     DdNode* ddv = (*vi).first->mtbdd(dd_man);
     double x = (*vi).second.value<double>();
-    DdNode* ddx = Cudd_addBddInterval(dd_man, ddv, x, x);
+    DdNode* ddx = Cudd_addBddInterval(dd_man.manager(), ddv, x, x);
     Cudd_Ref(ddx);
-    Cudd_RecursiveDeref(dd_man, ddv);
-    DdNode* dda = Cudd_bddAnd(dd_man, ddx, dds);
+    Cudd_RecursiveDeref(dd_man.manager(), ddv);
+    DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddx, dds);
     Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man, ddx);
-    Cudd_RecursiveDeref(dd_man, dds);
+    Cudd_RecursiveDeref(dd_man.manager(), ddx);
+    Cudd_RecursiveDeref(dd_man.manager(), dds);
     dds = dda;
   }
   return dds;
@@ -181,7 +182,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
     if (t <= t_max) {
       DdNode* dds = NULL;
       if (dd2 != NULL) {
-	dds = state_bdd(dd_man.manager(), curr_state->values());
+	dds = state_bdd(dd_man, curr_state->values());
 	DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
 	Cudd_Ref(sol);
 	if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
@@ -201,7 +202,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
 	  break;
 	} else if (dd1 != Cudd_ReadOne(dd_man.manager())) {
 	  if (dds == NULL) {
-	    dds = state_bdd(dd_man.manager(), curr_state->values());
+	    dds = state_bdd(dd_man, curr_state->values());
 	  }
 	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
 	  Cudd_Ref(sol);
