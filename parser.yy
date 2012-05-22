@@ -476,7 +476,8 @@ void clear_declarations() {
 
 
 /* Tests if the given variables is a member of the given list. */
-static bool member(const VariableList& vars, const Variable* v) {
+static bool member(const std::vector<const Variable*>& vars,
+                   const Variable* v) {
   return find(vars.begin(), vars.end(), v) != vars.end();
 }
 
@@ -989,7 +990,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	}
       }
       SubstitutionMap v_subst;
-      for (VariableList::const_iterator vi = src_module.variables().begin();
+      for (std::vector<const Variable*>::const_iterator vi =
+               src_module.variables().begin();
 	   vi != src_module.variables().end(); vi++) {
 	std::map<const Variable*, const std::string*>::const_iterator si =
 	  subst.find(*vi);

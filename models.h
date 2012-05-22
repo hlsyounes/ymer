@@ -31,6 +31,7 @@
 #include "distributions.h"
 #include "src/ddutil.h"
 #include <map>
+#include <vector>
 
 
 /* ====================================================================== */
@@ -58,7 +59,7 @@ struct Model {
   void compile();
 
   /* Returns the global variables for this model. */
-  const VariableList& variables() const { return variables_; }
+  const std::vector<const Variable*>& variables() const { return variables_; }
 
   /* Returns the modules for this model */
   const ModuleList& modules() const { return modules_; }
@@ -101,7 +102,7 @@ struct Model {
 
 private:
   /* The global variables for this model. */
-  VariableList variables_;
+  std::vector<const Variable*> variables_;
   /* The modules for this model */
   ModuleList modules_;
   /* Compiled commands for this model. */
