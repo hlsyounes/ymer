@@ -512,6 +512,7 @@ ExpressionVisitor::ExpressionVisitor(const ExpressionVisitor&) {
 }
 
 ExpressionVisitor& ExpressionVisitor::operator=(const ExpressionVisitor&) {
+  return *this;
 }
 
 ExpressionVisitor::~ExpressionVisitor() {
