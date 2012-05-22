@@ -73,13 +73,15 @@ private:
 
 /* Constructs an initial state for the given model. */
 State::State(const Model& model) {
-  for (VariableList::const_iterator vi = model.variables().begin();
+  for (std::vector<const Variable*>::const_iterator vi =
+           model.variables().begin();
        vi != model.variables().end(); vi++) {
     values_.insert(std::make_pair(*vi, (*vi)->start()));
   }
   for (ModuleList::const_iterator mi = model.modules().begin();
        mi != model.modules().end(); mi++) {
-    for (VariableList::const_iterator vi = (*mi)->variables().begin();
+    for (std::vector<const Variable*>::const_iterator vi =
+             (*mi)->variables().begin();
 	 vi != (*mi)->variables().end(); vi++) {
       values_.insert(std::make_pair(*vi, (*vi)->start()));
     }

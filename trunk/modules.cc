@@ -149,7 +149,7 @@ Module::Module() {
 
 /* Deletes this module. */
 Module::~Module() {
-  for (VariableList::const_iterator vi = variables().begin();
+  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
     Expression::destructive_deref(*vi);
   }
@@ -189,7 +189,7 @@ void Module::compile(const ValueMap& constants, const ValueMap& rates) {
 Module& Module::substitution(const SubstitutionMap& subst,
 			     const SynchSubstitutionMap& synchs) const {
   Module* subst_mod = new Module();
-  for (VariableList::const_iterator vi = variables().begin();
+  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
     subst_mod->add_variable((*vi)->substitution(subst));
   }

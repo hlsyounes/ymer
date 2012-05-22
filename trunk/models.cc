@@ -168,10 +168,11 @@ BDD identity_bdd(const DecisionDiagramManager& manager, const Variable& v) {
    identity BDDs for the given variables. */
 BDD variable_identities(const DecisionDiagramManager& dd_man,
                         const BDD& dd_start,
-                        const VariableList& variables,
+                        const std::vector<const Variable*>& variables,
                         const std::set<const Variable*>& excluded) {
   BDD ddu = dd_start;
-  for (VariableList::const_reverse_iterator vi = variables.rbegin();
+  for (std::vector<const Variable*>::const_reverse_iterator vi =
+           variables.rbegin();
        vi != variables.rend(); vi++) {
     if (excluded.find(*vi) == excluded.end()) {
       ddu = identity_bdd(dd_man, **vi) && ddu;
@@ -219,7 +220,7 @@ BDD variable_updates(const DecisionDiagramManager& manager,
       ddu = variable_identities(
           manager, ddu, module->variables(), updated_variables);
     } else {
-      for (VariableList::const_reverse_iterator vi =
+      for (std::vector<const Variable*>::const_reverse_iterator vi =
                module->variables().rbegin();
            vi != module->variables().rend(); ++vi) {
         ddu = identity_bdd(manager, **vi) && ddu;
@@ -257,7 +258,7 @@ Model::~Model() {
       delete *ci;
     }
   }
-  for (VariableList::const_iterator vi = variables().begin();
+  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
     Expression::destructive_deref(*vi);
   }
@@ -389,7 +390,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     for (ModuleList::const_reverse_iterator mi = modules().rbegin();
 	 mi != modules().rend(); mi++) {
       const Module& mod = **mi;
-      for (VariableList::const_reverse_iterator vi = mod.variables().rbegin();
+      for (std::vector<const Variable*>::const_reverse_iterator vi =
+               mod.variables().rbegin();
 	   vi != mod.variables().rend(); vi++) {
 	const Variable& v = **vi;
         BDD dds = mtbdd(dd_man, v).Interval(v.start(), v.start());
@@ -399,7 +401,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	init_bdd_ = dda;
       }
     }
-    for (VariableList::const_reverse_iterator vi = variables().rbegin();
+    for (std::vector<const Variable*>::const_reverse_iterator vi =
+             variables().rbegin();
 	 vi != variables().rend(); vi++) {
       const Variable& v = **vi;
       BDD dds = mtbdd(dd_man, v).Interval(v.start(), v.start());
@@ -867,7 +870,7 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m) {
   os << "stochastic";
-  VariableList::const_iterator vi = m.variables().begin();
+  std::vector<const Variable*>::const_iterator vi = m.variables().begin();
   if (vi != m.variables().end()) {
     os << std::endl;
     for (; vi != m.variables().end(); vi++) {

@@ -27,6 +27,7 @@
 
 #include <config.h>
 #include "src/expression.h"
+#include <vector>
 
 struct StateFormula;
 struct Distribution;
@@ -168,7 +169,7 @@ struct Module {
   void compile(const ValueMap& constants, const ValueMap& rates);
 
   /* Returns the variables for this module. */
-  const VariableList& variables() const { return variables_; }
+  const std::vector<const Variable*>& variables() const { return variables_; }
 
   /* Returns the commands for this module. */
   const CommandList& commands() const { return commands_; }
@@ -179,7 +180,7 @@ struct Module {
 
 private:
   /* The variables for this module. */
-  VariableList variables_;
+  std::vector<const Variable*> variables_;
   /* The commands for this module. */
   CommandList commands_;
 };

@@ -340,7 +340,4 @@ class ExpressionVisitor {
   virtual void DoVisitComputation(const Computation& expr) = 0;
 };
 
-// A list of variables.
-typedef std::vector<const Variable*> VariableList;
-
 #endif  // EXPRESSION_H_
