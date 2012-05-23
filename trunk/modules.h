@@ -27,6 +27,7 @@
 
 #include <config.h>
 #include "src/expression.h"
+#include <set>
 #include <vector>
 
 struct StateFormula;
