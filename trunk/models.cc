@@ -445,7 +445,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b + 1);
 	  }
 	  ADD ddv = mtbdd(dd_man, *data.s);
-	  BDD dds = ddv.Interval(data.s->start(), data.s->start());
+	  BDD dds = ddv.Interval(0, 0);
 	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
 	  Cudd_Ref(dda);
 	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
