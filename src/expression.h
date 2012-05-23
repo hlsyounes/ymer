@@ -25,8 +25,6 @@
 
 #include <map>
 #include <ostream>
-#include <set>
-#include <vector>
 
 #include "ddutil.h"
 #include "typed-value.h"

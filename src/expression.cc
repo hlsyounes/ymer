@@ -19,10 +19,12 @@
 
 #include "expression.h"
 
+#include <ostream>
+#include <set>
 #include <stdexcept>
-#include <typeinfo>
 
-#include "cudd.h"
+#include "ddutil.h"
+#include "typed-value.h"
 
 Expression::Expression()
     : ref_count_(0) {
