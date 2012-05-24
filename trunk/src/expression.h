@@ -97,6 +97,14 @@ ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);
 // Returns the `next state' MTBDD representation for an expression.
 ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e);
 
+// Returns the `current state' MTBDD representation for a variable.
+ADD variable_mtbdd(const DecisionDiagramManager& manager,
+                   int low, int low_bit, int high_bit);
+
+// Returns the `next state' MTBDD representation for a variable.
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
+                          int low, int low_bit, int high_bit);
+
 // Output operator for expressions.
 std::ostream& operator<<(std::ostream& os, const Expression& e);
 

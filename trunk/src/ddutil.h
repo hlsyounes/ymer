@@ -190,4 +190,7 @@ class DecisionDiagramManager {
   DdManager* manager_;
 };
 
+// Returns the base-2 logarithm of the given integer.
+int Log2(int n);
+
 #endif  // DDUTIL_H_

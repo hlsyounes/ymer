@@ -283,3 +283,12 @@ BDD DecisionDiagramManager::GetBddVariable(int i) const {
 ADD DecisionDiagramManager::GetAddVariable(int i) const {
   return ADD(manager_, Cudd_addIthVar(manager_, i));
 }
+
+int Log2(int n) {
+  CHECK_GT(n, 0);
+  int m = 0;
+  while (n >>= 1) {
+    ++m;
+  }
+  return m;
+}
