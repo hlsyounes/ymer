@@ -52,12 +52,13 @@ typedef std::pair<SynchronizationMap::const_iterator,
  */
 struct PHData {
   explicit PHData(const DecisionDiagramManager& manager)
-      : update_bdd(manager.GetConstant(true)) {
+      : low_bit(-1), update_bdd(manager.GetConstant(true)) {
   }
 
   ECParameters params;
   ACPH2Parameters params2;
-  Variable* s;
+  int low_bit;
+  int high_bit;
   BDD update_bdd;
 };
 
@@ -160,8 +161,10 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
 
 // Returns a BDD representing identity between the `current state' and `next
 // state' versions of the given variable.
-BDD identity_bdd(const DecisionDiagramManager& manager, const Variable& v) {
-  return mtbdd(manager, v) == primed_mtbdd(manager, v);
+BDD identity_bdd(const DecisionDiagramManager& manager,
+                 int low, int low_bit, int high_bit) {
+  return variable_mtbdd(manager, low, low_bit, high_bit)
+      == variable_primed_mtbdd(manager, low, low_bit, high_bit);
 }
 
 /* Returns a BDD representing the conjunction of dd_start with the
@@ -174,8 +177,9 @@ BDD variable_identities(const DecisionDiagramManager& dd_man,
   for (std::vector<const Variable*>::const_reverse_iterator vi =
            variables.rbegin();
        vi != variables.rend(); vi++) {
-    if (excluded.find(*vi) == excluded.end()) {
-      ddu = identity_bdd(dd_man, **vi) && ddu;
+    const Variable* v = *vi;
+    if (excluded.find(v) == excluded.end()) {
+      ddu = identity_bdd(dd_man, v->low(), v->low_bit(), v->high_bit()) && ddu;
     }
   }
   return ddu;
@@ -223,7 +227,9 @@ BDD variable_updates(const DecisionDiagramManager& manager,
       for (std::vector<const Variable*>::const_reverse_iterator vi =
                module->variables().rbegin();
            vi != module->variables().rend(); ++vi) {
-        ddu = identity_bdd(manager, **vi) && ddu;
+        const Variable* v = *vi;
+        ddu =
+            identity_bdd(manager, v->low(), v->low_bit(), v->high_bit()) && ddu;
       }
     }
   }
@@ -436,22 +442,22 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	}
 	int high = ph_phases(data) - 1;
 	if (high > 0) {
-	  data.s = new Variable(0, high, 0, nvars);
-	  Expression::ref(data.s);
-	  nvars = data.s->high_bit() + 1;
-	  int nbits = data.s->high_bit() - data.s->low_bit() + 1;
-	  for (int b = 0; b < nbits; b++) {
-	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b);
-	    Cudd_bddNewVarAtLevel(dd_man.manager(), 2*b + 1);
+          data.low_bit = nvars;
+          data.high_bit = data.low_bit + Log2(high);
+	  nvars = data.high_bit + 1;
+	  for (int b = data.low_bit; b <= data.high_bit; ++b) {
+	    Cudd_bddNewVar(dd_man.manager());
+	    Cudd_bddNewVar(dd_man.manager());
 	  }
-	  ADD ddv = mtbdd(dd_man, *data.s);
+	  ADD ddv = variable_mtbdd(dd_man, 0, data.low_bit, data.high_bit);
 	  BDD dds = ddv.Interval(0, 0);
 	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
 	  Cudd_Ref(dda);
 	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
 	  init_bdd_ = dda;
-	  ADD ddvp = primed_mtbdd(dd_man, *data.s);
-	  BDD ddid = identity_bdd(dd_man, *data.s);
+	  ADD ddvp =
+              variable_primed_mtbdd(dd_man, 0, data.low_bit, data.high_bit);
+	  BDD ddid = identity_bdd(dd_man, 0, data.low_bit, data.high_bit);
 	  /*
 	   * Constructs BDD representing phase update:
 	   *
@@ -461,8 +467,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
               (command.guard().bdd(dd_man) || ddv.Interval(0, 0)) &&
               (command.guard().primed_bdd(dd_man) || ddvp.Interval(0, 0)) &&
               (!command.guard().primed_bdd(dd_man) || ddid);
-	} else {
-	  data.s = NULL;
 	}
       }
     }
@@ -494,9 +498,11 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	/*
 	 * Event 1: phi & s=0 => s'=1
 	 */
-	ADD ddv = mtbdd(dd_man, *ph_data->s);
+	ADD ddv = variable_mtbdd(
+            dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	BDD dds = ddv.Interval(0, 0);
-	ADD ddvp = primed_mtbdd(dd_man, *ph_data->s);
+	ADD ddvp = variable_primed_mtbdd(
+            dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
 	ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
 			       std::set<const Variable*>(), i, ph_commands);
@@ -572,9 +578,11 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   *
 	   *   phi & s<n-2 => s'=s+1
 	   */
-	  ADD ddv = mtbdd(dd_man, *ph_data->s);
+	  ADD ddv = variable_mtbdd(
+              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	  BDD dds = ddv.Interval(0, ph_data->params.n - 3);
-	  ADD ddvp = primed_mtbdd(dd_man, *ph_data->s);
+	  ADD ddvp = variable_primed_mtbdd(
+              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	  ADD ddp = ddv + dd_man.GetConstant(1);
 	  BDD ddu = dds && ddvp == ddp && ddg;
 	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
@@ -593,9 +601,11 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   *
 	   *   phi & s=n-2 => s'=n-1
 	   */
-	  ADD ddv = mtbdd(dd_man, *ph_data->s);
+	  ADD ddv = variable_mtbdd(
+              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	  BDD dds = ddv.Interval(ph_data->params.n - 2, ph_data->params.n - 2);
-	  ADD ddvp = primed_mtbdd(dd_man, *ph_data->s);
+	  ADD ddvp = variable_primed_mtbdd(
+              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	  BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
 	  ddu = dds && ddu && ddg;
 	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
@@ -646,11 +656,14 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   * Event for exponential (or 1-phase Coxian) distribution.
 	   */
 	  BDD dda = dd_man.GetConstant(false);
-	  if (ph_data != NULL && ph_data->s != NULL) {
+	  if (ph_data != NULL && ph_data->low_bit >= 0) {
 	    /* Coxian: s=n-2 => s'=0 */
-	    BDD dds = mtbdd(dd_man, *ph_data->s)
+	    BDD dds = variable_mtbdd(
+                dd_man, 0, ph_data->low_bit, ph_data->high_bit)
                 .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
-	    BDD ddp = primed_mtbdd(dd_man, *ph_data->s).Interval(0, 0);
+	    BDD ddp = variable_primed_mtbdd(
+                dd_man, 0, ph_data->low_bit, ph_data->high_bit)
+                .Interval(0, 0);
 	    dda = dds && ddp;
 	    dda = variable_updates(dd_man, dda, *this, command_modules_[i],
 				   updated_variables, i, ph_commands);
@@ -670,15 +683,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  }
 	  ddR = ddq + ddR;
 	}
-      }
-    }
-    /*
-     * Release DDs for phase variables.
-     */
-    for (std::map<int, PHData>::const_iterator ci = ph_commands.begin();
-	 ci != ph_commands.end(); ci++) {
-      if ((*ci).second.s != NULL) {
-	Expression::destructive_deref((*ci).second.s);
       }
     }
     if (verbosity > 0) {

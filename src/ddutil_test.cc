@@ -482,4 +482,13 @@ TEST(DecisionDiagramTest, GreaterNonConstants) {
   EXPECT_FALSE(dd2.ValueInState(sv(false, false)));
 }
 
+TEST(Log2Test, All) {
+  EXPECT_EQ(0, Log2(1));
+  EXPECT_EQ(1, Log2(2));
+  EXPECT_EQ(1, Log2(3));
+  EXPECT_EQ(2, Log2(4));
+  EXPECT_EQ(7, Log2(255));
+  EXPECT_EQ(8, Log2(256));
+}
+
 }  // namespace

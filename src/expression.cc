@@ -54,6 +54,17 @@ void Expression::destructive_deref(const Expression* e) {
 
 namespace {
 
+ADD CompileVariable(const DecisionDiagramManager& manager,
+                    int low, int low_bit, int high_bit, bool primed) {
+  ADD result = manager.GetConstant(0);
+  const int offset = primed ? 1 : 0;
+  for (int i = high_bit; i >= low_bit; --i) {
+    result = result + (manager.GetAddVariable(2*i + offset) *
+                       manager.GetConstant(1 << (high_bit - i)));
+  }
+  return result + manager.GetConstant(low);
+}
+
 class ExpressionCompiler : public ExpressionVisitor {
  public:
   ExpressionCompiler(const DecisionDiagramManager* manager, bool primed);
@@ -80,13 +91,8 @@ void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
 }
 
 void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
-  mtbdd_ = manager_->GetConstant(0);
-  const int offset = primed_ ? 1 : 0;
-  for (int i = expr.high_bit(); i >= expr.low_bit(); --i) {
-    mtbdd_ = mtbdd_ + (manager_->GetAddVariable(2*i + offset) *
-                       manager_->GetConstant(1 << (expr.high_bit() - i)));
-  }
-  mtbdd_ = mtbdd_ + manager_->GetConstant(expr.low());
+  mtbdd_ = CompileVariable(
+      *manager_, expr.low(), expr.low_bit(), expr.high_bit(), primed_);
 }
 
 void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
@@ -121,6 +127,16 @@ ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e) {
   ExpressionCompiler compiler(&manager, true /* primed */);
   e.Accept(&compiler);
   return compiler.mtbdd();
+}
+
+ADD variable_mtbdd(const DecisionDiagramManager& manager,
+                   int low, int low_bit, int high_bit) {
+  return CompileVariable(manager, low, low_bit, high_bit, false /* primed */);
+}
+
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
+                          int low, int low_bit, int high_bit) {
+  return CompileVariable(manager, low, low_bit, high_bit, true /* primed */);
 }
 
 namespace {
@@ -448,13 +464,7 @@ void Variable::set_start(int start) {
 
 void Variable::set_low_bit(int low_bit) {
   low_bit_ = low_bit;
-  int h = high() - low();
-  int nbits = 0;
-  while (h > 0) {
-    h >>= 1;
-    nbits++;
-  }
-  high_bit_ = low_bit_ + nbits - 1;
+  high_bit_ = low_bit_ + Log2(high() - low());
 }
 
 TypedValue Variable::value(const ValueMap& values) const {
