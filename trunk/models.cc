@@ -426,7 +426,6 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       const Distribution& dist = command.delay();
       if (typeid(dist) != typeid(Exponential)) {
         PHData data(dd_man);
-        ph_commands.insert(std::make_pair(i, data));
 	switch (moments) {
 	case 1:
 	  match_first_moment(data.params, dist);
@@ -468,6 +467,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
               (command.guard().primed_bdd(dd_man) || ddvp.Interval(0, 0)) &&
               (!command.guard().primed_bdd(dd_man) || ddid);
 	}
+        ph_commands.insert(std::make_pair(i, data));
       }
     }
     /*

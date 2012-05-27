@@ -1,0 +1,7 @@
+Sampling engine: alpha=0.01, beta=0.01, delta=0.01, seed=0
+Variables: 7
+Events:    20
+
+Model checking !P>=0.96 [ true U[0,10] v0_2=1 & v3=0 ] ...
+Acceptance sampling.........:.......1701 samples.
+Property is false in the initial state.
