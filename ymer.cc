@@ -26,6 +26,7 @@
 #include "models.h"
 #include "formulas.h"
 #include "src/ddutil.h"
+#include "glog/logging.h"
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -317,6 +318,8 @@ double indifference_region(double theta) {
 
 /* The main program. */
 int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+
   /* Set default alpha. */
   double alpha = 1e-2;
   /* Set default beta. */
