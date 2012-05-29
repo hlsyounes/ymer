@@ -25,6 +25,7 @@
 
 #include <map>
 #include <ostream>
+#include <string>
 
 #include "ddutil.h"
 #include "typed-value.h"
@@ -240,24 +241,16 @@ private:
 // A variable expression.
 class Variable : public Expression {
  public:
-  // Constructs a variable.
-  Variable();
-  Variable(int low, int high, int start, int low_bit);
+  // Constructs an identifier with the given name.
+  explicit Variable(const std::string& name);
 
   virtual ~Variable();
 
-  // Sets the lower bound for this variable.
-  void set_low(int low);
+  void SetVariableProperties(
+      int low, int high, int start, int index, int low_bit);
 
-  // Sets the upper bound for this variable.
-  void set_high(int high);
-
-  // Sets the initial value for this variable.
-  void set_start(int start);
-
-  // Sets the index of the first DD variable used to represent this
-  // variable.
-  void set_low_bit(int low_bit);
+  // Returns the name of this identifier.
+  const std::string& name() const { return name_; }
 
   // Returns the lower bound for this variable.
   int low() const { return low_; }
@@ -267,6 +260,9 @@ class Variable : public Expression {
 
   // Returns the initial value for this variable.
   int start() const { return start_; }
+
+  // Returns the index of this variable.
+  int index() const { return index_; }
 
   // Returns the index of the first DD variable used to represent this
   // variable.
@@ -288,12 +284,16 @@ class Variable : public Expression {
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
+  // The name of this identifier.
+  std::string name_;
   // The lower bound for this variable.
   int low_;
   // The upper bound for this variable.
   int high_;
   // The initial value for this variable.
   int start_;
+  // The index of this variable.
+  int index_;
   // Index of the first DD variable used to represent this variable.
   int low_bit_;
   // Index of the last DD variable used to represent this variable.

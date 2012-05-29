@@ -92,6 +92,8 @@ static std::map<std::string, Module*> modules;
 static std::map<std::string, size_t> synchronizations;
 /* Yet undeclared state variables. */
 static std::set<std::string> undeclared;
+/* Next variable index. */
+static int next_variable_index;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
@@ -560,7 +562,7 @@ static const Variable* find_constant(const std::string* ident) {
     } else {
       yyerror("undeclared constant `" + *ident + "'");
     }
-    Variable* v = new Variable();
+    Variable* v = new Variable(*ident);
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
@@ -586,7 +588,7 @@ static const Variable* find_rate(const std::string* ident) {
     } else {
       yyerror("undeclared rate `" + *ident + "'");
     }
-    Variable* v = new Variable();
+    Variable* v = new Variable(*ident);
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
@@ -641,7 +643,7 @@ static const Expression* value_or_variable(const std::string* ident) {
     std::map<std::string, Variable*>::const_iterator vi =
       variables.find(*ident);
     if (vi == variables.end()) {
-      v = new Variable();
+      v = new Variable(*ident);
       variables.insert(std::make_pair(*ident, v));
       Expression::ref(v);
       undeclared.insert(*ident);
@@ -666,7 +668,7 @@ static const Variable* find_variable(const std::string* ident) {
     std::map<std::string, Variable*>::const_iterator vi =
       variables.find(*ident);
     if (vi == variables.end()) {
-      v = new Variable();
+      v = new Variable(*ident);
       variables.insert(std::make_pair(*ident, v));
       Expression::ref(v);
       undeclared.insert(*ident);
@@ -750,7 +752,7 @@ static void add_update(const std::string* ident, const Expression& expr) {
   std::map<std::string, Variable*>::const_iterator vi = variables.find(*ident);
   if (vi == variables.end()) {
     yyerror("updating undeclared variable `" + *ident + "'");
-    v = new Variable();
+    v = new Variable(*ident);
   } else {
     v = (*vi).second;
   }
@@ -828,7 +830,7 @@ static void declare_constant(const std::string* ident,
       yyerror("uninitialized constant `" + *ident + "'");
       value_expr = make_literal(0);
     }
-    Variable* v = new Variable();
+    Variable* v = new Variable(*ident);
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
@@ -865,7 +867,7 @@ static void declare_rate(const std::string* ident,
       yyerror("uninitialized rate `" + *ident + "'");
       value_expr = make_literal(0);
     }
-    Variable* v = new Variable();
+    Variable* v = new Variable(*ident);
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
@@ -899,35 +901,28 @@ static const Variable* declare_variable(const std::string* ident,
     if (vi != variables.end()) {
       if (undeclared.find(*ident) != undeclared.end()) {
 	v = (*vi).second;
-	int low = range.l->value(constant_values).value<int>();
-	v->set_low(low);
-	v->set_high(range.h->value(constant_values).value<int>());
-	if (start != NULL) {
-	  v->set_start(start->value(constant_values).value<int>());
-	} else {
-	  v->set_start(low);
-	}
-	v->set_low_bit(num_model_bits);
 	undeclared.erase(*ident);
       } else {
 	yyerror("ignoring repeated declaration of variable `" + *ident + "'");
       }
     } else {
-      int low = range.l->value(constant_values).value<int>();
-      int s = ((start != NULL)
-	       ? start->value(constant_values).value<int>() : low);
-      v = new Variable(low, range.h->value(constant_values).value<int>(), s,
-		       num_model_bits);
+      v = new Variable(*ident);
     }
   }
   if (v != NULL) {
+    int low = range.l->value(constant_values).value<int>();
+    int high = range.h->value(constant_values).value<int>();
+    int s = ((start != NULL)
+             ? start->value(constant_values).value<int>() : low);
+    v->SetVariableProperties(low, high, s, next_variable_index, num_model_bits);
+    ++next_variable_index;
+    num_model_bits = v->high_bit() + 1;
     variable_lows.insert(std::make_pair(v, range.l));
     Expression::ref(range.l);
     variable_highs.insert(std::make_pair(v, range.h));
     Expression::ref(range.h);
     variable_starts.insert(std::make_pair(v, start));
     Expression::ref(start);
-    num_model_bits = v->high_bit() + 1;
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
     if (!delayed_addition) {
@@ -1076,6 +1071,7 @@ static void prepare_model() {
     delete model;
   }
   model = new Model();
+  next_variable_index = 0;
   num_model_bits = 0;
 }
 

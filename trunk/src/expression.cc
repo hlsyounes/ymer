@@ -22,6 +22,7 @@
 #include <ostream>
 #include <set>
 #include <stdexcept>
+#include <string>
 
 #include "ddutil.h"
 #include "typed-value.h"
@@ -164,10 +165,7 @@ void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
 }
 
 void ExpressionPrinter::DoVisitVariable(const Variable& expr) {
-  *os_ << 'v' << expr.low_bit();
-  if (expr.low_bit() != expr.high_bit()) {
-    *os_ << '_' << expr.high_bit();
-  }
+  *os_ << expr.name();
 }
 
 void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
@@ -435,12 +433,8 @@ const Division& Division::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-Variable::Variable() {
-}
-
-Variable::Variable(int low, int high, int start, int low_bit)
-    : low_(low), high_(high), start_(start) {
-  set_low_bit(low_bit);
+Variable::Variable(const std::string& name)
+    : name_(name) {
 }
 
 Variable::~Variable() {
@@ -450,21 +444,14 @@ void Variable::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitVariable(*this);
 }
 
-void Variable::set_low(int low) {
+void Variable::SetVariableProperties(
+    int low, int high, int start, int index, int low_bit) {
   low_ = low;
-}
-
-void Variable::set_high(int high) {
   high_ = high;
-}
-
-void Variable::set_start(int start) {
   start_ = start;
-}
-
-void Variable::set_low_bit(int low_bit) {
+  index_ = index;
   low_bit_ = low_bit;
-  high_bit_ = low_bit_ + Log2(high() - low());
+  high_bit_ = low_bit + Log2(high - low);
 }
 
 TypedValue Variable::value(const ValueMap& values) const {
