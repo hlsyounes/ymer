@@ -54,7 +54,8 @@ struct Update {
   const Expression& expr() const { return *expr_; }
 
   /* Returns this update subject to the given substitutions. */
-  const Update& substitution(const ValueMap& values) const;
+  const Update& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this update subject to the given substitutions. */
   const Update& substitution(const SubstitutionMap& subst) const;
@@ -114,8 +115,9 @@ struct Command {
   const UpdateList& updates() const { return updates_; }
 
   /* Returns this command subject to the given substitutions. */
-  const Command& substitution(const ValueMap& constants,
-			      const ValueMap& rates) const;
+  const Command& substitution(
+      const std::map<std::string, TypedValue>& constant_values,
+      const std::map<std::string, TypedValue>& rate_values) const;
 
   /* Returns this command subject to the given substitutions. */
   const Command& substitution(const SubstitutionMap& subst,
@@ -167,7 +169,8 @@ struct Module {
   void add_command(const Command& command);
 
   /* Substitutes constants with values. */
-  void compile(const ValueMap& constants, const ValueMap& rates);
+  void compile(const std::map<std::string, TypedValue>& constant_values,
+               const std::map<std::string, TypedValue>& rate_values);
 
   /* Returns the variables for this module. */
   const std::vector<const Variable*>& variables() const { return variables_; }

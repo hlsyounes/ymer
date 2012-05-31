@@ -27,6 +27,7 @@
 #include "models.h"
 #include "distributions.h"
 #include "formulas.h"
+#include "glog/logging.h"
 #include <algorithm>
 #include <map>
 #include <set>
@@ -65,7 +66,7 @@ static Model* model;
 /* Current module. */
 static Module* module;
 /* Current variable substitutions. */
-static std::map<const Variable*, const std::string*> subst;
+static std::map<std::string, std::string> subst;
 /* Current synchronization substitutions. */
 static SynchSubstitutionMap synch_subst;
 /* Current command. */
@@ -73,11 +74,11 @@ static Command* command;
 /* Declared integer constants. */
 static std::map<std::string, const Variable*> constants;
 /* Constant values. */
-static ValueMap constant_values;
+static std::map<std::string, TypedValue> constant_values;
 /* Declared rate constants. */
 static std::map<std::string, const Variable*> rates;
 /* Rate values. */
-static ValueMap rate_values;
+static std::map<std::string, TypedValue> rate_values;
 /* All state variables. */
 static std::map<std::string, Variable*> variables;
 /* Variables lows. */
@@ -465,6 +466,70 @@ csl_expr : integer { $$ = make_literal($1); }
 
 %%
 
+namespace {
+
+class ConstantExpressionEvaluator : public ExpressionVisitor {
+ public:
+  explicit ConstantExpressionEvaluator(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  TypedValue value() const { return value_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  TypedValue value_;
+};
+
+ConstantExpressionEvaluator::ConstantExpressionEvaluator(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), value_(0) {
+}
+
+void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
+  value_ = expr.value();
+}
+
+void ConstantExpressionEvaluator::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, TypedValue>::const_iterator i =
+      constant_values_->find(expr.name());
+  CHECK(i != constant_values_->end());
+  value_ = i->second;
+}
+
+void ConstantExpressionEvaluator::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  TypedValue operand1 = value_;
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      value_ = operand1 + value_;
+      break;
+    case Computation::MINUS:
+      value_ = operand1 - value_;
+      break;
+    case Computation::MULTIPLY:
+      value_ = operand1 * value_;
+      break;
+    case Computation::DIVIDE:
+      value_ = operand1 / value_;
+      break;
+  }
+}
+
+TypedValue EvaluateConstantExpression(
+    const Expression& expr,
+    const std::map<std::string, TypedValue>& constant_values) {
+  ConstantExpressionEvaluator evaluator(&constant_values);
+  expr.Accept(&evaluator);
+  return evaluator.value();
+}
+
+}  // namespace
+
 /* Clears all previously parsed declarations. */
 void clear_declarations() {
   constants.clear();
@@ -567,8 +632,8 @@ static const Variable* find_constant(const std::string* ident) {
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
     constants.insert(std::make_pair(*ident, v));
-    rate_values.insert(std::make_pair(v, 0));
-    constant_values.insert(std::make_pair(v, 0));
+    rate_values.insert(std::make_pair(*ident, 0));
+    constant_values.insert(std::make_pair(*ident, 0));
     delete ident;
     return v;
   }
@@ -592,7 +657,7 @@ static const Variable* find_rate(const std::string* ident) {
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
-    rate_values.insert(std::make_pair(v, 0));
+    rate_values.insert(std::make_pair(*ident, 0));
     delete ident;
     return v;
   }
@@ -636,8 +701,9 @@ static const Expression* value_or_variable(const std::string* ident) {
   std::map<std::string, const Variable*>::const_iterator ci =
     constants.find(*ident);
   if (ci != constants.end()) {
+    const Literal* value = new Literal(constant_values.find(*ident)->second);
     delete ident;
-    return new Literal(constant_values.find((*ci).second)->second);
+    return value;
   } else {
     Variable* v;
     std::map<std::string, Variable*>::const_iterator vi =
@@ -787,12 +853,12 @@ static size_t synchronization_value(const std::string* ident) {
 /* Adds a substitution to the current substitution map. */
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2) {
-  // TODO: must be able to substitute synchronizations as well as variables
   std::map<std::string, Variable*>::const_iterator vi =
     variables.find(*ident1);
   if (vi != variables.end()) {
     /* Variable substitution. */
-    subst.insert(std::make_pair((*vi).second, ident2));
+    subst.insert(std::make_pair(*ident1, *ident2));
+    delete ident2;
   } else {
     std::map<std::string, size_t>::const_iterator si =
       synchronizations.find(*ident1);
@@ -837,9 +903,10 @@ static void declare_constant(const std::string* ident,
     constants.insert(std::make_pair(*ident, v));
     const int value =
         ((override != const_overrides.end()) ?
-         override->second : value_expr->value(constant_values)).value<int>();
-    rate_values.insert(std::make_pair(v, value));
-    constant_values.insert(std::make_pair(v, value));
+         override->second :
+         EvaluateConstantExpression(*value_expr, constant_values)).value<int>();
+    rate_values.insert(std::make_pair(*ident, value));
+    constant_values.insert(std::make_pair(*ident, value));
   }
   delete ident;
   delete value_expr;
@@ -872,8 +939,8 @@ static void declare_rate(const std::string* ident,
     Expression::ref(v);
     rates.insert(std::make_pair(*ident, v));
     const TypedValue value = (override != const_overrides.end()) ?
-        override->second : value_expr->value(rate_values);
-    rate_values.insert(std::make_pair(v, value));
+        override->second : EvaluateConstantExpression(*value_expr, rate_values);
+    rate_values.insert(std::make_pair(*ident, value));
   }
   delete ident;
   delete value_expr;
@@ -910,10 +977,13 @@ static const Variable* declare_variable(const std::string* ident,
     }
   }
   if (v != NULL) {
-    int low = range.l->value(constant_values).value<int>();
-    int high = range.h->value(constant_values).value<int>();
+    int low =
+        EvaluateConstantExpression(*range.l, constant_values).value<int>();
+    int high =
+        EvaluateConstantExpression(*range.h, constant_values).value<int>();
     int s = ((start != NULL)
-             ? start->value(constant_values).value<int>() : low);
+             ? EvaluateConstantExpression(*start, constant_values).value<int>()
+             : low);
     v->SetVariableProperties(low, high, s, next_variable_index, num_model_bits);
     ++next_variable_index;
     num_model_bits = v->high_bit() + 1;
@@ -970,17 +1040,18 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
     } else {
       const Module& src_module = *(*mi).second;
       SubstitutionMap c_subst;
-      for (ValueMap::const_iterator ci = constant_values.begin();
-	   ci != constant_values.end(); ci++) {
-	std::map<const Variable*, const std::string*>::const_iterator si =
-	  subst.find((*ci).first);
+      for (std::map<std::string, const Variable*>::const_iterator ci =
+               constants.begin();
+	   ci != constants.end(); ci++) {
+	std::map<std::string, std::string>::const_iterator si =
+            subst.find(ci->first);
 	if (si != subst.end()) {
 	  std::map<std::string, const Variable*>::const_iterator cj =
-	    constants.find(*(*si).second);
+	    constants.find(si->second);
 	  if (cj != constants.end()) {
-	    c_subst.insert(std::make_pair((*ci).first, (*cj).second));
+	    c_subst.insert(std::make_pair(ci->second, cj->second));
 	  } else {
-	    yyerror("substituting constant with non-constant" + *(*si).second);
+	    yyerror("substituting constant with non-constant" + si->second);
 	  }
 	}
       }
@@ -988,8 +1059,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
       for (std::vector<const Variable*>::const_iterator vi =
                src_module.variables().begin();
 	   vi != src_module.variables().end(); vi++) {
-	std::map<const Variable*, const std::string*>::const_iterator si =
-	  subst.find(*vi);
+	std::map<std::string, std::string>::const_iterator si =
+            subst.find((*vi)->name());
 	if (si == subst.end()) {
 	  yyerror("missing substitution for module variable");
 	} else {
@@ -1007,24 +1078,19 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  }
 	  Range r = { low, high };
 	  const Variable* v =
-	    declare_variable((*si).second, r, start, true);
+              declare_variable(new std::string(si->second), r, start, true);
 	  if (v != NULL) {
 	    v_subst.insert(std::make_pair(*vi, v));
 	  }
 	}
       }
-      for (std::map<const Variable*, const std::string*>::const_iterator si =
-	     subst.begin();
+      for (std::map<std::string, std::string>::const_iterator si =
+               subst.begin();
 	   si != subst.end(); si++) {
-	const Variable* v1 = (*si).first;
+	const Variable* v1 = find_variable(new std::string(si->first));
 	if (!member(src_module.variables(), v1)) {
-	  const Variable* v2 =
-	    dynamic_cast<const Variable*>(find_variable((*si).second));
-	  if (v2 == NULL) {
-	    yyerror("substituting variable with constant");
-	  } else {
-	    v_subst.insert(std::make_pair(v1, v2));
-	  }
+	  const Variable* v2 = find_variable(new std::string(si->second));
+          v_subst.insert(std::make_pair(v1, v2));
 	}
       }
       Module* mod = &src_module.substitution(v_subst, synch_subst);

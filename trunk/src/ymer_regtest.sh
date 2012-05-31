@@ -40,13 +40,13 @@ if [[ $? != 0 ]]; then
 fi
 
 echo tandem7_sprt08
-echo 'P<0.08[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' > src/testdata/tandem7_sprt08.golden
+echo 'P<0.08[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt08.golden -
 if [[ $? != 0 ]]; then
   pass=0
 fi
 
 echo tandem7_sprt12
-echo 'P<0.12[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' > src/testdata/tandem7_sprt12.golden
+echo 'P<0.12[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt12.golden -
 if [[ $? != 0 ]]; then
   pass=0
 fi

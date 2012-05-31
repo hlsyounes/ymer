@@ -69,9 +69,6 @@ class Expression {
   virtual TypedValue value(const ValueMap& values) const = 0;
 
   // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const = 0;
-
-  // Returns this expression subject to the given substitutions.
   virtual const Expression& substitution(
       const SubstitutionMap& subst) const = 0;
 
@@ -92,17 +89,23 @@ private:
   friend std::ostream& operator<<(std::ostream& os, const Expression& e);
 };
 
-// Returns the `current state' MTBDD representation for an expression.
+// Returns the given expression subject to the given substitutions of values
+// for constant identifiers.
+const Expression* substitution(
+    const Expression& expr,
+    const std::map<std::string, TypedValue>& constant_values);
+
+// Returns the 'current state' MTBDD representation for an expression.
 ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);
 
-// Returns the `next state' MTBDD representation for an expression.
+// Returns the 'next state' MTBDD representation for an expression.
 ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e);
 
-// Returns the `current state' MTBDD representation for a variable.
+// Returns the 'current state' MTBDD representation for a variable.
 ADD variable_mtbdd(const DecisionDiagramManager& manager,
                    int low, int low_bit, int high_bit);
 
-// Returns the `next state' MTBDD representation for a variable.
+// Returns the 'next state' MTBDD representation for a variable.
 ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
                           int low, int low_bit, int high_bit);
 
@@ -158,9 +161,6 @@ class Addition : public Computation {
   virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
   virtual const Addition& substitution(const SubstitutionMap& subst) const;
 
 private:
@@ -179,9 +179,6 @@ class Subtraction : public Computation {
 
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Subtraction& substitution(const SubstitutionMap& subst) const;
@@ -204,9 +201,6 @@ class Multiplication : public Computation {
   virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
   virtual const Multiplication& substitution(
       const SubstitutionMap& subst) const;
 
@@ -226,9 +220,6 @@ class Division : public Computation {
 
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Division& substitution(const SubstitutionMap& subst) const;
@@ -276,9 +267,6 @@ class Variable : public Expression {
   virtual TypedValue value(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
   virtual const Variable& substitution(const SubstitutionMap& subst) const;
 
 private:
@@ -313,9 +301,6 @@ class Literal : public Expression {
 
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Literal& substitution(const ValueMap& values) const;
 
   // Returns this expression subject to the given substitutions.
   virtual const Literal& substitution(const SubstitutionMap& subst) const;

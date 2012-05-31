@@ -44,8 +44,9 @@ Update::~Update() {
 
 
 /* Returns this update subject to the given substitutions. */
-const Update& Update::substitution(const ValueMap& values) const {
-  return *new Update(variable(), expr().substitution(values));
+const Update& Update::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  return *new Update(variable(), *::substitution(expr(), constant_values));
 }
 
 
@@ -86,13 +87,15 @@ void Command::add_update(const Update& update) {
 
 
 /* Returns this command subject to the given substitutions. */
-const Command& Command::substitution(const ValueMap& constants,
-				     const ValueMap& rates) const {
-  Command* subst_comm = new Command(synch(), guard().substitution(constants),
-				    delay().substitution(rates));
+const Command& Command::substitution(
+    const std::map<std::string, TypedValue>& constant_values,
+    const std::map<std::string, TypedValue>& rate_values) const {
+  Command* subst_comm = new Command(synch(),
+                                    guard().substitution(constant_values),
+				    delay().substitution(rate_values));
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(constants));
+    subst_comm->add_update((*ui)->substitution(constant_values));
   }
   return *subst_comm;
 }
@@ -174,11 +177,12 @@ void Module::add_command(const Command& command) {
 
 
 /* Substitutes constants with values. */
-void Module::compile(const ValueMap& constants, const ValueMap& rates) {
+void Module::compile(const std::map<std::string, TypedValue>& constant_values,
+                     const std::map<std::string, TypedValue>& rate_values) {
   size_t n = commands().size();
   for (size_t i = 0; i < n; i++) {
     const Command* ci = commands_[i];
-    const Command* cj = &ci->substitution(constants, rates);
+    const Command* cj = &ci->substitution(constant_values, rate_values);
     delete ci;
     commands_[i] = cj;
   }
