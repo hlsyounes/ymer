@@ -86,12 +86,13 @@ bool Conjunction::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Conjunction::substitution(const ValueMap& values) const {
+const StateFormula& Conjunction::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
   Conjunction* subst_conj = new Conjunction();
   bool changed = false;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    const StateFormula& f = (*fi)->substitution(values);
+    const StateFormula& f = (*fi)->substitution(constant_values);
     if (!changed && &f != *fi) {
       changed = true;
     }
@@ -225,12 +226,13 @@ bool Disjunction::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Disjunction::substitution(const ValueMap& values) const {
+const StateFormula& Disjunction::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
   Disjunction* subst_disj = new Disjunction();
   bool changed = false;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
-    const StateFormula& f = (*fi)->substitution(values);
+    const StateFormula& f = (*fi)->substitution(constant_values);
     if (!changed && &f != *fi) {
       changed = true;
     }
@@ -351,8 +353,9 @@ bool Negation::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Negation::substitution(const ValueMap& values) const {
-  const StateFormula& f = negand().substitution(values);
+const StateFormula& Negation::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const StateFormula& f = negand().substitution(constant_values);
   if (&f != &negand()) {
     return *new Negation(f);
   } else {
@@ -432,9 +435,10 @@ bool Implication::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Implication::substitution(const ValueMap& values) const {
-  const StateFormula& f1 = antecedent().substitution(values);
-  const StateFormula& f2 = consequent().substitution(values);
+const StateFormula& Implication::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const StateFormula& f1 = antecedent().substitution(constant_values);
+  const StateFormula& f2 = consequent().substitution(constant_values);
   if (&f1 != &antecedent() || &f2 != &consequent()) {
     return *new Implication(f1, f2);
   } else {
@@ -512,8 +516,9 @@ bool Probabilistic::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Probabilistic::substitution(const ValueMap& values) const {
-  const PathFormula& f = formula().substitution(values);
+const StateFormula& Probabilistic::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const PathFormula& f = formula().substitution(constant_values);
   if (&f != &formula()) {
     return *new Probabilistic(threshold(), strict(), f);
   } else {
@@ -592,11 +597,12 @@ bool LessThan::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& LessThan::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new LessThan(e1, e2);
+const StateFormula& LessThan::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const Expression* e1 = ::substitution(expr1(), constant_values);
+  const Expression* e2 = ::substitution(expr2(), constant_values);
+  if (e1 != &expr1() || e2 != &expr2()) {
+    return *new LessThan(*e1, *e2);
   } else {
     return *this;
   }
@@ -650,11 +656,12 @@ bool LessThanOrEqual::holds(const ValueMap& values) const {
 
 /* Returns this state formula subject to the given substitutions. */
 const StateFormula&
-LessThanOrEqual::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new LessThanOrEqual(e1, e2);
+LessThanOrEqual::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const Expression* e1 = ::substitution(expr1(), constant_values);
+  const Expression* e2 = ::substitution(expr2(), constant_values);
+  if (e1 != &expr1() || e2 != &expr2()) {
+    return *new LessThanOrEqual(*e1, *e2);
   } else {
     return *this;
   }
@@ -708,12 +715,12 @@ bool GreaterThanOrEqual::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula&
-GreaterThanOrEqual::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new GreaterThanOrEqual(e1, e2);
+const StateFormula& GreaterThanOrEqual::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const Expression* e1 = ::substitution(expr1(), constant_values);
+  const Expression* e2 = ::substitution(expr2(), constant_values);
+  if (e1 != &expr1() || e2 != &expr2()) {
+    return *new GreaterThanOrEqual(*e1, *e2);
   } else {
     return *this;
   }
@@ -766,11 +773,12 @@ bool GreaterThan::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& GreaterThan::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new GreaterThan(e1, e2);
+const StateFormula& GreaterThan::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const Expression* e1 = ::substitution(expr1(), constant_values);
+  const Expression* e2 = ::substitution(expr2(), constant_values);
+  if (e1 != &expr1() || e2 != &expr2()) {
+    return *new GreaterThan(*e1, *e2);
   } else {
     return *this;
   }
@@ -823,11 +831,12 @@ bool Equality::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Equality::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new Equality(e1, e2);
+const StateFormula& Equality::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const Expression* e1 = ::substitution(expr1(), constant_values);
+  const Expression* e2 = ::substitution(expr2(), constant_values);
+  if (e1 != &expr1() || e2 != &expr2()) {
+    return *new Equality(*e1, *e2);
   } else {
     return *this;
   }
@@ -879,11 +888,12 @@ bool Inequality::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Inequality::substitution(const ValueMap& values) const {
-  const Expression& e1 = expr1().substitution(values);
-  const Expression& e2 = expr2().substitution(values);
-  if (&e1 != &expr1() || &e2 != &expr2()) {
-    return *new Inequality(e1, e2);
+const StateFormula& Inequality::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const Expression* e1 = ::substitution(expr1(), constant_values);
+  const Expression* e2 = ::substitution(expr2(), constant_values);
+  if (e1 != &expr1() || e2 != &expr2()) {
+    return *new Inequality(*e1, *e2);
   } else {
     return *this;
   }
@@ -947,9 +957,10 @@ bool Until::probabilistic() const {
 
 
 /* Returns this path formula subject to the given substitutions. */
-const PathFormula& Until::substitution(const ValueMap& values) const {
-  const StateFormula& f1 = pre().substitution(values);
-  const StateFormula& f2 = post().substitution(values);
+const PathFormula& Until::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  const StateFormula& f1 = pre().substitution(constant_values);
+  const StateFormula& f2 = post().substitution(constant_values);
   if (&f1 != &pre() || &f2 != &post()) {
     return *new Until(f1, f2, min_time(), max_time());
   } else {

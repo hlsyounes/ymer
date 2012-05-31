@@ -2,6 +2,6 @@ Sampling engine: alpha=0.01, beta=0.01, delta=0.01, seed=0
 Variables: 3
 Events:    5
 
-Model checking !P>=0.08 [ true U[0,26] v0_2=7 & v4_6=7 ] ...
+Model checking !P>=0.08 [ true U[0,26] sc=7 & sm=7 ] ...
 Acceptance sampling......630 samples.
 Property is false in the initial state.

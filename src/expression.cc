@@ -55,6 +55,87 @@ void Expression::destructive_deref(const Expression* e) {
 
 namespace {
 
+class ExpressionSubstituter : public ExpressionVisitor {
+ public:
+  explicit ExpressionSubstituter(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  ~ExpressionSubstituter();
+
+  const Expression* release_expr();
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  const Expression* expr_;
+};
+
+ExpressionSubstituter::ExpressionSubstituter(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), expr_(NULL) {
+}
+
+ExpressionSubstituter::~ExpressionSubstituter() {
+  Expression::ref(expr_);
+  Expression::destructive_deref(expr_);
+}
+
+const Expression* ExpressionSubstituter::release_expr() {
+  const Expression* expr = expr_;
+  expr_ = NULL;
+  return expr;
+}
+
+void ExpressionSubstituter::DoVisitLiteral(const Literal& expr) {
+  expr_ = new Literal(expr.value());
+}
+
+void ExpressionSubstituter::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, TypedValue>::const_iterator i =
+      constant_values_->find(expr.name());
+  if (i == constant_values_->end()) {
+    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
+    expr_ = &expr;
+  } else {
+    expr_ = new Literal(i->second);
+  }
+}
+
+void ExpressionSubstituter::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  const Expression* operand1 = release_expr();
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      expr_ = &Addition::make(*operand1, *release_expr());
+      break;
+    case Computation::MINUS:
+      expr_ = &Subtraction::make(*operand1, *release_expr());
+      break;
+    case Computation::MULTIPLY:
+      expr_ = &Multiplication::make(*operand1, *release_expr());
+      break;
+    case Computation::DIVIDE:
+      expr_ = &Division::make(*operand1, *release_expr());
+      break;
+  }
+}
+
+}  // namespace
+
+const Expression* substitution(
+    const Expression& expr,
+    const std::map<std::string, TypedValue>& constant_values) {
+  ExpressionSubstituter substituter(&constant_values);
+  expr.Accept(&substituter);
+  return substituter.release_expr();
+}
+
+namespace {
+
 ADD CompileVariable(const DecisionDiagramManager& manager,
                     int low, int low_bit, int high_bit, bool primed) {
   ADD result = manager.GetConstant(0);
@@ -263,16 +344,6 @@ TypedValue Addition::value(const ValueMap& values) const {
   return operand1().value(values) + operand2().value(values);
 }
 
-const Expression& Addition::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
 const Addition& Addition::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
@@ -309,16 +380,6 @@ const Expression& Subtraction::make(const Expression& term1,
 
 TypedValue Subtraction::value(const ValueMap& values) const {
   return operand1().value(values) - operand2().value(values);
-}
-
-const Expression& Subtraction::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
 }
 
 const Subtraction& Subtraction::substitution(
@@ -359,16 +420,6 @@ const Expression& Multiplication::make(const Expression& factor1,
 
 TypedValue Multiplication::value(const ValueMap& values) const {
   return operand1().value(values) * operand2().value(values);
-}
-
-const Expression& Multiplication::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
 }
 
 const Multiplication& Multiplication::substitution(
@@ -413,16 +464,6 @@ TypedValue Division::value(const ValueMap& values) const {
   return operand1().value(values) / operand2().value(values);
 }
 
-const Expression& Division::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
 const Division& Division::substitution(const SubstitutionMap& subst) const {
   const Expression& e1 = operand1().substitution(subst);
   const Expression& e2 = operand2().substitution(subst);
@@ -463,15 +504,6 @@ TypedValue Variable::value(const ValueMap& values) const {
   }
 }
 
-const Expression& Variable::substitution(const ValueMap& values) const {
-  ValueMap::const_iterator vi = values.find(this);
-  if (vi != values.end()) {
-    return *new Literal((*vi).second);
-  } else {
-    return *this;
-  }
-}
-
 const Variable& Variable::substitution(const SubstitutionMap& subst) const {
   SubstitutionMap::const_iterator si = subst.find(this);
   if (si != subst.end()) {
@@ -494,10 +526,6 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
 
 TypedValue Literal::value(const ValueMap& values) const {
   return value();
-}
-
-const Literal& Literal::substitution(const ValueMap& values) const {
-  return *this;
 }
 
 const Literal& Literal::substitution(const SubstitutionMap& subst) const {

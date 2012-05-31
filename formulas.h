@@ -86,7 +86,8 @@ struct StateFormula {
   virtual bool holds(const ValueMap& values) const = 0;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const = 0;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula&
@@ -184,7 +185,8 @@ struct PathFormula {
   virtual bool probabilistic() const = 0;
 
   /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula& substitution(const ValueMap& values) const = 0;
+  virtual const PathFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this path formula subject to the given substitutions. */
   virtual const PathFormula&
@@ -270,7 +272,8 @@ struct Conjunction : public StateFormula {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Conjunction& substitution(const SubstitutionMap& subst) const;
@@ -337,7 +340,8 @@ struct Disjunction : public StateFormula {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Disjunction& substitution(const SubstitutionMap& subst) const;
@@ -407,7 +411,8 @@ struct Negation : public StateFormula {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionMap& subst) const;
@@ -480,7 +485,8 @@ struct Implication : public StateFormula {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Implication& substitution(const SubstitutionMap& subst) const;
@@ -559,7 +565,8 @@ struct Probabilistic : public StateFormula {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Probabilistic&
@@ -684,7 +691,8 @@ struct LessThan : public Comparison {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const LessThan& substitution(const SubstitutionMap& subst) const;
@@ -715,7 +723,8 @@ struct LessThanOrEqual : public Comparison {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const LessThanOrEqual&
@@ -747,7 +756,8 @@ struct GreaterThanOrEqual : public Comparison {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const GreaterThanOrEqual&
@@ -779,7 +789,8 @@ struct GreaterThan : public Comparison {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const GreaterThan& substitution(const SubstitutionMap& subst) const;
@@ -810,7 +821,8 @@ struct Equality : public Comparison {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Equality& substitution(const SubstitutionMap& subst) const;
@@ -841,7 +853,8 @@ struct Inequality : public Comparison {
   virtual bool holds(const ValueMap& values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(const ValueMap& values) const;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Inequality& substitution(const SubstitutionMap& subst) const;
@@ -888,7 +901,8 @@ struct Until : public PathFormula {
   virtual bool probabilistic() const;
 
   /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula& substitution(const ValueMap& values) const;
+  virtual const PathFormula& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this path formula subject to the given substitutions. */
   virtual const Until& substitution(const SubstitutionMap& subst) const;
