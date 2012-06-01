@@ -2293,7 +2293,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 425 "parser.yy"
-    { properties.push_back((yyvsp[(2) - (2)].formula)); StateFormula::ref((yyvsp[(2) - (2)].formula)); }
+    { properties.push_back((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 100:
@@ -3353,7 +3353,7 @@ static void prepare_model() {
   clear_declarations();
   for (FormulaList::const_iterator fi = properties.begin();
        fi != properties.end(); fi++) {
-    StateFormula::destructive_deref(*fi);
+    delete *fi;
   }
   properties.clear();
   if (model != NULL) {

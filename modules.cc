@@ -75,13 +75,12 @@ const Update& Update::substitution(
 Command::Command(size_t synch, const StateFormula& guard,
 		 const Distribution& delay)
   : synch_(synch), guard_(&guard), delay_(&delay) {
-  StateFormula::ref(guard_);
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  StateFormula::destructive_deref(guard_);
+  delete guard_;
   delete delay_;
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {

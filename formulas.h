@@ -48,31 +48,6 @@ enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
  * A state formula.
  */
 struct StateFormula {
-  /* Increases the reference count for the given state formula. */
-  static void ref(const StateFormula* f) {
-    if (f != NULL) {
-      f->ref_count_++;
-    }
-  }
-
-  /* Decreases the reference count for the given state formula. */
-  static void deref(const StateFormula* f) {
-    if (f != NULL) {
-      f->ref_count_--;
-    }
-  }
-
-  /* Decreases the reference count for the given state formula and
-     deletes it if the the reference count becomes zero. */
-  static void destructive_deref(const StateFormula* f) {
-    if (f != NULL) {
-      f->ref_count_--;
-      if (f->ref_count_ == 0) {
-	delete f;
-      }
-    }
-  }
-
   /* Returns the current formula level. */
   static size_t formula_level() { return formula_level_; }
 
@@ -130,15 +105,12 @@ protected:
   static size_t formula_level_;
 
   /* Constructs a state formula. */
-  StateFormula() : ref_count_(0) {}
+  StateFormula() {}
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
 private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
-
   friend std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 };
 
@@ -153,31 +125,6 @@ std::ostream& operator<<(std::ostream& os, const StateFormula& f);
  * A path formula.
  */
 struct PathFormula {
-  /* Increases the reference count for the given path formula. */
-  static void ref(const PathFormula* f) {
-    if (f != NULL) {
-      f->ref_count_++;
-    }
-  }
-
-  /* Decreases the reference count for the given path formula. */
-  static void deref(const PathFormula* f) {
-    if (f != NULL) {
-      f->ref_count_--;
-    }
-  }
-
-  /* Decreases the reference count for the given path formula and
-     deletes it if the the reference count becomes zero. */
-  static void destructive_deref(const PathFormula* f) {
-    if (f != NULL) {
-      f->ref_count_--;
-      if (f->ref_count_ == 0) {
-	delete f;
-      }
-    }
-  }
-
   /* Deletes this path formula. */
   virtual ~PathFormula() {}
 
@@ -226,15 +173,12 @@ struct PathFormula {
 
 protected:
   /* Constructs a path formula. */
-  PathFormula() : ref_count_(0) {}
+  PathFormula() {}
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
 private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
-
   friend std::ostream& operator<<(std::ostream& os, const PathFormula& f);
 };
 
