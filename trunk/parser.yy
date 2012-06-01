@@ -422,7 +422,7 @@ integer : NUMBER { $$ = integer_value($1); }
 
 properties : /* empty */
            | properties csl_formula
-               { properties.push_back($2); StateFormula::ref($2); }
+               { properties.push_back($2); }
            ;
 
 csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
@@ -1130,7 +1130,7 @@ static void prepare_model() {
   clear_declarations();
   for (FormulaList::const_iterator fi = properties.begin();
        fi != properties.end(); fi++) {
-    StateFormula::destructive_deref(*fi);
+    delete *fi;
   }
   properties.clear();
   if (model != NULL) {

@@ -1018,7 +1018,7 @@ int main(int argc, char* argv[]) {
     delete global_model;
     for (FormulaList::const_iterator fi = properties.begin();
 	 fi != properties.end(); fi++) {
-      StateFormula::destructive_deref(*fi);
+      delete *fi;
     }
     properties.clear();
   } catch (const std::exception& e) {
