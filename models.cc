@@ -285,6 +285,18 @@ void Model::add_module(const Module& module) {
   modules_.push_back(&module);
 }
 
+namespace {
+
+bool IsUnitDistribution(const Distribution& dist) {
+  const Exponential* exp_dist = dynamic_cast<const Exponential*>(&dist);
+  if (exp_dist == NULL) {
+    return false;
+  }
+  const Literal* rate_literal = dynamic_cast<const Literal*>(&exp_dist->rate());
+  return rate_literal != NULL && rate_literal->value() == 1;
+}
+
+}  // namespace
 
 /* Compiles the commands of this model. */
 void Model::compile() {
@@ -348,9 +360,9 @@ void Model::compile() {
 	    guard.add_conjunct(ci.guard());
 	    guard.add_conjunct(cj.guard());
 	    Command* c;
-	    if (&ci.delay() == &Distribution::EXP1) {
+	    if (IsUnitDistribution(ci.delay())) {
 	      c = new Command(*si, guard, cj.delay());
-	    } else if (&cj.delay() == &Distribution::EXP1) {
+	    } else if (IsUnitDistribution(cj.delay())) {
 	      c = new Command(*si, guard, ci.delay());
 	    } else {
 	      throw std::logic_error("at least one command in a"

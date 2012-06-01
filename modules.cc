@@ -76,14 +76,13 @@ Command::Command(size_t synch, const StateFormula& guard,
 		 const Distribution& delay)
   : synch_(synch), guard_(&guard), delay_(&delay) {
   StateFormula::ref(guard_);
-  Distribution::ref(delay_);
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
   StateFormula::destructive_deref(guard_);
-  Distribution::destructive_deref(delay_);
+  delete delay_;
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     delete *ui;
