@@ -90,8 +90,8 @@ struct StateFormula {
       const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula&
-  substitution(const SubstitutionMap& subst) const = 0;
+  virtual const StateFormula& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const = 0;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const = 0;
@@ -189,8 +189,8 @@ struct PathFormula {
       const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula&
-  substitution(const SubstitutionMap& subst) const = 0;
+  virtual const PathFormula& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const = 0;
 
   /* Estimated effort for generating a sample for this path formula. */
   virtual double effort(const Model& model, const State& state,
@@ -276,7 +276,8 @@ struct Conjunction : public StateFormula {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Conjunction& substitution(const SubstitutionMap& subst) const;
+  virtual const Conjunction& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -344,7 +345,8 @@ struct Disjunction : public StateFormula {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Disjunction& substitution(const SubstitutionMap& subst) const;
+  virtual const Disjunction& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -415,7 +417,8 @@ struct Negation : public StateFormula {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Negation& substitution(const SubstitutionMap& subst) const;
+  virtual const Negation& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -489,7 +492,8 @@ struct Implication : public StateFormula {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Implication& substitution(const SubstitutionMap& subst) const;
+  virtual const Implication& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -569,8 +573,8 @@ struct Probabilistic : public StateFormula {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Probabilistic&
-  substitution(const SubstitutionMap& subst) const;
+  virtual const Probabilistic& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -695,7 +699,8 @@ struct LessThan : public Comparison {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const LessThan& substitution(const SubstitutionMap& subst) const;
+  virtual const LessThan& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -727,8 +732,8 @@ struct LessThanOrEqual : public Comparison {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const LessThanOrEqual&
-  substitution(const SubstitutionMap& subst) const;
+  virtual const LessThanOrEqual& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -760,8 +765,8 @@ struct GreaterThanOrEqual : public Comparison {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const GreaterThanOrEqual&
-  substitution(const SubstitutionMap& subst) const;
+  virtual const GreaterThanOrEqual& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -793,7 +798,8 @@ struct GreaterThan : public Comparison {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const GreaterThan& substitution(const SubstitutionMap& subst) const;
+  virtual const GreaterThan& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -825,7 +831,8 @@ struct Equality : public Comparison {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Equality& substitution(const SubstitutionMap& subst) const;
+  virtual const Equality& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -857,7 +864,8 @@ struct Inequality : public Comparison {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Inequality& substitution(const SubstitutionMap& subst) const;
+  virtual const Inequality& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -905,7 +913,8 @@ struct Until : public PathFormula {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this path formula subject to the given substitutions. */
-  virtual const Until& substitution(const SubstitutionMap& subst) const;
+  virtual const Until& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Estimated effort for generating a sample for this path formula. */
   virtual double effort(const Model& model, const State& state,

@@ -145,8 +145,8 @@ struct Distribution {
       const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution&
-  substitution(const SubstitutionMap& subst) const = 0;
+  virtual const Distribution& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const = 0;
 
 protected:
   /* Constructs a distribution. */
@@ -196,7 +196,8 @@ struct Exponential : public Distribution {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Exponential& substitution(const SubstitutionMap& subst) const;
+  virtual const Exponential& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -250,7 +251,8 @@ struct Weibull : public Distribution {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Weibull& substitution(const SubstitutionMap& subst) const;
+  virtual const Distribution& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -298,7 +300,8 @@ struct Lognormal : public Distribution {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Lognormal& substitution(const SubstitutionMap& subst) const;
+  virtual const Lognormal& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -349,7 +352,8 @@ struct Uniform : public Distribution {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Uniform& substitution(const SubstitutionMap& subst) const;
+  virtual const Uniform& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
   /* Prints this object on the given stream. */

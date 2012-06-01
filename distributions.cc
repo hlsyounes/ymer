@@ -218,19 +218,14 @@ double Exponential::sample(const ValueMap& values) const {
 /* Returns this distribution subject to the given substitutions. */
 const Exponential& Exponential::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return make(*::substitution(rate(), constant_values));
+  return make(*SubstituteConstants(rate(), constant_values));
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Exponential&
-Exponential::substitution(const SubstitutionMap& subst) const {
-  const Expression& e = rate().substitution(subst);
-  if (&e != &rate()) {
-    return make(e);
-  } else {
-    return *this;
-  }
+const Exponential& Exponential::substitution(
+    const std::map<std::string, const Variable*>& substitutions) const {
+  return make(*SubstituteIdentifiers(rate(), substitutions));
 }
 
 
@@ -299,20 +294,16 @@ double Weibull::sample(const ValueMap& values) const {
 /* Returns this distribution subject to the given substitutions. */
 const Distribution& Weibull::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return make(*::substitution(scale(), constant_values),
-              *::substitution(shape(), constant_values));
+  return make(*SubstituteConstants(scale(), constant_values),
+              *SubstituteConstants(shape(), constant_values));
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Weibull& Weibull::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = scale().substitution(subst);
-  const Expression& e2 = shape().substitution(subst);
-  if (&e1 != &scale() || &e2 != &shape()) {
-    return *new Weibull(e1, e2);
-  } else {
-    return *this;
-  }
+const Distribution& Weibull::substitution(
+    const std::map<std::string, const Variable*>& substitutions) const {
+  return make(*SubstituteIdentifiers(scale(), substitutions),
+              *SubstituteIdentifiers(shape(), substitutions));
 }
 
 
@@ -385,20 +376,16 @@ double Lognormal::sample(const ValueMap& values) const {
 /* Returns this distribution subject to the given substitutions. */
 const Lognormal& Lognormal::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return make(*::substitution(scale(), constant_values),
-              *::substitution(shape(), constant_values));
+  return make(*SubstituteConstants(scale(), constant_values),
+              *SubstituteConstants(shape(), constant_values));
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Lognormal& Lognormal::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = scale().substitution(subst);
-  const Expression& e2 = shape().substitution(subst);
-  if (&e1 != &scale() || &e2 != &shape()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
+const Lognormal& Lognormal::substitution(
+    const std::map<std::string, const Variable*>& substitutions) const {
+  return make(*SubstituteIdentifiers(scale(), substitutions),
+              *SubstituteIdentifiers(shape(), substitutions));
 }
 
 
@@ -459,20 +446,16 @@ double Uniform::sample(const ValueMap& values) const {
 /* Returns this distribution subject to the given substitutions. */
 const Uniform& Uniform::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return make(*::substitution(low(), constant_values),
-              *::substitution(high(), constant_values));
+  return make(*SubstituteConstants(low(), constant_values),
+              *SubstituteConstants(high(), constant_values));
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Uniform& Uniform::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = low().substitution(subst);
-  const Expression& e2 = high().substitution(subst);
-  if (&e1 != &low() || &e2 != &high()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
+const Uniform& Uniform::substitution(
+    const std::map<std::string, const Variable*>& substitutions) const {
+  return make(*SubstituteIdentifiers(low(), substitutions),
+              *SubstituteIdentifiers(high(), substitutions));
 }
 
 

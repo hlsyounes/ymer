@@ -35,9 +35,6 @@ class Variable;
 // A mapping from variables to values.
 typedef std::map<const Variable*, TypedValue> ValueMap;
 
-// A variable substitution map.
-typedef std::map<const Variable*, const Variable*> SubstitutionMap;
-
 class ExpressionVisitor;
 
 // Abstract base class for expressions.
@@ -68,10 +65,6 @@ class Expression {
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const = 0;
 
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(
-      const SubstitutionMap& subst) const = 0;
-
 protected:
   // Constructs an expression.
   Expression();
@@ -91,9 +84,14 @@ private:
 
 // Returns the given expression subject to the given substitutions of values
 // for constant identifiers.
-const Expression* substitution(
+const Expression* SubstituteConstants(
     const Expression& expr,
     const std::map<std::string, TypedValue>& constant_values);
+
+// Returns the given expression subject to the given identifier substitutions.
+const Expression* SubstituteIdentifiers(
+    const Expression& expr,
+    const std::map<std::string, const Variable*>& substitutions);
 
 // Returns the 'current state' MTBDD representation for an expression.
 ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);
@@ -160,9 +158,6 @@ class Addition : public Computation {
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
 
-  // Returns this expression subject to the given substitutions.
-  virtual const Addition& substitution(const SubstitutionMap& subst) const;
-
 private:
   // Constructs an addition.
   Addition(const Expression& term1, const Expression& term2);
@@ -179,9 +174,6 @@ class Subtraction : public Computation {
 
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Subtraction& substitution(const SubstitutionMap& subst) const;
 
 private:
   // Constructs a subtraction.
@@ -200,10 +192,6 @@ class Multiplication : public Computation {
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
 
-  // Returns this expression subject to the given substitutions.
-  virtual const Multiplication& substitution(
-      const SubstitutionMap& subst) const;
-
 private:
   // Constructs a multiplication.
   Multiplication(const Expression& factor1, const Expression& factor2);
@@ -220,9 +208,6 @@ class Division : public Computation {
 
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Division& substitution(const SubstitutionMap& subst) const;
 
 private:
   // Constructs a division.
@@ -266,9 +251,6 @@ class Variable : public Expression {
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
 
-  // Returns this expression subject to the given substitutions.
-  virtual const Variable& substitution(const SubstitutionMap& subst) const;
-
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
@@ -301,9 +283,6 @@ class Literal : public Expression {
 
   // Returns the value of this expression.
   virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Literal& substitution(const SubstitutionMap& subst) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;

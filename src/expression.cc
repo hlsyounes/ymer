@@ -55,12 +55,12 @@ void Expression::destructive_deref(const Expression* e) {
 
 namespace {
 
-class ExpressionSubstituter : public ExpressionVisitor {
+class ConstantSubstituter : public ExpressionVisitor {
  public:
-  explicit ExpressionSubstituter(
+  explicit ConstantSubstituter(
       const std::map<std::string, TypedValue>* constant_values);
 
-  ~ExpressionSubstituter();
+  ~ConstantSubstituter();
 
   const Expression* release_expr();
 
@@ -73,27 +73,27 @@ class ExpressionSubstituter : public ExpressionVisitor {
   const Expression* expr_;
 };
 
-ExpressionSubstituter::ExpressionSubstituter(
+ConstantSubstituter::ConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
     : constant_values_(constant_values), expr_(NULL) {
 }
 
-ExpressionSubstituter::~ExpressionSubstituter() {
+ConstantSubstituter::~ConstantSubstituter() {
   Expression::ref(expr_);
   Expression::destructive_deref(expr_);
 }
 
-const Expression* ExpressionSubstituter::release_expr() {
+const Expression* ConstantSubstituter::release_expr() {
   const Expression* expr = expr_;
   expr_ = NULL;
   return expr;
 }
 
-void ExpressionSubstituter::DoVisitLiteral(const Literal& expr) {
+void ConstantSubstituter::DoVisitLiteral(const Literal& expr) {
   expr_ = new Literal(expr.value());
 }
 
-void ExpressionSubstituter::DoVisitVariable(const Variable& expr) {
+void ConstantSubstituter::DoVisitVariable(const Variable& expr) {
   std::map<std::string, TypedValue>::const_iterator i =
       constant_values_->find(expr.name());
   if (i == constant_values_->end()) {
@@ -104,7 +104,7 @@ void ExpressionSubstituter::DoVisitVariable(const Variable& expr) {
   }
 }
 
-void ExpressionSubstituter::DoVisitComputation(const Computation& expr) {
+void ConstantSubstituter::DoVisitComputation(const Computation& expr) {
   expr.operand1().Accept(this);
   const Expression* operand1 = release_expr();
   expr.operand2().Accept(this);
@@ -126,10 +126,91 @@ void ExpressionSubstituter::DoVisitComputation(const Computation& expr) {
 
 }  // namespace
 
-const Expression* substitution(
+const Expression* SubstituteConstants(
     const Expression& expr,
     const std::map<std::string, TypedValue>& constant_values) {
-  ExpressionSubstituter substituter(&constant_values);
+  ConstantSubstituter substituter(&constant_values);
+  expr.Accept(&substituter);
+  return substituter.release_expr();
+}
+
+namespace {
+
+class IdentifierSubstituter : public ExpressionVisitor {
+ public:
+  explicit IdentifierSubstituter(
+      const std::map<std::string, const Variable*>* substitutions);
+
+  ~IdentifierSubstituter();
+
+  const Expression* release_expr();
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, const Variable*>* substitutions_;
+  const Expression* expr_;
+};
+
+IdentifierSubstituter::IdentifierSubstituter(
+    const std::map<std::string, const Variable*>* substitutions)
+    : substitutions_(substitutions), expr_(NULL) {
+}
+
+IdentifierSubstituter::~IdentifierSubstituter() {
+  Expression::ref(expr_);
+  Expression::destructive_deref(expr_);
+}
+
+const Expression* IdentifierSubstituter::release_expr() {
+  const Expression* expr = expr_;
+  expr_ = NULL;
+  return expr;
+}
+
+void IdentifierSubstituter::DoVisitLiteral(const Literal& expr) {
+  expr_ = new Literal(expr.value());
+}
+
+void IdentifierSubstituter::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, const Variable*>::const_iterator i =
+      substitutions_->find(expr.name());
+  if (i == substitutions_->end()) {
+    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
+    expr_ = &expr;
+  } else {
+    expr_ = i->second;
+  }
+}
+
+void IdentifierSubstituter::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  const Expression* operand1 = release_expr();
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      expr_ = &Addition::make(*operand1, *release_expr());
+      break;
+    case Computation::MINUS:
+      expr_ = &Subtraction::make(*operand1, *release_expr());
+      break;
+    case Computation::MULTIPLY:
+      expr_ = &Multiplication::make(*operand1, *release_expr());
+      break;
+    case Computation::DIVIDE:
+      expr_ = &Division::make(*operand1, *release_expr());
+      break;
+  }
+}
+
+}  // namespace
+
+const Expression* SubstituteIdentifiers(
+    const Expression& expr,
+    const std::map<std::string, const Variable*>& substitutions) {
+  IdentifierSubstituter substituter(&substitutions);
   expr.Accept(&substituter);
   return substituter.release_expr();
 }
@@ -344,16 +425,6 @@ TypedValue Addition::value(const ValueMap& values) const {
   return operand1().value(values) + operand2().value(values);
 }
 
-const Addition& Addition::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Addition(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
 Subtraction::Subtraction(const Expression& term1, const Expression& term2)
     : Computation(MINUS, term1, term2) {
 }
@@ -380,17 +451,6 @@ const Expression& Subtraction::make(const Expression& term1,
 
 TypedValue Subtraction::value(const ValueMap& values) const {
   return operand1().value(values) - operand2().value(values);
-}
-
-const Subtraction& Subtraction::substitution(
-    const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Subtraction(e1, e2);
-  } else {
-    return *this;
-  }
 }
 
 Multiplication::Multiplication(const Expression& factor1,
@@ -420,17 +480,6 @@ const Expression& Multiplication::make(const Expression& factor1,
 
 TypedValue Multiplication::value(const ValueMap& values) const {
   return operand1().value(values) * operand2().value(values);
-}
-
-const Multiplication& Multiplication::substitution(
-    const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Multiplication(e1, e2);
-  } else {
-    return *this;
-  }
 }
 
 Division::Division(const Expression& factor1, const Expression& factor2)
@@ -464,16 +513,6 @@ TypedValue Division::value(const ValueMap& values) const {
   return operand1().value(values) / operand2().value(values);
 }
 
-const Division& Division::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Division(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
 Variable::Variable(const std::string& name)
     : name_(name) {
 }
@@ -504,15 +543,6 @@ TypedValue Variable::value(const ValueMap& values) const {
   }
 }
 
-const Variable& Variable::substitution(const SubstitutionMap& subst) const {
-  SubstitutionMap::const_iterator si = subst.find(this);
-  if (si != subst.end()) {
-    return *(*si).second;
-  } else {
-    return *this;
-  }
-}
-
 Literal::Literal(const TypedValue& value)
     : value_(value) {
 }
@@ -526,10 +556,6 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
 
 TypedValue Literal::value(const ValueMap& values) const {
   return value();
-}
-
-const Literal& Literal::substitution(const SubstitutionMap& subst) const {
-  return *this;
 }
 
 ExpressionVisitor::ExpressionVisitor() {
