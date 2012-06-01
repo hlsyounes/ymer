@@ -24,6 +24,17 @@
 #include "formulas.h"
 #include "src/expression.h"
 
+namespace {
+
+const Variable* SubstituteVariable(
+    const Variable* variable,
+    const std::map<std::string, const Variable*>& substitutions) {
+  std::map<std::string, const Variable*>::const_iterator i =
+      substitutions.find(variable->name());
+  return (i == substitutions.end()) ? variable : i->second;
+}
+
+}  // namespace
 
 /* ====================================================================== */
 /* Update */
@@ -46,14 +57,14 @@ Update::~Update() {
 /* Returns this update subject to the given substitutions. */
 const Update& Update::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Update(variable(), *::substitution(expr(), constant_values));
+  return *new Update(variable(), *SubstituteConstants(expr(), constant_values));
 }
 
-
 /* Returns this update subject to the given substitutions. */
-const Update& Update::substitution(const SubstitutionMap& subst) const {
-  return *new Update(variable().substitution(subst),
-		     expr().substitution(subst));
+const Update& Update::substitution(
+    const std::map<std::string, const Variable*>& substitutions) const {
+  return *new Update(*SubstituteVariable(variable_, substitutions),
+                     *SubstituteIdentifiers(expr(), substitutions));
 }
 
 
@@ -102,9 +113,9 @@ const Command& Command::substitution(
 
 
 /* Returns this command subject to the given substitutions. */
-const Command&
-Command::substitution(const SubstitutionMap& subst,
-		      const SynchSubstitutionMap& synchs) const {
+const Command& Command::substitution(
+    const std::map<std::string, const Variable*>& substitutions,
+    const SynchSubstitutionMap& synchs) const {
   size_t s;
   SynchSubstitutionMap::const_iterator si = synchs.find(synch());
   if (si == synchs.end()) {
@@ -112,11 +123,11 @@ Command::substitution(const SubstitutionMap& subst,
   } else {
     s = (*si).second;
   }
-  Command* subst_comm = new Command(s, guard().substitution(subst),
-				    delay().substitution(subst));
+  Command* subst_comm = new Command(s, guard().substitution(substitutions),
+				    delay().substitution(substitutions));
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(subst));
+    subst_comm->add_update((*ui)->substitution(substitutions));
   }
   return *subst_comm;
 }
@@ -190,16 +201,17 @@ void Module::compile(const std::map<std::string, TypedValue>& constant_values,
 
 
 /* Returns this module subject to the given substitutions. */
-Module& Module::substitution(const SubstitutionMap& subst,
-			     const SynchSubstitutionMap& synchs) const {
+Module& Module::substitution(
+    const std::map<std::string, const Variable*>& substitutions,
+    const SynchSubstitutionMap& synchs) const {
   Module* subst_mod = new Module();
   for (std::vector<const Variable*>::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
-    subst_mod->add_variable((*vi)->substitution(subst));
+    subst_mod->add_variable(*SubstituteVariable(*vi, substitutions));
   }
   for (CommandList::const_iterator ci = commands().begin();
        ci != commands().end(); ci++) {
-    subst_mod->add_command((*ci)->substitution(subst, synchs));
+    subst_mod->add_command((*ci)->substitution(substitutions, synchs));
   }
   return *subst_mod;
 }

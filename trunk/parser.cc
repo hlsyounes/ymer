@@ -3262,7 +3262,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
       yyerror("ignoring renaming of undeclared module `" + *ident2 + "'");
     } else {
       const Module& src_module = *(*mi).second;
-      SubstitutionMap c_subst;
+      std::map<std::string, const Variable*> c_subst;
       for (std::map<std::string, const Variable*>::const_iterator ci =
                constants.begin();
 	   ci != constants.end(); ci++) {
@@ -3272,13 +3272,13 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  std::map<std::string, const Variable*>::const_iterator cj =
 	    constants.find(si->second);
 	  if (cj != constants.end()) {
-	    c_subst.insert(std::make_pair(ci->second, cj->second));
+	    c_subst.insert(std::make_pair(ci->first, cj->second));
 	  } else {
-	    yyerror("substituting constant with non-constant" + si->second);
+	    yyerror("substituting constant with non-constant " + si->second);
 	  }
 	}
       }
-      SubstitutionMap v_subst;
+      std::map<std::string, const Variable*> v_subst;
       for (std::vector<const Variable*>::const_iterator vi =
                src_module.variables().begin();
 	   vi != src_module.variables().end(); vi++) {
@@ -3288,14 +3288,14 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  yyerror("missing substitution for module variable");
 	} else {
 	  const Expression* low =
-	    &(*variable_lows.find(*vi)).second->substitution(c_subst);
+              SubstituteIdentifiers(*variable_lows.find(*vi)->second, c_subst);
 	  const Expression* high =
-	    &(*variable_highs.find(*vi)).second->substitution(c_subst);
+              SubstituteIdentifiers(*variable_highs.find(*vi)->second, c_subst);
 	  const Expression* start;
 	  std::map<const Variable*, const Expression*>::const_iterator i =
 	    variable_starts.find(*vi);
 	  if ((*i).second != NULL) {
-	    start = &(*i).second->substitution(c_subst);
+	    start = SubstituteIdentifiers(*i->second, c_subst);
 	  } else {
 	    start = NULL;
 	  }
@@ -3303,7 +3303,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  const Variable* v =
               declare_variable(new std::string(si->second), r, start, true);
 	  if (v != NULL) {
-	    v_subst.insert(std::make_pair(*vi, v));
+	    v_subst.insert(std::make_pair((*vi)->name(), v));
 	  }
 	}
       }
@@ -3313,7 +3313,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	const Variable* v1 = find_variable(new std::string(si->first));
 	if (!member(src_module.variables(), v1)) {
 	  const Variable* v2 = find_variable(new std::string(si->second));
-          v_subst.insert(std::make_pair(v1, v2));
+          v_subst.insert(std::make_pair(v1->name(), v2));
 	}
       }
       Module* mod = &src_module.substitution(v_subst, synch_subst);

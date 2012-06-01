@@ -58,7 +58,8 @@ struct Update {
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this update subject to the given substitutions. */
-  const Update& substitution(const SubstitutionMap& subst) const;
+  const Update& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
   /* The variable for this update. */
@@ -120,8 +121,9 @@ struct Command {
       const std::map<std::string, TypedValue>& rate_values) const;
 
   /* Returns this command subject to the given substitutions. */
-  const Command& substitution(const SubstitutionMap& subst,
-			      const SynchSubstitutionMap& synchs) const;
+  const Command& substitution(
+      const std::map<std::string, const Variable*>& substitutions,
+      const SynchSubstitutionMap& synchs) const;
 
 private:
   /* The synchronization for this command; 0 if this command requires
@@ -179,8 +181,9 @@ struct Module {
   const CommandList& commands() const { return commands_; }
 
   /* Returns this module subject to the given substitutions. */
-  Module& substitution(const SubstitutionMap& subst,
-		       const SynchSubstitutionMap& synchs) const;
+  Module& substitution(
+      const std::map<std::string, const Variable*>& substitutions,
+      const SynchSubstitutionMap& synchs) const;
 
 private:
   /* The variables for this module. */
