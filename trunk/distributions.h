@@ -87,36 +87,8 @@ struct ACPH2Parameters {
  * A probability distribution.
  */
 struct Distribution {
-  /* The standard exponential distribution: Exp(1). */
-  static const Distribution& EXP1;
-
   /* An id-specific random number generator, or NULL. */
   static mt_struct* mts;
-
-  /* Increases the reference count for the given distribution. */
-  static void ref(const Distribution* d) {
-    if (d != NULL) {
-      d->ref_count_++;
-    }
-  }
-
-  /* Decreases the reference count for the given distribution. */
-  static void deref(const Distribution* d) {
-    if (d != NULL) {
-      d->ref_count_--;
-    }
-  }
-
-  /* Decreases the reference count for the given distribution and
-     deletes it if the the reference count becomes zero. */
-  static void destructive_deref(const Distribution* d) {
-    if (d != NULL) {
-      d->ref_count_--;
-      if (d->ref_count_ == 0) {
-	delete d;
-      }
-    }
-  }
 
   /* Deletes this distribution. */
   virtual ~Distribution() {}
@@ -150,15 +122,12 @@ struct Distribution {
 
 protected:
   /* Constructs a distribution. */
-  Distribution() : ref_count_(0) {}
+  Distribution() {}
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
 private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
-
   friend std::ostream& operator<<(std::ostream& os, const Distribution& d);
 };
 
@@ -204,14 +173,8 @@ protected:
   virtual void print(std::ostream& os) const;
 
 private:
-  /* The standard exponential distribution: Exp(1). */
-  static const Exponential EXP1_;
-
   /* The rate of this exponential distribution. */
   const Expression* rate_;
-
-  /* Constructs an exponential distribution with rate 1. */
-  Exponential();
 
   /* Constructs an exponential distribution with the given rate. */
   Exponential(const Expression& rate);

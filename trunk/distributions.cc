@@ -27,9 +27,6 @@
 /* ====================================================================== */
 /* Distribution */
 
-/* The standard exponential distribution: Exp(1). */
-const Distribution& Distribution::EXP1 = Exponential::EXP1_;
-
 /* An id-specific random number generator, or NULL. */
 mt_struct* Distribution::mts = NULL;
 
@@ -157,28 +154,9 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
 /* ====================================================================== */
 /* Exponential */
 
-/* The standard exponential distribution: Exp(1). */
-const Exponential Exponential::EXP1_;
-
-
 /* Returns an exponential distribution with the given rate. */
 const Exponential& Exponential::make(const Expression& rate) {
-  const Literal* value = dynamic_cast<const Literal*>(&rate);
-  if (value != NULL && value->value() == 1) {
-    Expression::ref(value);
-    Expression::destructive_deref(value);
-    return EXP1_;
-  } else {
-    return *new Exponential(rate);
-  }
-}
-
-
-/* Constructs an exponential distribution with rate 1. */
-Exponential::Exponential()
-  : rate_(new Literal(1)) {
-  Expression::ref(rate_);
-  ref(this);
+  return *new Exponential(rate);
 }
 
 
@@ -243,9 +221,7 @@ const Distribution& Weibull::make(const Expression& scale,
 				  const Expression& shape) {
   const Literal* value = dynamic_cast<const Literal*>(&shape);
   if (value != NULL && value->value() == 1) {
-    Expression::ref(value);
-    Expression::destructive_deref(value);
-    return Exponential::make(Division::make(*new Literal(1), scale));
+    return Exponential::make(Division::make(*value, scale));
   } else {
     return *new Weibull(scale, shape);
   }
