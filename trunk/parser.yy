@@ -128,17 +128,17 @@ static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
 static const Variable* find_variable(const std::string* ident);
 /* Returns a conjunction. */
-static Conjunction* make_conjunction(StateFormula& f1,
-				     const StateFormula& f2);
+static Conjunction* make_conjunction(StateFormula* f1,
+				     const StateFormula* f2);
 /* Returns a disjunction. */
-static Disjunction* make_disjunction(StateFormula& f1,
-				     const StateFormula& f2);
+static Disjunction* make_disjunction(StateFormula* f1,
+				     const StateFormula* f2);
 /* Returns a probabilistic path quantification. */
 static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
 					const PathFormula& f);
 /* Returns an until formula. */
-static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
 			       const TypedValue* t1, const TypedValue* t2);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression& expr);
@@ -161,8 +161,8 @@ static const Variable* declare_variable(const std::string* ident,
 /* Adds a command to the current module. */
 static void add_command();
 /* Prepares a command for parsing. */
-static void prepare_command(int synch, const StateFormula& guard,
-			    const Distribution& delay);
+static void prepare_command(int synch, const StateFormula* guard,
+			    const Distribution* delay);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
 /* Adds a module to the current model. */
@@ -296,7 +296,7 @@ commands : /* empty */
          ;
 
 command : synchronization formula ARROW distribution ':'
-            { prepare_command($1, *$2, *$4); } update ';' { add_command(); }
+            { prepare_command($1, $2, $4); } update ';' { add_command(); }
         ;
 
 synchronization : '[' ']' { $$ = 0; }
@@ -342,9 +342,9 @@ transition_reward : '[' NAME ']' formula ':' rate_expr ';'
 
 formula : TRUE_TOKEN { $$ = new Conjunction(); }
         | FALSE_TOKEN { $$ = new Disjunction(); }
-        | formula '&' formula { $$ = make_conjunction(*$1, *$3); }
-        | formula '|' formula { $$ = make_disjunction(*$1, *$3); }
-        | '!' formula { $$ = new Negation(*$2); }
+        | formula '&' formula { $$ = make_conjunction($1, $3); }
+        | formula '|' formula { $$ = make_disjunction($1, $3); }
+        | '!' formula { $$ = new Negation($2); }
         | expr '<' expr { $$ = new LessThan(*$1, *$3); }
         | expr LTE expr { $$ = new LessThanOrEqual(*$1, *$3); }
         | expr GTE expr { $$ = new GreaterThanOrEqual(*$1, *$3); }
@@ -358,14 +358,14 @@ formula : TRUE_TOKEN { $$ = new Conjunction(); }
 /* ====================================================================== */
 /* Distributions. */
 
-distribution : rate_expr { $$ = &Exponential::make(*$1); }
-             | EXP '(' rate_expr ')' { $$ = &Exponential::make(*$3); }
+distribution : rate_expr { $$ = Exponential::make(*$1); }
+             | EXP '(' rate_expr ')' { $$ = Exponential::make(*$3); }
              | 'W' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = &Weibull::make(*$3, *$5); }
+                 { $$ = Weibull::make(*$3, *$5); }
              | 'L' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = &Lognormal::make(*$3, *$5); }
+                 { $$ = Lognormal::make(*$3, *$5); }
              | 'U' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = &Uniform::make(*$3, *$5); }
+                 { $$ = Uniform::make(*$3, *$5); }
              ;
 
 /* ====================================================================== */
@@ -435,10 +435,10 @@ csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
                 { $$ = make_probabilistic($3, false, false, *$5); }
             | 'P' '>' NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, true, false, *$5); }
-            | csl_formula IMPLY csl_formula { $$ = new Implication(*$1, *$3); }
-            | csl_formula '&' csl_formula { $$ = make_conjunction(*$1, *$3); }
-            | csl_formula '|' csl_formula { $$ = make_disjunction(*$1, *$3); }
-            | '!' csl_formula { $$ = new Negation(*$2); }
+            | csl_formula IMPLY csl_formula { $$ = new Implication($1, $3); }
+            | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
+            | csl_formula '|' csl_formula { $$ = make_disjunction($1, $3); }
+            | '!' csl_formula { $$ = new Negation($2); }
             | csl_expr '<' csl_expr { $$ = new LessThan(*$1, *$3); }
             | csl_expr LTE csl_expr { $$ = new LessThanOrEqual(*$1, *$3); }
             | csl_expr GTE csl_expr { $$ = new GreaterThanOrEqual(*$1, *$3); }
@@ -449,9 +449,9 @@ csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
             ;
 
 path_formula : csl_formula 'U' LTE NUMBER csl_formula
-                 { $$ = make_until(*$1, *$5, NULL, $4); }
+                 { $$ = make_until($1, $5, NULL, $4); }
              | csl_formula 'U' '[' NUMBER ',' NUMBER ']' csl_formula
-                 { $$ = make_until(*$1, *$8, $4, $6); }
+                 { $$ = make_until($1, $8, $4, $6); }
 //             | 'X' csl_formula
              ;
 
@@ -748,9 +748,9 @@ static const Variable* find_variable(const std::string* ident) {
 
 
 /* Returns a conjunction. */
-static Conjunction* make_conjunction(StateFormula& f1,
-				     const StateFormula& f2) {
-  Conjunction* conj = dynamic_cast<Conjunction*>(&f1);
+static Conjunction* make_conjunction(StateFormula* f1,
+				     const StateFormula* f2) {
+  Conjunction* conj = dynamic_cast<Conjunction*>(f1);
   if (conj == NULL) {
     conj = new Conjunction();
     conj->add_conjunct(f1);
@@ -761,9 +761,9 @@ static Conjunction* make_conjunction(StateFormula& f1,
 
 
 /* Returns a disjunction. */
-static Disjunction* make_disjunction(StateFormula& f1,
-				     const StateFormula& f2) {
-  Disjunction* disj = dynamic_cast<Disjunction*>(&f1);
+static Disjunction* make_disjunction(StateFormula* f1,
+				     const StateFormula* f2) {
+  Disjunction* disj = dynamic_cast<Disjunction*>(f1);
   if (disj == NULL) {
     disj = new Disjunction();
     disj->add_disjunct(f1);
@@ -783,7 +783,7 @@ static StateFormula* make_probabilistic(const TypedValue* p,
   bool s = (strict && !negate) || (!strict && negate);
   StateFormula* pr = new Probabilistic(*p, s, f);
   if (negate) {
-    pr = new Negation(*pr);
+    pr = new Negation(pr);
   }
   delete p;
   return pr;
@@ -791,7 +791,7 @@ static StateFormula* make_probabilistic(const TypedValue* p,
 
 
 /* Returns an until formula. */
-static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
 			       const TypedValue* t1, const TypedValue* t2) {
   const Until* until;
   if (t1 == NULL) {
@@ -1022,8 +1022,8 @@ static void add_command() {
 
 
 /* Prepares a command for parsing. */
-static void prepare_command(int synch, const StateFormula& guard,
-			    const Distribution& delay) {
+static void prepare_command(int synch, const StateFormula* guard,
+			    const Distribution* delay) {
   command = new Command(synch, guard, delay);
 }
 

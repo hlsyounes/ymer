@@ -39,16 +39,16 @@ extern int verbosity;
  */
 struct ExtendedState : public State {
   /* Constructs an extended state. */
-  ExtendedState(const ValueMap& values, double dt);
+  ExtendedState(const Model* model, const std::vector<int>& values, double dt);
 
   /* Returns the time spent in the previous state. */
   virtual double dt() const { return dt_; }
 
   /* Returns a sampled successor of this state. */
-  virtual const State& next(const Model& model) const;
+  virtual const State& next() const;
 
   /* Returns a copy of this state with resampled trigger times. */
-  virtual const State& resampled(const Model& model) const;
+  virtual const State& resampled() const;
 
 private:
   /* A mapping from commands to times. */
@@ -66,40 +66,47 @@ private:
   /* The earliest sampled trigger time. */
   double trigger_time_;
 
-  friend const State& State::next(const Model& model) const;
-  friend const State& State::resampled(const Model& model) const;
+  friend const State& State::next() const;
+  friend const State& State::resampled() const;
 };
 
 
 /* Constructs an initial state for the given model. */
-State::State(const Model& model) {
+State::State(const Model* model)
+    : model_(model) {
   for (std::vector<const Variable*>::const_iterator vi =
-           model.variables().begin();
-       vi != model.variables().end(); vi++) {
-    values_.insert(std::make_pair(*vi, (*vi)->start()));
+           model->variables().begin();
+       vi != model->variables().end(); vi++) {
+    if ((*vi)->index() >= values_.size()) {
+      values_.resize((*vi)->index() + 1);
+    }
+    values_.at((*vi)->index()) = (*vi)->start();
   }
-  for (ModuleList::const_iterator mi = model.modules().begin();
-       mi != model.modules().end(); mi++) {
+  for (ModuleList::const_iterator mi = model->modules().begin();
+       mi != model->modules().end(); mi++) {
     for (std::vector<const Variable*>::const_iterator vi =
              (*mi)->variables().begin();
 	 vi != (*mi)->variables().end(); vi++) {
-      values_.insert(std::make_pair(*vi, (*vi)->start()));
+      if ((*vi)->index() >= values_.size()) {
+        values_.resize((*vi)->index() + 1);
+      }
+      values_.at((*vi)->index()) = (*vi)->start();
     }
   }
 }
 
 
 /* Returns a sampled successor of this state. */
-const State& State::next(const Model& model) const {
+const State& State::next() const {
   CommandList commands;
-  for (CommandList::const_iterator ci = model.commands().begin();
-       ci != model.commands().end(); ci++) {
+  for (CommandList::const_iterator ci = model_->commands().begin();
+       ci != model_->commands().end(); ci++) {
     const Command* c = *ci;
     if (c->guard().holds(values())) {
       commands.push_back(c);
     }
   }
-  ExtendedState* next_state = new ExtendedState(values(), 0.0);
+  ExtendedState* next_state = new ExtendedState(model_, values(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
   for (CommandList::const_iterator ci = commands.begin();
@@ -124,23 +131,23 @@ const State& State::next(const Model& model) const {
       next_state->trigger_time_ = t;
     }
   }
-  const State& result = next_state->next(model);
+  const State& result = next_state->next();
   delete next_state;
   return result;
 }
 
 
 /* Returns a copy of this state with resampled trigger times. */
-const State& State::resampled(const Model& model) const {
+const State& State::resampled() const {
   CommandList commands;
-  for (CommandList::const_iterator ci = model.commands().begin();
-       ci != model.commands().end(); ci++) {
+  for (CommandList::const_iterator ci = model_->commands().begin();
+       ci != model_->commands().end(); ci++) {
     const Command* c = *ci;
     if (c->guard().holds(values())) {
       commands.push_back(c);
     }
   }
-  ExtendedState* new_state = new ExtendedState(values(), 0.0);
+  ExtendedState* new_state = new ExtendedState(model_, values(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
   for (CommandList::const_iterator ci = commands.begin();
@@ -171,37 +178,38 @@ const State& State::resampled(const Model& model) const {
 
 /* Prints this object on the given stream. */
 void State::print(std::ostream& os) const {
-  ValueMap::const_iterator vi = values().begin();
-  os << *(*vi).first << '=' << (*vi).second;
-  for (vi++; vi != values().end(); vi++) {
-    os << " & " << *(*vi).first << '=' << (*vi).second;
+  os << model_->variable_name(0) << '=' << values()[0];
+  for (int i = 1; i < values().size(); ++i) {
+    os << " & " << model_->variable_name(i) << '=' << values()[i];
   }
 }
 
 
 /* Constructs an extended state. */
-ExtendedState::ExtendedState(const ValueMap& values, double dt)
-  : State(values), dt_(dt), trigger_(NULL), trigger_time_(HUGE_VAL) {}
+ExtendedState::ExtendedState(const Model* model,
+                             const std::vector<int>& values, double dt)
+    : State(model, values), dt_(dt), trigger_(NULL), trigger_time_(HUGE_VAL) {}
 
 
 /* Returns a sampled successor of this state. */
-const State& ExtendedState::next(const Model& model) const {
+const State& ExtendedState::next() const {
   if (verbosity > 2 && StateFormula::formula_level() == 1) {
     for (CommandTimeMap::const_iterator ti = trigger_times_.begin();
 	 ti != trigger_times_.end(); ti++) {
       std::cout << "  " << *(*ti).first << " @ " << (*ti).second << std::endl;
     }
   }
-  ExtendedState* next_state = new ExtendedState(values(), trigger_time_);
+  ExtendedState* next_state =
+      new ExtendedState(model(), values(), trigger_time_);
   if (trigger_ != NULL) {
     for (UpdateList::const_iterator ui = trigger_->updates().begin();
 	 ui != trigger_->updates().end(); ui++) {
-      ValueMap::iterator vi = next_state->values().find(&(*ui)->variable());
-      vi->second = (*ui)->expr().value(values());
+      next_state->values().at((*ui)->variable().index()) =
+          (*ui)->expr().value(values()).value<int>();
     }
     CommandList commands;
-    for (CommandList::const_iterator ci = model.commands().begin();
-	 ci != model.commands().end(); ci++) {
+    for (CommandList::const_iterator ci = model()->commands().begin();
+	 ci != model()->commands().end(); ci++) {
       const Command* c = *ci;
       if (c->guard().holds(next_state->values())) {
 	commands.push_back(c);
@@ -254,8 +262,8 @@ const State& ExtendedState::next(const Model& model) const {
 
 
 /* Returns a copy of this state with resampled trigger times. */
-const State& ExtendedState::resampled(const Model& model) const {
-  ExtendedState* new_state = new ExtendedState(values(), dt());
+const State& ExtendedState::resampled() const {
+  ExtendedState* new_state = new ExtendedState(model(), values(), dt());
   new_state->lifetimes_ = lifetimes_;
   int streak = 1;
   double tie_breaker = -1.0;

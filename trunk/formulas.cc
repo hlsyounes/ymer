@@ -57,11 +57,11 @@ Conjunction::~Conjunction() {
 
 
 /* Adds a conjunct to this conjunction. */
-void Conjunction::add_conjunct(const StateFormula& conjunct) {
-  if (conjunct.probabilistic()) {
-    conjuncts_.push_front(&conjunct);
+void Conjunction::add_conjunct(const StateFormula* conjunct) {
+  if (conjunct->probabilistic()) {
+    conjuncts_.push_front(conjunct);
   } else {
-    conjuncts_.push_back(&conjunct);
+    conjuncts_.push_back(conjunct);
   }
 }
 
@@ -73,10 +73,10 @@ bool Conjunction::probabilistic() const {
 
 
 /* Tests if this state formula holds in the given state. */
-bool Conjunction::holds(const ValueMap& values) const {
+bool Conjunction::holds(const std::vector<int>& state) const {
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    if (!(*fi)->holds(values)) {
+    if (!(*fi)->holds(state)) {
       return false;
     }
   }
@@ -85,26 +85,26 @@ bool Conjunction::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Conjunction::substitution(
+const StateFormula* Conjunction::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
   Conjunction* subst_conj = new Conjunction();
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     subst_conj->add_conjunct((*fi)->substitution(constant_values));
   }
-  return *subst_conj;
+  return subst_conj;
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Conjunction& Conjunction::substitution(
+const Conjunction* Conjunction::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   Conjunction* subst_conj = new Conjunction();
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     subst_conj->add_conjunct((*fi)->substitution(substitutions));
   }
-  return *subst_conj;
+  return subst_conj;
 }
 
 
@@ -176,11 +176,11 @@ Disjunction::~Disjunction() {
 
 
 /* Adds a disjunct to this disjunction. */
-void Disjunction::add_disjunct(const StateFormula& disjunct) {
-  if (disjunct.probabilistic()) {
-    disjuncts_.push_front(&disjunct);
+void Disjunction::add_disjunct(const StateFormula* disjunct) {
+  if (disjunct->probabilistic()) {
+    disjuncts_.push_front(disjunct);
   } else {
-    disjuncts_.push_back(&disjunct);
+    disjuncts_.push_back(disjunct);
   }
 }
 
@@ -192,10 +192,10 @@ bool Disjunction::probabilistic() const {
 
 
 /* Tests if this state formula holds in the given state. */
-bool Disjunction::holds(const ValueMap& values) const {
+bool Disjunction::holds(const std::vector<int>& state) const {
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
-    if ((*fi)->holds(values)) {
+    if ((*fi)->holds(state)) {
       return true;
     }
   }
@@ -204,26 +204,26 @@ bool Disjunction::holds(const ValueMap& values) const {
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Disjunction::substitution(
+const StateFormula* Disjunction::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
   Disjunction* subst_disj = new Disjunction();
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     subst_disj->add_disjunct((*fi)->substitution(constant_values));
   }
-  return *subst_disj;
+  return subst_disj;
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Disjunction& Disjunction::substitution(
+const Disjunction* Disjunction::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   Disjunction* subst_disj = new Disjunction();
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     subst_disj->add_disjunct((*fi)->substitution(substitutions));
   }
-  return *subst_disj;
+  return subst_disj;
 }
 
 
@@ -286,8 +286,8 @@ void Disjunction::print(std::ostream& os) const {
 /* Negation */
 
 /* Constructs a negation. */
-Negation::Negation(const StateFormula& negand)
-  : negand_(&negand) {
+Negation::Negation(const StateFormula* negand)
+  : negand_(negand) {
 }
 
 
@@ -304,22 +304,22 @@ bool Negation::probabilistic() const {
 
 
 /* Tests if this state formula holds in the given state. */
-bool Negation::holds(const ValueMap& values) const {
-  return !negand().holds(values);
+bool Negation::holds(const std::vector<int>& state) const {
+  return !negand().holds(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Negation::substitution(
+const StateFormula* Negation::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Negation(negand().substitution(constant_values));
+  return new Negation(negand().substitution(constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Negation& Negation::substitution(
+const Negation* Negation::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Negation(negand().substitution(substitutions));
+  return new Negation(negand().substitution(substitutions));
 }
 
 
@@ -355,9 +355,9 @@ void Negation::print(std::ostream& os) const {
 /* Implication */
 
 /* Constructs an implication. */
-Implication::Implication(const StateFormula& antecedent,
-			 const StateFormula& consequent)
-  : antecedent_(&antecedent), consequent_(&consequent) {
+Implication::Implication(const StateFormula* antecedent,
+			 const StateFormula* consequent)
+  : antecedent_(antecedent), consequent_(consequent) {
 }
 
 
@@ -375,24 +375,24 @@ bool Implication::probabilistic() const {
 
 
 /* Tests if this state formula holds in the given state. */
-bool Implication::holds(const ValueMap& values) const {
-  return !antecedent().holds(values) || consequent().holds(values);
+bool Implication::holds(const std::vector<int>& state) const {
+  return !antecedent().holds(state) || consequent().holds(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Implication::substitution(
+const StateFormula* Implication::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Implication(antecedent().substitution(constant_values),
-                          consequent().substitution(constant_values));
+  return new Implication(antecedent().substitution(constant_values),
+                         consequent().substitution(constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Implication& Implication::substitution(
+const Implication* Implication::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Implication(antecedent().substitution(substitutions),
-                          consequent().substitution(substitutions));
+  return new Implication(antecedent().substitution(substitutions),
+                         consequent().substitution(substitutions));
 }
 
 
@@ -445,24 +445,24 @@ bool Probabilistic::probabilistic() const {
 
 
 /* Tests if this state formula holds in the given state. */
-bool Probabilistic::holds(const ValueMap& values) const {
+bool Probabilistic::holds(const std::vector<int>& state) const {
   throw std::logic_error("Probabilistic::holds not implemented");
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Probabilistic::substitution(
+const StateFormula* Probabilistic::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Probabilistic(threshold(), strict(),
-                            formula().substitution(constant_values));
+  return new Probabilistic(threshold(), strict(),
+                           formula().substitution(constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Probabilistic& Probabilistic::substitution(
+const Probabilistic* Probabilistic::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Probabilistic(threshold(), strict(),
-                            formula().substitution(substitutions));
+  return new Probabilistic(threshold(), strict(),
+                           formula().substitution(substitutions));
 }
 
 
@@ -518,24 +518,24 @@ LessThan::LessThan(const Expression& expr1, const Expression& expr2)
 
 
 /* Tests if this state formula holds in the given state. */
-bool LessThan::holds(const ValueMap& values) const {
-  return expr1().value(values) < expr2().value(values);
+bool LessThan::holds(const std::vector<int>& state) const {
+  return expr1().value(state) < expr2().value(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& LessThan::substitution(
+const StateFormula* LessThan::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new LessThan(*SubstituteConstants(expr1(), constant_values),
-                       *SubstituteConstants(expr2(), constant_values));
+  return new LessThan(*SubstituteConstants(expr1(), constant_values),
+                      *SubstituteConstants(expr2(), constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const LessThan& LessThan::substitution(
+const LessThan* LessThan::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new LessThan(*SubstituteIdentifiers(expr1(), substitutions),
-                       *SubstituteIdentifiers(expr2(), substitutions));
+  return new LessThan(*SubstituteIdentifiers(expr1(), substitutions),
+                      *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -567,25 +567,24 @@ LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
 
 
 /* Tests if this state formula holds in the given state. */
-bool LessThanOrEqual::holds(const ValueMap& values) const {
-  return expr1().value(values) <= expr2().value(values);
+bool LessThanOrEqual::holds(const std::vector<int>& state) const {
+  return expr1().value(state) <= expr2().value(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula&
-LessThanOrEqual::substitution(
+const StateFormula* LessThanOrEqual::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new LessThanOrEqual(*SubstituteConstants(expr1(), constant_values),
-                              *SubstituteConstants(expr2(), constant_values));
+  return new LessThanOrEqual(*SubstituteConstants(expr1(), constant_values),
+                             *SubstituteConstants(expr2(), constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const LessThanOrEqual& LessThanOrEqual::substitution(
+const LessThanOrEqual* LessThanOrEqual::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new LessThanOrEqual(*SubstituteIdentifiers(expr1(), substitutions),
-                              *SubstituteIdentifiers(expr2(), substitutions));
+  return new LessThanOrEqual(*SubstituteIdentifiers(expr1(), substitutions),
+                             *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -617,26 +616,24 @@ GreaterThanOrEqual::GreaterThanOrEqual(const Expression& expr1,
 
 
 /* Tests if this state formula holds in the given state. */
-bool GreaterThanOrEqual::holds(const ValueMap& values) const {
-  return expr1().value(values) >= expr2().value(values);
+bool GreaterThanOrEqual::holds(const std::vector<int>& state) const {
+  return expr1().value(state) >= expr2().value(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& GreaterThanOrEqual::substitution(
+const StateFormula* GreaterThanOrEqual::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new GreaterThanOrEqual(
-      *SubstituteConstants(expr1(), constant_values),
-      *SubstituteConstants(expr2(), constant_values));
+  return new GreaterThanOrEqual(*SubstituteConstants(expr1(), constant_values),
+                                *SubstituteConstants(expr2(), constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const GreaterThanOrEqual& GreaterThanOrEqual::substitution(
+const GreaterThanOrEqual* GreaterThanOrEqual::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new GreaterThanOrEqual(
-      *SubstituteIdentifiers(expr1(), substitutions),
-      *SubstituteIdentifiers(expr2(), substitutions));
+  return new GreaterThanOrEqual(*SubstituteIdentifiers(expr1(), substitutions),
+                                *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -667,24 +664,24 @@ GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
 
 
 /* Tests if this state formula holds in the given state. */
-bool GreaterThan::holds(const ValueMap& values) const {
-  return expr1().value(values) > expr2().value(values);
+bool GreaterThan::holds(const std::vector<int>& state) const {
+  return expr1().value(state) > expr2().value(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& GreaterThan::substitution(
+const StateFormula* GreaterThan::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new GreaterThan(*SubstituteConstants(expr1(), constant_values),
-                          *SubstituteConstants(expr2(), constant_values));
+  return new GreaterThan(*SubstituteConstants(expr1(), constant_values),
+                         *SubstituteConstants(expr2(), constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const GreaterThan& GreaterThan::substitution(
+const GreaterThan* GreaterThan::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new GreaterThan(*SubstituteIdentifiers(expr1(), substitutions),
-                          *SubstituteIdentifiers(expr2(), substitutions));
+  return new GreaterThan(*SubstituteIdentifiers(expr1(), substitutions),
+                         *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -715,24 +712,24 @@ Equality::Equality(const Expression& expr1, const Expression& expr2)
 
 
 /* Tests if this state formula holds in the given state. */
-bool Equality::holds(const ValueMap& values) const {
-  return expr1().value(values) == expr2().value(values);
+bool Equality::holds(const std::vector<int>& state) const {
+  return expr1().value(state) == expr2().value(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Equality::substitution(
+const StateFormula* Equality::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Equality(*SubstituteConstants(expr1(), constant_values),
-                       *SubstituteConstants(expr2(), constant_values));
+  return new Equality(*SubstituteConstants(expr1(), constant_values),
+                      *SubstituteConstants(expr2(), constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Equality& Equality::substitution(
+const Equality* Equality::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Equality(*SubstituteIdentifiers(expr1(), substitutions),
-                       *SubstituteIdentifiers(expr2(), substitutions));
+  return new Equality(*SubstituteIdentifiers(expr1(), substitutions),
+                      *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -763,24 +760,24 @@ Inequality::Inequality(const Expression& expr1, const Expression& expr2)
 
 
 /* Tests if this state formula holds in the given state. */
-bool Inequality::holds(const ValueMap& values) const {
-  return expr1().value(values) != expr2().value(values);
+bool Inequality::holds(const std::vector<int>& state) const {
+  return expr1().value(state) != expr2().value(state);
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const StateFormula& Inequality::substitution(
+const StateFormula* Inequality::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Inequality(*SubstituteConstants(expr1(), constant_values),
-                         *SubstituteConstants(expr2(), constant_values));
+  return new Inequality(*SubstituteConstants(expr1(), constant_values),
+                        *SubstituteConstants(expr2(), constant_values));
 }
 
 
 /* Returns this state formula subject to the given substitutions. */
-const Inequality& Inequality::substitution(
+const Inequality* Inequality::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Inequality(*SubstituteIdentifiers(expr1(), substitutions),
-                         *SubstituteIdentifiers(expr2(), substitutions));
+  return new Inequality(*SubstituteIdentifiers(expr1(), substitutions),
+                        *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -806,9 +803,9 @@ void Inequality::print(std::ostream& os) const {
 /* Until */
 
 /* Constructs an until formula. */
-Until::Until(const StateFormula& pre, const StateFormula& post,
+Until::Until(const StateFormula* pre, const StateFormula* post,
 	     const TypedValue& min_time, const TypedValue& max_time)
-  : pre_(&pre), post_(&post), min_time_(min_time), max_time_(max_time) {
+  : pre_(pre), post_(post), min_time_(min_time), max_time_(max_time) {
 }
 
 

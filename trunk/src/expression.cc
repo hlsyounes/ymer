@@ -19,10 +19,12 @@
 
 #include "expression.h"
 
+#include <map>
 #include <ostream>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "ddutil.h"
 #include "typed-value.h"
@@ -421,8 +423,8 @@ const Expression& Addition::make(const Expression& term1,
   return *new Addition(term1, term2);
 }
 
-TypedValue Addition::value(const ValueMap& values) const {
-  return operand1().value(values) + operand2().value(values);
+TypedValue Addition::value(const std::vector<int>& state) const {
+  return operand1().value(state) + operand2().value(state);
 }
 
 Subtraction::Subtraction(const Expression& term1, const Expression& term2)
@@ -449,8 +451,8 @@ const Expression& Subtraction::make(const Expression& term1,
   return *new Subtraction(term1, term2);
 }
 
-TypedValue Subtraction::value(const ValueMap& values) const {
-  return operand1().value(values) - operand2().value(values);
+TypedValue Subtraction::value(const std::vector<int>& state) const {
+  return operand1().value(state) - operand2().value(state);
 }
 
 Multiplication::Multiplication(const Expression& factor1,
@@ -478,8 +480,8 @@ const Expression& Multiplication::make(const Expression& factor1,
   return *new Multiplication(factor1, factor2);
 }
 
-TypedValue Multiplication::value(const ValueMap& values) const {
-  return operand1().value(values) * operand2().value(values);
+TypedValue Multiplication::value(const std::vector<int>& state) const {
+  return operand1().value(state) * operand2().value(state);
 }
 
 Division::Division(const Expression& factor1, const Expression& factor2)
@@ -509,12 +511,12 @@ const Expression& Division::make(const Expression& factor1,
   return *new Division(factor1, factor2);
 }
 
-TypedValue Division::value(const ValueMap& values) const {
-  return operand1().value(values) / operand2().value(values);
+TypedValue Division::value(const std::vector<int>& state) const {
+  return operand1().value(state) / operand2().value(state);
 }
 
 Variable::Variable(const std::string& name)
-    : name_(name) {
+    : name_(name), index_(-1) {
 }
 
 Variable::~Variable() {
@@ -534,13 +536,8 @@ void Variable::SetVariableProperties(
   high_bit_ = low_bit + Log2(high - low);
 }
 
-TypedValue Variable::value(const ValueMap& values) const {
-  ValueMap::const_iterator vi = values.find(this);
-  if (vi != values.end()) {
-    return (*vi).second;
-  } else {
-    throw std::logic_error("unbound variable");
-  }
+TypedValue Variable::value(const std::vector<int>& state) const {
+  return state.at(index());
 }
 
 Literal::Literal(const TypedValue& value)
@@ -554,7 +551,7 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
 }
 
-TypedValue Literal::value(const ValueMap& values) const {
+TypedValue Literal::value(const std::vector<int>& state) const {
   return value();
 }
 

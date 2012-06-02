@@ -155,8 +155,8 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
 /* Exponential */
 
 /* Returns an exponential distribution with the given rate. */
-const Exponential& Exponential::make(const Expression& rate) {
-  return *new Exponential(rate);
+const Exponential* Exponential::make(const Expression& rate) {
+  return new Exponential(rate);
 }
 
 
@@ -177,7 +177,7 @@ Exponential::~Exponential() {
 void Exponential::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double lambda_inv = 1.0/rate().value(ValueMap()).value<double>();
+  double lambda_inv = 1.0/rate().value(std::vector<int>()).value<double>();
   double mi = 1.0;
   for (size_t i = 1; i <= n; i++) {
     mi *= i*lambda_inv;
@@ -187,21 +187,21 @@ void Exponential::moments(std::vector<double>& m, size_t n) const {
 
 
 /* Returns a sample drawn from this distribution. */
-double Exponential::sample(const ValueMap& values) const {
-  double lambda = rate().value(values).value<double>();
+double Exponential::sample(const std::vector<int>& state) const {
+  double lambda = rate().value(state).value<double>();
   return -log(genrand_real3_id(mts))/lambda;
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Exponential& Exponential::substitution(
+const Exponential* Exponential::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
   return make(*SubstituteConstants(rate(), constant_values));
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Exponential& Exponential::substitution(
+const Exponential* Exponential::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(rate(), substitutions));
 }
@@ -217,13 +217,13 @@ void Exponential::print(std::ostream& os) const {
 /* Weibull */
 
 /* Returns a Weibull distribution with the given scale and shape. */
-const Distribution& Weibull::make(const Expression& scale,
+const Distribution* Weibull::make(const Expression& scale,
 				  const Expression& shape) {
   const Literal* value = dynamic_cast<const Literal*>(&shape);
   if (value != NULL && value->value() == 1) {
     return Exponential::make(Division::make(*value, scale));
   } else {
-    return *new Weibull(scale, shape);
+    return new Weibull(scale, shape);
   }
 }
 
@@ -247,8 +247,8 @@ Weibull::~Weibull() {
 void Weibull::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double eta = scale().value(ValueMap()).value<double>();
-  double beta_inv = 1.0/shape().value(ValueMap()).value<double>();
+  double eta = scale().value(std::vector<int>()).value<double>();
+  double beta_inv = 1.0/shape().value(std::vector<int>()).value<double>();
   double ei = 1.0;
   double bi = 1.0;
   for (size_t i = 1; i <= n; i++) {
@@ -260,15 +260,15 @@ void Weibull::moments(std::vector<double>& m, size_t n) const {
 
 
 /* Returns a sample drawn from this distribution. */
-double Weibull::sample(const ValueMap& values) const {
-  double eta = scale().value(values).value<double>();
-  double beta = shape().value(values).value<double>();
+double Weibull::sample(const std::vector<int>& state) const {
+  double eta = scale().value(state).value<double>();
+  double beta = shape().value(state).value<double>();
   return eta*pow(-log(genrand_real3_id(mts)), 1.0/beta);
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Distribution& Weibull::substitution(
+const Distribution* Weibull::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
   return make(*SubstituteConstants(scale(), constant_values),
               *SubstituteConstants(shape(), constant_values));
@@ -276,7 +276,7 @@ const Distribution& Weibull::substitution(
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Distribution& Weibull::substitution(
+const Distribution* Weibull::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(scale(), substitutions),
               *SubstituteIdentifiers(shape(), substitutions));
@@ -293,9 +293,9 @@ void Weibull::print(std::ostream& os) const {
 /* Lognormal */
 
 /* Returns a lognormal distribution with the given scale and shape. */
-const Lognormal& Lognormal::make(const Expression& scale,
+const Lognormal* Lognormal::make(const Expression& scale,
 				 const Expression& shape) {
-  return *new Lognormal(scale, shape);
+  return new Lognormal(scale, shape);
 }
 
 
@@ -318,8 +318,8 @@ Lognormal::~Lognormal() {
 void Lognormal::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double mu = scale().value(ValueMap()).value<double>();
-  double sigma = shape().value(ValueMap()).value<double>();
+  double mu = scale().value(std::vector<int>()).value<double>();
+  double sigma = shape().value(std::vector<int>()).value<double>();
   double mean = log(mu) - sigma*sigma/2.0;
   for (size_t i = 1; i <= n; i++) {
     m.push_back(exp(i*mean + i*i*sigma*sigma/2.0));
@@ -328,14 +328,14 @@ void Lognormal::moments(std::vector<double>& m, size_t n) const {
 
 
 /* Returns a sample drawn from this distribution. */
-double Lognormal::sample(const ValueMap& values) const {
+double Lognormal::sample(const std::vector<int>& state) const {
   if (have_unused_) {
     have_unused_ = false;
     return unused_;
   } else {
     /* Generate two N(0,1) samples using the Box-Muller transform. */
-    double mu = scale().value(ValueMap()).value<double>();
-    double sigma = shape().value(ValueMap()).value<double>();
+    double mu = scale().value(state).value<double>();
+    double sigma = shape().value(state).value<double>();
     double mean = log(mu) - sigma*sigma/2.0;
     double u1 = genrand_real3_id(mts);
     double u2 = genrand_real3_id(mts);
@@ -350,7 +350,7 @@ double Lognormal::sample(const ValueMap& values) const {
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Lognormal& Lognormal::substitution(
+const Lognormal* Lognormal::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
   return make(*SubstituteConstants(scale(), constant_values),
               *SubstituteConstants(shape(), constant_values));
@@ -358,7 +358,7 @@ const Lognormal& Lognormal::substitution(
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Lognormal& Lognormal::substitution(
+const Lognormal* Lognormal::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(scale(), substitutions),
               *SubstituteIdentifiers(shape(), substitutions));
@@ -375,8 +375,8 @@ void Lognormal::print(std::ostream& os) const {
 /* Uniform */
 
 /* Returns a uniform distribution with the given bounds. */
-const Uniform& Uniform::make(const Expression& low, const Expression& high) {
-  return *new Uniform(low, high);
+const Uniform* Uniform::make(const Expression& low, const Expression& high) {
+  return new Uniform(low, high);
 }
 
 
@@ -399,8 +399,8 @@ Uniform::~Uniform() {
 void Uniform::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double a = low().value(ValueMap()).value<double>();
-  double b = high().value(ValueMap()).value<double>();
+  double a = low().value(std::vector<int>()).value<double>();
+  double b = high().value(std::vector<int>()).value<double>();
   double ai = a;
   double bi = b;
   for (size_t i = 1; i <= n; i++) {
@@ -412,15 +412,15 @@ void Uniform::moments(std::vector<double>& m, size_t n) const {
 
 
 /* Returns a sample drawn from this distribution. */
-double Uniform::sample(const ValueMap& values) const {
-  double a = low().value(values).value<double>();
-  double b = high().value(values).value<double>();
+double Uniform::sample(const std::vector<int>& state) const {
+  double a = low().value(state).value<double>();
+  double b = high().value(state).value<double>();
   return (b - a)*genrand_real3_id(mts) + a;
 }
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Uniform& Uniform::substitution(
+const Uniform* Uniform::substitution(
     const std::map<std::string, TypedValue>& constant_values) const {
   return make(*SubstituteConstants(low(), constant_values),
               *SubstituteConstants(high(), constant_values));
@@ -428,7 +428,7 @@ const Uniform& Uniform::substitution(
 
 
 /* Returns this distribution subject to the given substitutions. */
-const Uniform& Uniform::substitution(
+const Uniform* Uniform::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(low(), substitutions),
               *SubstituteIdentifiers(high(), substitutions));

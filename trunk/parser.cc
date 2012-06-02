@@ -175,17 +175,17 @@ static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
 static const Variable* find_variable(const std::string* ident);
 /* Returns a conjunction. */
-static Conjunction* make_conjunction(StateFormula& f1,
-				     const StateFormula& f2);
+static Conjunction* make_conjunction(StateFormula* f1,
+				     const StateFormula* f2);
 /* Returns a disjunction. */
-static Disjunction* make_disjunction(StateFormula& f1,
-				     const StateFormula& f2);
+static Disjunction* make_disjunction(StateFormula* f1,
+				     const StateFormula* f2);
 /* Returns a probabilistic path quantification. */
 static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
 					const PathFormula& f);
 /* Returns an until formula. */
-static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
 			       const TypedValue* t1, const TypedValue* t2);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression& expr);
@@ -208,8 +208,8 @@ static const Variable* declare_variable(const std::string* ident,
 /* Adds a command to the current module. */
 static void add_command();
 /* Prepares a command for parsing. */
-static void prepare_command(int synch, const StateFormula& guard,
-			    const Distribution& delay);
+static void prepare_command(int synch, const StateFormula* guard,
+			    const Distribution* delay);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
 /* Adds a module to the current model. */
@@ -1943,7 +1943,7 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 299 "parser.yy"
-    { prepare_command((yyvsp[(1) - (5)].synch), *(yyvsp[(2) - (5)].formula), *(yyvsp[(4) - (5)].dist)); }
+    { prepare_command((yyvsp[(1) - (5)].synch), (yyvsp[(2) - (5)].formula), (yyvsp[(4) - (5)].dist)); }
     break;
 
   case 39:
@@ -2006,21 +2006,21 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 345 "parser.yy"
-    { (yyval.formula) = make_conjunction(*(yyvsp[(1) - (3)].formula), *(yyvsp[(3) - (3)].formula)); }
+    { (yyval.formula) = make_conjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 58:
 
 /* Line 1455 of yacc.c  */
 #line 346 "parser.yy"
-    { (yyval.formula) = make_disjunction(*(yyvsp[(1) - (3)].formula), *(yyvsp[(3) - (3)].formula)); }
+    { (yyval.formula) = make_disjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 59:
 
 /* Line 1455 of yacc.c  */
 #line 347 "parser.yy"
-    { (yyval.formula) = new Negation(*(yyvsp[(2) - (2)].formula)); }
+    { (yyval.formula) = new Negation((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 60:
@@ -2076,35 +2076,35 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 361 "parser.yy"
-    { (yyval.dist) = &Exponential::make(*(yyvsp[(1) - (1)].expr)); }
+    { (yyval.dist) = Exponential::make(*(yyvsp[(1) - (1)].expr)); }
     break;
 
   case 68:
 
 /* Line 1455 of yacc.c  */
 #line 362 "parser.yy"
-    { (yyval.dist) = &Exponential::make(*(yyvsp[(3) - (4)].expr)); }
+    { (yyval.dist) = Exponential::make(*(yyvsp[(3) - (4)].expr)); }
     break;
 
   case 69:
 
 /* Line 1455 of yacc.c  */
 #line 364 "parser.yy"
-    { (yyval.dist) = &Weibull::make(*(yyvsp[(3) - (6)].expr), *(yyvsp[(5) - (6)].expr)); }
+    { (yyval.dist) = Weibull::make(*(yyvsp[(3) - (6)].expr), *(yyvsp[(5) - (6)].expr)); }
     break;
 
   case 70:
 
 /* Line 1455 of yacc.c  */
 #line 366 "parser.yy"
-    { (yyval.dist) = &Lognormal::make(*(yyvsp[(3) - (6)].expr), *(yyvsp[(5) - (6)].expr)); }
+    { (yyval.dist) = Lognormal::make(*(yyvsp[(3) - (6)].expr), *(yyvsp[(5) - (6)].expr)); }
     break;
 
   case 71:
 
 /* Line 1455 of yacc.c  */
 #line 368 "parser.yy"
-    { (yyval.dist) = &Uniform::make(*(yyvsp[(3) - (6)].expr), *(yyvsp[(5) - (6)].expr)); }
+    { (yyval.dist) = Uniform::make(*(yyvsp[(3) - (6)].expr), *(yyvsp[(5) - (6)].expr)); }
     break;
 
   case 72:
@@ -2342,28 +2342,28 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 438 "parser.yy"
-    { (yyval.formula) = new Implication(*(yyvsp[(1) - (3)].formula), *(yyvsp[(3) - (3)].formula)); }
+    { (yyval.formula) = new Implication((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 107:
 
 /* Line 1455 of yacc.c  */
 #line 439 "parser.yy"
-    { (yyval.formula) = make_conjunction(*(yyvsp[(1) - (3)].formula), *(yyvsp[(3) - (3)].formula)); }
+    { (yyval.formula) = make_conjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 108:
 
 /* Line 1455 of yacc.c  */
 #line 440 "parser.yy"
-    { (yyval.formula) = make_disjunction(*(yyvsp[(1) - (3)].formula), *(yyvsp[(3) - (3)].formula)); }
+    { (yyval.formula) = make_disjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 109:
 
 /* Line 1455 of yacc.c  */
 #line 441 "parser.yy"
-    { (yyval.formula) = new Negation(*(yyvsp[(2) - (2)].formula)); }
+    { (yyval.formula) = new Negation((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 110:
@@ -2419,14 +2419,14 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 452 "parser.yy"
-    { (yyval.path) = make_until(*(yyvsp[(1) - (5)].formula), *(yyvsp[(5) - (5)].formula), NULL, (yyvsp[(4) - (5)].num)); }
+    { (yyval.path) = make_until((yyvsp[(1) - (5)].formula), (yyvsp[(5) - (5)].formula), NULL, (yyvsp[(4) - (5)].num)); }
     break;
 
   case 118:
 
 /* Line 1455 of yacc.c  */
 #line 454 "parser.yy"
-    { (yyval.path) = make_until(*(yyvsp[(1) - (8)].formula), *(yyvsp[(8) - (8)].formula), (yyvsp[(4) - (8)].num), (yyvsp[(6) - (8)].num)); }
+    { (yyval.path) = make_until((yyvsp[(1) - (8)].formula), (yyvsp[(8) - (8)].formula), (yyvsp[(4) - (8)].num), (yyvsp[(6) - (8)].num)); }
     break;
 
   case 119:
@@ -2971,9 +2971,9 @@ static const Variable* find_variable(const std::string* ident) {
 
 
 /* Returns a conjunction. */
-static Conjunction* make_conjunction(StateFormula& f1,
-				     const StateFormula& f2) {
-  Conjunction* conj = dynamic_cast<Conjunction*>(&f1);
+static Conjunction* make_conjunction(StateFormula* f1,
+				     const StateFormula* f2) {
+  Conjunction* conj = dynamic_cast<Conjunction*>(f1);
   if (conj == NULL) {
     conj = new Conjunction();
     conj->add_conjunct(f1);
@@ -2984,9 +2984,9 @@ static Conjunction* make_conjunction(StateFormula& f1,
 
 
 /* Returns a disjunction. */
-static Disjunction* make_disjunction(StateFormula& f1,
-				     const StateFormula& f2) {
-  Disjunction* disj = dynamic_cast<Disjunction*>(&f1);
+static Disjunction* make_disjunction(StateFormula* f1,
+				     const StateFormula* f2) {
+  Disjunction* disj = dynamic_cast<Disjunction*>(f1);
   if (disj == NULL) {
     disj = new Disjunction();
     disj->add_disjunct(f1);
@@ -3006,7 +3006,7 @@ static StateFormula* make_probabilistic(const TypedValue* p,
   bool s = (strict && !negate) || (!strict && negate);
   StateFormula* pr = new Probabilistic(*p, s, f);
   if (negate) {
-    pr = new Negation(*pr);
+    pr = new Negation(pr);
   }
   delete p;
   return pr;
@@ -3014,7 +3014,7 @@ static StateFormula* make_probabilistic(const TypedValue* p,
 
 
 /* Returns an until formula. */
-static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
 			       const TypedValue* t1, const TypedValue* t2) {
   const Until* until;
   if (t1 == NULL) {
@@ -3245,8 +3245,8 @@ static void add_command() {
 
 
 /* Prepares a command for parsing. */
-static void prepare_command(int synch, const StateFormula& guard,
-			    const Distribution& delay) {
+static void prepare_command(int synch, const StateFormula* guard,
+			    const Distribution* delay) {
   command = new Command(synch, guard, delay);
 }
 

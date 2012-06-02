@@ -72,9 +72,9 @@ const Update& Update::substitution(
 /* Command */
 
 /* Constructs a command. */
-Command::Command(size_t synch, const StateFormula& guard,
-		 const Distribution& delay)
-  : synch_(synch), guard_(&guard), delay_(&delay) {
+Command::Command(size_t synch, const StateFormula* guard,
+		 const Distribution* delay)
+  : synch_(synch), guard_(guard), delay_(delay) {
 }
 
 

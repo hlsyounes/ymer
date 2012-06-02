@@ -110,14 +110,14 @@ struct Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const = 0;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const ValueMap& values) const = 0;
+  virtual double sample(const std::vector<int>& state) const = 0;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution& substitution(
+  virtual const Distribution* substitution(
       const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution& substitution(
+  virtual const Distribution* substitution(
       const std::map<std::string, const Variable*>& substitutions) const = 0;
 
 protected:
@@ -143,7 +143,7 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d);
  */
 struct Exponential : public Distribution {
   /* Returns an exponential distribution with the given rate. */
-  static const Exponential& make(const Expression& rate);
+  static const Exponential* make(const Expression& rate);
 
   /* Deletes this exponential distribution. */
   virtual ~Exponential();
@@ -158,14 +158,14 @@ struct Exponential : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const ValueMap& values) const;
+  virtual double sample(const std::vector<int>& state) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Exponential& substitution(
+  virtual const Exponential* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Exponential& substitution(
+  virtual const Exponential* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
@@ -191,7 +191,7 @@ private:
  */
 struct Weibull : public Distribution {
   /* Returns a Weibull distribution with the given scale and shape. */
-  static const Distribution& make(const Expression& scale,
+  static const Distribution* make(const Expression& scale,
 				  const Expression& shape);
 
   /* Deletes this Weibull distribution. */
@@ -207,14 +207,14 @@ struct Weibull : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const ValueMap& values) const;
+  virtual double sample(const std::vector<int>& state) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution& substitution(
+  virtual const Distribution* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution& substitution(
+  virtual const Distribution* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
@@ -240,7 +240,7 @@ private:
  */
 struct Lognormal : public Distribution {
   /* Returns a lognormal distribution with the given scale and shape. */
-  static const Lognormal& make(const Expression& scale,
+  static const Lognormal* make(const Expression& scale,
 			       const Expression& shape);
 
   /* Deletes this lognormal distribution. */
@@ -256,14 +256,14 @@ struct Lognormal : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const ValueMap& values) const;
+  virtual double sample(const std::vector<int>& state) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Lognormal& substitution(
+  virtual const Lognormal* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Lognormal& substitution(
+  virtual const Lognormal* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:
@@ -293,7 +293,7 @@ private:
  */
 struct Uniform : public Distribution {
   /* Returns a uniform distribution with the bounds. */
-  static const Uniform& make(const Expression& low, const Expression& high);
+  static const Uniform* make(const Expression& low, const Expression& high);
 
   /* Deletes this uniform distribution. */
   virtual ~Uniform();
@@ -308,14 +308,14 @@ struct Uniform : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const ValueMap& values) const;
+  virtual double sample(const std::vector<int>& state) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Uniform& substitution(
+  virtual const Uniform* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
-  virtual const Uniform& substitution(
+  virtual const Uniform* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
 protected:

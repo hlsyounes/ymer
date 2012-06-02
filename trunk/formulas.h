@@ -58,14 +58,14 @@ struct StateFormula {
   virtual bool probabilistic() const = 0;
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const = 0;
+  virtual bool holds(const std::vector<int>& state) const = 0;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const = 0;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, const Variable*>& substitutions) const = 0;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -204,7 +204,7 @@ struct Conjunction : public StateFormula {
   virtual ~Conjunction();
 
   /* Adds a conjunct to this conjunction. */
-  void add_conjunct(const StateFormula& conjunct);
+  void add_conjunct(const StateFormula* conjunct);
 
   /* Returns the conjuncts for this conjunction. */
   const FormulaList& conjuncts() const { return conjuncts_; }
@@ -213,14 +213,14 @@ struct Conjunction : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Conjunction& substitution(
+  virtual const Conjunction* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -273,7 +273,7 @@ struct Disjunction : public StateFormula {
   virtual ~Disjunction();
 
   /* Adds a disjunct to this disjunction. */
-  void add_disjunct(const StateFormula& disjunct);
+  void add_disjunct(const StateFormula* disjunct);
 
   /* Returns the disjuncts for this disjunction. */
   const FormulaList& disjuncts() const { return disjuncts_; }
@@ -282,14 +282,14 @@ struct Disjunction : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Disjunction& substitution(
+  virtual const Disjunction* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -342,7 +342,7 @@ private:
  */
 struct Negation : public StateFormula {
   /* Constructs a negation. */
-  Negation(const StateFormula& negand);
+  Negation(const StateFormula* negand);
 
   /* Deletes this negation. */
   virtual ~Negation();
@@ -354,14 +354,14 @@ struct Negation : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Negation& substitution(
+  virtual const Negation* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -414,7 +414,7 @@ private:
  */
 struct Implication : public StateFormula {
   /* Constructs an implication. */
-  Implication(const StateFormula& antecedent, const StateFormula& consequent);
+  Implication(const StateFormula* antecedent, const StateFormula* consequent);
 
   /* Deletes this implication. */
   virtual ~Implication();
@@ -429,14 +429,14 @@ struct Implication : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Implication& substitution(
+  virtual const Implication* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -510,14 +510,14 @@ struct Probabilistic : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Probabilistic& substitution(
+  virtual const Probabilistic* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -564,7 +564,7 @@ private:
   /* The path formula. */
   const PathFormula* formula_;
   /* Cached acceptance sampling results. */
-  mutable std::map<ValueMap, std::pair<size_t, double> > cache_;
+  mutable std::map<std::vector<int>, std::pair<size_t, double> > cache_;
 };
 
 
@@ -636,14 +636,14 @@ struct LessThan : public Comparison {
   LessThan(const Expression& expr1, const Expression& expr2);
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const LessThan& substitution(
+  virtual const LessThan* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -669,14 +669,14 @@ struct LessThanOrEqual : public Comparison {
   LessThanOrEqual(const Expression& expr1, const Expression& expr2);
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const LessThanOrEqual& substitution(
+  virtual const LessThanOrEqual* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -702,14 +702,14 @@ struct GreaterThanOrEqual : public Comparison {
   GreaterThanOrEqual(const Expression& expr1, const Expression& expr2);
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const GreaterThanOrEqual& substitution(
+  virtual const GreaterThanOrEqual* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -735,14 +735,14 @@ struct GreaterThan : public Comparison {
   GreaterThan(const Expression& expr1, const Expression& expr2);
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const GreaterThan& substitution(
+  virtual const GreaterThan* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -768,14 +768,14 @@ struct Equality : public Comparison {
   Equality(const Expression& expr1, const Expression& expr2);
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Equality& substitution(
+  virtual const Equality* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -801,14 +801,14 @@ struct Inequality : public Comparison {
   Inequality(const Expression& expr1, const Expression& expr2);
 
   /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const ValueMap& values) const;
+  virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula& substitution(
+  virtual const StateFormula* substitution(
       const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const Inequality& substitution(
+  virtual const Inequality* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -831,7 +831,7 @@ protected:
  */
 struct Until : public PathFormula {
   /* Constructs an until formula. */
-  Until(const StateFormula& pre, const StateFormula& post,
+  Until(const StateFormula* pre, const StateFormula* post,
 	const TypedValue& min_time, const TypedValue& max_time);
 
   /* Deletes this until formula. */
