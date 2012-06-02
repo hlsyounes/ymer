@@ -20,7 +20,7 @@
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 AC_PREREQ(2.57)
-AC_INIT(Ymer, 3.0.8, hlsyounes@gmail.com)
+AC_INIT(Ymer, 3.0.9, hlsyounes@gmail.com)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(ymer.cc)
 AM_INIT_AUTOMAKE
