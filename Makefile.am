@@ -122,7 +122,7 @@ check_LTLIBRARIES =
 # Library with main function for tests.
 check_LTLIBRARIES += src/libtest-main.la
 src_libtest_main_la_SOURCES = src/test-main.cc
-src_libtest_main_la_LIBADD = gtest/lib/libgtest.la
+src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
 
 check_PROGRAMS =
 
@@ -142,7 +142,7 @@ src_expression_test_SOURCES = src/expression_test.cc
 src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
-TESTS_ENVIRONMENT = HEAPCHECK=normal
+TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
 TESTS = $(check_PROGRAMS)
 
 EXTRA_DIST = cudd examples scripts

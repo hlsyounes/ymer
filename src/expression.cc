@@ -19,10 +19,15 @@
 
 #include "expression.h"
 
+#include <map>
+#include <ostream>
+#include <set>
 #include <stdexcept>
-#include <typeinfo>
+#include <string>
+#include <vector>
 
-#include "cudd.h"
+#include "ddutil.h"
+#include "typed-value.h"
 
 Expression::Expression()
     : ref_count_(0) {
@@ -52,6 +57,255 @@ void Expression::destructive_deref(const Expression* e) {
 
 namespace {
 
+class ConstantSubstituter : public ExpressionVisitor {
+ public:
+  explicit ConstantSubstituter(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  ~ConstantSubstituter();
+
+  const Expression* release_expr();
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  const Expression* expr_;
+};
+
+ConstantSubstituter::ConstantSubstituter(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), expr_(NULL) {
+}
+
+ConstantSubstituter::~ConstantSubstituter() {
+  Expression::ref(expr_);
+  Expression::destructive_deref(expr_);
+}
+
+const Expression* ConstantSubstituter::release_expr() {
+  const Expression* expr = expr_;
+  expr_ = NULL;
+  return expr;
+}
+
+void ConstantSubstituter::DoVisitLiteral(const Literal& expr) {
+  expr_ = new Literal(expr.value());
+}
+
+void ConstantSubstituter::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, TypedValue>::const_iterator i =
+      constant_values_->find(expr.name());
+  if (i == constant_values_->end()) {
+    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
+    expr_ = &expr;
+  } else {
+    expr_ = new Literal(i->second);
+  }
+}
+
+void ConstantSubstituter::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  const Expression* operand1 = release_expr();
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      expr_ = &Addition::make(*operand1, *release_expr());
+      break;
+    case Computation::MINUS:
+      expr_ = &Subtraction::make(*operand1, *release_expr());
+      break;
+    case Computation::MULTIPLY:
+      expr_ = &Multiplication::make(*operand1, *release_expr());
+      break;
+    case Computation::DIVIDE:
+      expr_ = &Division::make(*operand1, *release_expr());
+      break;
+  }
+}
+
+}  // namespace
+
+const Expression* SubstituteConstants(
+    const Expression& expr,
+    const std::map<std::string, TypedValue>& constant_values) {
+  ConstantSubstituter substituter(&constant_values);
+  expr.Accept(&substituter);
+  return substituter.release_expr();
+}
+
+namespace {
+
+class IdentifierSubstituter : public ExpressionVisitor {
+ public:
+  explicit IdentifierSubstituter(
+      const std::map<std::string, const Variable*>* substitutions);
+
+  ~IdentifierSubstituter();
+
+  const Expression* release_expr();
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, const Variable*>* substitutions_;
+  const Expression* expr_;
+};
+
+IdentifierSubstituter::IdentifierSubstituter(
+    const std::map<std::string, const Variable*>* substitutions)
+    : substitutions_(substitutions), expr_(NULL) {
+}
+
+IdentifierSubstituter::~IdentifierSubstituter() {
+  Expression::ref(expr_);
+  Expression::destructive_deref(expr_);
+}
+
+const Expression* IdentifierSubstituter::release_expr() {
+  const Expression* expr = expr_;
+  expr_ = NULL;
+  return expr;
+}
+
+void IdentifierSubstituter::DoVisitLiteral(const Literal& expr) {
+  expr_ = new Literal(expr.value());
+}
+
+void IdentifierSubstituter::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, const Variable*>::const_iterator i =
+      substitutions_->find(expr.name());
+  if (i == substitutions_->end()) {
+    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
+    expr_ = &expr;
+  } else {
+    expr_ = i->second;
+  }
+}
+
+void IdentifierSubstituter::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  const Expression* operand1 = release_expr();
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      expr_ = &Addition::make(*operand1, *release_expr());
+      break;
+    case Computation::MINUS:
+      expr_ = &Subtraction::make(*operand1, *release_expr());
+      break;
+    case Computation::MULTIPLY:
+      expr_ = &Multiplication::make(*operand1, *release_expr());
+      break;
+    case Computation::DIVIDE:
+      expr_ = &Division::make(*operand1, *release_expr());
+      break;
+  }
+}
+
+}  // namespace
+
+const Expression* SubstituteIdentifiers(
+    const Expression& expr,
+    const std::map<std::string, const Variable*>& substitutions) {
+  IdentifierSubstituter substituter(&substitutions);
+  expr.Accept(&substituter);
+  return substituter.release_expr();
+}
+
+namespace {
+
+ADD CompileVariable(const DecisionDiagramManager& manager,
+                    int low, int low_bit, int high_bit, bool primed) {
+  ADD result = manager.GetConstant(0);
+  const int offset = primed ? 1 : 0;
+  for (int i = high_bit; i >= low_bit; --i) {
+    result = result + (manager.GetAddVariable(2*i + offset) *
+                       manager.GetConstant(1 << (high_bit - i)));
+  }
+  return result + manager.GetConstant(low);
+}
+
+class ExpressionCompiler : public ExpressionVisitor {
+ public:
+  ExpressionCompiler(const DecisionDiagramManager* manager, bool primed);
+
+  ADD mtbdd() const { return mtbdd_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const DecisionDiagramManager* manager_;
+  bool primed_;
+  ADD mtbdd_;
+};
+
+ExpressionCompiler::ExpressionCompiler(const DecisionDiagramManager* manager,
+                                       bool primed)
+    : manager_(manager), primed_(primed), mtbdd_(manager->GetConstant(0)) {
+}
+
+void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
+  mtbdd_ = manager_->GetConstant(expr.value().value<double>());
+}
+
+void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
+  mtbdd_ = CompileVariable(
+      *manager_, expr.low(), expr.low_bit(), expr.high_bit(), primed_);
+}
+
+void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  ADD operand1 = mtbdd_;
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      mtbdd_ = operand1 + mtbdd_;
+      break;
+    case Computation::MINUS:
+      mtbdd_ = operand1 - mtbdd_;
+      break;
+    case Computation::MULTIPLY:
+      mtbdd_ = operand1 * mtbdd_;
+      break;
+    case Computation::DIVIDE:
+      mtbdd_ = operand1 / mtbdd_;
+      break;
+  }
+}
+
+}  // namespace
+
+ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e) {
+  ExpressionCompiler compiler(&manager, false /* primed */);
+  e.Accept(&compiler);
+  return compiler.mtbdd();
+}
+
+ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e) {
+  ExpressionCompiler compiler(&manager, true /* primed */);
+  e.Accept(&compiler);
+  return compiler.mtbdd();
+}
+
+ADD variable_mtbdd(const DecisionDiagramManager& manager,
+                   int low, int low_bit, int high_bit) {
+  return CompileVariable(manager, low, low_bit, high_bit, false /* primed */);
+}
+
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
+                          int low, int low_bit, int high_bit) {
+  return CompileVariable(manager, low, low_bit, high_bit, true /* primed */);
+}
+
+namespace {
+
 // An expression visitor that prints an expression to an output stream.
 class ExpressionPrinter : public ExpressionVisitor {
  public:
@@ -75,10 +329,7 @@ void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
 }
 
 void ExpressionPrinter::DoVisitVariable(const Variable& expr) {
-  *os_ << 'v' << expr.low_bit();
-  if (expr.low_bit() != expr.high_bit()) {
-    *os_ << '_' << expr.high_bit();
-  }
+  *os_ << expr.name();
 }
 
 void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
@@ -94,17 +345,17 @@ void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
   }
   expr.operand1().Accept(this);
   switch (expr.op()) {
-    case Computation::MULTIPLY:
-      *os_ << '*';
-      break;
-    case Computation::DIVIDE:
-      *os_ << '/';
-      break;
     case Computation::PLUS:
       *os_ << '+';
       break;
     case Computation::MINUS:
       *os_ << '-';
+      break;
+    case Computation::MULTIPLY:
+      *os_ << '*';
+      break;
+    case Computation::DIVIDE:
+      *os_ << '/';
       break;
   }
   need_parentheses_.clear();
@@ -172,48 +423,8 @@ const Expression& Addition::make(const Expression& term1,
   return *new Addition(term1, term2);
 }
 
-TypedValue Addition::value(const ValueMap& values) const {
-  return operand1().value(values) + operand2().value(values);
-}
-
-const Expression& Addition::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-const Addition& Addition::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Addition(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-DdNode* Addition::mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().mtbdd(dd_man);
-  DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
-}
-
-DdNode* Addition::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
-  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addPlus, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
+TypedValue Addition::value(const std::vector<int>& state) const {
+  return operand1().value(state) + operand2().value(state);
 }
 
 Subtraction::Subtraction(const Expression& term1, const Expression& term2)
@@ -240,49 +451,8 @@ const Expression& Subtraction::make(const Expression& term1,
   return *new Subtraction(term1, term2);
 }
 
-TypedValue Subtraction::value(const ValueMap& values) const {
-  return operand1().value(values) - operand2().value(values);
-}
-
-const Expression& Subtraction::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-const Subtraction& Subtraction::substitution(
-    const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Subtraction(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-DdNode* Subtraction::mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().mtbdd(dd_man);
-  DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
-}
-
-DdNode* Subtraction::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
-  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addMinus, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
+TypedValue Subtraction::value(const std::vector<int>& state) const {
+  return operand1().value(state) - operand2().value(state);
 }
 
 Multiplication::Multiplication(const Expression& factor1,
@@ -310,50 +480,8 @@ const Expression& Multiplication::make(const Expression& factor1,
   return *new Multiplication(factor1, factor2);
 }
 
-TypedValue Multiplication::value(const ValueMap& values) const {
-  return operand1().value(values) * operand2().value(values);
-}
-
-const Expression& Multiplication::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-const Multiplication& Multiplication::substitution(
-    const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Multiplication(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-DdNode* Multiplication::mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().mtbdd(dd_man);
-  DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addTimes, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
-}
-
-DdNode* Multiplication::primed_mtbdd(
-    const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
-  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addTimes, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
+TypedValue Multiplication::value(const std::vector<int>& state) const {
+  return operand1().value(state) * operand2().value(state);
 }
 
 Division::Division(const Expression& factor1, const Expression& factor2)
@@ -383,56 +511,12 @@ const Expression& Division::make(const Expression& factor1,
   return *new Division(factor1, factor2);
 }
 
-TypedValue Division::value(const ValueMap& values) const {
-  return operand1().value(values) / operand2().value(values);
+TypedValue Division::value(const std::vector<int>& state) const {
+  return operand1().value(state) / operand2().value(state);
 }
 
-const Expression& Division::substitution(const ValueMap& values) const {
-  const Expression& e1 = operand1().substitution(values);
-  const Expression& e2 = operand2().substitution(values);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return make(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-const Division& Division::substitution(const SubstitutionMap& subst) const {
-  const Expression& e1 = operand1().substitution(subst);
-  const Expression& e2 = operand2().substitution(subst);
-  if (&e1 != &operand1() || &e2 != &operand2()) {
-    return *new Division(e1, e2);
-  } else {
-    return *this;
-  }
-}
-
-DdNode* Division::mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().mtbdd(dd_man);
-  DdNode* dd2 = operand2().mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addDivide, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
-}
-
-DdNode* Division::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* dd1 = operand1().primed_mtbdd(dd_man);
-  DdNode* dd2 = operand2().primed_mtbdd(dd_man);
-  DdNode* ddc = Cudd_addApply(dd_man.manager(), Cudd_addDivide, dd1, dd2);
-  Cudd_Ref(ddc);
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  return ddc;
-}
-
-Variable::Variable() {
-}
-
-Variable::Variable(int low, int high, int start, int low_bit)
-    : low_(low), high_(high), start_(start) {
-  set_low_bit(low_bit);
+Variable::Variable(const std::string& name)
+    : name_(name), index_(-1) {
 }
 
 Variable::~Variable() {
@@ -442,108 +526,18 @@ void Variable::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitVariable(*this);
 }
 
-void Variable::set_low(int low) {
+void Variable::SetVariableProperties(
+    int low, int high, int start, int index, int low_bit) {
   low_ = low;
-}
-
-void Variable::set_high(int high) {
   high_ = high;
-}
-
-void Variable::set_start(int start) {
   start_ = start;
-}
-
-void Variable::set_low_bit(int low_bit) {
+  index_ = index;
   low_bit_ = low_bit;
-  int h = high() - low();
-  int nbits = 0;
-  while (h > 0) {
-    h >>= 1;
-    nbits++;
-  }
-  high_bit_ = low_bit_ + nbits - 1;
+  high_bit_ = low_bit + Log2(high - low);
 }
 
-TypedValue Variable::value(const ValueMap& values) const {
-  ValueMap::const_iterator vi = values.find(this);
-  if (vi != values.end()) {
-    return (*vi).second;
-  } else {
-    throw std::logic_error("unbound variable");
-  }
-}
-
-const Expression& Variable::substitution(const ValueMap& values) const {
-  ValueMap::const_iterator vi = values.find(this);
-  if (vi != values.end()) {
-    return *new Literal((*vi).second);
-  } else {
-    return *this;
-  }
-}
-
-const Variable& Variable::substitution(const SubstitutionMap& subst) const {
-  SubstitutionMap::const_iterator si = subst.find(this);
-  if (si != subst.end()) {
-    return *(*si).second;
-  } else {
-    return *this;
-  }
-}
-
-DdNode* Variable::mtbdd(const DecisionDiagramManager& dd_man) const {
-  ADD dd = dd_man.GetConstant(0);
-  for (int i = high_bit(); i >= low_bit(); --i) {
-    dd = dd + (dd_man.GetAddVariable(2*i) *
-               dd_man.GetConstant(1 << (high_bit() - i)));
-  }
-  return (dd + dd_man.GetConstant(low())).release();
-}
-
-DdNode* Variable::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  ADD dd = dd_man.GetConstant(0);
-  for (int i = high_bit(); i >= low_bit(); --i) {
-    dd = dd + (dd_man.GetAddVariable(2*i + 1) *
-               dd_man.GetConstant(1 << (high_bit() - i)));
-  }
-  return (dd + dd_man.GetConstant(low())).release();
-}
-
-DdNode* Variable::identity_bdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* mtbdd_ = mtbdd(dd_man);
-  DdNode* primed_mtbdd_ = primed_mtbdd(dd_man);
-  DdNode* dde =
-      Cudd_addApply(dd_man.manager(), Cudd_addMinus, mtbdd_, primed_mtbdd_);
-  Cudd_Ref(dde);
-  Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
-  Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
-  DdNode* identity_bdd_ = Cudd_addBddInterval(dd_man.manager(), dde, 0, 0);
-  Cudd_Ref(identity_bdd_);
-  Cudd_RecursiveDeref(dd_man.manager(), dde);
-  return identity_bdd_;
-}
-
-DdNode* Variable::range_bdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* range;
-  if (high() - low() == (1 << (high_bit() - low_bit() + 1)) - 1) {
-    range = dd_man.GetConstant(1).release();
-  } else {
-    DdNode* mtbdd_ = mtbdd(dd_man);
-    DdNode* ddr = Cudd_addBddInterval(dd_man.manager(), mtbdd_, low(), high());
-    Cudd_Ref(ddr);
-    Cudd_RecursiveDeref(dd_man.manager(), mtbdd_);
-    DdNode* primed_mtbdd_ = primed_mtbdd(dd_man);
-    DdNode* ddp =
-        Cudd_addBddInterval(dd_man.manager(), primed_mtbdd_, low(), high());
-    Cudd_Ref(ddp);
-    Cudd_RecursiveDeref(dd_man.manager(), primed_mtbdd_);
-    range = Cudd_bddAnd(dd_man.manager(), ddr, ddp);
-    Cudd_Ref(range);
-    Cudd_RecursiveDeref(dd_man.manager(), ddr);
-    Cudd_RecursiveDeref(dd_man.manager(), ddp);
-  }
-  return range;
+TypedValue Variable::value(const std::vector<int>& state) const {
+  return state.at(index());
 }
 
 Literal::Literal(const TypedValue& value)
@@ -557,24 +551,8 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
 }
 
-TypedValue Literal::value(const ValueMap& values) const {
+TypedValue Literal::value(const std::vector<int>& state) const {
   return value();
-}
-
-const Literal& Literal::substitution(const ValueMap& values) const {
-  return *this;
-}
-
-const Literal& Literal::substitution(const SubstitutionMap& subst) const {
-  return *this;
-}
-
-DdNode* Literal::mtbdd(const DecisionDiagramManager& dd_man) const {
-  return dd_man.GetConstant(value().value<double>()).release();
-}
-
-DdNode* Literal::primed_mtbdd(const DecisionDiagramManager& dd_man) const {
-  return dd_man.GetConstant(value().value<double>()).release();
 }
 
 ExpressionVisitor::ExpressionVisitor() {
@@ -584,6 +562,7 @@ ExpressionVisitor::ExpressionVisitor(const ExpressionVisitor&) {
 }
 
 ExpressionVisitor& ExpressionVisitor::operator=(const ExpressionVisitor&) {
+  return *this;
 }
 
 ExpressionVisitor::~ExpressionVisitor() {

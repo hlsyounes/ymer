@@ -146,29 +146,6 @@ bool Comparison::verify(const DecisionDiagramManager& dd_man,
 /* ====================================================================== */
 /* Until */
 
-
-/* Returns a BDD representing the given state. */
-static DdNode* state_bdd(const DecisionDiagramManager& dd_man,
-                         const ValueMap& values) {
-  DdNode* dds = Cudd_ReadOne(dd_man.manager());
-  Cudd_Ref(dds);
-  for (ValueMap::const_iterator vi = values.begin();
-       vi != values.end(); vi++) {
-    DdNode* ddv = (*vi).first->mtbdd(dd_man);
-    double x = (*vi).second.value<double>();
-    DdNode* ddx = Cudd_addBddInterval(dd_man.manager(), ddv, x, x);
-    Cudd_Ref(ddx);
-    Cudd_RecursiveDeref(dd_man.manager(), ddv);
-    DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddx, dds);
-    Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man.manager(), ddx);
-    Cudd_RecursiveDeref(dd_man.manager(), dds);
-    dds = dda;
-  }
-  return dds;
-}
-
-
 /* Generates a sample for this path formula. */
 bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
                    const State& state,
@@ -182,7 +159,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
     if (t <= t_max) {
       DdNode* dds = NULL;
       if (dd2 != NULL) {
-	dds = state_bdd(dd_man, curr_state->values());
+	dds = model.state_bdd(dd_man, curr_state->values()).release();
 	DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
 	Cudd_Ref(sol);
 	if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
@@ -202,7 +179,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
 	  break;
 	} else if (dd1 != Cudd_ReadOne(dd_man.manager())) {
 	  if (dds == NULL) {
-	    dds = state_bdd(dd_man, curr_state->values());
+	    dds = model.state_bdd(dd_man, curr_state->values()).release();
 	  }
 	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
 	  Cudd_Ref(sol);
@@ -230,7 +207,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
       curr_state->print(std::cout);
       std::cout << std::endl;
     }
-    const State& next_state = curr_state->next(model);
+    const State& next_state = curr_state->next();
     t += next_state.dt();
     if (t <= t_max) {
       path_size++;

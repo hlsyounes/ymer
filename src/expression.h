@@ -25,19 +25,13 @@
 
 #include <map>
 #include <ostream>
-#include <set>
+#include <string>
 #include <vector>
 
 #include "ddutil.h"
 #include "typed-value.h"
 
 class Variable;
-
-// A mapping from variables to values.
-typedef std::map<const Variable*, TypedValue> ValueMap;
-
-// A variable substitution map.
-typedef std::map<const Variable*, const Variable*> SubstitutionMap;
 
 class ExpressionVisitor;
 
@@ -67,20 +61,7 @@ class Expression {
   void Accept(ExpressionVisitor* visitor) const;
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const = 0;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const = 0;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(
-      const SubstitutionMap& subst) const = 0;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const = 0;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const = 0;
+  virtual TypedValue value(const std::vector<int>& state) const = 0;
 
 protected:
   // Constructs an expression.
@@ -99,6 +80,31 @@ private:
   friend std::ostream& operator<<(std::ostream& os, const Expression& e);
 };
 
+// Returns the given expression subject to the given substitutions of values
+// for constant identifiers.
+const Expression* SubstituteConstants(
+    const Expression& expr,
+    const std::map<std::string, TypedValue>& constant_values);
+
+// Returns the given expression subject to the given identifier substitutions.
+const Expression* SubstituteIdentifiers(
+    const Expression& expr,
+    const std::map<std::string, const Variable*>& substitutions);
+
+// Returns the 'current state' MTBDD representation for an expression.
+ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);
+
+// Returns the 'next state' MTBDD representation for an expression.
+ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e);
+
+// Returns the 'current state' MTBDD representation for a variable.
+ADD variable_mtbdd(const DecisionDiagramManager& manager,
+                   int low, int low_bit, int high_bit);
+
+// Returns the 'next state' MTBDD representation for a variable.
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
+                          int low, int low_bit, int high_bit);
+
 // Output operator for expressions.
 std::ostream& operator<<(std::ostream& os, const Expression& e);
 
@@ -107,7 +113,7 @@ class Computation : public Expression {
  public:
   // Supported computation operators.
   enum Operator {
-    MULTIPLY, DIVIDE, PLUS, MINUS
+    PLUS, MINUS, MULTIPLY, DIVIDE
   };
 
   virtual ~Computation();
@@ -148,19 +154,7 @@ class Addition : public Computation {
                                 const Expression& term2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Addition& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs an addition.
@@ -177,19 +171,7 @@ class Subtraction : public Computation {
                                 const Expression& term2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Subtraction& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a subtraction.
@@ -206,20 +188,7 @@ class Multiplication : public Computation {
                                 const Expression& factor2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Multiplication& substitution(
-      const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a multiplication.
@@ -236,19 +205,7 @@ class Division : public Computation {
                                 const Expression& factor2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Division& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a division.
@@ -258,24 +215,16 @@ private:
 // A variable expression.
 class Variable : public Expression {
  public:
-  // Constructs a variable.
-  Variable();
-  Variable(int low, int high, int start, int low_bit);
+  // Constructs an identifier with the given name.
+  explicit Variable(const std::string& name);
 
   virtual ~Variable();
 
-  // Sets the lower bound for this variable.
-  void set_low(int low);
+  void SetVariableProperties(
+      int low, int high, int start, int index, int low_bit);
 
-  // Sets the upper bound for this variable.
-  void set_high(int high);
-
-  // Sets the initial value for this variable.
-  void set_start(int start);
-
-  // Sets the index of the first DD variable used to represent this
-  // variable.
-  void set_low_bit(int low_bit);
+  // Returns the name of this identifier.
+  const std::string& name() const { return name_; }
 
   // Returns the lower bound for this variable.
   int low() const { return low_; }
@@ -286,6 +235,9 @@ class Variable : public Expression {
   // Returns the initial value for this variable.
   int start() const { return start_; }
 
+  // Returns the index of this variable.
+  int index() const { return index_; }
+
   // Returns the index of the first DD variable used to represent this
   // variable.
   int low_bit() const { return low_bit_; }
@@ -295,36 +247,21 @@ class Variable : public Expression {
   int high_bit() const { return high_bit_; }
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Expression& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Variable& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns a BDD representing identity between the `current state'
-  // and `next state' versions of this variable.
-  DdNode* identity_bdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns a BDD representing the range for this variable.
-  DdNode* range_bdd(const DecisionDiagramManager& dd_man) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
+  // The name of this identifier.
+  std::string name_;
   // The lower bound for this variable.
   int low_;
   // The upper bound for this variable.
   int high_;
   // The initial value for this variable.
   int start_;
+  // The index of this variable.
+  int index_;
   // Index of the first DD variable used to represent this variable.
   int low_bit_;
   // Index of the last DD variable used to represent this variable.
@@ -343,19 +280,7 @@ class Literal : public Expression {
   const TypedValue& value() const { return value_; }
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Literal& substitution(const ValueMap& values) const;
-
-  // Returns this expression subject to the given substitutions.
-  virtual const Literal& substitution(const SubstitutionMap& subst) const;
-
-  // Returns the `current state' MTBDD representation for this expression.
-  virtual DdNode* mtbdd(const DecisionDiagramManager& dd_man) const;
-
-  // Returns the `next state' MTBDD representation for this expression.
-  virtual DdNode* primed_mtbdd(const DecisionDiagramManager& dd_man) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
@@ -382,11 +307,5 @@ class ExpressionVisitor {
   virtual void DoVisitVariable(const Variable& expr) = 0;
   virtual void DoVisitComputation(const Computation& expr) = 0;
 };
-
-// A list of variables.
-typedef std::vector<const Variable*> VariableList;
-
-// A set of variables.
-typedef std::set<const Variable*> VariableSet;
 
 #endif  // EXPRESSION_H_

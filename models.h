@@ -31,24 +31,13 @@
 #include "distributions.h"
 #include "src/ddutil.h"
 #include <map>
-
-
-/* ====================================================================== */
-/* PHData */
-
-/*
- * Data for phase-type distribution.
- */
-struct PHData {
-  ECParameters params;
-  ACPH2Parameters params2;
-  Variable* s;
-  DdNode* update_bdd;
-};
+#include <vector>
 
 
 /* ====================================================================== */
 /* Model */
+
+struct PHData;
 
 /*
  * A model.
@@ -70,7 +59,10 @@ struct Model {
   void compile();
 
   /* Returns the global variables for this model. */
-  const VariableList& variables() const { return variables_; }
+  const std::vector<const Variable*>& variables() const { return variables_; }
+
+  /* Returns the name of the variable with index i. */
+  const std::string& variable_name(int i) const { return variable_names_[i]; }
 
   /* Returns the modules for this model */
   const ModuleList& modules() const { return modules_; }
@@ -96,6 +88,10 @@ struct Model {
   /* Returns the index associated with the initial state for this model. */
   int init_index(const DecisionDiagramManager& dd_man) const;
 
+  /* Returns a BDD representing the given state. */
+  BDD state_bdd(const DecisionDiagramManager& dd_man,
+                const std::vector<int>& state) const;
+
   /* Returns the row variables for this model. */
   DdNode** row_variables(const DecisionDiagramManager& dd_man) const;
 
@@ -113,7 +109,9 @@ struct Model {
 
 private:
   /* The global variables for this model. */
-  VariableList variables_;
+  std::vector<const Variable*> variables_;
+  /* Variable names. */
+  std::vector<std::string> variable_names_;
   /* The modules for this model */
   ModuleList modules_;
   /* Compiled commands for this model. */
@@ -134,18 +132,6 @@ private:
   mutable DdNode** row_variables_;
   /* Cached column variables. */
   mutable DdNode** column_variables_;
-
-  /* Returns a BDD representing the range for all model variables. */
-  DdNode* range_bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns a BDD representing the conjunction of dd_start with the
-     BDDs for updates of all variables not explicitly mentioned. */
-  DdNode* variable_updates(const DecisionDiagramManager& dd_man,
-                           DdNode* dd_start,
-			   const ModuleSet& touched_modules,
-			   const VariableSet& updated_variables,
-			   const Variable* phase_variable,
-			   const std::map<size_t, PHData>& ph_commands) const;
 };
 
 /* Output operator for models. */
