@@ -26,14 +26,12 @@
 #include <map>
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include "ddutil.h"
 #include "typed-value.h"
 
 class Variable;
-
-// A mapping from variables to values.
-typedef std::map<const Variable*, TypedValue> ValueMap;
 
 class ExpressionVisitor;
 
@@ -63,7 +61,7 @@ class Expression {
   void Accept(ExpressionVisitor* visitor) const;
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const = 0;
+  virtual TypedValue value(const std::vector<int>& state) const = 0;
 
 protected:
   // Constructs an expression.
@@ -156,7 +154,7 @@ class Addition : public Computation {
                                 const Expression& term2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs an addition.
@@ -173,7 +171,7 @@ class Subtraction : public Computation {
                                 const Expression& term2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a subtraction.
@@ -190,7 +188,7 @@ class Multiplication : public Computation {
                                 const Expression& factor2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a multiplication.
@@ -207,7 +205,7 @@ class Division : public Computation {
                                 const Expression& factor2);
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a division.
@@ -249,7 +247,7 @@ class Variable : public Expression {
   int high_bit() const { return high_bit_; }
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
@@ -282,7 +280,7 @@ class Literal : public Expression {
   const TypedValue& value() const { return value_; }
 
   // Returns the value of this expression.
-  virtual TypedValue value(const ValueMap& values) const;
+  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;

@@ -40,36 +40,42 @@ struct Model;
  */
 struct State {
   /* Constructs an initial state for the given model. */
-  explicit State(const Model& model);
+  explicit State(const Model* model);
 
   /* Deletes this state. */
   virtual ~State() {}
 
+  /* Returns the model associated with this state. */
+  const Model* model() const { return model_; }
+
   /* Returns the variable values for this state. */
-  const ValueMap& values() const { return values_; }
+  const std::vector<int>& values() const { return values_; }
 
   /* Returns the time spent in the preceding state. */
   virtual double dt() const { return 0.0; }
 
   /* Returns a sampled successor of this state. */
-  virtual const State& next(const Model& model) const;
+  virtual const State& next() const;
 
   /* Returns a copy of this state with resampled trigger times. */
-  virtual const State& resampled(const Model& model) const;
+  virtual const State& resampled() const;
 
   /* Prints this object on the given stream. */
   void print(std::ostream& os) const;
 
 protected:
   /* Constructs a state. */
-  explicit State(const ValueMap& values) : values_(values) {}
+  explicit State(const Model* model, const std::vector<int>& values)
+      : model_(model), values_(values) {}
 
   /* Returns the variable values for this state. */
-  ValueMap& values() { return values_; }
+  std::vector<int>& values() { return values_; }
 
 private:
+  /* The model associated with this state. */
+  const Model* model_;
   /* Variables values for this state. */
-  ValueMap values_;
+  std::vector<int> values_;
 };
 
 

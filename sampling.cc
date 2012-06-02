@@ -646,7 +646,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   int m = 0;
   double d = 0.0;
   if (memoization) {
-    std::map<ValueMap, std::pair<size_t, double> >::const_iterator ci =
+    std::map<std::vector<int>, std::pair<size_t, double> >::const_iterator ci =
       cache_.find(state.values());
     if (ci != cache_.end()) {
       m = (*ci).second.first;
@@ -807,7 +807,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     } else {
       /* Local mode. */
-      const State& ns = state.resampled(model);
+      const State& ns = state.resampled();
       s = formula().sample(model, ns, delta, alphap, betap, algorithm);
       if (&ns != &state) {
 	delete &ns;
@@ -966,7 +966,7 @@ bool Until::sample(const Model& model, const State& state,
       curr_state->print(std::cout);
       std::cout << std::endl;
     }
-    const State& next_state = curr_state->next(model);
+    const State& next_state = curr_state->next();
     double next_t = t + next_state.dt();
     if (t_min <= t) {
       if (post().verify(model, *curr_state, delta, alpha, beta, algorithm)) {
@@ -1132,7 +1132,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   double d = 0.0;
   while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
 	 || (algorithm == SPRT && logB < d && d < logA)) {
-    const State& ns = state.resampled(model);
+    const State& ns = state.resampled();
     bool s = sample(dd_man, model, ns, epsilon, dd1, dd2);
     if (&ns != &state) {
       delete &ns;

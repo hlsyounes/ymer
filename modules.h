@@ -94,7 +94,7 @@ struct SynchSubstitutionMap : public std::map<size_t, size_t> {
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, const StateFormula& guard, const Distribution& delay);
+  Command(size_t synch, const StateFormula* guard, const Distribution* delay);
 
   /* Deletes this command. */
   ~Command();
@@ -126,6 +126,10 @@ struct Command {
       const SynchSubstitutionMap& synchs) const;
 
 private:
+  // Disallow copy and assign.
+  Command(const Command&);
+  Command& operator=(const Command&);
+
   /* The synchronization for this command; 0 if this command requires
      no synchronization. */
   size_t synch_;

@@ -277,12 +277,23 @@ Model::~Model() {
 void Model::add_variable(const Variable& variable) {
   variables_.push_back(&variable);
   Expression::ref(&variable);
+  if (variable.index() >= variable_names_.size()) {
+    variable_names_.resize(variable.index() + 1);
+  }
+  variable_names_[variable.index()] = variable.name();
 }
 
 
 /* Adds a module to this model. */
 void Model::add_module(const Module& module) {
   modules_.push_back(&module);
+  for (int i = 0; i < module.variables().size(); ++i) {
+    const Variable& variable = *module.variables()[i];
+    if (variable.index() >= variable_names_.size()) {
+      variable_names_.resize(variable.index() + 1);
+    }
+    variable_names_[variable.index()] = variable.name();
+  }
 }
 
 namespace {
@@ -356,14 +367,15 @@ void Model::compile() {
 	    /*
 	     * Synchronize ci with cj.
 	     */
-	    Conjunction& guard = *new Conjunction();
-	    guard.add_conjunct(ci.guard());
-	    guard.add_conjunct(cj.guard());
+            std::map<std::string, const Variable*> empty_subst;
+	    Conjunction* guard = new Conjunction();
+	    guard->add_conjunct(ci.guard().substitution(empty_subst));
+	    guard->add_conjunct(cj.guard().substitution(empty_subst));
 	    Command* c;
 	    if (IsUnitDistribution(ci.delay())) {
-	      c = new Command(*si, guard, cj.delay());
+	      c = new Command(*si, guard, cj.delay().substitution(empty_subst));
 	    } else if (IsUnitDistribution(cj.delay())) {
-	      c = new Command(*si, guard, ci.delay());
+	      c = new Command(*si, guard, ci.delay().substitution(empty_subst));
 	    } else {
 	      throw std::logic_error("at least one command in a"
 				     " synchronization pair must have rate 1");
@@ -810,6 +822,29 @@ int Model::init_index(const DecisionDiagramManager& dd_man) const {
   return init_index_;
 }
 
+BDD Model::state_bdd(const DecisionDiagramManager& dd_man,
+                     const std::vector<int>& state) const {
+  BDD dds = dd_man.GetConstant(true);
+  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
+       mi != modules().rend(); mi++) {
+    const Module& mod = **mi;
+    for (std::vector<const Variable*>::const_reverse_iterator vi =
+             mod.variables().rbegin();
+         vi != mod.variables().rend(); vi++) {
+      const Variable& v = **vi;
+      const int value = state.at(v.index());
+      dds = mtbdd(dd_man, v).Interval(value, value) && dds;
+    }
+  }
+  for (std::vector<const Variable*>::const_reverse_iterator vi =
+           variables().rbegin();
+       vi != variables().rend(); vi++) {
+    const Variable& v = **vi;
+    const int value = state.at(v.index());
+    dds = mtbdd(dd_man, v).Interval(value, value) && dds;
+  }
+  return dds;
+}
 
 /* Returns the row variables for this model. */
 DdNode** Model::row_variables(const DecisionDiagramManager& dd_man) const {

@@ -61,6 +61,9 @@ struct Model {
   /* Returns the global variables for this model. */
   const std::vector<const Variable*>& variables() const { return variables_; }
 
+  /* Returns the name of the variable with index i. */
+  const std::string& variable_name(int i) const { return variable_names_[i]; }
+
   /* Returns the modules for this model */
   const ModuleList& modules() const { return modules_; }
 
@@ -85,6 +88,10 @@ struct Model {
   /* Returns the index associated with the initial state for this model. */
   int init_index(const DecisionDiagramManager& dd_man) const;
 
+  /* Returns a BDD representing the given state. */
+  BDD state_bdd(const DecisionDiagramManager& dd_man,
+                const std::vector<int>& state) const;
+
   /* Returns the row variables for this model. */
   DdNode** row_variables(const DecisionDiagramManager& dd_man) const;
 
@@ -103,6 +110,8 @@ struct Model {
 private:
   /* The global variables for this model. */
   std::vector<const Variable*> variables_;
+  /* Variable names. */
+  std::vector<std::string> variable_names_;
   /* The modules for this model */
   ModuleList modules_;
   /* Compiled commands for this model. */
