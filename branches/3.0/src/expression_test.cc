@@ -34,131 +34,129 @@ TEST(LiteralTest, Output) {
 
 TEST(VariableTest, Output) {
   std::ostringstream out;
-  Variable a(0, 3, 0, 1), b(2, 6, 6, 0), c(0, 1, 0, 3);
+  Variable a("foo"), b("bar"), c("baz");
   out << a << ';' << b << ';' << c;
-  EXPECT_EQ("v1_2;v0_2;v3", out.str());
+  EXPECT_EQ("foo;bar;baz", out.str());
 }
 
 TEST(ComputationTest, OutputAddition) {
   std::ostringstream out;
   const Expression* expr1 =
-      &Addition::make(Addition::make(*new Variable(0, 1, 0, 0),
-                                     *new Variable(0, 1, 0, 1)),
-                      Subtraction::make(*new Variable(0, 1, 0, 2),
-                                        *new Variable(0, 1, 0, 3)));
+      &Addition::make(Addition::make(*new Variable("a"),
+                                     *new Variable("b")),
+                      Subtraction::make(*new Variable("c"),
+                                        *new Variable("d")));
   const Expression* expr2 =
-      &Addition::make(Subtraction::make(*new Variable(0, 1, 0, 0),
-                                        *new Variable(0, 1, 0, 1)),
-                      Multiplication::make(*new Variable(0, 1, 0, 2),
-                                           *new Variable(0, 1, 0, 3)));
+      &Addition::make(Subtraction::make(*new Variable("a"),
+                                        *new Variable("b")),
+                      Multiplication::make(*new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr3 =
-      &Addition::make(Multiplication::make(*new Variable(0, 1, 0, 0),
-                                           *new Variable(0, 1, 0, 1)),
-                      Division::make(*new Variable(0, 1, 0, 2),
-                                     *new Variable(0, 1, 0, 3)));
+      &Addition::make(Multiplication::make(*new Variable("a"),
+                                           *new Variable("b")),
+                      Division::make(*new Variable("c"),
+                                     *new Variable("d")));
   const Expression* expr4 =
-      &Addition::make(Division::make(*new Variable(0, 1, 0, 0),
-                                     *new Variable(0, 1, 0, 1)),
-                      Addition::make(*new Variable(0, 1, 0, 2),
-                                     *new Variable(0, 1, 0, 3)));
+      &Addition::make(Division::make(*new Variable("a"),
+                                     *new Variable("b")),
+                      Addition::make(*new Variable("c"),
+                                     *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("v0+v1+v2-v3;v0-v1+v2*v3;v0*v1+v2/v3;v0/v1+v2+v3", out.str());
+  EXPECT_EQ("a+b+c-d;a-b+c*d;a*b+c/d;a/b+c+d", out.str());
 }
 
 TEST(ComputationTest, OutputSubtraction) {
   std::ostringstream out;
   const Expression* expr1 =
-      &Subtraction::make(Addition::make(*new Variable(0, 1, 0, 0),
-                                        *new Variable(0, 1, 0, 1)),
-                         Subtraction::make(*new Variable(0, 1, 0, 2),
-                                           *new Variable(0, 1, 0, 3)));
+      &Subtraction::make(Addition::make(*new Variable("a"),
+                                        *new Variable("b")),
+                         Subtraction::make(*new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr2 =
-      &Subtraction::make(Subtraction::make(*new Variable(0, 1, 0, 0),
-                                           *new Variable(0, 1, 0, 1)),
-                         Multiplication::make(*new Variable(0, 1, 0, 2),
-                                              *new Variable(0, 1, 0, 3)));
+      &Subtraction::make(Subtraction::make(*new Variable("a"),
+                                           *new Variable("b")),
+                         Multiplication::make(*new Variable("c"),
+                                              *new Variable("d")));
   const Expression* expr3 =
-      &Subtraction::make(Multiplication::make(*new Variable(0, 1, 0, 0),
-                                              *new Variable(0, 1, 0, 1)),
-                         Division::make(*new Variable(0, 1, 0, 2),
-                                        *new Variable(0, 1, 0, 3)));
+      &Subtraction::make(Multiplication::make(*new Variable("a"),
+                                              *new Variable("b")),
+                         Division::make(*new Variable("c"),
+                                        *new Variable("d")));
   const Expression* expr4 =
-      &Subtraction::make(Division::make(*new Variable(0, 1, 0, 0),
-                                        *new Variable(0, 1, 0, 1)),
-                         Addition::make(*new Variable(0, 1, 0, 2),
-                                        *new Variable(0, 1, 0, 3)));
+      &Subtraction::make(Division::make(*new Variable("a"),
+                                        *new Variable("b")),
+                         Addition::make(*new Variable("c"),
+                                        *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("v0+v1-(v2-v3);v0-v1-v2*v3;v0*v1-v2/v3;v0/v1-(v2+v3)", out.str());
+  EXPECT_EQ("a+b-(c-d);a-b-c*d;a*b-c/d;a/b-(c+d)", out.str());
 }
 
 TEST(ComputationTest, OutputMultiplication) {
   std::ostringstream out;
   const Expression* expr1 =
-      &Multiplication::make(Addition::make(*new Variable(0, 1, 0, 0),
-                                           *new Variable(0, 1, 0, 1)),
-                            Subtraction::make(*new Variable(0, 1, 0, 2),
-                                              *new Variable(0, 1, 0, 3)));
+      &Multiplication::make(Addition::make(*new Variable("a"),
+                                           *new Variable("b")),
+                            Subtraction::make(*new Variable("c"),
+                                              *new Variable("d")));
   const Expression* expr2 =
-      &Multiplication::make(Subtraction::make(*new Variable(0, 1, 0, 0),
-                                              *new Variable(0, 1, 0, 1)),
-                            Multiplication::make(*new Variable(0, 1, 0, 2),
-                                                 *new Variable(0, 1, 0, 3)));
+      &Multiplication::make(Subtraction::make(*new Variable("a"),
+                                              *new Variable("b")),
+                            Multiplication::make(*new Variable("c"),
+                                                 *new Variable("d")));
   const Expression* expr3 =
-      &Multiplication::make(Multiplication::make(*new Variable(0, 1, 0, 0),
-                                                 *new Variable(0, 1, 0, 1)),
-                            Division::make(*new Variable(0, 1, 0, 2),
-                                           *new Variable(0, 1, 0, 3)));
+      &Multiplication::make(Multiplication::make(*new Variable("a"),
+                                                 *new Variable("b")),
+                            Division::make(*new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr4 =
-      &Multiplication::make(Division::make(*new Variable(0, 1, 0, 0),
-                                           *new Variable(0, 1, 0, 1)),
-                            Addition::make(*new Variable(0, 1, 0, 2),
-                                           *new Variable(0, 1, 0, 3)));
+      &Multiplication::make(Division::make(*new Variable("a"),
+                                           *new Variable("b")),
+                            Addition::make(*new Variable("c"),
+                                           *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("(v0+v1)*(v2-v3);(v0-v1)*v2*v3;v0*v1*v2/v3;v0/v1*(v2+v3)",
-            out.str());
+  EXPECT_EQ("(a+b)*(c-d);(a-b)*c*d;a*b*c/d;a/b*(c+d)", out.str());
 }
 
 TEST(ComputationTest, OutputDivision) {
   std::ostringstream out;
   const Expression* expr1 =
-      &Division::make(Addition::make(*new Variable(0, 1, 0, 0),
-                                     *new Variable(0, 1, 0, 1)),
-                      Subtraction::make(*new Variable(0, 1, 0, 2),
-                                        *new Variable(0, 1, 0, 3)));
+      &Division::make(Addition::make(*new Variable("a"),
+                                     *new Variable("b")),
+                      Subtraction::make(*new Variable("c"),
+                                        *new Variable("d")));
   const Expression* expr2 =
-      &Division::make(Subtraction::make(*new Variable(0, 1, 0, 0),
-                                        *new Variable(0, 1, 0, 1)),
-                      Multiplication::make(*new Variable(0, 1, 0, 2),
-                                           *new Variable(0, 1, 0, 3)));
+      &Division::make(Subtraction::make(*new Variable("a"),
+                                        *new Variable("b")),
+                      Multiplication::make(*new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr3 =
-      &Division::make(Multiplication::make(*new Variable(0, 1, 0, 0),
-                                           *new Variable(0, 1, 0, 1)),
-                      Division::make(*new Variable(0, 1, 0, 2),
-                                     *new Variable(0, 1, 0, 3)));
+      &Division::make(Multiplication::make(*new Variable("a"),
+                                           *new Variable("b")),
+                      Division::make(*new Variable("c"),
+                                     *new Variable("d")));
   const Expression* expr4 =
-      &Division::make(Division::make(*new Variable(0, 1, 0, 0),
-                                     *new Variable(0, 1, 0, 1)),
-                      Addition::make(*new Variable(0, 1, 0, 2),
-                                     *new Variable(0, 1, 0, 3)));
+      &Division::make(Division::make(*new Variable("a"),
+                                     *new Variable("b")),
+                      Addition::make(*new Variable("c"),
+                                     *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("(v0+v1)/(v2-v3);(v0-v1)/(v2*v3);v0*v1/(v2/v3);v0/v1/(v2+v3)",
-            out.str());
+  EXPECT_EQ("(a+b)/(c-d);(a-b)/(c*d);a*b/(c/d);a/b/(c+d)", out.str());
 }
 
 }  // namespace

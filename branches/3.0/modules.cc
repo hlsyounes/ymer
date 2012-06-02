@@ -24,6 +24,17 @@
 #include "formulas.h"
 #include "src/expression.h"
 
+namespace {
+
+const Variable* SubstituteVariable(
+    const Variable* variable,
+    const std::map<std::string, const Variable*>& substitutions) {
+  std::map<std::string, const Variable*>::const_iterator i =
+      substitutions.find(variable->name());
+  return (i == substitutions.end()) ? variable : i->second;
+}
+
+}  // namespace
 
 /* ====================================================================== */
 /* Update */
@@ -44,41 +55,16 @@ Update::~Update() {
 
 
 /* Returns this update subject to the given substitutions. */
-const Update& Update::substitution(const ValueMap& values) const {
-  return *new Update(variable(), expr().substitution(values));
+const Update& Update::substitution(
+    const std::map<std::string, TypedValue>& constant_values) const {
+  return *new Update(variable(), *SubstituteConstants(expr(), constant_values));
 }
-
 
 /* Returns this update subject to the given substitutions. */
-const Update& Update::substitution(const SubstitutionMap& subst) const {
-  return *new Update(variable().substitution(subst),
-		     expr().substitution(subst));
-}
-
-
-/* Returns a BDD representation of this update. */
-DdNode* Update::bdd(const DecisionDiagramManager& dd_man) const {
-  DdNode* ddu;
-  DdNode* ddv = variable().primed_mtbdd(dd_man);
-  const Literal* value = dynamic_cast<const Literal*>(&expr());
-  if (value != NULL) {
-    /* variable' == value  <==>  variable' in [value,value] */
-    double threshold = value->value().value<double>();
-    ddu = Cudd_addBddInterval(dd_man.manager(), ddv, threshold, threshold);
-    Cudd_Ref(ddu);
-    Cudd_RecursiveDeref(dd_man.manager(), ddv);
-  } else {
-    /* variable' == expr  <==>  variable' - expr in [0,0] */
-    DdNode* dde = expr().mtbdd(dd_man);
-    DdNode* ddm = Cudd_addApply(dd_man.manager(), Cudd_addMinus, ddv, dde);
-    Cudd_Ref(ddm);
-    Cudd_RecursiveDeref(dd_man.manager(), ddv);
-    Cudd_RecursiveDeref(dd_man.manager(), dde);
-    ddu = Cudd_addBddInterval(dd_man.manager(), ddm, 0, 0);
-    Cudd_Ref(ddu);
-    Cudd_RecursiveDeref(dd_man.manager(), ddm);
-  }
-  return ddu;
+const Update& Update::substitution(
+    const std::map<std::string, const Variable*>& substitutions) const {
+  return *new Update(*SubstituteVariable(variable_, substitutions),
+                     *SubstituteIdentifiers(expr(), substitutions));
 }
 
 
@@ -86,18 +72,16 @@ DdNode* Update::bdd(const DecisionDiagramManager& dd_man) const {
 /* Command */
 
 /* Constructs a command. */
-Command::Command(size_t synch, const StateFormula& guard,
-		 const Distribution& delay)
-  : synch_(synch), guard_(&guard), delay_(&delay) {
-  StateFormula::ref(guard_);
-  Distribution::ref(delay_);
+Command::Command(size_t synch, const StateFormula* guard,
+		 const Distribution* delay)
+  : synch_(synch), guard_(guard), delay_(delay) {
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  StateFormula::destructive_deref(guard_);
-  Distribution::destructive_deref(delay_);
+  delete guard_;
+  delete delay_;
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
     delete *ui;
@@ -112,22 +96,24 @@ void Command::add_update(const Update& update) {
 
 
 /* Returns this command subject to the given substitutions. */
-const Command& Command::substitution(const ValueMap& constants,
-				     const ValueMap& rates) const {
-  Command* subst_comm = new Command(synch(), guard().substitution(constants),
-				    delay().substitution(rates));
+const Command& Command::substitution(
+    const std::map<std::string, TypedValue>& constant_values,
+    const std::map<std::string, TypedValue>& rate_values) const {
+  Command* subst_comm = new Command(synch(),
+                                    guard().substitution(constant_values),
+				    delay().substitution(rate_values));
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(constants));
+    subst_comm->add_update((*ui)->substitution(constant_values));
   }
   return *subst_comm;
 }
 
 
 /* Returns this command subject to the given substitutions. */
-const Command&
-Command::substitution(const SubstitutionMap& subst,
-		      const SynchSubstitutionMap& synchs) const {
+const Command& Command::substitution(
+    const std::map<std::string, const Variable*>& substitutions,
+    const SynchSubstitutionMap& synchs) const {
   size_t s;
   SynchSubstitutionMap::const_iterator si = synchs.find(synch());
   if (si == synchs.end()) {
@@ -135,45 +121,13 @@ Command::substitution(const SubstitutionMap& subst,
   } else {
     s = (*si).second;
   }
-  Command* subst_comm = new Command(s, guard().substitution(subst),
-				    delay().substitution(subst));
+  Command* subst_comm = new Command(s, guard().substitution(substitutions),
+				    delay().substitution(substitutions));
   for (UpdateList::const_iterator ui = updates().begin();
        ui != updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(subst));
+    subst_comm->add_update((*ui)->substitution(substitutions));
   }
   return *subst_comm;
-}
-
-
-/* Returns a BDD representation of this command and fills the
-   provided set with variables updated by this command. */
-DdNode* Command::bdd(VariableSet& updated,
-                     const DecisionDiagramManager& dd_man) const {
-  /*
-   * Conjunction of BDDs for all updates.
-   */
-  DdNode* ddu = Cudd_ReadOne(dd_man.manager());
-  Cudd_Ref(ddu);
-  for (UpdateList::const_iterator ui = updates().begin();
-       ui != updates().end(); ui++) {
-    const Update& update = **ui;
-    DdNode* ddi = update.bdd(dd_man);
-    DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddi, ddu);
-    Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man.manager(), ddi);
-    Cudd_RecursiveDeref(dd_man.manager(), ddu);
-    ddu = dda;
-    updated.insert(&update.variable());
-  }
-  /*
-   * Conjunction with BDD for guard.
-   */
-  DdNode* ddg = guard().bdd(dd_man);
-  DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddg, ddu);
-  Cudd_Ref(dda);
-  Cudd_RecursiveDeref(dd_man.manager(), ddg);
-  Cudd_RecursiveDeref(dd_man.manager(), ddu);
-  return dda;
 }
 
 
@@ -201,13 +155,13 @@ std::ostream& operator<<(std::ostream& os, const Command& c) {
 /* Module */
 
 /* Constructs a module. */
-Module::Module()
-  : identity_bdd_(NULL) {}
+Module::Module() {
+}
 
 
 /* Deletes this module. */
 Module::~Module() {
-  for (VariableList::const_iterator vi = variables().begin();
+  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
     Expression::destructive_deref(*vi);
   }
@@ -232,11 +186,12 @@ void Module::add_command(const Command& command) {
 
 
 /* Substitutes constants with values. */
-void Module::compile(const ValueMap& constants, const ValueMap& rates) {
+void Module::compile(const std::map<std::string, TypedValue>& constant_values,
+                     const std::map<std::string, TypedValue>& rate_values) {
   size_t n = commands().size();
   for (size_t i = 0; i < n; i++) {
     const Command* ci = commands_[i];
-    const Command* cj = &ci->substitution(constants, rates);
+    const Command* cj = &ci->substitution(constant_values, rate_values);
     delete ci;
     commands_[i] = cj;
   }
@@ -244,48 +199,17 @@ void Module::compile(const ValueMap& constants, const ValueMap& rates) {
 
 
 /* Returns this module subject to the given substitutions. */
-Module& Module::substitution(const SubstitutionMap& subst,
-			     const SynchSubstitutionMap& synchs) const {
+Module& Module::substitution(
+    const std::map<std::string, const Variable*>& substitutions,
+    const SynchSubstitutionMap& synchs) const {
   Module* subst_mod = new Module();
-  for (VariableList::const_iterator vi = variables().begin();
+  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
        vi != variables().end(); vi++) {
-    subst_mod->add_variable((*vi)->substitution(subst));
+    subst_mod->add_variable(*SubstituteVariable(*vi, substitutions));
   }
   for (CommandList::const_iterator ci = commands().begin();
        ci != commands().end(); ci++) {
-    subst_mod->add_command((*ci)->substitution(subst, synchs));
+    subst_mod->add_command((*ci)->substitution(substitutions, synchs));
   }
   return *subst_mod;
-}
-
-
-/* Returns a BDD representing the identity between the `current
-   state' and `next state' variables of this module. */
-DdNode* Module::identity_bdd(const DecisionDiagramManager& dd_man) const {
-  if (identity_bdd_ == NULL) {
-    DdNode* dd = Cudd_ReadOne(dd_man.manager());
-    Cudd_Ref(dd);
-    for (VariableList::const_reverse_iterator vi = variables().rbegin();
-	 vi != variables().rend(); vi++) {
-      DdNode* ddv = (*vi)->identity_bdd(dd_man);
-      DdNode* ddi = Cudd_bddAnd(dd_man.manager(), ddv, dd);
-      Cudd_Ref(ddi);
-      Cudd_RecursiveDeref(dd_man.manager(), ddv);
-      Cudd_RecursiveDeref(dd_man.manager(), dd);
-      dd = ddi;
-    }
-    identity_bdd_ = dd;
-  } else {
-    Cudd_Ref(identity_bdd_);
-  }
-  return identity_bdd_;
-}
-
-
-/* Releases any cached DDs for this module. */
-void Module::uncache_dds(const DecisionDiagramManager& dd_man) const {
-  if (identity_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), identity_bdd_);
-    identity_bdd_ = NULL;
-  }
 }

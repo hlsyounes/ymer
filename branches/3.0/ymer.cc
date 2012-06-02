@@ -26,6 +26,7 @@
 #include "models.h"
 #include "formulas.h"
 #include "src/ddutil.h"
+#include "glog/logging.h"
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -317,6 +318,8 @@ double indifference_region(double theta) {
 
 /* The main program. */
 int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+
   /* Set default alpha. */
   double alpha = 1e-2;
   /* Set default beta. */
@@ -564,7 +567,7 @@ int main(int argc, char* argv[]) {
 	fd_set master_fds;
 	FD_ZERO(&master_fds);
 	FD_SET(sockfd, &master_fds);
-	const State init_state(*global_model);
+	const State init_state(global_model);
 	const PathFormula* pf = 0;
 	double alphap = alpha, betap = beta;
 	timeval timeout;
@@ -693,7 +696,7 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      const State init_state(*global_model);
+      const State init_state(global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -840,7 +843,6 @@ int main(int argc, char* argv[]) {
 	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
 		  << std::endl;
       }
-      global_model->init_index(dd_man);
       DdNode* init = global_model->init_bdd(dd_man);
       for (FormulaList::const_iterator fi = properties.begin();
 	   fi != properties.end(); fi++) {
@@ -910,7 +912,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_PROF, &stimer);
 #endif
       global_model->cache_dds(dd_man, moments);
-      const State init_state(*global_model);
+      const State init_state(global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1016,7 +1018,7 @@ int main(int argc, char* argv[]) {
     delete global_model;
     for (FormulaList::const_iterator fi = properties.begin();
 	 fi != properties.end(); fi++) {
-      StateFormula::destructive_deref(*fi);
+      delete *fi;
     }
     properties.clear();
   } catch (const std::exception& e) {

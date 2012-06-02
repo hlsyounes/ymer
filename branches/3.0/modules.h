@@ -27,6 +27,8 @@
 
 #include <config.h>
 #include "src/expression.h"
+#include <set>
+#include <vector>
 
 struct StateFormula;
 struct Distribution;
@@ -52,13 +54,12 @@ struct Update {
   const Expression& expr() const { return *expr_; }
 
   /* Returns this update subject to the given substitutions. */
-  const Update& substitution(const ValueMap& values) const;
+  const Update& substitution(
+      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this update subject to the given substitutions. */
-  const Update& substitution(const SubstitutionMap& subst) const;
-
-  /* Returns a BDD representation of this update. */
-  DdNode* bdd(const DecisionDiagramManager& dd_man) const;
+  const Update& substitution(
+      const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
   /* The variable for this update. */
@@ -93,7 +94,7 @@ struct SynchSubstitutionMap : public std::map<size_t, size_t> {
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, const StateFormula& guard, const Distribution& delay);
+  Command(size_t synch, const StateFormula* guard, const Distribution* delay);
 
   /* Deletes this command. */
   ~Command();
@@ -115,18 +116,20 @@ struct Command {
   const UpdateList& updates() const { return updates_; }
 
   /* Returns this command subject to the given substitutions. */
-  const Command& substitution(const ValueMap& constants,
-			      const ValueMap& rates) const;
+  const Command& substitution(
+      const std::map<std::string, TypedValue>& constant_values,
+      const std::map<std::string, TypedValue>& rate_values) const;
 
   /* Returns this command subject to the given substitutions. */
-  const Command& substitution(const SubstitutionMap& subst,
-			      const SynchSubstitutionMap& synchs) const;
-
-  /* Returns a BDD representation of this command and fills the
-     provided set with variables updated by this command. */
-  DdNode* bdd(VariableSet& updated, const DecisionDiagramManager& dd_man) const;
+  const Command& substitution(
+      const std::map<std::string, const Variable*>& substitutions,
+      const SynchSubstitutionMap& synchs) const;
 
 private:
+  // Disallow copy and assign.
+  Command(const Command&);
+  Command& operator=(const Command&);
+
   /* The synchronization for this command; 0 if this command requires
      no synchronization. */
   size_t synch_;
@@ -172,33 +175,25 @@ struct Module {
   void add_command(const Command& command);
 
   /* Substitutes constants with values. */
-  void compile(const ValueMap& constants, const ValueMap& rates);
+  void compile(const std::map<std::string, TypedValue>& constant_values,
+               const std::map<std::string, TypedValue>& rate_values);
 
   /* Returns the variables for this module. */
-  const VariableList& variables() const { return variables_; }
+  const std::vector<const Variable*>& variables() const { return variables_; }
 
   /* Returns the commands for this module. */
   const CommandList& commands() const { return commands_; }
 
   /* Returns this module subject to the given substitutions. */
-  Module& substitution(const SubstitutionMap& subst,
-		       const SynchSubstitutionMap& synchs) const;
-
-  /* Returns a BDD representing the identity between the `current
-     state' and `next state' variables of this module. */
-  DdNode* identity_bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Releases any cached DDs for this module. */
-  void uncache_dds(const DecisionDiagramManager& dd_man) const;
+  Module& substitution(
+      const std::map<std::string, const Variable*>& substitutions,
+      const SynchSubstitutionMap& synchs) const;
 
 private:
   /* The variables for this module. */
-  VariableList variables_;
+  std::vector<const Variable*> variables_;
   /* The commands for this module. */
   CommandList commands_;
-  /* Cached BDD representing identity between the module variables and
-     their primed versions. */
-  mutable DdNode* identity_bdd_;
 };
 
 

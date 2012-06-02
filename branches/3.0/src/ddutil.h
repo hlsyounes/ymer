@@ -36,6 +36,7 @@ class DecisionDiagram {
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdNode* release();
+  DdNode* get() const { return node(); }
 
  protected:
   DecisionDiagram(DdManager* manager, DdNode* node);
@@ -68,25 +69,64 @@ class BDD : public DecisionDiagram {
   // Returns the value of this BDD for the given variable assignment.
   bool ValueInState(const std::vector<bool>& state) const;
 
+  // Logical operators for BDDs.
+  BDD operator!() const;
+  BDD operator&&(const BDD& dd) const;
+  BDD operator||(const BDD& dd) const;
+
+  // Comparison operators for BDDs.
+  BDD operator==(const BDD& dd) const;
+  BDD operator!=(const BDD& dd) const;
+  BDD operator<(const BDD& dd) const;
+  BDD operator<=(const BDD& dd) const;
+  BDD operator>=(const BDD& dd) const;
+  BDD operator>(const BDD& dd) const;
+
  private:
+  // A BDD operator to use with Apply().
+  typedef DdNode* (*Op)(DdManager*, DdNode*, DdNode*);
+
   BDD(DdManager* manager, DdNode* node);
 
+  // Returns the result of applying op to BDDs dd1 and dd2.
+  static BDD Apply(Op op, const BDD& dd1, const BDD& dd2);
+
   friend class DecisionDiagramManager;
+  friend class ADD;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
 };
 
 // Wrapper class for ADDs, with automatic referencing and dereferencing.
 class ADD : public DecisionDiagram {
  public:
+  // Explicit conversion from BDD to ADD.
+  explicit ADD(const BDD& dd);
+
   // Returns the value of this ADD.  Requires that this ADD is constant.
   double Value() const;
 
   // Returns the value of this BDD for the given variable assignment.
   double ValueInState(const std::vector<bool>& state) const;
 
+  // Returns the BDD representing low <= *this <= high.
+  BDD Interval(double low, double high) const;
+
+  // Returns the BDD representing *this > threshold.
+  BDD StrictThreshold(double threshold) const;
+
   // Arithmetic operators for ADDs.
   ADD operator+(const ADD& dd) const;
+  ADD operator-(const ADD& dd) const;
   ADD operator*(const ADD& dd) const;
+  ADD operator/(const ADD& dd) const;
+
+  // Comparison operators for ADDs.
+  BDD operator==(const ADD& dd) const;
+  BDD operator!=(const ADD& dd) const;
+  BDD operator<(const ADD& dd) const;
+  BDD operator<=(const ADD& dd) const;
+  BDD operator>=(const ADD& dd) const;
+  BDD operator>(const ADD& dd) const;
 
  private:
   // An ADD operator to use with Apply().
@@ -149,5 +189,8 @@ class DecisionDiagramManager {
 
   DdManager* manager_;
 };
+
+// Returns the base-2 logarithm of the given integer.
+int Log2(int n);
 
 #endif  // DDUTIL_H_
