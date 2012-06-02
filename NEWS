@@ -1,3 +1,9 @@
+Version 3.0.9 (Jun 2, 2012):
+
+* More efficient representation for variable assignments in a state.  Up to
+  36% speedup on polling benchmarks.
+
+
 Version 3.0.8 (May 4, 2012):
 
 * Fixed memory corruption bug in parser.
