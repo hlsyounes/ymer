@@ -373,27 +373,27 @@ distribution : rate_expr { $$ = Exponential::make(*$1); }
 
 expr : integer { $$ = make_literal($1); }
      | NAME { $$ = find_variable($1); }
-     | expr '+' expr { $$ = &Addition::make(*$1, *$3); }
-     | expr '-' expr { $$ = &Subtraction::make(*$1, *$3); }
-     | expr '*' expr { $$ = &Multiplication::make(*$1, *$3); }
+     | expr '+' expr { $$ = Addition::make(*$1, *$3); }
+     | expr '-' expr { $$ = Subtraction::make(*$1, *$3); }
+     | expr '*' expr { $$ = Multiplication::make(*$1, *$3); }
      | '(' expr ')' { $$ = $2; }
      ;
 
 rate_expr : NUMBER { $$ = make_literal($1); }
           | NAME { $$ = find_rate_or_variable($1); }
-          | rate_expr '+' rate_expr { $$ = &Addition::make(*$1, *$3); }
-          | rate_expr '-' rate_expr { $$ = &Subtraction::make(*$1, *$3); }
-          | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
-          | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
+          | rate_expr '+' rate_expr { $$ = Addition::make(*$1, *$3); }
+          | rate_expr '-' rate_expr { $$ = Subtraction::make(*$1, *$3); }
+          | rate_expr '*' rate_expr { $$ = Multiplication::make(*$1, *$3); }
+          | rate_expr '/' rate_expr { $$ = Division::make(*$1, *$3); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
 
 const_rate_expr : NUMBER { $$ = make_literal($1); }
                 | NAME { $$ = find_rate($1); }
                 | const_rate_expr '*' const_rate_expr
-                    { $$ = &Multiplication::make(*$1, *$3); }
+                    { $$ = Multiplication::make(*$1, *$3); }
                 | const_rate_expr '/' const_rate_expr
-                    { $$ = &Division::make(*$1, *$3); }
+                    { $$ = Division::make(*$1, *$3); }
                 | '(' const_rate_expr ')' { $$ = $2; }
                 ;
 
@@ -406,10 +406,9 @@ range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
 
 const_expr : integer { $$ = make_literal($1); }
            | NAME { $$ = find_constant($1); }
-           | const_expr '+' const_expr { $$ = &Addition::make(*$1, *$3); }
-           | const_expr '-' const_expr { $$ = &Subtraction::make(*$1, *$3); }
-           | const_expr '*' const_expr
-               { $$ = &Multiplication::make(*$1, *$3); }
+           | const_expr '+' const_expr { $$ = Addition::make(*$1, *$3); }
+           | const_expr '-' const_expr { $$ = Subtraction::make(*$1, *$3); }
+           | const_expr '*' const_expr { $$ = Multiplication::make(*$1, *$3); }
            | '(' const_expr ')' { $$ = $2; }
 	   ;
 
@@ -457,9 +456,9 @@ path_formula : csl_formula 'U' LTE NUMBER csl_formula
 
 csl_expr : integer { $$ = make_literal($1); }
          | NAME { $$ = value_or_variable($1); }
-         | csl_expr '+' csl_expr { $$ = &Addition::make(*$1, *$3); }
-         | csl_expr '-' csl_expr { $$ = &Subtraction::make(*$1, *$3); }
-         | csl_expr '*' csl_expr { $$ = &Multiplication::make(*$1, *$3); }
+         | csl_expr '+' csl_expr { $$ = Addition::make(*$1, *$3); }
+         | csl_expr '-' csl_expr { $$ = Subtraction::make(*$1, *$3); }
+         | csl_expr '*' csl_expr { $$ = Multiplication::make(*$1, *$3); }
          | '(' csl_expr ')' { $$ = $2; }
          ;
 
