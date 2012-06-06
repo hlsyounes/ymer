@@ -53,14 +53,6 @@ struct Update {
   /* Returns the expression for this update. */
   const Expression& expr() const { return *expr_; }
 
-  /* Returns this update subject to the given substitutions. */
-  const Update& substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this update subject to the given substitutions. */
-  const Update& substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
-
 private:
   /* The variable for this update. */
   const Variable* variable_;
@@ -73,16 +65,6 @@ private:
 /* UpdateList */
 
 struct UpdateList : public std::vector<const Update*> {
-};
-
-
-/* ====================================================================== */
-/* SynchronizationMap */
-
-/*
- * Substitution map for synchronizations.
- */
-struct SynchSubstitutionMap : public std::map<size_t, size_t> {
 };
 
 
@@ -100,7 +82,7 @@ struct Command {
   ~Command();
 
   /* Adds an update to this command. */
-  void add_update(const Update& update);
+  void add_update(const Update* update);
 
   /* Returns the synchronization for this command; 0 if this command
      requires no synchronization. */
@@ -114,16 +96,6 @@ struct Command {
 
   /* Returns the updates for this command. */
   const UpdateList& updates() const { return updates_; }
-
-  /* Returns this command subject to the given substitutions. */
-  const Command& substitution(
-      const std::map<std::string, TypedValue>& constant_values,
-      const std::map<std::string, TypedValue>& rate_values) const;
-
-  /* Returns this command subject to the given substitutions. */
-  const Command& substitution(
-      const std::map<std::string, const Variable*>& substitutions,
-      const SynchSubstitutionMap& synchs) const;
 
 private:
   // Disallow copy and assign.
@@ -172,7 +144,7 @@ struct Module {
   void add_variable(const Variable& variable);
 
   /* Adds a command to this module. */
-  void add_command(const Command& command);
+  void add_command(const Command* command);
 
   /* Substitutes constants with values. */
   void compile(const std::map<std::string, TypedValue>& constant_values,
@@ -183,11 +155,6 @@ struct Module {
 
   /* Returns the commands for this module. */
   const CommandList& commands() const { return commands_; }
-
-  /* Returns this module subject to the given substitutions. */
-  Module& substitution(
-      const std::map<std::string, const Variable*>& substitutions,
-      const SynchSubstitutionMap& synchs) const;
 
 private:
   /* The variables for this module. */

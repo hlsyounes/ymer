@@ -383,12 +383,12 @@ void Model::compile() {
 	    for (UpdateList::const_iterator ui = ci.updates().begin();
 		 ui != ci.updates().end(); ui++) {
 	      const Update& u = **ui;
-	      c->add_update(*new Update(u.variable(), u.expr()));
+	      c->add_update(new Update(u.variable(), u.expr()));
 	    }
 	    for (UpdateList::const_iterator uj = cj.updates().begin();
 		 uj != cj.updates().end(); uj++) {
 	      const Update& u = **uj;
-	      c->add_update(*new Update(u.variable(), u.expr()));
+	      c->add_update(new Update(u.variable(), u.expr()));
 	    }
 	    commands_.push_back(c);
 	    command_modules_.push_back(ModuleSet());
