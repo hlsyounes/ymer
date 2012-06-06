@@ -112,16 +112,16 @@ void ConstantSubstituter::DoVisitComputation(const Computation& expr) {
   expr.operand2().Accept(this);
   switch (expr.op()) {
     case Computation::PLUS:
-      expr_ = &Addition::make(*operand1, *release_expr());
+      expr_ = Addition::make(*operand1, *release_expr());
       break;
     case Computation::MINUS:
-      expr_ = &Subtraction::make(*operand1, *release_expr());
+      expr_ = Subtraction::make(*operand1, *release_expr());
       break;
     case Computation::MULTIPLY:
-      expr_ = &Multiplication::make(*operand1, *release_expr());
+      expr_ = Multiplication::make(*operand1, *release_expr());
       break;
     case Computation::DIVIDE:
-      expr_ = &Division::make(*operand1, *release_expr());
+      expr_ = Division::make(*operand1, *release_expr());
       break;
   }
 }
@@ -193,16 +193,16 @@ void IdentifierSubstituter::DoVisitComputation(const Computation& expr) {
   expr.operand2().Accept(this);
   switch (expr.op()) {
     case Computation::PLUS:
-      expr_ = &Addition::make(*operand1, *release_expr());
+      expr_ = Addition::make(*operand1, *release_expr());
       break;
     case Computation::MINUS:
-      expr_ = &Subtraction::make(*operand1, *release_expr());
+      expr_ = Subtraction::make(*operand1, *release_expr());
       break;
     case Computation::MULTIPLY:
-      expr_ = &Multiplication::make(*operand1, *release_expr());
+      expr_ = Multiplication::make(*operand1, *release_expr());
       break;
     case Computation::DIVIDE:
-      expr_ = &Division::make(*operand1, *release_expr());
+      expr_ = Division::make(*operand1, *release_expr());
       break;
   }
 }
@@ -406,13 +406,13 @@ Addition::Addition(const Expression& term1, const Expression& term2)
 Addition::~Addition() {
 }
 
-const Expression& Addition::make(const Expression& term1,
+const Expression* Addition::make(const Expression& term1,
                                  const Expression& term2) {
   const Literal* v1 = dynamic_cast<const Literal*>(&term1);
   if (v1 != NULL) {
     const Literal* v2 = dynamic_cast<const Literal*>(&term2);
     if (v2 != NULL) {
-      const Literal& value = *new Literal(v1->value() + v2->value());
+      const Literal* value = new Literal(v1->value() + v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -420,7 +420,7 @@ const Expression& Addition::make(const Expression& term1,
       return value;
     }
   }
-  return *new Addition(term1, term2);
+  return new Addition(term1, term2);
 }
 
 TypedValue Addition::value(const std::vector<int>& state) const {
@@ -434,13 +434,13 @@ Subtraction::Subtraction(const Expression& term1, const Expression& term2)
 Subtraction::~Subtraction() {
 }
 
-const Expression& Subtraction::make(const Expression& term1,
+const Expression* Subtraction::make(const Expression& term1,
                                     const Expression& term2) {
   const Literal* v1 = dynamic_cast<const Literal*>(&term1);
   if (v1 != NULL) {
     const Literal* v2 = dynamic_cast<const Literal*>(&term2);
     if (v2 != NULL) {
-      const Literal& value = *new Literal(v1->value() - v2->value());
+      const Literal* value = new Literal(v1->value() - v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -448,7 +448,7 @@ const Expression& Subtraction::make(const Expression& term1,
       return value;
     }
   }
-  return *new Subtraction(term1, term2);
+  return new Subtraction(term1, term2);
 }
 
 TypedValue Subtraction::value(const std::vector<int>& state) const {
@@ -463,13 +463,13 @@ Multiplication::Multiplication(const Expression& factor1,
 Multiplication::~Multiplication() {
 }
 
-const Expression& Multiplication::make(const Expression& factor1,
+const Expression* Multiplication::make(const Expression& factor1,
                                        const Expression& factor2) {
   const Literal* v1 = dynamic_cast<const Literal*>(&factor1);
   if (v1 != NULL) {
     const Literal* v2 = dynamic_cast<const Literal*>(&factor2);
     if (v2 != NULL) {
-      const Literal& value = *new Literal(v1->value() * v2->value());
+      const Literal* value = new Literal(v1->value() * v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -477,7 +477,7 @@ const Expression& Multiplication::make(const Expression& factor1,
       return value;
     }
   }
-  return *new Multiplication(factor1, factor2);
+  return new Multiplication(factor1, factor2);
 }
 
 TypedValue Multiplication::value(const std::vector<int>& state) const {
@@ -491,7 +491,7 @@ Division::Division(const Expression& factor1, const Expression& factor2)
 Division::~Division() {
 }
 
-const Expression& Division::make(const Expression& factor1,
+const Expression* Division::make(const Expression& factor1,
                                  const Expression& factor2) {
   const Literal* v1 = dynamic_cast<const Literal*>(&factor1);
   if (v1 != NULL) {
@@ -500,7 +500,7 @@ const Expression& Division::make(const Expression& factor1,
       if (v2->value() == 0) {
         throw std::invalid_argument("division by zero");
       }
-      const Literal& value = *new Literal(v1->value() / v2->value());
+      const Literal* value = new Literal(v1->value() / v2->value());
       ref(v1);
       ref(v2);
       destructive_deref(v1);
@@ -508,7 +508,7 @@ const Expression& Division::make(const Expression& factor1,
       return value;
     }
   }
-  return *new Division(factor1, factor2);
+  return new Division(factor1, factor2);
 }
 
 TypedValue Division::value(const std::vector<int>& state) const {

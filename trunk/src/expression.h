@@ -150,7 +150,7 @@ class Addition : public Computation {
   virtual ~Addition();
 
   // Returns an addition of the two expressions.
-  static const Expression& make(const Expression& term1,
+  static const Expression* make(const Expression& term1,
                                 const Expression& term2);
 
   // Returns the value of this expression.
@@ -167,7 +167,7 @@ class Subtraction : public Computation {
   virtual ~Subtraction();
 
   // Returns a subtraction of the two expressions.
-  static const Expression& make(const Expression& term1,
+  static const Expression* make(const Expression& term1,
                                 const Expression& term2);
 
   // Returns the value of this expression.
@@ -184,7 +184,7 @@ class Multiplication : public Computation {
   virtual ~Multiplication();
 
   // Returns a multiplication of the two expressions.
-  static const Expression& make(const Expression& factor1,
+  static const Expression* make(const Expression& factor1,
                                 const Expression& factor2);
 
   // Returns the value of this expression.
@@ -201,7 +201,7 @@ class Division : public Computation {
   virtual ~Division();
 
   // Returns a division of the two expressions.
-  static const Expression& make(const Expression& factor1,
+  static const Expression* make(const Expression& factor1,
                                 const Expression& factor2);
 
   // Returns the value of this expression.
