@@ -115,7 +115,7 @@ static Module* module;
 /* Current variable substitutions. */
 static std::map<std::string, std::string> subst;
 /* Current synchronization substitutions. */
-static SynchSubstitutionMap synch_subst;
+static std::map<size_t, size_t> synch_subst;
 /* Current command. */
 static Command* command;
 /* Declared integer constants. */
@@ -3052,7 +3052,7 @@ static void add_update(const std::string* ident, const Expression& expr) {
   } else if (!member(module->variables(), v)) {
     yyerror("updating variable belonging to other module");
   }
-  command->add_update(*new Update(*v, expr));
+  command->add_update(new Update(*v, expr));
   delete ident;
 }
 
@@ -3240,7 +3240,7 @@ static const Variable* declare_variable(const std::string* ident,
 
 /* Adds a command to the current module. */
 static void add_command() {
-  module->add_command(*command);
+  module->add_command(command);
 }
 
 
@@ -3250,6 +3250,63 @@ static void prepare_command(int synch, const StateFormula* guard,
   command = new Command(synch, guard, delay);
 }
 
+namespace {
+
+const Variable* SubstituteVariable(
+    const Variable* variable,
+    const std::map<std::string, const Variable*>& substitutions) {
+  std::map<std::string, const Variable*>::const_iterator i =
+      substitutions.find(variable->name());
+  return (i == substitutions.end()) ? variable : i->second;
+}
+
+const Update* SubstituteIdentifiers(
+    const Update& update,
+    const std::map<std::string, const Variable*>& substitutions) {
+  return new Update(*SubstituteVariable(&update.variable(), substitutions),
+                    *SubstituteIdentifiers(update.expr(), substitutions));
+}
+
+const Command* SubstituteIdentifiers(
+    const Command& command,
+    const std::map<std::string, const Variable*>& substitutions,
+    const std::map<size_t, size_t>& synchs) {
+  size_t s;
+  std::map<size_t, size_t>::const_iterator si = synchs.find(command.synch());
+  if (si == synchs.end()) {
+    s = command.synch();
+  } else {
+    s = (*si).second;
+  }
+  Command* subst_comm = new Command(
+      s,
+      command.guard().substitution(substitutions),
+      command.delay().substitution(substitutions));
+  for (UpdateList::const_iterator ui = command.updates().begin();
+       ui != command.updates().end(); ui++) {
+    subst_comm->add_update(SubstituteIdentifiers(**ui, substitutions));
+  }
+  return subst_comm;
+}
+
+Module* SubstituteIdentifiers(
+    const Module& module,
+    const std::map<std::string, const Variable*>& substitutions,
+    const std::map<size_t, size_t>& syncs) {
+  Module* subst_mod = new Module();
+  for (std::vector<const Variable*>::const_iterator vi =
+           module.variables().begin();
+       vi != module.variables().end(); ++vi) {
+    subst_mod->add_variable(*SubstituteVariable(*vi, substitutions));
+  }
+  for (CommandList::const_iterator ci = module.commands().begin();
+       ci != module.commands().end(); ++ci) {
+    subst_mod->add_command(SubstituteIdentifiers(**ci, substitutions, syncs));
+  }
+  return subst_mod;
+}
+
+}  // namespace
 
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2) {
@@ -3316,7 +3373,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
           v_subst.insert(std::make_pair(v1->name(), v2));
 	}
       }
-      Module* mod = &src_module.substitution(v_subst, synch_subst);
+      Module* mod = SubstituteIdentifiers(src_module, v_subst, synch_subst);
       modules.insert(std::make_pair(*ident1, mod));
       model->add_module(*mod);
     }

@@ -24,18 +24,6 @@
 #include "formulas.h"
 #include "src/expression.h"
 
-namespace {
-
-const Variable* SubstituteVariable(
-    const Variable* variable,
-    const std::map<std::string, const Variable*>& substitutions) {
-  std::map<std::string, const Variable*>::const_iterator i =
-      substitutions.find(variable->name());
-  return (i == substitutions.end()) ? variable : i->second;
-}
-
-}  // namespace
-
 /* ====================================================================== */
 /* Update */
 
@@ -51,20 +39,6 @@ Update::Update(const Variable& variable, const Expression& expr)
 Update::~Update() {
   Expression::destructive_deref(variable_);
   Expression::destructive_deref(expr_);
-}
-
-
-/* Returns this update subject to the given substitutions. */
-const Update& Update::substitution(
-    const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Update(variable(), *SubstituteConstants(expr(), constant_values));
-}
-
-/* Returns this update subject to the given substitutions. */
-const Update& Update::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Update(*SubstituteVariable(variable_, substitutions),
-                     *SubstituteIdentifiers(expr(), substitutions));
 }
 
 
@@ -90,44 +64,8 @@ Command::~Command() {
 
 
 /* Adds an update to this command. */
-void Command::add_update(const Update& update) {
-  updates_.push_back(&update);
-}
-
-
-/* Returns this command subject to the given substitutions. */
-const Command& Command::substitution(
-    const std::map<std::string, TypedValue>& constant_values,
-    const std::map<std::string, TypedValue>& rate_values) const {
-  Command* subst_comm = new Command(synch(),
-                                    guard().substitution(constant_values),
-				    delay().substitution(rate_values));
-  for (UpdateList::const_iterator ui = updates().begin();
-       ui != updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(constant_values));
-  }
-  return *subst_comm;
-}
-
-
-/* Returns this command subject to the given substitutions. */
-const Command& Command::substitution(
-    const std::map<std::string, const Variable*>& substitutions,
-    const SynchSubstitutionMap& synchs) const {
-  size_t s;
-  SynchSubstitutionMap::const_iterator si = synchs.find(synch());
-  if (si == synchs.end()) {
-    s = synch();
-  } else {
-    s = (*si).second;
-  }
-  Command* subst_comm = new Command(s, guard().substitution(substitutions),
-				    delay().substitution(substitutions));
-  for (UpdateList::const_iterator ui = updates().begin();
-       ui != updates().end(); ui++) {
-    subst_comm->add_update((*ui)->substitution(substitutions));
-  }
-  return *subst_comm;
+void Command::add_update(const Update* update) {
+  updates_.push_back(update);
 }
 
 
@@ -180,10 +118,35 @@ void Module::add_variable(const Variable& variable) {
 
 
 /* Adds a command to this module. */
-void Module::add_command(const Command& command) {
-  commands_.push_back(&command);
+void Module::add_command(const Command* command) {
+  commands_.push_back(command);
 }
 
+namespace {
+
+const Update* SubstituteConstants(
+    const Update& update,
+    const std::map<std::string, TypedValue>& constant_values) {
+  return new Update(update.variable(),
+                    *SubstituteConstants(update.expr(), constant_values));
+}
+
+const Command* SubstituteConstants(
+    const Command& command,
+    const std::map<std::string, TypedValue>& constant_values,
+    const std::map<std::string, TypedValue>& rate_values) {
+  Command* subst_comm = new Command(
+      command.synch(),
+      command.guard().substitution(constant_values),
+      command.delay().substitution(rate_values));
+  for (UpdateList::const_iterator ui = command.updates().begin();
+       ui != command.updates().end(); ui++) {
+    subst_comm->add_update(SubstituteConstants(**ui, constant_values));
+  }
+  return subst_comm;
+}
+
+}  // namespace
 
 /* Substitutes constants with values. */
 void Module::compile(const std::map<std::string, TypedValue>& constant_values,
@@ -191,25 +154,8 @@ void Module::compile(const std::map<std::string, TypedValue>& constant_values,
   size_t n = commands().size();
   for (size_t i = 0; i < n; i++) {
     const Command* ci = commands_[i];
-    const Command* cj = &ci->substitution(constant_values, rate_values);
+    const Command* cj = SubstituteConstants(*ci, constant_values, rate_values);
     delete ci;
     commands_[i] = cj;
   }
-}
-
-
-/* Returns this module subject to the given substitutions. */
-Module& Module::substitution(
-    const std::map<std::string, const Variable*>& substitutions,
-    const SynchSubstitutionMap& synchs) const {
-  Module* subst_mod = new Module();
-  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
-       vi != variables().end(); vi++) {
-    subst_mod->add_variable(*SubstituteVariable(*vi, substitutions));
-  }
-  for (CommandList::const_iterator ci = commands().begin();
-       ci != commands().end(); ci++) {
-    subst_mod->add_command((*ci)->substitution(substitutions, synchs));
-  }
-  return *subst_mod;
 }
