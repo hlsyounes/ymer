@@ -83,15 +83,29 @@ struct ACPH2Parameters {
 /* ====================================================================== */
 /* Distribution */
 
-/*
- * A probability distribution.
- */
-struct Distribution {
+class DistributionVisitor;
+
+// Abstract base class for probability distributions.
+//
+// This class supports the visitor pattern.  Example usage:
+//
+//   class ConcreteDistributionVisitor : public DistributionVisitor {
+//     ...
+//   };
+//
+//   Distribution* dist = ...;
+//   ConcreteDistributionVisitor visitor;
+//   dist->Accept(&visitor);
+//
+class Distribution {
+ public:
   /* An id-specific random number generator, or NULL. */
   static mt_struct* mts;
 
   /* Deletes this distribution. */
-  virtual ~Distribution() {}
+  virtual ~Distribution();
+
+  void Accept(DistributionVisitor* visitor) const;
 
   /* Provides the parameters for an acyclic continuous phase-type
      (ACPH) distribution in the class of EC distributions matching the
@@ -122,12 +136,18 @@ struct Distribution {
 
 protected:
   /* Constructs a distribution. */
-  Distribution() {}
+  Distribution();
+
+private:
+  // Disallow copy and assign.
+  Distribution(const Distribution&);
+  Distribution& operator=(const Distribution&);
+
+  virtual void DoAccept(DistributionVisitor* visitor) const = 0;
 
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
-private:
   friend std::ostream& operator<<(std::ostream& os, const Distribution& d);
 };
 
@@ -141,7 +161,8 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d);
 /*
  * An exponential distribution.
  */
-struct Exponential : public Distribution {
+class Exponential : public Distribution {
+ public:
   /* Returns an exponential distribution with the given rate. */
   static const Exponential* make(const Expression& rate);
 
@@ -168,18 +189,17 @@ struct Exponential : public Distribution {
   virtual const Exponential* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
-  /* The rate of this exponential distribution. */
-  const Expression* rate_;
-
   /* Constructs an exponential distribution with the given rate. */
   Exponential(const Expression& rate);
 
-  friend struct Distribution;
+  virtual void DoAccept(DistributionVisitor* visitor) const;
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
+  /* The rate of this exponential distribution. */
+  const Expression* rate_;
 };
 
 
@@ -189,7 +209,8 @@ private:
 /*
  * A Weibull distribution.
  */
-struct Weibull : public Distribution {
+class Weibull : public Distribution {
+ public:
   /* Returns a Weibull distribution with the given scale and shape. */
   static const Distribution* make(const Expression& scale,
 				  const Expression& shape);
@@ -217,18 +238,19 @@ struct Weibull : public Distribution {
   virtual const Distribution* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
-protected:
+private:
+  /* Constructs a Weibull distribution with the given scale and shape. */
+  Weibull(const Expression& scale, const Expression& shape);
+
+  virtual void DoAccept(DistributionVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The scale of this Weibull distribution. */
   const Expression* scale_;
   /* The shape of this Weibull distribution. */
   const Expression* shape_;
-
-  /* Constructs a Weibull distribution with the given scale and shape. */
-  Weibull(const Expression& scale, const Expression& shape);
 };
 
 
@@ -238,7 +260,8 @@ private:
 /*
  * A lognormal distribution.
  */
-struct Lognormal : public Distribution {
+class Lognormal : public Distribution {
+ public:
   /* Returns a lognormal distribution with the given scale and shape. */
   static const Lognormal* make(const Expression& scale,
 			       const Expression& shape);
@@ -266,11 +289,15 @@ struct Lognormal : public Distribution {
   virtual const Lognormal* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
-protected:
+private:
+  /* Constructs a lognormal distribution with the given scale and shape. */
+  Lognormal(const Expression& scale, const Expression& shape);
+
+  virtual void DoAccept(DistributionVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The scale of this lognormal distribution. */
   const Expression* scale_;
   /* The shape of this lognormal distribution. */
@@ -279,9 +306,6 @@ private:
   mutable bool have_unused_;
   /* An unused sample. */
   mutable double unused_;
-
-  /* Constructs a lognormal distribution with the given scale and shape. */
-  Lognormal(const Expression& scale, const Expression& shape);
 };
 
 
@@ -291,7 +315,8 @@ private:
 /*
  * A uniform distribution.
  */
-struct Uniform : public Distribution {
+class Uniform : public Distribution {
+ public:
   /* Returns a uniform distribution with the bounds. */
   static const Uniform* make(const Expression& low, const Expression& high);
 
@@ -318,19 +343,40 @@ struct Uniform : public Distribution {
   virtual const Uniform* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
-protected:
+private:
+  /* Constructs a uniform distribution with the given bounds. */
+  Uniform(const Expression& low, const Expression& high);
+
+  virtual void DoAccept(DistributionVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The lower bound of this uniform distribution. */
   const Expression* low_;
   /* The upper bound of this uniform distribution. */
   const Expression* high_;
-
-  /* Constructs a uniform distribution with the given bounds. */
-  Uniform(const Expression& low, const Expression& high);
 };
 
+// Abstract base class for distribution visitors.
+class DistributionVisitor {
+ public:
+  void VisitExponential(const Exponential& dist);
+  void VisitWeibull(const Weibull& dist);
+  void VisitLognormal(const Lognormal& dist);
+  void VisitUniform(const Uniform& dist);
+
+ protected:
+  DistributionVisitor();
+  DistributionVisitor(const DistributionVisitor&);
+  DistributionVisitor& operator=(const DistributionVisitor&);
+  ~DistributionVisitor();
+
+ private:
+  virtual void DoVisitExponential(const Exponential& dist) = 0;
+  virtual void DoVisitWeibull(const Weibull& dist) = 0;
+  virtual void DoVisitLognormal(const Lognormal& dist) = 0;
+  virtual void DoVisitUniform(const Uniform& dist) = 0;
+};
 
 #endif /* DISTRIBUTIONS_H */

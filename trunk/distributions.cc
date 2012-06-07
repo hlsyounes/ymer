@@ -30,6 +30,15 @@
 /* An id-specific random number generator, or NULL. */
 mt_struct* Distribution::mts = NULL;
 
+Distribution::Distribution() {
+}
+
+Distribution::~Distribution() {
+}
+
+void Distribution::Accept(DistributionVisitor* visitor) const {
+  DoAccept(visitor);
+}
 
 /* Provides the parameters for an acyclic continuous phase-type
    (ACPH) distribution in the class of EC distributions matching the
@@ -172,6 +181,9 @@ Exponential::~Exponential() {
   Expression::destructive_deref(rate_);
 }
 
+void Exponential::DoAccept(DistributionVisitor* visitor) const {
+  visitor->VisitExponential(*this);
+}
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Exponential::moments(std::vector<double>& m, size_t n) const {
@@ -242,6 +254,9 @@ Weibull::~Weibull() {
   Expression::destructive_deref(shape_);
 }
 
+void Weibull::DoAccept(DistributionVisitor* visitor) const {
+  visitor->VisitWeibull(*this);
+}
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Weibull::moments(std::vector<double>& m, size_t n) const {
@@ -313,6 +328,9 @@ Lognormal::~Lognormal() {
   Expression::destructive_deref(shape_);
 }
 
+void Lognormal::DoAccept(DistributionVisitor* visitor) const {
+  visitor->VisitLognormal(*this);
+}
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Lognormal::moments(std::vector<double>& m, size_t n) const {
@@ -394,6 +412,9 @@ Uniform::~Uniform() {
   Expression::destructive_deref(high_);
 }
 
+void Uniform::DoAccept(DistributionVisitor* visitor) const {
+  visitor->VisitUniform(*this);
+}
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Uniform::moments(std::vector<double>& m, size_t n) const {
@@ -438,4 +459,33 @@ const Uniform* Uniform::substitution(
 /* Prints this object on the given stream. */
 void Uniform::print(std::ostream& os) const {
   os << "U(" << low() << ',' << high() << ")";
+}
+
+DistributionVisitor::DistributionVisitor() {
+}
+
+DistributionVisitor::DistributionVisitor(const DistributionVisitor&) {
+}
+
+DistributionVisitor& DistributionVisitor::operator=(
+    const DistributionVisitor&) {
+}
+
+DistributionVisitor::~DistributionVisitor() {
+}
+
+void DistributionVisitor::VisitExponential(const Exponential& dist) {
+  DoVisitExponential(dist);
+}
+
+void DistributionVisitor::VisitWeibull(const Weibull& dist) {
+  DoVisitWeibull(dist);
+}
+
+void DistributionVisitor::VisitLognormal(const Lognormal& dist) {
+  DoVisitLognormal(dist);
+}
+
+void DistributionVisitor::VisitUniform(const Uniform& dist) {
+  DoVisitUniform(dist);
 }

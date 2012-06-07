@@ -44,7 +44,7 @@ class ExpressionVisitor;
 //   };
 //
 //   Expression* expr = ...;
-//   ComcreteExpressionVisitor visitor;
+//   ConcreteExpressionVisitor visitor;
 //   expr->Accept(&visitor);
 //
 class Expression {
@@ -76,8 +76,6 @@ private:
 
   // Reference counter.
   mutable int ref_count_;
-
-  friend std::ostream& operator<<(std::ostream& os, const Expression& e);
 };
 
 // Returns the given expression subject to the given substitutions of values
