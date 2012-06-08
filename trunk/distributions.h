@@ -128,10 +128,6 @@ class Distribution {
 
   /* Returns this distribution subject to the given substitutions. */
   virtual const Distribution* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const = 0;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution* substitution(
       const std::map<std::string, const Variable*>& substitutions) const = 0;
 
 protected:
@@ -183,10 +179,6 @@ class Exponential : public Distribution {
 
   /* Returns this distribution subject to the given substitutions. */
   virtual const Exponential* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Exponential* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
@@ -229,10 +221,6 @@ class Weibull : public Distribution {
 
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
   virtual const Distribution* substitution(
@@ -283,10 +271,6 @@ class Lognormal : public Distribution {
 
   /* Returns this distribution subject to the given substitutions. */
   virtual const Lognormal* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Lognormal* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
@@ -334,10 +318,6 @@ class Uniform : public Distribution {
 
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Uniform* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this distribution subject to the given substitutions. */
   virtual const Uniform* substitution(
