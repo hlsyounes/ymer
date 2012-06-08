@@ -124,6 +124,75 @@ void Module::add_command(const Command* command) {
 
 namespace {
 
+class DistributionConstantSubstituter : public DistributionVisitor {
+ public:
+  explicit DistributionConstantSubstituter(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  ~DistributionConstantSubstituter();
+
+  const Distribution* release_distribution();
+
+ private:
+  virtual void DoVisitExponential(const Exponential& distribution);
+  virtual void DoVisitWeibull(const Weibull& distribution);
+  virtual void DoVisitLognormal(const Lognormal& distribution);
+  virtual void DoVisitUniform(const Uniform& distribution);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  const Distribution* distribution_;
+};
+
+DistributionConstantSubstituter::DistributionConstantSubstituter(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), distribution_(NULL) {
+}
+
+DistributionConstantSubstituter::~DistributionConstantSubstituter() {
+  delete distribution_;
+}
+
+const Distribution* DistributionConstantSubstituter::release_distribution() {
+  const Distribution* distribution = distribution_;
+  distribution_ = NULL;
+  return distribution;
+}
+
+void DistributionConstantSubstituter::DoVisitExponential(
+    const Exponential& distribution) {
+  distribution_ = Exponential::make(
+      *SubstituteConstants(distribution.rate(), *constant_values_));
+}
+
+void DistributionConstantSubstituter::DoVisitWeibull(
+    const Weibull& distribution) {
+  distribution_ = Weibull::make(
+      *SubstituteConstants(distribution.scale(), *constant_values_),
+      *SubstituteConstants(distribution.shape(), *constant_values_));
+}
+
+void DistributionConstantSubstituter::DoVisitLognormal(
+    const Lognormal& distribution) {
+  distribution_ = Lognormal::make(
+      *SubstituteConstants(distribution.scale(), *constant_values_),
+      *SubstituteConstants(distribution.shape(), *constant_values_));
+}
+
+void DistributionConstantSubstituter::DoVisitUniform(
+    const Uniform& distribution) {
+  distribution_ = Uniform::make(
+      *SubstituteConstants(distribution.low(), *constant_values_),
+      *SubstituteConstants(distribution.high(), *constant_values_));
+}
+
+const Distribution* SubstituteConstants(
+    const Distribution& distribution,
+    const std::map<std::string, TypedValue>& constant_values) {
+  DistributionConstantSubstituter substituter(&constant_values);
+  distribution.Accept(&substituter);
+  return substituter.release_distribution();
+}
+
 const Update* SubstituteConstants(
     const Update& update,
     const std::map<std::string, TypedValue>& constant_values) {
@@ -138,7 +207,7 @@ const Command* SubstituteConstants(
   Command* subst_comm = new Command(
       command.synch(),
       command.guard().substitution(constant_values),
-      command.delay().substitution(rate_values));
+      SubstituteConstants(command.delay(), rate_values));
   for (UpdateList::const_iterator ui = command.updates().begin();
        ui != command.updates().end(); ui++) {
     subst_comm->add_update(SubstituteConstants(**ui, constant_values));
