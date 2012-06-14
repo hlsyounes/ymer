@@ -44,15 +44,29 @@ enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
 /* ====================================================================== */
 /* StateFormula */
 
-/*
- * A state formula.
- */
-struct StateFormula {
+class StateFormulaVisitor;
+
+// Abstract base class for state formulas.
+//
+// This class supports the visitor pattern.  Example usage:
+//
+//   class ConcreteStateFormulaVisitor : public StateFormulaVisitor {
+//     ...
+//   };
+//
+//   StateFormula* formula = ...;
+//   ConcreteStateFormulaVisitor visitor;
+//   formula->Accept(&visitor);
+//
+class StateFormula {
+ public:
   /* Returns the current formula level. */
   static size_t formula_level() { return formula_level_; }
 
   /* Deletes this state formula. */
   virtual ~StateFormula() {}
+
+  void Accept(StateFormulaVisitor* visitor) const;
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
@@ -107,10 +121,16 @@ protected:
   /* Constructs a state formula. */
   StateFormula() {}
 
+private:
+  // Disallow copy and assign.
+  StateFormula(const StateFormula&);
+  StateFormula& operator=(const StateFormula&);
+
+  virtual void DoAccept(StateFormulaVisitor* visitor) const = 0;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
-private:
   friend std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 };
 
@@ -199,7 +219,8 @@ struct FormulaList : public std::deque<const StateFormula*> {
 /* ====================================================================== */
 /* Conjunction */
 
-struct Conjunction : public StateFormula {
+class Conjunction : public StateFormula {
+ public:
   /* Deletes this conjunction. */
   virtual ~Conjunction();
 
@@ -255,11 +276,12 @@ struct Conjunction : public StateFormula {
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
 
-protected:
+private:
+  virtual void DoAccept(StateFormulaVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The conjuncts. */
   FormulaList conjuncts_;
 };
@@ -268,7 +290,8 @@ private:
 /* ====================================================================== */
 /* Disjunction */
 
-struct Disjunction : public StateFormula {
+class Disjunction : public StateFormula {
+ public:
   /* Deletes this disjunction. */
   virtual ~Disjunction();
 
@@ -324,11 +347,12 @@ struct Disjunction : public StateFormula {
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
 
-protected:
+private:
+  virtual void DoAccept(StateFormulaVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The disjuncts. */
   FormulaList disjuncts_;
 };
@@ -340,7 +364,8 @@ private:
 /*
  * A negated state formula.
  */
-struct Negation : public StateFormula {
+class Negation : public StateFormula {
+ public:
   /* Constructs a negation. */
   Negation(const StateFormula* negand);
 
@@ -396,11 +421,12 @@ struct Negation : public StateFormula {
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
 
-protected:
+private:
+  virtual void DoAccept(StateFormulaVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The negated state formula. */
   const StateFormula* negand_;
 };
@@ -412,7 +438,8 @@ private:
 /*
  * An implication.
  */
-struct Implication : public StateFormula {
+class Implication : public StateFormula {
+ public:
   /* Constructs an implication. */
   Implication(const StateFormula* antecedent, const StateFormula* consequent);
 
@@ -471,11 +498,12 @@ struct Implication : public StateFormula {
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
 
-protected:
+private:
+  virtual void DoAccept(StateFormulaVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The antecedent of this implication. */
   const StateFormula* antecedent_;
   /* The consequent of this implication. */
@@ -489,7 +517,8 @@ private:
 /*
  * Probabilistic path quantification.
  */
-struct Probabilistic : public StateFormula {
+class Probabilistic : public StateFormula {
+ public:
   /* Constructs a probabilistic path quantification. */
   Probabilistic(const TypedValue& threshold, bool strict,
 		const PathFormula& formula);
@@ -552,11 +581,12 @@ struct Probabilistic : public StateFormula {
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
 
-protected:
+private:
+  virtual void DoAccept(StateFormulaVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The probability threshold. */
   TypedValue threshold_;
   /* Whether the threshold is strict. */
@@ -574,9 +604,18 @@ private:
 /*
  * A comparison state formula.
  */
-struct Comparison : public StateFormula {
+class Comparison : public StateFormula {
+ public:
+  // Supported computation operators.
+  enum Operator {
+    LESS, LESS_EQUAL, GREATER_EQUAL, GREATER, EQUAL, NOT_EQUAL
+  };
+
   /* Deletes this comparison. */
   virtual ~Comparison();
+
+  // Returns the operator for this comparison.
+  const Operator op() const { return op_; }
 
   /* Returns the first expression of this comparison. */
   const Expression& expr1() const { return *expr1_; }
@@ -615,9 +654,13 @@ struct Comparison : public StateFormula {
 
 protected:
   /* Constructs a comparison. */
-  Comparison(const Expression& expr1, const Expression& expr2);
+  Comparison(Operator op, const Expression& expr1, const Expression& expr2);
 
 private:
+  virtual void DoAccept(StateFormulaVisitor* visitor) const;
+
+  // The operator for this comparison.
+  Operator op_;
   /* The first expression. */
   const Expression* expr1_;
   /* The second expression. */
@@ -907,5 +950,29 @@ private:
   TypedValue max_time_;
 };
 
+// Abstract base class for state formula visitors.
+class StateFormulaVisitor {
+ public:
+  void VisitConjunction(const Conjunction& formula);
+  void VisitDisjunction(const Disjunction& formula);
+  void VisitNegation(const Negation& formula);
+  void VisitImplication(const Implication& formula);
+  void VisitProbabilistic(const Probabilistic& formula);
+  void VisitComparison(const Comparison& formula);
+
+ protected:
+  StateFormulaVisitor();
+  StateFormulaVisitor(const StateFormulaVisitor&);
+  StateFormulaVisitor& operator=(const StateFormulaVisitor&);
+  ~StateFormulaVisitor();
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula) = 0;
+  virtual void DoVisitDisjunction(const Disjunction& formula) = 0;
+  virtual void DoVisitNegation(const Negation& formula) = 0;
+  virtual void DoVisitImplication(const Implication& formula) = 0;
+  virtual void DoVisitProbabilistic(const Probabilistic& formula) = 0;
+  virtual void DoVisitComparison(const Comparison& formula) = 0;
+};
 
 #endif /* FORMULAS_H */

@@ -27,6 +27,10 @@
 /* ====================================================================== */
 /* StateFormula */
 
+void StateFormula::Accept(StateFormulaVisitor* visitor) const {
+  DoAccept(visitor);
+}
+
 /* Output operator for state formulas. */
 std::ostream& operator<<(std::ostream& os, const StateFormula& f) {
   f.print(os);
@@ -55,6 +59,9 @@ Conjunction::~Conjunction() {
   }
 }
 
+void Conjunction::DoAccept(StateFormulaVisitor* visitor) const {
+  visitor->VisitConjunction(*this);
+}
 
 /* Adds a conjunct to this conjunction. */
 void Conjunction::add_conjunct(const StateFormula* conjunct) {
@@ -174,6 +181,9 @@ Disjunction::~Disjunction() {
   }
 }
 
+void Disjunction::DoAccept(StateFormulaVisitor* visitor) const {
+  visitor->VisitDisjunction(*this);
+}
 
 /* Adds a disjunct to this disjunction. */
 void Disjunction::add_disjunct(const StateFormula* disjunct) {
@@ -296,6 +306,9 @@ Negation::~Negation() {
   delete negand_;
 }
 
+void Negation::DoAccept(StateFormulaVisitor* visitor) const {
+  visitor->VisitNegation(*this);
+}
 
 /* Tests if this state formula contains probabilistic elements. */
 bool Negation::probabilistic() const {
@@ -367,6 +380,9 @@ Implication::~Implication() {
   delete consequent_;
 }
 
+void Implication::DoAccept(StateFormulaVisitor* visitor) const {
+  visitor->VisitImplication(*this);
+}
 
 /* Tests if this state formula contains probabilistic elements. */
 bool Implication::probabilistic() const {
@@ -437,6 +453,9 @@ Probabilistic::~Probabilistic() {
   delete formula_;
 }
 
+void Probabilistic::DoAccept(StateFormulaVisitor* visitor) const {
+  visitor->VisitProbabilistic(*this);
+}
 
 /* Tests if this state formula contains probabilistic elements. */
 bool Probabilistic::probabilistic() const {
@@ -489,8 +508,9 @@ void Probabilistic::print(std::ostream& os) const {
 /* Comparison */
 
 /* Constructs a comparison. */
-Comparison::Comparison(const Expression& expr1, const Expression& expr2)
-  : expr1_(&expr1), expr2_(&expr2) {
+Comparison::Comparison(Operator op,
+                       const Expression& expr1, const Expression& expr2)
+    : op_(op), expr1_(&expr1), expr2_(&expr2) {
   Expression::ref(expr1_);
   Expression::ref(expr2_);
 }
@@ -502,6 +522,9 @@ Comparison::~Comparison() {
   Expression::destructive_deref(expr2_);
 }
 
+void Comparison::DoAccept(StateFormulaVisitor* visitor) const {
+  visitor->VisitComparison(*this);
+}
 
 /* Tests if this state formula contains probabilistic elements. */
 bool Comparison::probabilistic() const {
@@ -514,7 +537,8 @@ bool Comparison::probabilistic() const {
 
 /* Constructs a less-than comparison. */
 LessThan::LessThan(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+    : Comparison(LESS, expr1, expr2) {
+}
 
 
 /* Tests if this state formula holds in the given state. */
@@ -563,7 +587,8 @@ void LessThan::print(std::ostream& os) const {
 /* Constructs a less-than-or-equal comparison. */
 LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
 				 const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+    : Comparison(LESS_EQUAL, expr1, expr2) {
+}
 
 
 /* Tests if this state formula holds in the given state. */
@@ -612,7 +637,8 @@ void LessThanOrEqual::print(std::ostream& os) const {
 /* Constructs a greater-than-or-equal comparison. */
 GreaterThanOrEqual::GreaterThanOrEqual(const Expression& expr1,
 				       const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+    : Comparison(GREATER_EQUAL, expr1, expr2) {
+}
 
 
 /* Tests if this state formula holds in the given state. */
@@ -660,7 +686,8 @@ void GreaterThanOrEqual::print(std::ostream& os) const {
 
 /* Constructs a greater-than comparison. */
 GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+    : Comparison(GREATER, expr1, expr2) {
+}
 
 
 /* Tests if this state formula holds in the given state. */
@@ -708,7 +735,8 @@ void GreaterThan::print(std::ostream& os) const {
 
 /* Constructs an equality comparison. */
 Equality::Equality(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+    : Comparison(EQUAL, expr1, expr2) {
+}
 
 
 /* Tests if this state formula holds in the given state. */
@@ -756,7 +784,8 @@ void Equality::print(std::ostream& os) const {
 
 /* Constructs an inequality comparison. */
 Inequality::Inequality(const Expression& expr1, const Expression& expr2)
-  : Comparison(expr1, expr2) {}
+    : Comparison(NOT_EQUAL, expr1, expr2) {
+}
 
 
 /* Tests if this state formula holds in the given state. */
@@ -843,4 +872,42 @@ const Until& Until::substitution(
 /* Prints this object on the given stream. */
 void Until::print(std::ostream& os) const {
   os << pre() << " U[" << min_time() << ',' << max_time() << "] " << post();
+}
+
+StateFormulaVisitor::StateFormulaVisitor() {
+}
+
+StateFormulaVisitor::StateFormulaVisitor(const StateFormulaVisitor&) {
+}
+
+StateFormulaVisitor& StateFormulaVisitor::operator=(
+    const StateFormulaVisitor&) {
+  return *this;
+}
+
+StateFormulaVisitor::~StateFormulaVisitor() {
+}
+
+void StateFormulaVisitor::VisitConjunction(const Conjunction& formula) {
+  DoVisitConjunction(formula);
+}
+
+void StateFormulaVisitor::VisitDisjunction(const Disjunction& formula) {
+  DoVisitDisjunction(formula);
+}
+
+void StateFormulaVisitor::VisitNegation(const Negation& formula) {
+  DoVisitNegation(formula);
+}
+
+void StateFormulaVisitor::VisitImplication(const Implication& formula) {
+  DoVisitImplication(formula);
+}
+
+void StateFormulaVisitor::VisitProbabilistic(const Probabilistic& formula) {
+  DoVisitProbabilistic(formula);
+}
+
+void StateFormulaVisitor::VisitComparison(const Comparison& formula) {
+  DoVisitComparison(formula);
 }
