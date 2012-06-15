@@ -206,7 +206,7 @@ const Command* SubstituteConstants(
     const std::map<std::string, TypedValue>& rate_values) {
   Command* subst_comm = new Command(
       command.synch(),
-      command.guard().substitution(constant_values),
+      SubstituteConstants(command.guard(), constant_values),
       SubstituteConstants(command.delay(), rate_values));
   for (UpdateList::const_iterator ui = command.updates().begin();
        ui != command.updates().end(); ui++) {
