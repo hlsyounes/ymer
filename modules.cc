@@ -124,6 +124,90 @@ void Module::add_command(const Command* command) {
 
 namespace {
 
+class ExpressionConstantSubstituter : public ExpressionVisitor {
+ public:
+  explicit ExpressionConstantSubstituter(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  ~ExpressionConstantSubstituter();
+
+  const Expression* release_expr();
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  const Expression* expr_;
+};
+
+const Expression* SubstituteConstants(
+    const Expression& expr,
+    const std::map<std::string, TypedValue>& constant_values) {
+  ExpressionConstantSubstituter substituter(&constant_values);
+  expr.Accept(&substituter);
+  return substituter.release_expr();
+}
+
+class StateFormulaConstantSubstituter : public StateFormulaVisitor {
+ public:
+  explicit StateFormulaConstantSubstituter(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  ~StateFormulaConstantSubstituter();
+
+  const StateFormula* release_formula();
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  const StateFormula* formula_;
+};
+
+const StateFormula* SubstituteConstants(
+    const StateFormula& formula,
+    const std::map<std::string, TypedValue>& constant_values) {
+  StateFormulaConstantSubstituter substituter(&constant_values);
+  formula.Accept(&substituter);
+  return substituter.release_formula();
+}
+
+class PathFormulaConstantSubstituter : public PathFormulaVisitor {
+ public:
+  explicit PathFormulaConstantSubstituter(
+      const std::map<std::string, TypedValue>* constant_values);
+
+  ~PathFormulaConstantSubstituter();
+
+  const PathFormula* release_formula();
+
+ private:
+  virtual void DoVisitUntil(const Until& formula);
+
+  const std::map<std::string, TypedValue>* constant_values_;
+  const PathFormula* formula_;
+};
+
+const PathFormula* SubstituteConstants(
+    const PathFormula& formula,
+    const std::map<std::string, TypedValue>& constant_values) {
+  PathFormulaConstantSubstituter substituter(&constant_values);
+  formula.Accept(&substituter);
+  return substituter.release_formula();
+}
+
+StateFormulaConstantSubstituter::StateFormulaConstantSubstituter(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), formula_(NULL) {
+}
+
 class DistributionConstantSubstituter : public DistributionVisitor {
  public:
   explicit DistributionConstantSubstituter(
@@ -142,6 +226,197 @@ class DistributionConstantSubstituter : public DistributionVisitor {
   const std::map<std::string, TypedValue>* constant_values_;
   const Distribution* distribution_;
 };
+
+const Distribution* SubstituteConstants(
+    const Distribution& distribution,
+    const std::map<std::string, TypedValue>& constant_values) {
+  DistributionConstantSubstituter substituter(&constant_values);
+  distribution.Accept(&substituter);
+  return substituter.release_distribution();
+}
+
+const Update* SubstituteConstants(
+    const Update& update,
+    const std::map<std::string, TypedValue>& constant_values) {
+  return new Update(update.variable(),
+                    *SubstituteConstants(update.expr(), constant_values));
+}
+
+const Command* SubstituteConstants(
+    const Command& command,
+    const std::map<std::string, TypedValue>& constant_values,
+    const std::map<std::string, TypedValue>& rate_values) {
+  Command* subst_comm = new Command(
+      command.synch(),
+      SubstituteConstants(command.guard(), constant_values),
+      SubstituteConstants(command.delay(), rate_values));
+  for (UpdateList::const_iterator ui = command.updates().begin();
+       ui != command.updates().end(); ui++) {
+    subst_comm->add_update(SubstituteConstants(**ui, constant_values));
+  }
+  return subst_comm;
+}
+
+ExpressionConstantSubstituter::ExpressionConstantSubstituter(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), expr_(NULL) {
+}
+
+ExpressionConstantSubstituter::~ExpressionConstantSubstituter() {
+  Expression::ref(expr_);
+  Expression::destructive_deref(expr_);
+}
+
+const Expression* ExpressionConstantSubstituter::release_expr() {
+  const Expression* expr = expr_;
+  expr_ = NULL;
+  return expr;
+}
+
+void ExpressionConstantSubstituter::DoVisitLiteral(const Literal& expr) {
+  expr_ = new Literal(expr.value());
+}
+
+void ExpressionConstantSubstituter::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, TypedValue>::const_iterator i =
+      constant_values_->find(expr.name());
+  if (i == constant_values_->end()) {
+    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
+    expr_ = &expr;
+  } else {
+    expr_ = new Literal(i->second);
+  }
+}
+
+void ExpressionConstantSubstituter::DoVisitComputation(
+    const Computation& expr) {
+  expr.operand1().Accept(this);
+  const Expression* operand1 = release_expr();
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      expr_ = Addition::make(*operand1, *release_expr());
+      break;
+    case Computation::MINUS:
+      expr_ = Subtraction::make(*operand1, *release_expr());
+      break;
+    case Computation::MULTIPLY:
+      expr_ = Multiplication::make(*operand1, *release_expr());
+      break;
+    case Computation::DIVIDE:
+      expr_ = Division::make(*operand1, *release_expr());
+      break;
+  }
+}
+
+StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {
+  delete formula_;
+}
+
+const StateFormula* StateFormulaConstantSubstituter::release_formula() {
+  const StateFormula* formula = formula_;
+  formula_ = NULL;
+  return formula;
+}
+
+void StateFormulaConstantSubstituter::DoVisitConjunction(
+    const Conjunction& formula) {
+  Conjunction* subst_conj = new Conjunction();
+  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
+       fi != formula.conjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    subst_conj->add_conjunct(release_formula());
+  }
+  formula_ = subst_conj;
+}
+
+void StateFormulaConstantSubstituter::DoVisitDisjunction(
+    const Disjunction& formula) {
+  Disjunction* subst_disj = new Disjunction();
+  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
+       fi != formula.disjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    subst_disj->add_disjunct(release_formula());
+  }
+  formula_ = subst_disj;
+}
+
+void StateFormulaConstantSubstituter::DoVisitNegation(const Negation& formula) {
+  formula.negand().Accept(this);
+  formula_ = new Negation(release_formula());
+}
+
+void StateFormulaConstantSubstituter::DoVisitImplication(
+    const Implication& formula) {
+  formula.antecedent().Accept(this);
+  const StateFormula* antecedent = release_formula();
+  formula.consequent().Accept(this);
+  formula_ = new Implication(antecedent, release_formula());
+}
+
+void StateFormulaConstantSubstituter::DoVisitProbabilistic(
+    const Probabilistic& formula) {
+  formula_ = new Probabilistic(
+      formula.threshold(), formula.strict(),
+      SubstituteConstants(formula.formula(), *constant_values_));
+}
+
+void StateFormulaConstantSubstituter::DoVisitComparison(
+    const Comparison& formula) {
+  switch (formula.op()) {
+    case Comparison::LESS:
+      formula_ = new LessThan(
+          *SubstituteConstants(formula.expr1(), *constant_values_),
+          *SubstituteConstants(formula.expr2(), *constant_values_));
+      break;
+    case Comparison::LESS_EQUAL:
+      formula_ = new LessThanOrEqual(
+          *SubstituteConstants(formula.expr1(), *constant_values_),
+          *SubstituteConstants(formula.expr2(), *constant_values_));
+      break;
+    case Comparison::GREATER_EQUAL:
+      formula_ = new GreaterThanOrEqual(
+          *SubstituteConstants(formula.expr1(), *constant_values_),
+          *SubstituteConstants(formula.expr2(), *constant_values_));
+      break;
+    case Comparison::GREATER:
+      formula_ = new GreaterThan(
+          *SubstituteConstants(formula.expr1(), *constant_values_),
+          *SubstituteConstants(formula.expr2(), *constant_values_));
+      break;
+    case Comparison::EQUAL:
+      formula_ = new Equality(
+          *SubstituteConstants(formula.expr1(), *constant_values_),
+          *SubstituteConstants(formula.expr2(), *constant_values_));
+      break;
+    case Comparison::NOT_EQUAL:
+      formula_ = new Inequality(
+          *SubstituteConstants(formula.expr1(), *constant_values_),
+          *SubstituteConstants(formula.expr2(), *constant_values_));
+      break;
+  }
+}
+
+PathFormulaConstantSubstituter::PathFormulaConstantSubstituter(
+    const std::map<std::string, TypedValue>* constant_values)
+    : constant_values_(constant_values), formula_(NULL) {
+}
+
+PathFormulaConstantSubstituter::~PathFormulaConstantSubstituter() {
+  delete formula_;
+}
+
+const PathFormula* PathFormulaConstantSubstituter::release_formula() {
+  const PathFormula* formula = formula_;
+  formula_ = NULL;
+  return formula;
+}
+
+void PathFormulaConstantSubstituter::DoVisitUntil(const Until& formula) {
+  formula_ = new Until(SubstituteConstants(formula.pre(), *constant_values_),
+                       SubstituteConstants(formula.post(), *constant_values_),
+                       formula.min_time(), formula.max_time());
+}
 
 DistributionConstantSubstituter::DistributionConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
@@ -183,36 +458,6 @@ void DistributionConstantSubstituter::DoVisitUniform(
   distribution_ = Uniform::make(
       *SubstituteConstants(distribution.low(), *constant_values_),
       *SubstituteConstants(distribution.high(), *constant_values_));
-}
-
-const Distribution* SubstituteConstants(
-    const Distribution& distribution,
-    const std::map<std::string, TypedValue>& constant_values) {
-  DistributionConstantSubstituter substituter(&constant_values);
-  distribution.Accept(&substituter);
-  return substituter.release_distribution();
-}
-
-const Update* SubstituteConstants(
-    const Update& update,
-    const std::map<std::string, TypedValue>& constant_values) {
-  return new Update(update.variable(),
-                    *SubstituteConstants(update.expr(), constant_values));
-}
-
-const Command* SubstituteConstants(
-    const Command& command,
-    const std::map<std::string, TypedValue>& constant_values,
-    const std::map<std::string, TypedValue>& rate_values) {
-  Command* subst_comm = new Command(
-      command.synch(),
-      SubstituteConstants(command.guard(), constant_values),
-      SubstituteConstants(command.delay(), rate_values));
-  for (UpdateList::const_iterator ui = command.updates().begin();
-       ui != command.updates().end(); ui++) {
-    subst_comm->add_update(SubstituteConstants(**ui, constant_values));
-  }
-  return subst_comm;
 }
 
 }  // namespace

@@ -183,7 +183,7 @@ static Disjunction* make_disjunction(StateFormula* f1,
 /* Returns a probabilistic path quantification. */
 static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
-					const PathFormula& f);
+					const PathFormula* f);
 /* Returns an until formula. */
 static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
 			       const TypedValue* t1, const TypedValue* t2);
@@ -2314,28 +2314,28 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 430 "parser.yy"
-    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, true, *(yyvsp[(5) - (6)].path)); }
+    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, true, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 103:
 
 /* Line 1455 of yacc.c  */
 #line 432 "parser.yy"
-    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, true, *(yyvsp[(5) - (6)].path)); }
+    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, true, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 104:
 
 /* Line 1455 of yacc.c  */
 #line 434 "parser.yy"
-    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, false, *(yyvsp[(5) - (6)].path)); }
+    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, false, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 105:
 
 /* Line 1455 of yacc.c  */
 #line 436 "parser.yy"
-    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, false, *(yyvsp[(5) - (6)].path)); }
+    { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, false, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 106:
@@ -2999,7 +2999,7 @@ static Disjunction* make_disjunction(StateFormula* f1,
 /* Returns a probabilistic path quantification. */
 static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
-					const PathFormula& f) {
+					const PathFormula* f) {
   if (*p < 0 || *p > 1) {
     yyerror("probability bound outside the interval [0,1]");
   }

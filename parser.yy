@@ -136,7 +136,7 @@ static Disjunction* make_disjunction(StateFormula* f1,
 /* Returns a probabilistic path quantification. */
 static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
-					const PathFormula& f);
+					const PathFormula* f);
 /* Returns an until formula. */
 static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
 			       const TypedValue* t1, const TypedValue* t2);
@@ -427,13 +427,13 @@ properties : /* empty */
 csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
             | FALSE_TOKEN { $$ = new Disjunction(); }
             | 'P' '<' NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, true, true, *$5); }
+                { $$ = make_probabilistic($3, true, true, $5); }
             | 'P' LTE NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, false, true, *$5); }
+                { $$ = make_probabilistic($3, false, true, $5); }
             | 'P' GTE NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, false, false, *$5); }
+                { $$ = make_probabilistic($3, false, false, $5); }
             | 'P' '>' NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, true, false, *$5); }
+                { $$ = make_probabilistic($3, true, false, $5); }
             | csl_formula IMPLY csl_formula { $$ = new Implication($1, $3); }
             | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
             | csl_formula '|' csl_formula { $$ = make_disjunction($1, $3); }
@@ -775,7 +775,7 @@ static Disjunction* make_disjunction(StateFormula* f1,
 /* Returns a probabilistic path quantification. */
 static StateFormula* make_probabilistic(const TypedValue* p,
 					bool strict, bool negate,
-					const PathFormula& f) {
+					const PathFormula* f) {
   if (*p < 0 || *p > 1) {
     yyerror("probability bound outside the interval [0,1]");
   }

@@ -78,12 +78,6 @@ private:
   mutable int ref_count_;
 };
 
-// Returns the given expression subject to the given substitutions of values
-// for constant identifiers.
-const Expression* SubstituteConstants(
-    const Expression& expr,
-    const std::map<std::string, TypedValue>& constant_values);
-
 // Returns the given expression subject to the given identifier substitutions.
 const Expression* SubstituteIdentifiers(
     const Expression& expr,

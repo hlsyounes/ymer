@@ -130,10 +130,6 @@ private:
   friend std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 };
 
-const StateFormula* SubstituteConstants(
-    const StateFormula& formula,
-    const std::map<std::string, TypedValue>& constant_values);
-
 /* Output operator for state formulas. */
 std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 
@@ -166,11 +162,7 @@ class PathFormula {
   virtual bool probabilistic() const = 0;
 
   /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula& substitution(
-      const std::map<std::string, TypedValue>& constant_values) const = 0;
-
-  /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula& substitution(
+  virtual const PathFormula* substitution(
       const std::map<std::string, const Variable*>& substitutions) const = 0;
 
   /* Estimated effort for generating a sample for this path formula. */
@@ -525,7 +517,7 @@ class Probabilistic : public StateFormula {
  public:
   /* Constructs a probabilistic path quantification. */
   Probabilistic(const TypedValue& threshold, bool strict,
-		const PathFormula& formula);
+		const PathFormula* formula);
 
   /* Deletes this probabilistic path quantification. */
   virtual ~Probabilistic();
@@ -873,11 +865,7 @@ class Until : public PathFormula {
   virtual bool probabilistic() const;
 
   /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula& substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this path formula subject to the given substitutions. */
-  virtual const Until& substitution(
+  virtual const Until* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Estimated effort for generating a sample for this path formula. */
