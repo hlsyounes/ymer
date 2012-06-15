@@ -76,10 +76,6 @@ class StateFormula {
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const = 0;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
       const std::map<std::string, const Variable*>& substitutions) const = 0;
 
   /* Returns the `current state' BDD representation for this state formula. */
@@ -133,6 +129,10 @@ private:
 
   friend std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 };
+
+const StateFormula* SubstituteConstants(
+    const StateFormula& formula,
+    const std::map<std::string, TypedValue>& constant_values);
 
 /* Output operator for state formulas. */
 std::ostream& operator<<(std::ostream& os, const StateFormula& f);
@@ -237,10 +237,6 @@ class Conjunction : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this state formula subject to the given substitutions. */
   virtual const Conjunction* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
@@ -306,10 +302,6 @@ class Disjunction : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Disjunction* substitution(
@@ -380,10 +372,6 @@ class Negation : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Negation* substitution(
@@ -457,10 +445,6 @@ class Implication : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Implication* substitution(
@@ -540,10 +524,6 @@ class Probabilistic : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Probabilistic* substitution(
@@ -682,10 +662,6 @@ struct LessThan : public Comparison {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this state formula subject to the given substitutions. */
   virtual const LessThan* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
@@ -713,10 +689,6 @@ struct LessThanOrEqual : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const LessThanOrEqual* substitution(
@@ -748,10 +720,6 @@ struct GreaterThanOrEqual : public Comparison {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this state formula subject to the given substitutions. */
   virtual const GreaterThanOrEqual* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
@@ -779,10 +747,6 @@ struct GreaterThan : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const GreaterThan* substitution(
@@ -814,10 +778,6 @@ struct Equality : public Comparison {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
-
-  /* Returns this state formula subject to the given substitutions. */
   virtual const Equality* substitution(
       const std::map<std::string, const Variable*>& substitutions) const;
 
@@ -845,10 +805,6 @@ struct Inequality : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, TypedValue>& constant_values) const;
 
   /* Returns this state formula subject to the given substitutions. */
   virtual const Inequality* substitution(
