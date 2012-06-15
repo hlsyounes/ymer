@@ -167,6 +167,10 @@ std::ostream& operator<<(std::ostream& os, const StateFormula& f) {
 /* ====================================================================== */
 /* PathFormula */
 
+void PathFormula::Accept(PathFormulaVisitor* visitor) const {
+  DoAccept(visitor);
+}
+
 /* Output operator for path formulas. */
 std::ostream& operator<<(std::ostream& os, const PathFormula& f) {
   f.print(os);
@@ -875,6 +879,9 @@ Until::~Until() {
   delete post_;
 }
 
+void Until::DoAccept(PathFormulaVisitor* visitor) const {
+  visitor->VisitUntil(*this);
+}
 
 /* Tests if this path formula contains probabilistic elements. */
 bool Until::probabilistic() const {
@@ -941,4 +948,21 @@ void StateFormulaVisitor::VisitProbabilistic(const Probabilistic& formula) {
 
 void StateFormulaVisitor::VisitComparison(const Comparison& formula) {
   DoVisitComparison(formula);
+}
+
+PathFormulaVisitor::PathFormulaVisitor() {
+}
+
+PathFormulaVisitor::PathFormulaVisitor(const PathFormulaVisitor&) {
+}
+
+PathFormulaVisitor& PathFormulaVisitor::operator=(const PathFormulaVisitor&) {
+  return *this;
+}
+
+PathFormulaVisitor::~PathFormulaVisitor() {
+}
+
+void PathFormulaVisitor::VisitUntil(const Until& formula) {
+  DoVisitUntil(formula);
 }
