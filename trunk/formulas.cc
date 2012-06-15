@@ -31,132 +31,6 @@ void StateFormula::Accept(StateFormulaVisitor* visitor) const {
   DoAccept(visitor);
 }
 
-namespace {
-
-class StateFormulaConstantSubstituter : public StateFormulaVisitor {
- public:
-  explicit StateFormulaConstantSubstituter(
-      const std::map<std::string, TypedValue>* constant_values);
-
-  ~StateFormulaConstantSubstituter();
-
-  const StateFormula* release_formula();
-
- private:
-  virtual void DoVisitConjunction(const Conjunction& formula);
-  virtual void DoVisitDisjunction(const Disjunction& formula);
-  virtual void DoVisitNegation(const Negation& formula);
-  virtual void DoVisitImplication(const Implication& formula);
-  virtual void DoVisitProbabilistic(const Probabilistic& formula);
-  virtual void DoVisitComparison(const Comparison& formula);
-
-  const std::map<std::string, TypedValue>* constant_values_;
-  const StateFormula* formula_;
-};
-
-StateFormulaConstantSubstituter::StateFormulaConstantSubstituter(
-    const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), formula_(NULL) {
-}
-
-StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {
-  delete formula_;
-}
-
-const StateFormula* StateFormulaConstantSubstituter::release_formula() {
-  const StateFormula* formula = formula_;
-  formula_ = NULL;
-  return formula;
-}
-
-void StateFormulaConstantSubstituter::DoVisitConjunction(
-    const Conjunction& formula) {
-  Conjunction* subst_conj = new Conjunction();
-  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
-       fi != formula.conjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
-    subst_conj->add_conjunct(release_formula());
-  }
-  formula_ = subst_conj;
-}
-
-void StateFormulaConstantSubstituter::DoVisitDisjunction(
-    const Disjunction& formula) {
-  Disjunction* subst_disj = new Disjunction();
-  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
-       fi != formula.disjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
-    subst_disj->add_disjunct(release_formula());
-  }
-  formula_ = subst_disj;
-}
-
-void StateFormulaConstantSubstituter::DoVisitNegation(const Negation& formula) {
-  formula.negand().Accept(this);
-  formula_ = new Negation(release_formula());
-}
-
-void StateFormulaConstantSubstituter::DoVisitImplication(
-    const Implication& formula) {
-  formula.antecedent().Accept(this);
-  const StateFormula* antecedent = release_formula();
-  formula.consequent().Accept(this);
-  formula_ = new Implication(antecedent, release_formula());
-}
-
-void StateFormulaConstantSubstituter::DoVisitProbabilistic(
-    const Probabilistic& formula) {
-  formula_ = new Probabilistic(
-      formula.threshold(), formula.strict(),
-      formula.formula().substitution(*constant_values_));
-}
-
-void StateFormulaConstantSubstituter::DoVisitComparison(
-    const Comparison& formula) {
-  switch (formula.op()) {
-    case Comparison::LESS:
-      formula_ = new LessThan(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::LESS_EQUAL:
-      formula_ = new LessThanOrEqual(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::GREATER_EQUAL:
-      formula_ = new GreaterThanOrEqual(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::GREATER:
-      formula_ = new GreaterThan(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::EQUAL:
-      formula_ = new Equality(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::NOT_EQUAL:
-      formula_ = new Inequality(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-  }
-}
-
-}  // namespace
-
-const StateFormula* SubstituteConstants(
-    const StateFormula& formula,
-    const std::map<std::string, TypedValue>& constant_values) {
-  StateFormulaConstantSubstituter substituter(&constant_values);
-  formula.Accept(&substituter);
-  return substituter.release_formula();
-}
-
 /* Output operator for state formulas. */
 std::ostream& operator<<(std::ostream& os, const StateFormula& f) {
   f.print(os);
@@ -534,8 +408,8 @@ void Implication::print(std::ostream& os) const {
 
 /* Constructs a probabilistic path quantification. */
 Probabilistic::Probabilistic(const TypedValue& threshold, bool strict,
-			     const PathFormula& formula)
-  : threshold_(threshold), strict_(strict), formula_(&formula) {
+			     const PathFormula* formula)
+  : threshold_(threshold), strict_(strict), formula_(formula) {
 }
 
 
@@ -890,20 +764,11 @@ bool Until::probabilistic() const {
 
 
 /* Returns this path formula subject to the given substitutions. */
-const PathFormula& Until::substitution(
-    const std::map<std::string, TypedValue>& constant_values) const {
-  return *new Until(SubstituteConstants(pre(), constant_values),
-                    SubstituteConstants(post(), constant_values),
-                    min_time(), max_time());
-}
-
-
-/* Returns this path formula subject to the given substitutions. */
-const Until& Until::substitution(
+const Until* Until::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
-  return *new Until(pre().substitution(substitutions),
-                    post().substitution(substitutions),
-                    min_time(), max_time());
+  return new Until(pre().substitution(substitutions),
+                   post().substitution(substitutions),
+                   min_time(), max_time());
 }
 
 
