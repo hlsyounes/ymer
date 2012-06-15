@@ -141,12 +141,26 @@ std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 /* ====================================================================== */
 /* PathFormula */
 
-/*
- * A path formula.
- */
-struct PathFormula {
+class PathFormulaVisitor;
+
+// Abstract base class for path formulas.
+//
+// This class supports the visitor pattern.  Example usage:
+//
+//   class ConcretePathFormulaVisitor : public PathFormulaVisitor {
+//     ...
+//   };
+//
+//   PathFormula* formula = ...;
+//   ConcretePathFormulaVisitor visitor;
+//   formula->Accept(&visitor);
+//
+class PathFormula {
+ public:
   /* Deletes this path formula. */
   virtual ~PathFormula() {}
+
+  void Accept(PathFormulaVisitor* visitor) const;
 
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
@@ -195,10 +209,16 @@ protected:
   /* Constructs a path formula. */
   PathFormula() {}
 
+private:
+  // Disallow copy and assign.
+  PathFormula(const PathFormula&);
+  PathFormula& operator=(const PathFormula&);
+
+  virtual void DoAccept(PathFormulaVisitor* visitor) const = 0;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
-private:
   friend std::ostream& operator<<(std::ostream& os, const PathFormula& f);
 };
 
@@ -828,7 +848,8 @@ protected:
 /*
  * An until path formula.
  */
-struct Until : public PathFormula {
+class Until : public PathFormula {
+ public:
   /* Constructs an until formula. */
   Until(const StateFormula* pre, const StateFormula* post,
 	const TypedValue& min_time, const TypedValue& max_time);
@@ -891,11 +912,12 @@ struct Until : public PathFormula {
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
 
-protected:
+private:
+  virtual void DoAccept(PathFormulaVisitor* visitor) const;
+
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
-private:
   /* The precondition formula. */
   const StateFormula* pre_;
   /* The postcondition formula. */
@@ -929,6 +951,21 @@ class StateFormulaVisitor {
   virtual void DoVisitImplication(const Implication& formula) = 0;
   virtual void DoVisitProbabilistic(const Probabilistic& formula) = 0;
   virtual void DoVisitComparison(const Comparison& formula) = 0;
+};
+
+// Abstract base class for path formula visitors.
+class PathFormulaVisitor {
+ public:
+  void VisitUntil(const Until& formula);
+
+ protected:
+  PathFormulaVisitor();
+  PathFormulaVisitor(const PathFormulaVisitor&);
+  PathFormulaVisitor& operator=(const PathFormulaVisitor&);
+  ~PathFormulaVisitor();
+
+ private:
+  virtual void DoVisitUntil(const Until& formula) = 0;
 };
 
 #endif /* FORMULAS_H */
