@@ -16,12 +16,15 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: distributions.cc,v 2.1 2004-01-25 12:19:50 lorens Exp $
  */
+
 #include "distributions.h"
-#include "src/expression.h"
+
 #include <cmath>
+#include <iostream>
+
+#include "config.h"
+#include "src/expression.h"
 
 
 /* ====================================================================== */
@@ -152,10 +155,47 @@ void Distribution::acph2(ACPH2Parameters& params) const {
   }
 }
 
+namespace {
 
-/* Output operator for distributions. */
+// A distribution visitor that prints a distribution to an output stream.
+class DistributionPrinter : public DistributionVisitor {
+ public:
+  explicit DistributionPrinter(std::ostream* os);
+
+ private:
+  virtual void DoVisitExponential(const Exponential& distribution);
+  virtual void DoVisitWeibull(const Weibull& distribution);
+  virtual void DoVisitLognormal(const Lognormal& distribution);
+  virtual void DoVisitUniform(const Uniform& distribution);
+
+  std::ostream* os_;
+};
+
+DistributionPrinter::DistributionPrinter(std::ostream* os)
+    : os_(os) {
+}
+
+void DistributionPrinter::DoVisitExponential(const Exponential& distribution) {
+  *os_ << "Exp(" << distribution.rate() << ")";
+}
+
+void DistributionPrinter::DoVisitWeibull(const Weibull& distribution) {
+  *os_ << "W(" << distribution.scale() << "," << distribution.shape() << ")";
+}
+
+void DistributionPrinter::DoVisitLognormal(const Lognormal& distribution) {
+  *os_ << "L(" << distribution.scale() << "," << distribution.shape() << ")";
+}
+
+void DistributionPrinter::DoVisitUniform(const Uniform& distribution) {
+  *os_ << "U(" << distribution.low() << "," << distribution.high() << ")";
+}
+
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, const Distribution& d) {
-  d.print(os);
+  DistributionPrinter printer(&os);
+  d.Accept(&printer);
   return os;
 }
 
@@ -209,12 +249,6 @@ double Exponential::sample(const std::vector<int>& state) const {
 const Exponential* Exponential::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(rate(), substitutions));
-}
-
-
-/* Prints this object on the given stream. */
-void Exponential::print(std::ostream& os) const {
-  os << "Exp(" << rate() << ")";
 }
 
 
@@ -280,12 +314,6 @@ const Distribution* Weibull::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(scale(), substitutions),
               *SubstituteIdentifiers(shape(), substitutions));
-}
-
-
-/* Prints this object on the given stream. */
-void Weibull::print(std::ostream& os) const {
-  os << "W(" << scale() << ',' << shape() << ")";
 }
 
 
@@ -360,12 +388,6 @@ const Lognormal* Lognormal::substitution(
 }
 
 
-/* Prints this object on the given stream. */
-void Lognormal::print(std::ostream& os) const {
-  os << "L(" << scale() << ',' << shape() << ")";
-}
-
-
 /* ===================================================================== */
 /* Uniform */
 
@@ -422,12 +444,6 @@ const Uniform* Uniform::substitution(
     const std::map<std::string, const Variable*>& substitutions) const {
   return make(*SubstituteIdentifiers(low(), substitutions),
               *SubstituteIdentifiers(high(), substitutions));
-}
-
-
-/* Prints this object on the given stream. */
-void Uniform::print(std::ostream& os) const {
-  os << "U(" << low() << ',' << high() << ")";
 }
 
 DistributionVisitor::DistributionVisitor() {

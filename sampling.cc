@@ -20,6 +20,7 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+
 #include "formulas.h"
 #include "comm.h"
 #include "states.h"
@@ -33,7 +34,7 @@
 #endif
 #include <math.h>
 #include <cstdio>
-
+#include <iostream>
 
 /* Verbosity level. */
 extern int verbosity;
