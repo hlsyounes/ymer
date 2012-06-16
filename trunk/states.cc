@@ -16,16 +16,15 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: states.cc,v 4.1 2005-02-01 14:18:09 lorens Exp $
  */
+
 #include "states.h"
 #include "models.h"
 #include "distributions.h"
 #include "formulas.h"
 #include "rng.h"
 #include <cmath>
-
+#include <iostream>
 
 /* Verbosity level. */
 extern int verbosity;

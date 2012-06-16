@@ -19,18 +19,17 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: distributions.h,v 4.1 2005-02-01 14:01:41 lorens Exp $
  */
 #ifndef DISTRIBUTIONS_H
 #define DISTRIBUTIONS_H
 
-#include <config.h>
-#include "src/expression.h"
-#include "rng.h"
-#include <iostream>
+#include <map>
+#include <ostream>
+#include <string>
 #include <vector>
 
+#include "src/expression.h"
+#include "rng.h"
 
 /* ====================================================================== */
 /* ECParameters */
@@ -140,11 +139,6 @@ private:
   Distribution& operator=(const Distribution&);
 
   virtual void DoAccept(DistributionVisitor* visitor) const = 0;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
-  friend std::ostream& operator<<(std::ostream& os, const Distribution& d);
 };
 
 /* Output operator for distributions. */
@@ -187,9 +181,6 @@ private:
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
   /* The rate of this exponential distribution. */
   const Expression* rate_;
 };
@@ -231,9 +222,6 @@ private:
   Weibull(const Expression& scale, const Expression& shape);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 
   /* The scale of this Weibull distribution. */
   const Expression* scale_;
@@ -278,9 +266,6 @@ private:
   Lognormal(const Expression& scale, const Expression& shape);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 
   /* The scale of this lognormal distribution. */
   const Expression* scale_;
@@ -328,9 +313,6 @@ private:
   Uniform(const Expression& low, const Expression& high);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 
   /* The lower bound of this uniform distribution. */
   const Expression* low_;

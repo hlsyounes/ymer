@@ -19,16 +19,15 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: symbolic.cc,v 4.2 2005-02-01 14:21:16 lorens Exp $
  */
+
 #include "formulas.h"
 #include "models.h"
 #include "hybrid.h"
 #include <float.h>
 #include <cmath>
+#include <iostream>
 #include <stdexcept>
-
 
 /* Verbosity level. */
 extern int verbosity;
