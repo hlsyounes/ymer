@@ -23,7 +23,6 @@
 #ifndef DISTRIBUTIONS_H
 #define DISTRIBUTIONS_H
 
-#include <map>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -125,10 +124,6 @@ class Distribution {
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const = 0;
 
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const = 0;
-
 protected:
   /* Constructs a distribution. */
   Distribution();
@@ -171,10 +166,6 @@ class Exponential : public Distribution {
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const;
 
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Exponential* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
-
 private:
   /* Constructs an exponential distribution with the given rate. */
   Exponential(const Expression& rate);
@@ -212,10 +203,6 @@ class Weibull : public Distribution {
 
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Distribution* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
   /* Constructs a Weibull distribution with the given scale and shape. */
@@ -256,10 +243,6 @@ class Lognormal : public Distribution {
 
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Lognormal* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
   /* Constructs a lognormal distribution with the given scale and shape. */
@@ -303,10 +286,6 @@ class Uniform : public Distribution {
 
   /* Returns a sample drawn from this distribution. */
   virtual double sample(const std::vector<int>& state) const;
-
-  /* Returns this distribution subject to the given substitutions. */
-  virtual const Uniform* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
 private:
   /* Constructs a uniform distribution with the given bounds. */
