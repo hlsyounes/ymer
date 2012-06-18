@@ -245,13 +245,6 @@ double Exponential::sample(const std::vector<int>& state) const {
 }
 
 
-/* Returns this distribution subject to the given substitutions. */
-const Exponential* Exponential::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return make(*SubstituteIdentifiers(rate(), substitutions));
-}
-
-
 /* ===================================================================== */
 /* Weibull */
 
@@ -306,14 +299,6 @@ double Weibull::sample(const std::vector<int>& state) const {
   double eta = scale().value(state).value<double>();
   double beta = shape().value(state).value<double>();
   return eta*pow(-log(genrand_real3_id(mts)), 1.0/beta);
-}
-
-
-/* Returns this distribution subject to the given substitutions. */
-const Distribution* Weibull::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return make(*SubstituteIdentifiers(scale(), substitutions),
-              *SubstituteIdentifiers(shape(), substitutions));
 }
 
 
@@ -380,14 +365,6 @@ double Lognormal::sample(const std::vector<int>& state) const {
 }
 
 
-/* Returns this distribution subject to the given substitutions. */
-const Lognormal* Lognormal::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return make(*SubstituteIdentifiers(scale(), substitutions),
-              *SubstituteIdentifiers(shape(), substitutions));
-}
-
-
 /* ===================================================================== */
 /* Uniform */
 
@@ -436,14 +413,6 @@ double Uniform::sample(const std::vector<int>& state) const {
   double a = low().value(state).value<double>();
   double b = high().value(state).value<double>();
   return (b - a)*genrand_real3_id(mts) + a;
-}
-
-
-/* Returns this distribution subject to the given substitutions. */
-const Uniform* Uniform::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return make(*SubstituteIdentifiers(low(), substitutions),
-              *SubstituteIdentifiers(high(), substitutions));
 }
 
 DistributionVisitor::DistributionVisitor() {

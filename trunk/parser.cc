@@ -3260,6 +3260,33 @@ const Variable* SubstituteVariable(
   return (i == substitutions.end()) ? variable : i->second;
 }
 
+class DistributionIdentifierSubstituter : public DistributionVisitor {
+ public:
+  explicit DistributionIdentifierSubstituter(
+      const std::map<std::string, const Variable*>* substitutions);
+
+  ~DistributionIdentifierSubstituter();
+
+  const Distribution* release_distribution();
+
+ private:
+  virtual void DoVisitExponential(const Exponential& distribution);
+  virtual void DoVisitWeibull(const Weibull& distribution);
+  virtual void DoVisitLognormal(const Lognormal& distribution);
+  virtual void DoVisitUniform(const Uniform& distribution);
+
+  const std::map<std::string, const Variable*>* substitutions_;
+  const Distribution* distribution_;
+};
+
+const Distribution* SubstituteIdentifiers(
+    const Distribution& distribution,
+    const std::map<std::string, const Variable*>& substitutions) {
+  DistributionIdentifierSubstituter substituter(&substitutions);
+  distribution.Accept(&substituter);
+  return substituter.release_distribution();
+}
+
 const Update* SubstituteIdentifiers(
     const Update& update,
     const std::map<std::string, const Variable*>& substitutions) {
@@ -3281,7 +3308,7 @@ const Command* SubstituteIdentifiers(
   Command* subst_comm = new Command(
       s,
       command.guard().substitution(substitutions),
-      command.delay().substitution(substitutions));
+      SubstituteIdentifiers(command.delay(), substitutions));
   for (UpdateList::const_iterator ui = command.updates().begin();
        ui != command.updates().end(); ui++) {
     subst_comm->add_update(SubstituteIdentifiers(**ui, substitutions));
@@ -3304,6 +3331,48 @@ Module* SubstituteIdentifiers(
     subst_mod->add_command(SubstituteIdentifiers(**ci, substitutions, syncs));
   }
   return subst_mod;
+}
+
+DistributionIdentifierSubstituter::DistributionIdentifierSubstituter(
+    const std::map<std::string, const Variable*>* substitutions)
+    : substitutions_(substitutions), distribution_(NULL) {
+}
+
+DistributionIdentifierSubstituter::~DistributionIdentifierSubstituter() {
+  delete distribution_;
+}
+
+const Distribution* DistributionIdentifierSubstituter::release_distribution() {
+  const Distribution* distribution = distribution_;
+  distribution_ = NULL;
+  return distribution;
+}
+
+void DistributionIdentifierSubstituter::DoVisitExponential(
+    const Exponential& distribution) {
+  distribution_ = Exponential::make(
+      *SubstituteIdentifiers(distribution.rate(), *substitutions_));
+}
+
+void DistributionIdentifierSubstituter::DoVisitWeibull(
+    const Weibull& distribution) {
+  distribution_ = Weibull::make(
+      *SubstituteIdentifiers(distribution.scale(), *substitutions_),
+      *SubstituteIdentifiers(distribution.shape(), *substitutions_));
+}
+
+void DistributionIdentifierSubstituter::DoVisitLognormal(
+    const Lognormal& distribution) {
+  distribution_ = Lognormal::make(
+      *SubstituteIdentifiers(distribution.scale(), *substitutions_),
+      *SubstituteIdentifiers(distribution.shape(), *substitutions_));
+}
+
+void DistributionIdentifierSubstituter::DoVisitUniform(
+    const Uniform& distribution) {
+  distribution_ = Uniform::make(
+      *SubstituteIdentifiers(distribution.low(), *substitutions_),
+      *SubstituteIdentifiers(distribution.high(), *substitutions_));
 }
 
 }  // namespace

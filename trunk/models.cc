@@ -306,6 +306,63 @@ bool IsUnitDistribution(const Distribution& dist) {
   return rate_literal != NULL && rate_literal->value() == 1;
 }
 
+class DistributionCopier : public DistributionVisitor {
+ public:
+  DistributionCopier();
+
+  ~DistributionCopier();
+
+  const Distribution* release_distribution();
+
+ private:
+  virtual void DoVisitExponential(const Exponential& distribution);
+  virtual void DoVisitWeibull(const Weibull& distribution);
+  virtual void DoVisitLognormal(const Lognormal& distribution);
+  virtual void DoVisitUniform(const Uniform& distribution);
+
+  const Distribution* distribution_;
+};
+
+const Distribution* CopyDistribution(const Distribution& distribution) {
+  DistributionCopier copier;
+  distribution.Accept(&copier);
+  return copier.release_distribution();
+}
+
+DistributionCopier::DistributionCopier()
+    : distribution_(NULL) {
+}
+
+DistributionCopier::~DistributionCopier() {
+  delete distribution_;
+}
+
+const Distribution* DistributionCopier::release_distribution() {
+  const Distribution* distribution = distribution_;
+  distribution_ = NULL;
+  return distribution;
+}
+
+void DistributionCopier::DoVisitExponential(const Exponential& distribution) {
+  // TODO(hlsyounes): Copy rate expression.
+  distribution_ = Exponential::make(distribution.rate());
+}
+
+void DistributionCopier::DoVisitWeibull(const Weibull& distribution) {
+  // TODO(hlsyounes): Copy scale and shape expressions.
+  distribution_ = Weibull::make(distribution.scale(), distribution.shape());
+}
+
+void DistributionCopier::DoVisitLognormal(const Lognormal& distribution) {
+  // TODO(hlsyounes): Copy scale and shape expressions.
+  distribution_ = Lognormal::make(distribution.scale(), distribution.shape());
+}
+
+void DistributionCopier::DoVisitUniform(const Uniform& distribution) {
+  // TODO(hlsyounes): Copy low and high expressions.
+  distribution_ = Uniform::make(distribution.low(), distribution.high());
+}
+
 }  // namespace
 
 /* Compiles the commands of this model. */
@@ -372,9 +429,9 @@ void Model::compile() {
 	    guard->add_conjunct(cj.guard().substitution(empty_subst));
 	    Command* c;
 	    if (IsUnitDistribution(ci.delay())) {
-	      c = new Command(*si, guard, cj.delay().substitution(empty_subst));
+	      c = new Command(*si, guard, CopyDistribution(cj.delay()));
 	    } else if (IsUnitDistribution(cj.delay())) {
-	      c = new Command(*si, guard, ci.delay().substitution(empty_subst));
+              c = new Command(*si, guard, CopyDistribution(ci.delay()));
 	    } else {
 	      throw std::logic_error("at least one command in a"
 				     " synchronization pair must have rate 1");
