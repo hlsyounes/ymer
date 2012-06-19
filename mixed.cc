@@ -23,6 +23,7 @@
 #include "formulas.h"
 #include "states.h"
 #include "models.h"
+#include "cudd.h"
 #include <cmath>
 #include <iostream>
 

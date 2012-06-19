@@ -21,14 +21,15 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
-#include <config.h>
+#include <deque>
+#include <map>
+
 #include "src/ddutil.h"
 #include "src/expression.h"
-#include <cudd.h>
-#include <deque>
 
 struct Model;
 struct State;
@@ -73,10 +74,6 @@ class StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const = 0;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const StateFormula* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const = 0;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const = 0;
@@ -161,10 +158,6 @@ class PathFormula {
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
-  /* Returns this path formula subject to the given substitutions. */
-  virtual const PathFormula* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const = 0;
-
   /* Estimated effort for generating a sample for this path formula. */
   virtual double effort(const Model& model, const State& state,
 			double q, DeltaFun delta, double alpha, double beta,
@@ -248,10 +241,6 @@ class Conjunction : public StateFormula {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Conjunction* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
-
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
 
@@ -314,10 +303,6 @@ class Disjunction : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Disjunction* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -384,10 +369,6 @@ class Negation : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Negation* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -457,10 +438,6 @@ class Implication : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Implication* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -536,10 +513,6 @@ class Probabilistic : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Probabilistic* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -673,10 +646,6 @@ struct LessThan : public Comparison {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const LessThan* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
-
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
 
@@ -701,10 +670,6 @@ struct LessThanOrEqual : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const LessThanOrEqual* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -731,10 +696,6 @@ struct GreaterThanOrEqual : public Comparison {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const GreaterThanOrEqual* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
-
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
 
@@ -759,10 +720,6 @@ struct GreaterThan : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const GreaterThan* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -789,10 +746,6 @@ struct Equality : public Comparison {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Equality* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
-
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
 
@@ -817,10 +770,6 @@ struct Inequality : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns this state formula subject to the given substitutions. */
-  virtual const Inequality* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Returns the `current state' BDD representation for this state formula. */
   virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
@@ -863,10 +812,6 @@ class Until : public PathFormula {
 
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Returns this path formula subject to the given substitutions. */
-  virtual const Until* substitution(
-      const std::map<std::string, const Variable*>& substitutions) const;
 
   /* Estimated effort for generating a sample for this path formula. */
   virtual double effort(const Model& model, const State& state,

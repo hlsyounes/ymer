@@ -19,10 +19,14 @@
  */
 
 #include "models.h"
-#include "formulas.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <typeinfo>
+
+#include "formulas.h"
+
+#include "cudd.h"
 
 /* Verbosity level. */
 extern int verbosity;
@@ -306,6 +310,51 @@ bool IsUnitDistribution(const Distribution& dist) {
   return rate_literal != NULL && rate_literal->value() == 1;
 }
 
+class StateFormulaCopier : public StateFormulaVisitor {
+ public:
+  StateFormulaCopier();
+
+  ~StateFormulaCopier();
+
+  const StateFormula* release_formula();
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  const StateFormula* formula_;
+};
+
+const StateFormula* CopyStateFormula(const StateFormula& formula) {
+  StateFormulaCopier copier;
+  formula.Accept(&copier);
+  return copier.release_formula();
+}
+
+class PathFormulaCopier : public PathFormulaVisitor {
+ public:
+  PathFormulaCopier();
+
+  ~PathFormulaCopier();
+
+  const PathFormula* release_formula();
+
+ private:
+  virtual void DoVisitUntil(const Until& formula);
+
+  const PathFormula* formula_;
+};
+
+const PathFormula* CopyPathFormula(const PathFormula& formula) {
+  PathFormulaCopier copier;
+  formula.Accept(&copier);
+  return copier.release_formula();
+}
+
 class DistributionCopier : public DistributionVisitor {
  public:
   DistributionCopier();
@@ -327,6 +376,100 @@ const Distribution* CopyDistribution(const Distribution& distribution) {
   DistributionCopier copier;
   distribution.Accept(&copier);
   return copier.release_distribution();
+}
+
+StateFormulaCopier::StateFormulaCopier()
+    : formula_(NULL) {
+}
+
+StateFormulaCopier::~StateFormulaCopier() {
+  delete formula_;
+}
+
+const StateFormula* StateFormulaCopier::release_formula() {
+  const StateFormula* formula = formula_;
+  formula_ = NULL;
+  return formula;
+}
+
+void StateFormulaCopier::DoVisitConjunction(const Conjunction& formula) {
+  Conjunction* conjunction = new Conjunction();
+  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
+       fi != formula.conjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    conjunction->add_conjunct(release_formula());
+  }
+  formula_ = conjunction;
+}
+
+void StateFormulaCopier::DoVisitDisjunction(const Disjunction& formula) {
+  Disjunction* disjunction = new Disjunction();
+  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
+       fi != formula.disjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    disjunction->add_disjunct(release_formula());
+  }
+  formula_ = disjunction;
+}
+
+void StateFormulaCopier::DoVisitNegation(const Negation& formula) {
+  formula.negand().Accept(this);
+  formula_ = new Negation(release_formula());
+}
+
+void StateFormulaCopier::DoVisitImplication(const Implication& formula) {
+  formula.antecedent().Accept(this);
+  const StateFormula* antecedent = release_formula();
+  formula.consequent().Accept(this);
+  formula_ = new Implication(antecedent, release_formula());
+}
+
+void StateFormulaCopier::DoVisitProbabilistic(const Probabilistic& formula) {
+  formula_ = new Probabilistic(formula.threshold(), formula.strict(),
+                               CopyPathFormula(formula.formula()));
+}
+
+void StateFormulaCopier::DoVisitComparison(const Comparison& formula) {
+  // TODO(hlsyounes): Copy expr1 and expr2 expressions.
+  switch (formula.op()) {
+    case Comparison::LESS:
+      formula_ = new LessThan(formula.expr1(), formula.expr2());
+      break;
+    case Comparison::LESS_EQUAL:
+      formula_ = new LessThanOrEqual(formula.expr1(), formula.expr2());
+      break;
+    case Comparison::GREATER_EQUAL:
+      formula_ = new GreaterThanOrEqual(formula.expr1(), formula.expr2());
+      break;
+    case Comparison::GREATER:
+      formula_ = new GreaterThan(formula.expr1(), formula.expr2());
+      break;
+    case Comparison::EQUAL:
+      formula_ = new Equality(formula.expr1(), formula.expr2());
+      break;
+    case Comparison::NOT_EQUAL:
+      formula_ = new Inequality(formula.expr1(), formula.expr2());
+      break;
+  }
+}
+
+PathFormulaCopier::PathFormulaCopier()
+    : formula_(NULL) {
+}
+
+PathFormulaCopier::~PathFormulaCopier() {
+}
+
+const PathFormula* PathFormulaCopier::release_formula() {
+  const PathFormula* formula = formula_;
+  formula_ = NULL;
+  return formula;
+}
+
+void PathFormulaCopier::DoVisitUntil(const Until& formula) {
+  formula_ = new Until(CopyStateFormula(formula.pre()),
+                       CopyStateFormula(formula.post()),
+                       formula.min_time(), formula.max_time());
 }
 
 DistributionCopier::DistributionCopier()
@@ -425,8 +568,8 @@ void Model::compile() {
 	     */
             std::map<std::string, const Variable*> empty_subst;
 	    Conjunction* guard = new Conjunction();
-	    guard->add_conjunct(ci.guard().substitution(empty_subst));
-	    guard->add_conjunct(cj.guard().substitution(empty_subst));
+	    guard->add_conjunct(CopyStateFormula(ci.guard()));
+	    guard->add_conjunct(CopyStateFormula(cj.guard()));
 	    Command* c;
 	    if (IsUnitDistribution(ci.delay())) {
 	      c = new Command(*si, guard, CopyDistribution(cj.delay()));

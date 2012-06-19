@@ -95,18 +95,6 @@ bool Conjunction::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const Conjunction* Conjunction::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  Conjunction* subst_conj = new Conjunction();
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    subst_conj->add_conjunct((*fi)->substitution(substitutions));
-  }
-  return subst_conj;
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD Conjunction::bdd(const DecisionDiagramManager& dd_man) const {
   BDD dd = dd_man.GetConstant(true);
@@ -205,18 +193,6 @@ bool Disjunction::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const Disjunction* Disjunction::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  Disjunction* subst_disj = new Disjunction();
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    subst_disj->add_disjunct((*fi)->substitution(substitutions));
-  }
-  return subst_disj;
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD Disjunction::bdd(const DecisionDiagramManager& dd_man) const {
   BDD dd = dd_man.GetConstant(false);
@@ -302,13 +278,6 @@ bool Negation::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const Negation* Negation::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new Negation(negand().substitution(substitutions));
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD Negation::bdd(const DecisionDiagramManager& dd_man) const {
   return !negand().bdd(dd_man);
@@ -369,14 +338,6 @@ bool Implication::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const Implication* Implication::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new Implication(antecedent().substitution(substitutions),
-                         consequent().substitution(substitutions));
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD Implication::bdd(const DecisionDiagramManager& dd_man) const {
   return !antecedent().bdd(dd_man) || consequent().bdd(dd_man);
@@ -431,14 +392,6 @@ bool Probabilistic::probabilistic() const {
 /* Tests if this state formula holds in the given state. */
 bool Probabilistic::holds(const std::vector<int>& state) const {
   throw std::logic_error("Probabilistic::holds not implemented");
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const Probabilistic* Probabilistic::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new Probabilistic(threshold(), strict(),
-                           formula().substitution(substitutions));
 }
 
 
@@ -504,14 +457,6 @@ bool LessThan::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const LessThan* LessThan::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new LessThan(*SubstituteIdentifiers(expr1(), substitutions),
-                      *SubstituteIdentifiers(expr2(), substitutions));
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD LessThan::bdd(const DecisionDiagramManager& dd_man) const {
   return mtbdd(dd_man, expr1()) < mtbdd(dd_man, expr2());
@@ -543,14 +488,6 @@ LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
 /* Tests if this state formula holds in the given state. */
 bool LessThanOrEqual::holds(const std::vector<int>& state) const {
   return expr1().value(state) <= expr2().value(state);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const LessThanOrEqual* LessThanOrEqual::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new LessThanOrEqual(*SubstituteIdentifiers(expr1(), substitutions),
-                             *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -588,14 +525,6 @@ bool GreaterThanOrEqual::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const GreaterThanOrEqual* GreaterThanOrEqual::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new GreaterThanOrEqual(*SubstituteIdentifiers(expr1(), substitutions),
-                                *SubstituteIdentifiers(expr2(), substitutions));
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD GreaterThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
   return mtbdd(dd_man, expr1()) >= mtbdd(dd_man, expr2());
@@ -626,14 +555,6 @@ GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
 /* Tests if this state formula holds in the given state. */
 bool GreaterThan::holds(const std::vector<int>& state) const {
   return expr1().value(state) > expr2().value(state);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const GreaterThan* GreaterThan::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new GreaterThan(*SubstituteIdentifiers(expr1(), substitutions),
-                         *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -670,14 +591,6 @@ bool Equality::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns this state formula subject to the given substitutions. */
-const Equality* Equality::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new Equality(*SubstituteIdentifiers(expr1(), substitutions),
-                      *SubstituteIdentifiers(expr2(), substitutions));
-}
-
-
 /* Returns the `current state' BDD representation for this state formula. */
 BDD Equality::bdd(const DecisionDiagramManager& dd_man) const {
   return mtbdd(dd_man, expr1()) == mtbdd(dd_man, expr2());
@@ -708,14 +621,6 @@ Inequality::Inequality(const Expression& expr1, const Expression& expr2)
 /* Tests if this state formula holds in the given state. */
 bool Inequality::holds(const std::vector<int>& state) const {
   return expr1().value(state) != expr2().value(state);
-}
-
-
-/* Returns this state formula subject to the given substitutions. */
-const Inequality* Inequality::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new Inequality(*SubstituteIdentifiers(expr1(), substitutions),
-                        *SubstituteIdentifiers(expr2(), substitutions));
 }
 
 
@@ -760,15 +665,6 @@ void Until::DoAccept(PathFormulaVisitor* visitor) const {
 /* Tests if this path formula contains probabilistic elements. */
 bool Until::probabilistic() const {
   return pre().probabilistic() || post().probabilistic();
-}
-
-
-/* Returns this path formula subject to the given substitutions. */
-const Until* Until::substitution(
-    const std::map<std::string, const Variable*>& substitutions) const {
-  return new Until(pre().substitution(substitutions),
-                   post().substitution(substitutions),
-                   min_time(), max_time());
 }
 
 

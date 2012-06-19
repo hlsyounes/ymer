@@ -1035,6 +1035,85 @@ const Variable* SubstituteVariable(
   return (i == substitutions.end()) ? variable : i->second;
 }
 
+class ExpressionIdentifierSubstituter : public ExpressionVisitor {
+ public:
+  explicit ExpressionIdentifierSubstituter(
+      const std::map<std::string, const Variable*>* substitutions);
+
+  ~ExpressionIdentifierSubstituter();
+
+  const Expression* release_expr();
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const std::map<std::string, const Variable*>* substitutions_;
+  const Expression* expr_;
+};
+
+const Expression* SubstituteIdentifiers(
+    const Expression& expr,
+    const std::map<std::string, const Variable*>& substitutions) {
+  ExpressionIdentifierSubstituter substituter(&substitutions);
+  expr.Accept(&substituter);
+  return substituter.release_expr();
+}
+
+class StateFormulaIdentifierSubstituter : public StateFormulaVisitor {
+ public:
+  explicit StateFormulaIdentifierSubstituter(
+      const std::map<std::string, const Variable*>* substitutions);
+
+  ~StateFormulaIdentifierSubstituter();
+
+  const StateFormula* release_formula();
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  const std::map<std::string, const Variable*>* substitutions_;
+  const StateFormula* formula_;
+};
+
+const StateFormula* SubstituteIdentifiers(
+    const StateFormula& formula,
+    const std::map<std::string, const Variable*>& substitutions) {
+  StateFormulaIdentifierSubstituter substituter(&substitutions);
+  formula.Accept(&substituter);
+  return substituter.release_formula();
+}
+
+class PathFormulaIdentifierSubstituter : public PathFormulaVisitor {
+ public:
+  explicit PathFormulaIdentifierSubstituter(
+      const std::map<std::string, const Variable*>* substitutions);
+
+  ~PathFormulaIdentifierSubstituter();
+
+  const PathFormula* release_formula();
+
+ private:
+  virtual void DoVisitUntil(const Until& formula);
+
+  const std::map<std::string, const Variable*>* substitutions_;
+  const PathFormula* formula_;
+};
+
+const PathFormula* SubstituteIdentifiers(
+    const PathFormula& formula,
+    const std::map<std::string, const Variable*>& substitutions) {
+  PathFormulaIdentifierSubstituter substituter(&substitutions);
+  formula.Accept(&substituter);
+  return substituter.release_formula();
+}
+
 class DistributionIdentifierSubstituter : public DistributionVisitor {
  public:
   explicit DistributionIdentifierSubstituter(
@@ -1082,7 +1161,7 @@ const Command* SubstituteIdentifiers(
   }
   Command* subst_comm = new Command(
       s,
-      command.guard().substitution(substitutions),
+      SubstituteIdentifiers(command.guard(), substitutions),
       SubstituteIdentifiers(command.delay(), substitutions));
   for (UpdateList::const_iterator ui = command.updates().begin();
        ui != command.updates().end(); ui++) {
@@ -1106,6 +1185,173 @@ Module* SubstituteIdentifiers(
     subst_mod->add_command(SubstituteIdentifiers(**ci, substitutions, syncs));
   }
   return subst_mod;
+}
+
+ExpressionIdentifierSubstituter::ExpressionIdentifierSubstituter(
+    const std::map<std::string, const Variable*>* substitutions)
+    : substitutions_(substitutions), expr_(NULL) {
+}
+
+ExpressionIdentifierSubstituter::~ExpressionIdentifierSubstituter() {
+  Expression::ref(expr_);
+  Expression::destructive_deref(expr_);
+}
+
+const Expression* ExpressionIdentifierSubstituter::release_expr() {
+  const Expression* expr = expr_;
+  expr_ = NULL;
+  return expr;
+}
+
+void ExpressionIdentifierSubstituter::DoVisitLiteral(const Literal& expr) {
+  expr_ = new Literal(expr.value());
+}
+
+void ExpressionIdentifierSubstituter::DoVisitVariable(const Variable& expr) {
+  std::map<std::string, const Variable*>::const_iterator i =
+      substitutions_->find(expr.name());
+  if (i == substitutions_->end()) {
+    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
+    expr_ = &expr;
+  } else {
+    expr_ = i->second;
+  }
+}
+
+void ExpressionIdentifierSubstituter::DoVisitComputation(
+    const Computation& expr) {
+  expr.operand1().Accept(this);
+  const Expression* operand1 = release_expr();
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      expr_ = Addition::make(*operand1, *release_expr());
+      break;
+    case Computation::MINUS:
+      expr_ = Subtraction::make(*operand1, *release_expr());
+      break;
+    case Computation::MULTIPLY:
+      expr_ = Multiplication::make(*operand1, *release_expr());
+      break;
+    case Computation::DIVIDE:
+      expr_ = Division::make(*operand1, *release_expr());
+      break;
+  }
+}
+
+StateFormulaIdentifierSubstituter::StateFormulaIdentifierSubstituter(
+    const std::map<std::string, const Variable*>* substitutions)
+    : substitutions_(substitutions), formula_(NULL) {
+}
+
+StateFormulaIdentifierSubstituter::~StateFormulaIdentifierSubstituter() {
+  delete formula_;
+}
+
+const StateFormula* StateFormulaIdentifierSubstituter::release_formula() {
+  const StateFormula* formula = formula_;
+  formula_ = NULL;
+  return formula;
+}
+
+void StateFormulaIdentifierSubstituter::DoVisitConjunction(
+    const Conjunction& formula) {
+  Conjunction* conjunction = new Conjunction();
+  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
+       fi != formula.conjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    conjunction->add_conjunct(release_formula());
+  }
+  formula_ = conjunction;
+}
+
+void StateFormulaIdentifierSubstituter::DoVisitDisjunction(
+    const Disjunction& formula) {
+  Disjunction* disjunction = new Disjunction();
+  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
+       fi != formula.disjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    disjunction->add_disjunct(release_formula());
+  }
+  formula_ = disjunction;
+}
+
+void StateFormulaIdentifierSubstituter::DoVisitNegation(
+    const Negation& formula) {
+  formula.negand().Accept(this);
+  formula_ = new Negation(release_formula());
+}
+
+void StateFormulaIdentifierSubstituter::DoVisitImplication(
+    const Implication& formula) {
+  formula.antecedent().Accept(this);
+  const StateFormula* antecedent = release_formula();
+  formula.consequent().Accept(this);
+  formula_ = new Implication(antecedent, release_formula());
+}
+
+void StateFormulaIdentifierSubstituter::DoVisitProbabilistic(
+    const Probabilistic& formula) {
+  formula_ = new Probabilistic(
+      formula.threshold(), formula.strict(),
+      SubstituteIdentifiers(formula.formula(), *substitutions_));
+}
+
+void StateFormulaIdentifierSubstituter::DoVisitComparison(
+    const Comparison& formula) {
+  switch (formula.op()) {
+    case Comparison::LESS:
+      formula_ = new LessThan(
+          *SubstituteIdentifiers(formula.expr1(), *substitutions_),
+          *SubstituteIdentifiers(formula.expr2(), *substitutions_));
+      break;
+    case Comparison::LESS_EQUAL:
+      formula_ = new LessThanOrEqual(
+          *SubstituteIdentifiers(formula.expr1(), *substitutions_),
+          *SubstituteIdentifiers(formula.expr2(), *substitutions_));
+      break;
+    case Comparison::GREATER_EQUAL:
+      formula_ = new GreaterThanOrEqual(
+          *SubstituteIdentifiers(formula.expr1(), *substitutions_),
+          *SubstituteIdentifiers(formula.expr2(), *substitutions_));
+      break;
+    case Comparison::GREATER:
+      formula_ = new GreaterThan(
+          *SubstituteIdentifiers(formula.expr1(), *substitutions_),
+          *SubstituteIdentifiers(formula.expr2(), *substitutions_));
+      break;
+    case Comparison::EQUAL:
+      formula_ = new Equality(
+          *SubstituteIdentifiers(formula.expr1(), *substitutions_),
+          *SubstituteIdentifiers(formula.expr2(), *substitutions_));
+      break;
+    case Comparison::NOT_EQUAL:
+      formula_ = new Inequality(
+          *SubstituteIdentifiers(formula.expr1(), *substitutions_),
+          *SubstituteIdentifiers(formula.expr2(), *substitutions_));
+      break;
+  }
+}
+
+PathFormulaIdentifierSubstituter::PathFormulaIdentifierSubstituter(
+    const std::map<std::string, const Variable*>* substitutions)
+    : substitutions_(substitutions), formula_(NULL) {
+}
+
+PathFormulaIdentifierSubstituter::~PathFormulaIdentifierSubstituter() {
+  delete formula_;
+}
+
+const PathFormula* PathFormulaIdentifierSubstituter::release_formula() {
+  const PathFormula* formula = formula_;
+  formula_ = NULL;
+  return formula;
+}
+
+void PathFormulaIdentifierSubstituter::DoVisitUntil(const Until& formula) {
+  formula_ = new Until(SubstituteIdentifiers(formula.pre(), *substitutions_),
+                       SubstituteIdentifiers(formula.post(), *substitutions_),
+                       formula.min_time(), formula.max_time());
 }
 
 DistributionIdentifierSubstituter::DistributionIdentifierSubstituter(
