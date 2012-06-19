@@ -19,16 +19,16 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: modules.h,v 2.1 2004-01-25 12:38:08 lorens Exp $
  */
+
 #ifndef MODULES_H
 #define MODULES_H
 
-#include <config.h>
-#include "src/expression.h"
+#include <map>
 #include <set>
 #include <vector>
+
+#include "src/expression.h"
 
 struct StateFormula;
 struct Distribution;

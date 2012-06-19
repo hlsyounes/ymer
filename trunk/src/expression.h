@@ -23,15 +23,12 @@
 #ifndef EXPRESSION_H_
 #define EXPRESSION_H_
 
-#include <map>
 #include <ostream>
 #include <string>
 #include <vector>
 
 #include "ddutil.h"
 #include "typed-value.h"
-
-class Variable;
 
 class ExpressionVisitor;
 
@@ -77,11 +74,6 @@ private:
   // Reference counter.
   mutable int ref_count_;
 };
-
-// Returns the given expression subject to the given identifier substitutions.
-const Expression* SubstituteIdentifiers(
-    const Expression& expr,
-    const std::map<std::string, const Variable*>& substitutions);
 
 // Returns the 'current state' MTBDD representation for an expression.
 ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);

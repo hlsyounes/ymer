@@ -24,6 +24,7 @@
 #include "formulas.h"
 #include "models.h"
 #include "hybrid.h"
+#include "cudd.h"
 #include <float.h>
 #include <cmath>
 #include <iostream>
