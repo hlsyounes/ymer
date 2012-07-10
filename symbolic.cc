@@ -149,11 +149,10 @@ DdNode* Probabilistic::verify(const DecisionDiagramManager& dd_man,
 DdNode* Comparison::verify(const DecisionDiagramManager& dd_man,
                            const Model& model,
 			   double epsilon, bool estimate) const {
-  DdNode* ddc = bdd(dd_man).release();
+  BDD ddc = bdd(dd_man);
   DdNode* ddr = model.reachability_bdd(dd_man);
-  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddc, ddr);
+  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddc.get(), ddr);
   Cudd_Ref(sol);
-  Cudd_RecursiveDeref(dd_man.manager(), ddc);
   Cudd_RecursiveDeref(dd_man.manager(), ddr);
   return sol;
 }
