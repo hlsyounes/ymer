@@ -42,25 +42,37 @@ TEST(VariableTest, Output) {
 TEST(ComputationTest, OutputAddition) {
   std::ostringstream out;
   const Expression* expr1 =
-      Addition::make(*Addition::make(*new Variable("a"),
-                                     *new Variable("b")),
-                     *Subtraction::make(*new Variable("c"),
-                                        *new Variable("d")));
+      Computation::make(Computation::PLUS,
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr2 =
-      Addition::make(*Subtraction::make(*new Variable("a"),
-                                        *new Variable("b")),
-                     *Multiplication::make(*new Variable("c"),
+      Computation::make(Computation::PLUS,
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("c"),
                                            *new Variable("d")));
   const Expression* expr3 =
-      Addition::make(*Multiplication::make(*new Variable("a"),
+      Computation::make(Computation::PLUS,
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("a"),
                                            *new Variable("b")),
-                     *Division::make(*new Variable("c"),
-                                     *new Variable("d")));
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr4 =
-      Addition::make(*Division::make(*new Variable("a"),
-                                     *new Variable("b")),
-                     *Addition::make(*new Variable("c"),
-                                     *new Variable("d")));
+      Computation::make(Computation::PLUS,
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;
@@ -72,25 +84,37 @@ TEST(ComputationTest, OutputAddition) {
 TEST(ComputationTest, OutputSubtraction) {
   std::ostringstream out;
   const Expression* expr1 =
-      Subtraction::make(*Addition::make(*new Variable("a"),
-                                        *new Variable("b")),
-                        *Subtraction::make(*new Variable("c"),
+      Computation::make(Computation::MINUS,
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("c"),
                                            *new Variable("d")));
   const Expression* expr2 =
-      Subtraction::make(*Subtraction::make(*new Variable("a"),
+      Computation::make(Computation::MINUS,
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("a"),
                                            *new Variable("b")),
-                        *Multiplication::make(*new Variable("c"),
-                                              *new Variable("d")));
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr3 =
-      Subtraction::make(*Multiplication::make(*new Variable("a"),
-                                              *new Variable("b")),
-                        *Division::make(*new Variable("c"),
-                                        *new Variable("d")));
+      Computation::make(Computation::MINUS,
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr4 =
-      Subtraction::make(*Division::make(*new Variable("a"),
-                                        *new Variable("b")),
-                        *Addition::make(*new Variable("c"),
-                                        *new Variable("d")));
+      Computation::make(Computation::MINUS,
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;
@@ -102,24 +126,36 @@ TEST(ComputationTest, OutputSubtraction) {
 TEST(ComputationTest, OutputMultiplication) {
   std::ostringstream out;
   const Expression* expr1 =
-      Multiplication::make(*Addition::make(*new Variable("a"),
+      Computation::make(Computation::MULTIPLY,
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("a"),
                                            *new Variable("b")),
-                           *Subtraction::make(*new Variable("c"),
-                                              *new Variable("d")));
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr2 =
-      Multiplication::make(*Subtraction::make(*new Variable("a"),
-                                              *new Variable("b")),
-                           *Multiplication::make(*new Variable("c"),
-                                                 *new Variable("d")));
+      Computation::make(Computation::MULTIPLY,
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr3 =
-      Multiplication::make(*Multiplication::make(*new Variable("a"),
-                                                 *new Variable("b")),
-                           *Division::make(*new Variable("c"),
+      Computation::make(Computation::MULTIPLY,
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("c"),
                                            *new Variable("d")));
   const Expression* expr4 =
-      Multiplication::make(*Division::make(*new Variable("a"),
+      Computation::make(Computation::MULTIPLY,
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("a"),
                                            *new Variable("b")),
-                           *Addition::make(*new Variable("c"),
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("c"),
                                            *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
@@ -132,25 +168,37 @@ TEST(ComputationTest, OutputMultiplication) {
 TEST(ComputationTest, OutputDivision) {
   std::ostringstream out;
   const Expression* expr1 =
-      Division::make(*Addition::make(*new Variable("a"),
-                                     *new Variable("b")),
-                     *Subtraction::make(*new Variable("c"),
-                                        *new Variable("d")));
+      Computation::make(Computation::DIVIDE,
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr2 =
-      Division::make(*Subtraction::make(*new Variable("a"),
-                                        *new Variable("b")),
-                     *Multiplication::make(*new Variable("c"),
+      Computation::make(Computation::DIVIDE,
+                        *Computation::make(Computation::MINUS,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("c"),
                                            *new Variable("d")));
   const Expression* expr3 =
-      Division::make(*Multiplication::make(*new Variable("a"),
+      Computation::make(Computation::DIVIDE,
+                        *Computation::make(Computation::MULTIPLY,
+                                           *new Variable("a"),
                                            *new Variable("b")),
-                     *Division::make(*new Variable("c"),
-                                     *new Variable("d")));
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   const Expression* expr4 =
-      Division::make(*Division::make(*new Variable("a"),
-                                     *new Variable("b")),
-                     *Addition::make(*new Variable("c"),
-                                     *new Variable("d")));
+      Computation::make(Computation::DIVIDE,
+                        *Computation::make(Computation::DIVIDE,
+                                           *new Variable("a"),
+                                           *new Variable("b")),
+                        *Computation::make(Computation::PLUS,
+                                           *new Variable("c"),
+                                           *new Variable("d")));
   out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
   delete expr1;
   delete expr2;

@@ -693,12 +693,12 @@ static const yytype_uint16 yyrline[] =
      301,   302,   305,   306,   307,   314,   315,   318,   321,   322,
      325,   326,   327,   330,   334,   342,   343,   344,   345,   346,
      347,   348,   349,   350,   351,   352,   353,   360,   361,   362,
-     364,   366,   373,   374,   375,   376,   377,   378,   381,   382,
-     383,   384,   385,   386,   387,   390,   391,   392,   394,   396,
-     403,   406,   407,   408,   409,   410,   411,   414,   421,   422,
-     426,   427,   428,   430,   432,   434,   436,   437,   438,   439,
-     440,   441,   442,   443,   444,   445,   446,   449,   451,   456,
-     457,   458,   459,   460,   461
+     364,   366,   373,   374,   375,   376,   377,   379,   382,   383,
+     384,   386,   388,   390,   392,   395,   396,   397,   399,   401,
+     408,   411,   412,   413,   415,   417,   419,   422,   429,   430,
+     434,   435,   436,   438,   440,   442,   444,   445,   446,   447,
+     448,   449,   450,   451,   452,   453,   454,   457,   459,   464,
+     465,   466,   468,   470,   472
 };
 #endif
 
@@ -2125,349 +2125,349 @@ yyreduce:
 
 /* Line 1455 of yacc.c  */
 #line 375 "parser.yy"
-    { (yyval.expr) = Addition::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+    { (yyval.expr) = Computation::make(Computation::PLUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 75:
 
 /* Line 1455 of yacc.c  */
 #line 376 "parser.yy"
-    { (yyval.expr) = Subtraction::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+    { (yyval.expr) = Computation::make(Computation::MINUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 76:
 
 /* Line 1455 of yacc.c  */
-#line 377 "parser.yy"
-    { (yyval.expr) = Multiplication::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 378 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MULTIPLY, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 77:
 
 /* Line 1455 of yacc.c  */
-#line 378 "parser.yy"
+#line 379 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 78:
 
 /* Line 1455 of yacc.c  */
-#line 381 "parser.yy"
+#line 382 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].num)); }
     break;
 
   case 79:
 
 /* Line 1455 of yacc.c  */
-#line 382 "parser.yy"
+#line 383 "parser.yy"
     { (yyval.expr) = find_rate_or_variable((yyvsp[(1) - (1)].str)); }
     break;
 
   case 80:
 
 /* Line 1455 of yacc.c  */
-#line 383 "parser.yy"
-    { (yyval.expr) = Addition::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 385 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::PLUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 81:
 
 /* Line 1455 of yacc.c  */
-#line 384 "parser.yy"
-    { (yyval.expr) = Subtraction::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 387 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MINUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 82:
 
 /* Line 1455 of yacc.c  */
-#line 385 "parser.yy"
-    { (yyval.expr) = Multiplication::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 389 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MULTIPLY, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 83:
 
 /* Line 1455 of yacc.c  */
-#line 386 "parser.yy"
-    { (yyval.expr) = Division::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 391 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::DIVIDE, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 84:
 
 /* Line 1455 of yacc.c  */
-#line 387 "parser.yy"
+#line 392 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 85:
 
 /* Line 1455 of yacc.c  */
-#line 390 "parser.yy"
+#line 395 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].num)); }
     break;
 
   case 86:
 
 /* Line 1455 of yacc.c  */
-#line 391 "parser.yy"
+#line 396 "parser.yy"
     { (yyval.expr) = find_rate((yyvsp[(1) - (1)].str)); }
     break;
 
   case 87:
 
 /* Line 1455 of yacc.c  */
-#line 393 "parser.yy"
-    { (yyval.expr) = Multiplication::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 398 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MULTIPLY, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 88:
 
 /* Line 1455 of yacc.c  */
-#line 395 "parser.yy"
-    { (yyval.expr) = Division::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 400 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::DIVIDE, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 89:
 
 /* Line 1455 of yacc.c  */
-#line 396 "parser.yy"
+#line 401 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 90:
 
 /* Line 1455 of yacc.c  */
-#line 403 "parser.yy"
+#line 408 "parser.yy"
     { (yyval.range) = make_range((yyvsp[(2) - (5)].expr), (yyvsp[(4) - (5)].expr)); }
     break;
 
   case 91:
 
 /* Line 1455 of yacc.c  */
-#line 406 "parser.yy"
+#line 411 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 92:
 
 /* Line 1455 of yacc.c  */
-#line 407 "parser.yy"
+#line 412 "parser.yy"
     { (yyval.expr) = find_constant((yyvsp[(1) - (1)].str)); }
     break;
 
   case 93:
 
 /* Line 1455 of yacc.c  */
-#line 408 "parser.yy"
-    { (yyval.expr) = Addition::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 414 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::PLUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 94:
 
 /* Line 1455 of yacc.c  */
-#line 409 "parser.yy"
-    { (yyval.expr) = Subtraction::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 416 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MINUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 95:
 
 /* Line 1455 of yacc.c  */
-#line 410 "parser.yy"
-    { (yyval.expr) = Multiplication::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 418 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MULTIPLY, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 96:
 
 /* Line 1455 of yacc.c  */
-#line 411 "parser.yy"
+#line 419 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 97:
 
 /* Line 1455 of yacc.c  */
-#line 414 "parser.yy"
+#line 422 "parser.yy"
     { (yyval.nat) = integer_value((yyvsp[(1) - (1)].num)); }
     break;
 
   case 99:
 
 /* Line 1455 of yacc.c  */
-#line 423 "parser.yy"
+#line 431 "parser.yy"
     { properties.push_back((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 100:
 
 /* Line 1455 of yacc.c  */
-#line 426 "parser.yy"
+#line 434 "parser.yy"
     { (yyval.formula) = new Conjunction(); }
     break;
 
   case 101:
 
 /* Line 1455 of yacc.c  */
-#line 427 "parser.yy"
+#line 435 "parser.yy"
     { (yyval.formula) = new Disjunction(); }
     break;
 
   case 102:
 
 /* Line 1455 of yacc.c  */
-#line 429 "parser.yy"
+#line 437 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, true, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 103:
 
 /* Line 1455 of yacc.c  */
-#line 431 "parser.yy"
+#line 439 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, true, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 104:
 
 /* Line 1455 of yacc.c  */
-#line 433 "parser.yy"
+#line 441 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, false, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 105:
 
 /* Line 1455 of yacc.c  */
-#line 435 "parser.yy"
+#line 443 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, false, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 106:
 
 /* Line 1455 of yacc.c  */
-#line 436 "parser.yy"
+#line 444 "parser.yy"
     { (yyval.formula) = new Implication((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 107:
 
 /* Line 1455 of yacc.c  */
-#line 437 "parser.yy"
+#line 445 "parser.yy"
     { (yyval.formula) = make_conjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 108:
 
 /* Line 1455 of yacc.c  */
-#line 438 "parser.yy"
+#line 446 "parser.yy"
     { (yyval.formula) = make_disjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 109:
 
 /* Line 1455 of yacc.c  */
-#line 439 "parser.yy"
+#line 447 "parser.yy"
     { (yyval.formula) = new Negation((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 110:
 
 /* Line 1455 of yacc.c  */
-#line 440 "parser.yy"
+#line 448 "parser.yy"
     { (yyval.formula) = new LessThan(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 111:
 
 /* Line 1455 of yacc.c  */
-#line 441 "parser.yy"
+#line 449 "parser.yy"
     { (yyval.formula) = new LessThanOrEqual(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 112:
 
 /* Line 1455 of yacc.c  */
-#line 442 "parser.yy"
+#line 450 "parser.yy"
     { (yyval.formula) = new GreaterThanOrEqual(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 113:
 
 /* Line 1455 of yacc.c  */
-#line 443 "parser.yy"
+#line 451 "parser.yy"
     { (yyval.formula) = new GreaterThan(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 114:
 
 /* Line 1455 of yacc.c  */
-#line 444 "parser.yy"
+#line 452 "parser.yy"
     { (yyval.formula) = new Equality(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 115:
 
 /* Line 1455 of yacc.c  */
-#line 445 "parser.yy"
+#line 453 "parser.yy"
     { (yyval.formula) = new Inequality(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 116:
 
 /* Line 1455 of yacc.c  */
-#line 446 "parser.yy"
+#line 454 "parser.yy"
     { (yyval.formula) = (yyvsp[(2) - (3)].formula); }
     break;
 
   case 117:
 
 /* Line 1455 of yacc.c  */
-#line 450 "parser.yy"
+#line 458 "parser.yy"
     { (yyval.path) = make_until((yyvsp[(1) - (5)].formula), (yyvsp[(5) - (5)].formula), NULL, (yyvsp[(4) - (5)].num)); }
     break;
 
   case 118:
 
 /* Line 1455 of yacc.c  */
-#line 452 "parser.yy"
+#line 460 "parser.yy"
     { (yyval.path) = make_until((yyvsp[(1) - (8)].formula), (yyvsp[(8) - (8)].formula), (yyvsp[(4) - (8)].num), (yyvsp[(6) - (8)].num)); }
     break;
 
   case 119:
 
 /* Line 1455 of yacc.c  */
-#line 456 "parser.yy"
+#line 464 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 120:
 
 /* Line 1455 of yacc.c  */
-#line 457 "parser.yy"
+#line 465 "parser.yy"
     { (yyval.expr) = value_or_variable((yyvsp[(1) - (1)].str)); }
     break;
 
   case 121:
 
 /* Line 1455 of yacc.c  */
-#line 458 "parser.yy"
-    { (yyval.expr) = Addition::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 467 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::PLUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 122:
 
 /* Line 1455 of yacc.c  */
-#line 459 "parser.yy"
-    { (yyval.expr) = Subtraction::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 469 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MINUS, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 123:
 
 /* Line 1455 of yacc.c  */
-#line 460 "parser.yy"
-    { (yyval.expr) = Multiplication::make(*(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
+#line 471 "parser.yy"
+    { (yyval.expr) = Computation::make(Computation::MULTIPLY, *(yyvsp[(1) - (3)].expr), *(yyvsp[(3) - (3)].expr)); }
     break;
 
   case 124:
 
 /* Line 1455 of yacc.c  */
-#line 461 "parser.yy"
+#line 472 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
@@ -2686,7 +2686,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 465 "parser.yy"
+#line 476 "parser.yy"
 
 
 namespace {
@@ -3448,20 +3448,7 @@ void ExpressionIdentifierSubstituter::DoVisitComputation(
   expr.operand1().Accept(this);
   const Expression* operand1 = release_expr();
   expr.operand2().Accept(this);
-  switch (expr.op()) {
-    case Computation::PLUS:
-      expr_ = Addition::make(*operand1, *release_expr());
-      break;
-    case Computation::MINUS:
-      expr_ = Subtraction::make(*operand1, *release_expr());
-      break;
-    case Computation::MULTIPLY:
-      expr_ = Multiplication::make(*operand1, *release_expr());
-      break;
-    case Computation::DIVIDE:
-      expr_ = Division::make(*operand1, *release_expr());
-      break;
-  }
+  expr_ = Computation::make(expr.op(), *operand1, *release_expr());
 }
 
 StateFormulaIdentifierSubstituter::StateFormulaIdentifierSubstituter(

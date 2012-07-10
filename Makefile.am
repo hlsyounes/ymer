@@ -101,7 +101,8 @@ src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 # Expression library.
 noinst_LTLIBRARIES += src/libexpression.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
-src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la
+src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
+    glog/libglog.la
 
 
 #

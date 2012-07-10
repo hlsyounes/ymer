@@ -293,20 +293,7 @@ void ExpressionConstantSubstituter::DoVisitComputation(
   expr.operand1().Accept(this);
   const Expression* operand1 = release_expr();
   expr.operand2().Accept(this);
-  switch (expr.op()) {
-    case Computation::PLUS:
-      expr_ = Addition::make(*operand1, *release_expr());
-      break;
-    case Computation::MINUS:
-      expr_ = Subtraction::make(*operand1, *release_expr());
-      break;
-    case Computation::MULTIPLY:
-      expr_ = Multiplication::make(*operand1, *release_expr());
-      break;
-    case Computation::DIVIDE:
-      expr_ = Division::make(*operand1, *release_expr());
-      break;
-  }
+  expr_ = Computation::make(expr.op(), *operand1, *release_expr());
 }
 
 StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {

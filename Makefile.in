@@ -150,7 +150,7 @@ src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
 am_src_libddutil_la_OBJECTS = ddutil.lo
 src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
 src_libexpression_la_DEPENDENCIES = src/libddutil.la \
-	src/libtyped-value.la
+	src/libtyped-value.la glog/libglog.la
 am_src_libexpression_la_OBJECTS = expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_libtest_main_la_DEPENDENCIES = glog/libglog.la \
@@ -480,7 +480,9 @@ src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
-src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la
+src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
+    glog/libglog.la
+
 ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/libtyped-value.la \
     src/libexpression.la
