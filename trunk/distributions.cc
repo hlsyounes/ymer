@@ -253,7 +253,8 @@ const Distribution* Weibull::make(const Expression& scale,
 				  const Expression& shape) {
   const Literal* value = dynamic_cast<const Literal*>(&shape);
   if (value != NULL && value->value() == 1) {
-    return Exponential::make(*Division::make(*value, scale));
+    return Exponential::make(
+        *Computation::make(Computation::DIVIDE, *value, scale));
   } else {
     return new Weibull(scale, shape);
   }

@@ -102,6 +102,10 @@ class Computation : public Expression {
 
   virtual ~Computation();
 
+  // Factory method for creating computations.
+  static const Expression* make(
+      Operator op, const Expression& operand1, const Expression& operand2);
+
   // Returns the operator for this computation.
   const Operator op() const { return op_; }
 
@@ -133,16 +137,15 @@ class Addition : public Computation {
  public:
   virtual ~Addition();
 
-  // Returns an addition of the two expressions.
-  static const Expression* make(const Expression& term1,
-                                const Expression& term2);
-
   // Returns the value of this expression.
   virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs an addition.
   Addition(const Expression& term1, const Expression& term2);
+
+  friend const Expression* Computation::make(
+      Operator, const Expression&, const Expression&);
 };
 
 // A subtraction expression.
@@ -150,16 +153,15 @@ class Subtraction : public Computation {
  public:
   virtual ~Subtraction();
 
-  // Returns a subtraction of the two expressions.
-  static const Expression* make(const Expression& term1,
-                                const Expression& term2);
-
   // Returns the value of this expression.
   virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a subtraction.
   Subtraction(const Expression& term1, const Expression& term2);
+
+  friend const Expression* Computation::make(
+      Operator, const Expression&, const Expression&);
 };
 
 // A multiplication expression.
@@ -167,16 +169,15 @@ class Multiplication : public Computation {
  public:
   virtual ~Multiplication();
 
-  // Returns a multiplication of the two expressions.
-  static const Expression* make(const Expression& factor1,
-                                const Expression& factor2);
-
   // Returns the value of this expression.
   virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a multiplication.
   Multiplication(const Expression& factor1, const Expression& factor2);
+
+  friend const Expression* Computation::make(
+      Operator, const Expression&, const Expression&);
 };
 
 // A division expression.
@@ -184,16 +185,15 @@ class Division : public Computation {
  public:
   virtual ~Division();
 
-  // Returns a division of the two expressions.
-  static const Expression* make(const Expression& factor1,
-                                const Expression& factor2);
-
   // Returns the value of this expression.
   virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a division.
   Division(const Expression& factor1, const Expression& factor2);
+
+  friend const Expression* Computation::make(
+      Operator, const Expression&, const Expression&);
 };
 
 // A variable expression.
