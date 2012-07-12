@@ -83,8 +83,7 @@ class StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const = 0;
 
@@ -159,8 +158,7 @@ class PathFormula {
   virtual bool probabilistic() const = 0;
 
   /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const = 0;
 
@@ -249,8 +247,7 @@ class Conjunction : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
@@ -312,8 +309,7 @@ class Disjunction : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
@@ -378,8 +374,7 @@ class Negation : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
@@ -447,8 +442,7 @@ class Implication : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
@@ -522,8 +516,7 @@ class Probabilistic : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
@@ -593,8 +586,7 @@ class Comparison : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
@@ -814,8 +806,7 @@ class Until : public PathFormula {
   virtual bool probabilistic() const;
 
   /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 

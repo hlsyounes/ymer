@@ -68,15 +68,13 @@ static short next_client_id = 1;
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Conjunction::effort(const Model& model, const State& state,
-			   double q, DeltaFun delta, double alpha, double beta,
+double Conjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   double h = 0.0;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    h += (*fi)->effort(model, state, q,
-		       delta, alpha, beta, alphap, betap, algorithm);
+    h += (*fi)->effort(q, delta, alpha, beta, alphap, betap, algorithm);
   }
   return h;
 }
@@ -112,15 +110,13 @@ size_t Conjunction::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Disjunction::effort(const Model& model, const State& state,
-			   double q, DeltaFun delta, double alpha, double beta,
+double Disjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   double h = 0.0;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
-    h += (*fi)->effort(model, state, q,
-		       delta, alpha, beta, alphap, betap, algorithm);
+    h += (*fi)->effort(q, delta, alpha, beta, alphap, betap, algorithm);
   }
   return h;
 }
@@ -156,12 +152,10 @@ size_t Disjunction::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Negation::effort(const Model& model, const State& state,
-			double q, DeltaFun delta, double alpha, double beta,
+double Negation::effort(double q, DeltaFun delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const {
-  return negand().effort(model, state, q,
-			 delta, alpha, beta, alphap, betap, algorithm);
+  return negand().effort(q, delta, alpha, beta, alphap, betap, algorithm);
 }
 
 
@@ -184,13 +178,11 @@ size_t Negation::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Implication::effort(const Model& model, const State& state,
-			   double q, DeltaFun delta, double alpha, double beta,
+double Implication::effort(double q, DeltaFun delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
-  return (antecedent().effort(model, state, q,
-			      delta, alpha, beta, alphap, betap, algorithm)
-	  + consequent().effort(model, state, q,
+  return (antecedent().effort(q, delta, alpha, beta, alphap, betap, algorithm)
+	  + consequent().effort(q,
 				delta, alpha, beta, alphap, betap, algorithm));
 }
 
@@ -398,8 +390,7 @@ single_sampling_plan(double p0, double p1, double alpha, double beta) {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Probabilistic::effort(const Model& model, const State& state,
-			     double q, DeltaFun delta,
+double Probabilistic::effort(double q, DeltaFun delta,
 			     double alpha, double beta,
 			     double alphap, double betap,
 			     SamplingAlgorithm algorithm) const {
@@ -412,25 +403,21 @@ double Probabilistic::effort(const Model& model, const State& state,
     double b = 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta));
     double x1 = a + (1.0 - r)*(b - a);
     double x2 = a + r*(b - a);
-    double f1 = formula().effort(model, state, q,
-				 delta, alphap, betap, x1, x1, algorithm);
-    double f2 = formula().effort(model, state, q,
-				 delta, alphap, betap, x2, x2, algorithm);
+    double f1 = formula().effort(q, delta, alphap, betap, x1, x1, algorithm);
+    double f2 = formula().effort(q, delta, alphap, betap, x2, x2, algorithm);
     do {
       if (f2 > f1) {
 	b = x2;
 	x2 = x1;
 	f2 = f1;
 	x1 = a + (1.0 - r)*(b - a);
-	f1 = formula().effort(model, state, q,
-			      delta, alphap, betap, x1, x1, algorithm);
+	f1 = formula().effort(q, delta, alphap, betap, x1, x1, algorithm);
       } else {
 	a = x1;
 	x1 = x2;
 	f1 = f2;
 	x2 = b - (1.0 - r)*(b - a);
-	f2 = formula().effort(model, state, q,
-			      delta, alphap, betap, x2, x2, algorithm);
+	f2 = formula().effort(q, delta, alphap, betap, x2, x2, algorithm);
       }
     } while ((b - a)/(b + a) > 1e-3);
     nested_effort = 0.5*(f1 + f2);
@@ -439,8 +426,7 @@ double Probabilistic::effort(const Model& model, const State& state,
   } else {
     p0 = std::min(1.0, theta + (*delta)(theta));
     p1 = std::max(0.0, theta - (*delta)(theta));
-    nested_effort = formula().effort(model, state, q,
-				     delta, alphap, betap, 0, 0, algorithm);
+    nested_effort = formula().effort(q, delta, alphap, betap, 0, 0, algorithm);
   }
   double n;
   if (algorithm == SEQUENTIAL) {
@@ -480,23 +466,21 @@ bool Probabilistic::verify(const Model& model, const State& state,
     } else {
       double x1 = a + (1.0 - r)*(b - a);
       double x2 = a + r*(b - a);
-      double f1 = effort(model, state, q,
-			 delta, alpha, beta, x1, x1, algorithm);
-      double f2 = effort(model, state, q,
-			 delta, alpha, beta, x2, x2, algorithm);
+      double f1 = effort(q, delta, alpha, beta, x1, x1, algorithm);
+      double f2 = effort(q, delta, alpha, beta, x2, x2, algorithm);
       do {
 	if (f2 > f1) {
 	  b = x2;
 	  x2 = x1;
 	  f2 = f1;
 	  x1 = a + (1.0 - r)*(b - a);
-	  f1 = effort(model, state, q, delta, alpha, beta, x1, x1, algorithm);
+	  f1 = effort(q, delta, alpha, beta, x1, x1, algorithm);
 	} else {
 	  a = x1;
 	  x1 = x2;
 	  f1 = f2;
 	  x2 = b - (1.0 - r)*(b - a);
-	  f2 = effort(model, state, q, delta, alpha, beta, x2, x2, algorithm);
+	  f2 = effort(q, delta, alpha, beta, x2, x2, algorithm);
 	}
       } while ((b - a)/(b + a) > 1e-3);
     }
@@ -913,8 +897,7 @@ size_t Probabilistic::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Comparison::effort(const Model& model, const State& state,
-			  double q, DeltaFun delta, double alpha, double beta,
+double Comparison::effort(double q, DeltaFun delta, double alpha, double beta,
 			  double alphap, double betap,
 			  SamplingAlgorithm algorithm) const {
   return 1.0;
@@ -939,16 +922,13 @@ size_t Comparison::clear_cache() const {
 /* Until */
 
 /* Estimated effort for generating a sample for this path formula. */
-double Until::effort(const Model& model, const State& state,
-		     double q, DeltaFun delta, double alpha, double beta,
+double Until::effort(double q, DeltaFun delta, double alpha, double beta,
 		     double alphap, double betap,
 		     SamplingAlgorithm algorithm) const {
   double a = max_time().value<double>();
   double b = (max_time() - min_time()).value<double>();
-  return q*(a*pre().effort(model, state, q,
-			   delta, alpha, beta, alphap, betap, algorithm)
-	    + b*post().effort(model, state, q,
-			      delta, alpha, beta, alphap, betap, algorithm));
+  return q*(a*pre().effort(q, delta, alpha, beta, alphap, betap, algorithm)
+	    + b*post().effort(q, delta, alpha, beta, alphap, betap, algorithm));
 }
 
 
