@@ -26,6 +26,7 @@
 #define STATES_H
 
 #include <config.h>
+#include "src/compiled-model.h"
 #include "src/expression.h"
 
 struct Command;
@@ -40,7 +41,7 @@ struct Model;
  */
 struct State {
   /* Constructs an initial state for the given model. */
-  explicit State(const Model* model);
+  State(const Model* model, const CompiledModel& compiled_model);
 
   /* Deletes this state. */
   virtual ~State() {}

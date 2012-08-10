@@ -315,6 +315,34 @@ double indifference_region(double theta) {
   }
 }
 
+CompiledModel CompileModel(const Model& model) {
+  CompiledModel compiled_model;
+
+  std::map<int, const Variable*> all_variables;
+  for (std::vector<const Variable*>::const_iterator vi =
+           model.variables().begin();
+       vi != model.variables().end(); ++vi) {
+    const Variable* v = *vi;
+    all_variables[v->index()] = v;
+  }
+  for (ModuleList::const_iterator mi = model.modules().begin();
+       mi != model.modules().end(); ++mi) {
+    const Module& m = **mi;
+    for (std::vector<const Variable*>::const_iterator vi =
+             m.variables().begin();
+         vi != m.variables().end(); ++vi) {
+      const Variable* v = *vi;
+      all_variables[v->index()] = v;
+    }
+  }
+  for (std::map<int, const Variable*>::const_iterator i = all_variables.begin();
+       i != all_variables.end(); ++i) {
+    const Variable* v = i->second;
+    compiled_model.AddVariable(v->name(), v->low(), v->high(), v->start());
+  }
+
+  return compiled_model;
+}
 
 /* The main program. */
 int main(int argc, char* argv[]) {
@@ -517,6 +545,7 @@ int main(int argc, char* argv[]) {
     if (verbosity > 1) {
       std::cout << *global_model << std::endl;
     }
+    const CompiledModel compiled_model = CompileModel(*global_model);
 
     std::cout.setf(std::ios::unitbuf);
     if (port >= 0) {
@@ -567,7 +596,7 @@ int main(int argc, char* argv[]) {
 	fd_set master_fds;
 	FD_ZERO(&master_fds);
 	FD_SET(sockfd, &master_fds);
-	const State init_state(global_model);
+	const State init_state(global_model, compiled_model);
 	const PathFormula* pf = 0;
 	double alphap = alpha, betap = beta;
 	timeval timeout;
@@ -696,7 +725,7 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      const State init_state(global_model);
+      const State init_state(global_model, compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -912,7 +941,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_PROF, &stimer);
 #endif
       global_model->cache_dds(dd_man, moments);
-      const State init_state(global_model);
+      const State init_state(global_model, compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else

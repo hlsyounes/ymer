@@ -104,6 +104,10 @@ src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
     glog/libglog.la
 
+# Compiled model library.
+noinst_LTLIBRARIES += src/libcompiled-model.la
+src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
+src_libcompiled_model_la_LIBADD = glog/libglog.la
 
 #
 # Ymer binaries.
@@ -112,7 +116,7 @@ src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
 bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/libtyped-value.la \
-    src/libexpression.la
+    src/libexpression.la src/libcompiled-model.la
 
 #
 # Ymer tests.
@@ -141,6 +145,11 @@ src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 check_PROGRAMS += src/expression_test
 src_expression_test_SOURCES = src/expression_test.cc
 src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+
+# Test for compiled model library.
+check_PROGRAMS += src/compiled-model_test
+src_compiled_model_test_SOURCES = src/compiled-model_test.cc
+src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
