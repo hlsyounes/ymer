@@ -71,26 +71,13 @@ private:
 
 
 /* Constructs an initial state for the given model. */
-State::State(const Model* model)
+State::State(const Model* model, const CompiledModel& compiled_model)
     : model_(model) {
-  for (std::vector<const Variable*>::const_iterator vi =
-           model->variables().begin();
-       vi != model->variables().end(); vi++) {
-    if ((*vi)->index() >= values_.size()) {
-      values_.resize((*vi)->index() + 1);
-    }
-    values_.at((*vi)->index()) = (*vi)->start();
-  }
-  for (ModuleList::const_iterator mi = model->modules().begin();
-       mi != model->modules().end(); mi++) {
-    for (std::vector<const Variable*>::const_iterator vi =
-             (*mi)->variables().begin();
-	 vi != (*mi)->variables().end(); vi++) {
-      if ((*vi)->index() >= values_.size()) {
-        values_.resize((*vi)->index() + 1);
-      }
-      values_.at((*vi)->index()) = (*vi)->start();
-    }
+  values_.reserve(compiled_model.variables().size());
+  for (std::vector<CompiledVariable>::const_iterator vi =
+           compiled_model.variables().begin();
+       vi != compiled_model.variables().end(); vi++) {
+    values_.push_back(vi->init_value());
   }
 }
 
