@@ -14912,13 +14912,54 @@ done
 test -n "$YACC" || YACC="yacc"
 
 
-# Set the language.
-ac_ext=cpp
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $CXX option to accept ISO C++11" >&5
+$as_echo_n "checking for $CXX option to accept ISO C++11... " >&6; }
+     if test "${ax_cv_prog_cxx_cxx11+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ax_cv_prog_cxx_cxx11=no
+          ax_save_CXX=$CXX
+          ac_ext=cpp
 ac_cpp='$CXXCPP $CPPFLAGS'
 ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
+          cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+enum class Enum { VALUE };
+int
+main ()
+{
+Enum test = Enum::VALUE;
+  ;
+  return 0;
+}
+_ACEOF
+          for ax_arg in "" -std=c++11 -std=c++0x
+          do
+            CXX="$ax_save_CXX $ax_arg"
+            if ac_fn_cxx_try_compile "$LINENO"; then :
+  ax_cv_prog_cxx_cxx11=$ax_arg
+                 break
+fi
+rm -f core conftest.err conftest.$ac_objext
+          done
+          rm -f conftest.$ac_ext conftest.$ac_objext
+          CXX=$ax_save_CXX
+fi
+
+     case "x$ax_cv_prog_cxx_cxx11" in
+       x|xno)
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: none needed" >&5
+$as_echo "none needed" >&6; } ;;
+       *)
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_prog_cxx_cxx11" >&5
+$as_echo "$ax_cv_prog_cxx_cxx11" >&6; }
+         CXX="$CXX $ax_cv_prog_cxx_cxx11" ;;
+     esac
 
 # Whether to use tcmalloc.
 

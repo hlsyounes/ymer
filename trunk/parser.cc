@@ -2824,7 +2824,7 @@ static void check_undeclared() {
 
 static int integer_value(const TypedValue* q) {
   int n;
-  if (q->type() != TypedValue::INT) {
+  if (q->type() != Type::INT) {
     yyerror("expecting integer");
     n = 0;
   } else {

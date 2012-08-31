@@ -24,16 +24,16 @@
 
 #include <ostream>
 
+// Supported value types.
+enum class Type { INT, DOUBLE, BOOL };
+
 // A typed value.
 class TypedValue {
  public:
-  // Supported value types.
-  enum Type { INT, DOUBLE, BOOL };
-
   // Constructs a typed value.
-  TypedValue(int i) : type_(INT) { value_.i = i; }
-  TypedValue(double d) : type_(DOUBLE) { value_.d = d; }
-  TypedValue(bool b) : type_(BOOL) { value_.b = b; }
+  TypedValue(int i) : type_(Type::INT) { value_.i = i; }
+  TypedValue(double d) : type_(Type::DOUBLE) { value_.d = d; }
+  TypedValue(bool b) : type_(Type::BOOL) { value_.b = b; }
 
   // Returns the type.
   Type type() const { return type_; }
@@ -57,11 +57,11 @@ class TypedValue {
 template <typename T>
 T TypedValue::value() const {
   switch (type_) {
-    case INT:
+    case Type::INT:
       return value_.i;
-    case DOUBLE:
+    case Type::DOUBLE:
       return value_.d;
-    case BOOL:
+    case Type::BOOL:
       return value_.b;
   }
 }
