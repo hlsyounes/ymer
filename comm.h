@@ -53,7 +53,7 @@ struct ServerMsg {
 /* Sockets for communication. */
 extern int server_socket;
 /* Current property. */
-extern size_t current_property;
+extern int current_property;
 
 
 #endif /* COMM_H */

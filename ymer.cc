@@ -86,7 +86,7 @@ double total_path_lengths;
 /* Sockets for communication. */
 int server_socket = -1;
 /* Current property. */
-size_t current_property;
+int current_property;
 
 /* Set default delta. */
 static double delta = 1e-2;

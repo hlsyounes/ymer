@@ -47,7 +47,7 @@ bool operator>(const TypedValue& v1, const TypedValue& v2) {
 }
 
 TypedValue operator-(const TypedValue& v) {
-  if (v.type() == TypedValue::DOUBLE) {
+  if (v.type() == Type::DOUBLE) {
     return -v.value<double>();
   } else {
     return -v.value<int>();
@@ -55,7 +55,7 @@ TypedValue operator-(const TypedValue& v) {
 }
 
 TypedValue operator+(const TypedValue& v1, const TypedValue& v2) {
-  if (v1.type() == TypedValue::DOUBLE || v2.type() == TypedValue::DOUBLE) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
     return v1.value<double>() + v2.value<double>();
   } else {
     return v1.value<int>() + v2.value<int>();
@@ -63,7 +63,7 @@ TypedValue operator+(const TypedValue& v1, const TypedValue& v2) {
 }
 
 TypedValue operator-(const TypedValue& v1, const TypedValue& v2) {
-  if (v1.type() == TypedValue::DOUBLE || v2.type() == TypedValue::DOUBLE) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
     return v1.value<double>() - v2.value<double>();
   } else {
     return v1.value<int>() - v2.value<int>();
@@ -71,7 +71,7 @@ TypedValue operator-(const TypedValue& v1, const TypedValue& v2) {
 }
 
 TypedValue operator*(const TypedValue& v1, const TypedValue& v2) {
-  if (v1.type() == TypedValue::DOUBLE || v2.type() == TypedValue::DOUBLE) {
+  if (v1.type() == Type::DOUBLE || v2.type() == Type::DOUBLE) {
     return v1.value<double>() * v2.value<double>();
   } else {
     return v1.value<int>() * v2.value<int>();
@@ -108,11 +108,11 @@ double log(const TypedValue& v) {
 
 std::ostream& operator<<(std::ostream& os, const TypedValue& v) {
   switch (v.type()) {
-    case TypedValue::INT:
+    case Type::INT:
       return os << v.value<int>();
-    case TypedValue::DOUBLE:
+    case Type::DOUBLE:
       return os << v.value<double>();
-    case TypedValue::BOOL:
+    case Type::BOOL:
       return os << (v.value<bool>() ? "true" : "false");
   }
 }

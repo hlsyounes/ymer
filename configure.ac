@@ -35,8 +35,33 @@ AM_PROG_LEX
 AC_PROG_LIBTOOL
 AC_PROG_YACC
 
-# Set the language.
-AC_LANG(C++)
+AC_DEFUN([AX_PROG_CXX_CXX11],
+    [AC_MSG_CHECKING([for $CXX option to accept ISO C++11])
+     AC_CACHE_VAL(ax_cv_prog_cxx_cxx11,
+         [ax_cv_prog_cxx_cxx11=no
+          ax_save_CXX=$CXX
+          AC_LANG(C++)
+          AC_LANG_CONFTEST([AC_LANG_PROGRAM(
+              [[enum class Enum { VALUE };]],
+              [[Enum test = Enum::VALUE;]])])
+          for ax_arg in "" -std=c++11 -std=c++0x
+          do
+            CXX="$ax_save_CXX $ax_arg"
+            AC_COMPILE_IFELSE([],
+                [ax_cv_prog_cxx_cxx11=$ax_arg
+                 break])
+          done
+          rm -f conftest.$ac_ext conftest.$ac_objext
+          CXX=$ax_save_CXX])
+     case "x$ax_cv_prog_cxx_cxx11" in
+       x|xno)
+         AC_MSG_RESULT([none needed]) ;;
+       *)
+         AC_MSG_RESULT([$ax_cv_prog_cxx_cxx11])
+         CXX="$CXX $ax_cv_prog_cxx_cxx11" ;;
+     esac])
+
+AX_PROG_CXX_CXX11
 
 # Whether to use tcmalloc.
 AC_ARG_WITH([tcmalloc],

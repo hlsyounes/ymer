@@ -26,12 +26,12 @@
 namespace {
 
 TEST(TypedValueTest, Type) {
-  EXPECT_EQ(TypedValue::INT, TypedValue(17).type());
-  EXPECT_EQ(TypedValue::INT, TypedValue(-4711).type());
-  EXPECT_EQ(TypedValue::DOUBLE, TypedValue(3.14159).type());
-  EXPECT_EQ(TypedValue::DOUBLE, TypedValue(-0.5).type());
-  EXPECT_EQ(TypedValue::BOOL, TypedValue(true).type());
-  EXPECT_EQ(TypedValue::BOOL, TypedValue(false).type());
+  EXPECT_EQ(Type::INT, TypedValue(17).type());
+  EXPECT_EQ(Type::INT, TypedValue(-4711).type());
+  EXPECT_EQ(Type::DOUBLE, TypedValue(3.14159).type());
+  EXPECT_EQ(Type::DOUBLE, TypedValue(-0.5).type());
+  EXPECT_EQ(Type::BOOL, TypedValue(true).type());
+  EXPECT_EQ(Type::BOOL, TypedValue(false).type());
 }
 
 TEST(TypedValueTest, Value) {
