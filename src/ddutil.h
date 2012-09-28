@@ -150,6 +150,10 @@ class DecisionDiagramManager {
   // Constructs a decision-diagram manager with the given number of variables.
   explicit DecisionDiagramManager(int num_variables);
 
+  // Disallow copy and assign.
+  DecisionDiagramManager(const DecisionDiagramManager&) = delete;
+  DecisionDiagramManager& operator=(const DecisionDiagramManager&) = delete;
+
   ~DecisionDiagramManager();
 
   // Returns the number of variables.
@@ -183,10 +187,6 @@ class DecisionDiagramManager {
   DdManager* manager() const { return manager_; }
 
  private:
-  // Disallow copy and assign.
-  DecisionDiagramManager(const DecisionDiagramManager&);
-  DecisionDiagramManager& operator=(const DecisionDiagramManager&);
-
   DdManager* manager_;
 };
 

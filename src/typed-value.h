@@ -35,6 +35,9 @@ class TypedValue {
   TypedValue(double d) : type_(Type::DOUBLE) { value_.d = d; }
   TypedValue(bool b) : type_(Type::BOOL) { value_.b = b; }
 
+  // Avoid implicit conversion from pointer through TypedValue(bool).
+  template <typename T> TypedValue(T*) = delete;
+
   // Returns the type.
   Type type() const { return type_; }
 
@@ -42,10 +45,6 @@ class TypedValue {
   template <typename T> T value() const;
 
  private:
-  // Avoid implicit conversion from pointer through TypedValue(bool).
-  template <typename T>
-  TypedValue(T*);
-
   Type type_;
   union {
     int i;

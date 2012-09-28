@@ -46,6 +46,10 @@ class ExpressionVisitor;
 //
 class Expression {
  public:
+  // Disallow copy and assign.
+  Expression(const Expression&) = delete;
+  Expression& operator=(const Expression&) = delete;
+
   virtual ~Expression();
 
   // Increases the reference count for the given expression.
@@ -65,10 +69,6 @@ protected:
   Expression();
 
 private:
-  // Disallow copy and assign.
-  Expression(const Expression&);
-  Expression& operator=(const Expression&);
-
   virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
 
   // Reference counter.
