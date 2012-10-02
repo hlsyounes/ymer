@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include <typeinfo>
 
+#include "distributions.h"
 #include "formulas.h"
 
 #include "cudd.h"
@@ -31,6 +32,11 @@
 /* Verbosity level. */
 extern int verbosity;
 
+ParsedVariable::ParsedVariable(
+    const std::string& name, int min_value, int max_value, int init_value)
+    : name_(name),
+      min_value_(min_value), max_value_(max_value), init_value_(init_value) {
+}
 
 /* ====================================================================== */
 /* SynchronizationMap */
@@ -237,7 +243,8 @@ BDD variable_updates(const DecisionDiagramManager& manager,
     }
   }
   // Conjunction with identity BDD for untouched global variables.
-  ddu = variable_identities(manager, ddu, model.variables(), updated_variables);
+  ddu = variable_identities(manager, ddu, model.global_variables(),
+                            updated_variables);
   // Conjunction with update rules for phase variables.
   for (std::map<int, PHData>::const_reverse_iterator ci = ph_commands.rbegin();
        ci != ph_commands.rend(); ci++) {
@@ -265,8 +272,9 @@ Model::~Model() {
       delete *ci;
     }
   }
-  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
-       vi != variables().end(); vi++) {
+  for (std::vector<const Variable*>::const_iterator vi =
+           global_variables().begin();
+       vi != global_variables().end(); vi++) {
     Expression::destructive_deref(*vi);
   }
   for (ModuleList::const_iterator mi = modules().begin();
@@ -275,10 +283,14 @@ Model::~Model() {
   }
 }
 
+void Model::AddIntVariable(
+    const std::string& name, int min_value, int max_value, int init_value) {
+  variables_.push_back(ParsedVariable(name, min_value, max_value, init_value));
+}
 
 /* Adds a global variable to this model. */
 void Model::add_variable(const Variable& variable) {
-  variables_.push_back(&variable);
+  global_variables_.push_back(&variable);
   Expression::ref(&variable);
   if (variable.index() >= variable_names_.size()) {
     variable_names_.resize(variable.index() + 1);
@@ -629,8 +641,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       }
     }
     for (std::vector<const Variable*>::const_reverse_iterator vi =
-             variables().rbegin();
-	 vi != variables().rend(); vi++) {
+             global_variables().rbegin();
+	 vi != global_variables().rend(); vi++) {
       const Variable& v = **vi;
       BDD dds = mtbdd(dd_man, v).Interval(v.start(), v.start());
       DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
@@ -1036,8 +1048,8 @@ BDD Model::state_bdd(const DecisionDiagramManager& dd_man,
     }
   }
   for (std::vector<const Variable*>::const_reverse_iterator vi =
-           variables().rbegin();
-       vi != variables().rend(); vi++) {
+           global_variables().rbegin();
+       vi != global_variables().rend(); vi++) {
     const Variable& v = **vi;
     const int value = state.at(v.index());
     dds = mtbdd(dd_man, v).Interval(value, value) && dds;
@@ -1114,10 +1126,11 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m) {
   os << "stochastic";
-  std::vector<const Variable*>::const_iterator vi = m.variables().begin();
-  if (vi != m.variables().end()) {
+  std::vector<const Variable*>::const_iterator vi =
+      m.global_variables().begin();
+  if (vi != m.global_variables().end()) {
     os << std::endl;
-    for (; vi != m.variables().end(); vi++) {
+    for (; vi != m.global_variables().end(); vi++) {
       const Variable& v = **vi;
       os << std::endl << "global " << v;
       os << " : [" << v.low() << ".." << v.high() << "]";

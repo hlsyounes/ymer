@@ -22,6 +22,7 @@
  */
 #include <config.h>
 #include "comm.h"
+#include "distributions.h"
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
@@ -318,27 +319,12 @@ double indifference_region(double theta) {
 CompiledModel CompileModel(const Model& model) {
   CompiledModel compiled_model;
 
-  std::map<int, const Variable*> all_variables;
-  for (std::vector<const Variable*>::const_iterator vi =
+  for (std::vector<ParsedVariable>::const_iterator i =
            model.variables().begin();
-       vi != model.variables().end(); ++vi) {
-    const Variable* v = *vi;
-    all_variables[v->index()] = v;
-  }
-  for (ModuleList::const_iterator mi = model.modules().begin();
-       mi != model.modules().end(); ++mi) {
-    const Module& m = **mi;
-    for (std::vector<const Variable*>::const_iterator vi =
-             m.variables().begin();
-         vi != m.variables().end(); ++vi) {
-      const Variable* v = *vi;
-      all_variables[v->index()] = v;
-    }
-  }
-  for (std::map<int, const Variable*>::const_iterator i = all_variables.begin();
-       i != all_variables.end(); ++i) {
-    const Variable* v = i->second;
-    compiled_model.AddVariable(v->name(), v->low(), v->high(), v->start());
+       i != model.variables().end(); ++i) {
+    const ParsedVariable& v = *i;
+    compiled_model.AddVariable(
+        v.name(), v.min_value(), v.max_value(), v.init_value());
   }
 
   return compiled_model;
