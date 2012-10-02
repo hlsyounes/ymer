@@ -211,7 +211,7 @@ BDD command_bdd(const DecisionDiagramManager& manager, const Command& command,
     ddu = update_bdd(manager, update) && ddu;
     updated_variables->insert(&update.variable());
   }
-  return command.guard().bdd(manager) && ddu;
+  return bdd(manager, command.guard()) && ddu;
 }
 
 
@@ -698,9 +698,9 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
 	   */
           data.update_bdd =
-              (command.guard().bdd(dd_man) || ddv.Interval(0, 0)) &&
-              (command.guard().primed_bdd(dd_man) || ddvp.Interval(0, 0)) &&
-              (!command.guard().primed_bdd(dd_man) || ddid);
+              (bdd(dd_man, command.guard()) || ddv.Interval(0, 0)) &&
+              (primed_bdd(dd_man, command.guard()) || ddvp.Interval(0, 0)) &&
+              (!primed_bdd(dd_man, command.guard()) || ddid);
 	}
         ph_commands.insert(std::make_pair(i, data));
       }
@@ -715,7 +715,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	std::cout << std::endl << "processing " << command << std::endl;
       }
       /* BDD for guard. */
-      BDD ddg = command.guard().bdd(dd_man);
+      BDD ddg = bdd(dd_man, command.guard());
       /* BDD for command. */
       std::set<const Variable*> updated_variables;
       BDD ddc = command_bdd(dd_man, command, &updated_variables);

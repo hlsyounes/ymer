@@ -20,23 +20,124 @@
  * $Id: formulas.cc,v 2.1 2004-01-25 12:23:03 lorens Exp $
  */
 #include "formulas.h"
-#include <stdexcept>
+
 #include <typeinfo>
 
-
-/* ====================================================================== */
-/* StateFormula */
+#include "glog/logging.h"
 
 void StateFormula::Accept(StateFormulaVisitor* visitor) const {
   DoAccept(visitor);
 }
 
-/* Output operator for state formulas. */
+namespace {
+
+class StateFormulaCompiler : public StateFormulaVisitor {
+ public:
+  StateFormulaCompiler(const DecisionDiagramManager* manager, bool primed);
+
+  BDD bdd() const { return bdd_; }
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  const DecisionDiagramManager* manager_;
+  bool primed_;
+  BDD bdd_;
+};
+
+StateFormulaCompiler::StateFormulaCompiler(
+    const DecisionDiagramManager* manager, bool primed)
+    : manager_(manager), primed_(primed), bdd_(manager->GetConstant(false)) {
+}
+
+void StateFormulaCompiler::DoVisitConjunction(const Conjunction& formula) {
+  BDD result = manager_->GetConstant(true);
+  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
+       fi != formula.conjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    result = bdd_ && result;
+  }
+  bdd_ = result;
+}
+
+void StateFormulaCompiler::DoVisitDisjunction(const Disjunction& formula) {
+  BDD result = manager_->GetConstant(false);
+  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
+       fi != formula.disjuncts().end(); ++fi) {
+    (*fi)->Accept(this);
+    result = bdd_ || result;
+  }
+  bdd_ = result;
+}
+
+void StateFormulaCompiler::DoVisitNegation(const Negation& formula) {
+  formula.negand().Accept(this);
+  bdd_ = !bdd_;
+}
+
+void StateFormulaCompiler::DoVisitImplication(const Implication& formula) {
+  formula.antecedent().Accept(this);
+  BDD antecedent = bdd_;
+  formula.consequent().Accept(this);
+  bdd_ = !antecedent || bdd_;
+}
+
+void StateFormulaCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
+  LOG(FATAL) << "not implemented";
+}
+
+void StateFormulaCompiler::DoVisitComparison(const Comparison& formula) {
+  ADD expr1 = primed_
+      ? primed_mtbdd(*manager_, formula.expr1())
+      : mtbdd(*manager_, formula.expr1());
+  ADD expr2 = primed_
+      ? primed_mtbdd(*manager_, formula.expr2())
+      : mtbdd(*manager_, formula.expr2());
+  switch (formula.op()) {
+    case Comparison::LESS:
+      bdd_ = expr1 < expr2;
+      break;
+    case Comparison::LESS_EQUAL:
+      bdd_ = expr1 <= expr2;
+      break;
+    case Comparison::GREATER_EQUAL:
+      bdd_ = expr1 >= expr2;
+      break;
+    case Comparison::GREATER:
+      bdd_ = expr1 > expr2;
+      break;
+    case Comparison::EQUAL:
+      bdd_ = expr1 == expr2;
+      break;
+    case Comparison::NOT_EQUAL:
+      bdd_ = expr1 != expr2;
+      break;
+  }
+}
+
+}  // namespace
+
+BDD bdd(const DecisionDiagramManager& manager, const StateFormula& f) {
+  StateFormulaCompiler compiler(&manager, false /* primed */);
+  f.Accept(&compiler);
+  return compiler.bdd();
+}
+
+BDD primed_bdd(const DecisionDiagramManager& manager, const StateFormula& f) {
+  StateFormulaCompiler compiler(&manager, true /* primed */);
+  f.Accept(&compiler);
+  return compiler.bdd();
+}
+
 std::ostream& operator<<(std::ostream& os, const StateFormula& f) {
   f.print(os);
   return os;
 }
-
 
 /* ====================================================================== */
 /* PathFormula */
@@ -92,28 +193,6 @@ bool Conjunction::holds(const std::vector<int>& state) const {
     }
   }
   return true;
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Conjunction::bdd(const DecisionDiagramManager& dd_man) const {
-  BDD dd = dd_man.GetConstant(true);
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); ++fi) {
-    dd = (*fi)->bdd(dd_man) && dd;
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Conjunction::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  BDD dd = dd_man.GetConstant(true);
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); ++fi) {
-    dd = (*fi)->primed_bdd(dd_man) && dd;
-  }
-  return dd;
 }
 
 
@@ -193,28 +272,6 @@ bool Disjunction::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Disjunction::bdd(const DecisionDiagramManager& dd_man) const {
-  BDD dd = dd_man.GetConstant(false);
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); ++fi) {
-    dd = (*fi)->bdd(dd_man) || dd;
-  }
-  return dd;
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Disjunction::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  BDD dd = dd_man.GetConstant(false);
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); ++fi) {
-    dd = (*fi)->primed_bdd(dd_man) || dd;
-  }
-  return dd;
-}
-
-
 /* Prints this object on the given stream. */
 void Disjunction::print(std::ostream& os) const {
   if (disjuncts().empty()) {
@@ -278,18 +335,6 @@ bool Negation::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Negation::bdd(const DecisionDiagramManager& dd_man) const {
-  return !negand().bdd(dd_man);
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Negation::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return !negand().primed_bdd(dd_man);
-}
-
-
 /* Prints this object on the given stream. */
 void Negation::print(std::ostream& os) const {
   os << '!';
@@ -338,18 +383,6 @@ bool Implication::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Implication::bdd(const DecisionDiagramManager& dd_man) const {
-  return !antecedent().bdd(dd_man) || consequent().bdd(dd_man);
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Implication::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return !antecedent().primed_bdd(dd_man) || consequent().primed_bdd(dd_man);
-}
-
-
 /* Prints this object on the given stream. */
 void Implication::print(std::ostream& os) const {
   os << antecedent() << " => ";
@@ -391,19 +424,7 @@ bool Probabilistic::probabilistic() const {
 
 /* Tests if this state formula holds in the given state. */
 bool Probabilistic::holds(const std::vector<int>& state) const {
-  throw std::logic_error("Probabilistic::holds not implemented");
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Probabilistic::bdd(const DecisionDiagramManager& dd_man) const {
-  throw std::logic_error("Probabilistic::bdd not implemented");
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Probabilistic::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  throw std::logic_error("Probabilistic::primed_bdd not implemented");
+  LOG(FATAL) << "not implemented";
 }
 
 
@@ -457,18 +478,6 @@ bool LessThan::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns the `current state' BDD representation for this state formula. */
-BDD LessThan::bdd(const DecisionDiagramManager& dd_man) const {
-  return mtbdd(dd_man, expr1()) < mtbdd(dd_man, expr2());
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD LessThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, expr1()) < primed_mtbdd(dd_man, expr2());
-}
-
-
 /* Prints this object on the given stream. */
 void LessThan::print(std::ostream& os) const {
   os << expr1() << '<' << expr2();
@@ -488,18 +497,6 @@ LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
 /* Tests if this state formula holds in the given state. */
 bool LessThanOrEqual::holds(const std::vector<int>& state) const {
   return expr1().value(state) <= expr2().value(state);
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-BDD LessThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
-  return mtbdd(dd_man, expr1()) <= mtbdd(dd_man, expr2());
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD LessThanOrEqual::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, expr1()) <= primed_mtbdd(dd_man, expr2());
 }
 
 
@@ -525,18 +522,6 @@ bool GreaterThanOrEqual::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns the `current state' BDD representation for this state formula. */
-BDD GreaterThanOrEqual::bdd(const DecisionDiagramManager& dd_man) const {
-  return mtbdd(dd_man, expr1()) >= mtbdd(dd_man, expr2());
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD GreaterThanOrEqual::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, expr1()) >= primed_mtbdd(dd_man, expr2());
-}
-
-
 /* Prints this object on the given stream. */
 void GreaterThanOrEqual::print(std::ostream& os) const {
   os << expr1() << ">=" << expr2();
@@ -555,18 +540,6 @@ GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
 /* Tests if this state formula holds in the given state. */
 bool GreaterThan::holds(const std::vector<int>& state) const {
   return expr1().value(state) > expr2().value(state);
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-BDD GreaterThan::bdd(const DecisionDiagramManager& dd_man) const {
-  return mtbdd(dd_man, expr1()) > mtbdd(dd_man, expr2());
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD GreaterThan::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, expr1()) > primed_mtbdd(dd_man, expr2());
 }
 
 
@@ -591,18 +564,6 @@ bool Equality::holds(const std::vector<int>& state) const {
 }
 
 
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Equality::bdd(const DecisionDiagramManager& dd_man) const {
-  return mtbdd(dd_man, expr1()) == mtbdd(dd_man, expr2());
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Equality::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, expr1()) == primed_mtbdd(dd_man, expr2());
-}
-
-
 /* Prints this object on the given stream. */
 void Equality::print(std::ostream& os) const {
   os << expr1() << '=' << expr2();
@@ -621,18 +582,6 @@ Inequality::Inequality(const Expression& expr1, const Expression& expr2)
 /* Tests if this state formula holds in the given state. */
 bool Inequality::holds(const std::vector<int>& state) const {
   return expr1().value(state) != expr2().value(state);
-}
-
-
-/* Returns the `current state' BDD representation for this state formula. */
-BDD Inequality::bdd(const DecisionDiagramManager& dd_man) const {
-  return mtbdd(dd_man, expr1()) != mtbdd(dd_man, expr2());
-}
-
-
-/* Returns the `next state' BDD representation for this state formula. */
-BDD Inequality::primed_bdd(const DecisionDiagramManager& dd_man) const {
-  return primed_mtbdd(dd_man, expr1()) != primed_mtbdd(dd_man, expr2());
 }
 
 
