@@ -75,12 +75,6 @@ class StateFormula {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const = 0;
 
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const = 0;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const = 0;
-
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
   virtual double effort(double q, DeltaFun delta, double alpha, double beta,
@@ -126,7 +120,13 @@ private:
   friend std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 };
 
-/* Output operator for state formulas. */
+// Returns the `current state' BDD representation for a state formula.
+BDD bdd(const DecisionDiagramManager& dd_man, const StateFormula& f);
+
+// Returns the `next state' BDD representation for a state formula.
+BDD primed_bdd(const DecisionDiagramManager& dd_man, const StateFormula& f);
+
+// Output operator for state formulas.
 std::ostream& operator<<(std::ostream& os, const StateFormula& f);
 
 
@@ -239,12 +239,6 @@ class Conjunction : public StateFormula {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
-
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
   virtual double effort(double q, DeltaFun delta, double alpha, double beta,
@@ -300,12 +294,6 @@ class Disjunction : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -365,12 +353,6 @@ class Negation : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -433,12 +415,6 @@ class Implication : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -507,12 +483,6 @@ class Probabilistic : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
@@ -638,12 +608,6 @@ struct LessThan : public Comparison {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
-
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -662,12 +626,6 @@ struct LessThanOrEqual : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -688,12 +646,6 @@ struct GreaterThanOrEqual : public Comparison {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
-
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -712,12 +664,6 @@ struct GreaterThan : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -738,12 +684,6 @@ struct Equality : public Comparison {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
-
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -762,12 +702,6 @@ struct Inequality : public Comparison {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Returns the `current state' BDD representation for this state formula. */
-  virtual BDD bdd(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the `next state' BDD representation for this state formula. */
-  virtual BDD primed_bdd(const DecisionDiagramManager& dd_man) const;
 
 protected:
   /* Prints this object on the given stream. */
