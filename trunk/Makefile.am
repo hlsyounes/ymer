@@ -107,7 +107,7 @@ src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
 # Compiled model library.
 noinst_LTLIBRARIES += src/libcompiled-model.la
 src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
-src_libcompiled_model_la_LIBADD = glog/libglog.la
+src_libcompiled_model_la_LIBADD = src/libddutil.la glog/libglog.la
 
 #
 # Ymer binaries.

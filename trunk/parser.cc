@@ -103,8 +103,6 @@ extern std::map<std::string, TypedValue> const_overrides;
 
 /* Last model parsed. */
 const Model* global_model = NULL;
-/* Number of bits required by binary encoding of state space. */
-int num_model_bits;
 /* Parsed properties. */
 FormulaList properties;
 
@@ -142,6 +140,8 @@ static std::map<std::string, size_t> synchronizations;
 static std::set<std::string> undeclared;
 /* Next variable index. */
 static int next_variable_index;
+/* Number of bits required by binary encoding of state space. */
+static int num_model_bits;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 

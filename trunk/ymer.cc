@@ -57,8 +57,6 @@ extern int yyparse();
 extern FILE* yyin;
 /* Current model. */
 extern const Model* global_model;
-/* Number of bits required by binary encoding of state space. */
-extern int num_model_bits;
 /* Parsed properties. */
 extern FormulaList properties;
 /* Clears all previously parsed declarations. */
@@ -121,9 +119,10 @@ static option long_options[] = {
 };
 static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hL:Mm:N:n:pP:s:S:T:v::V";
 
+namespace {
 
 /* Displays help. */
-static void display_help() {
+void display_help() {
   std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
 	    << "options:" << std::endl
 	    << "  -A a,  --alpha=a\t"
@@ -196,7 +195,7 @@ static void display_help() {
 
 
 /* Displays version information. */
-static void display_version() {
+void display_version() {
   std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003--2005 Carnegie Mellon University"
 	    << std::endl
@@ -214,7 +213,7 @@ static void display_version() {
 
 
 /* Parses spec for const overrides.  Returns true on success. */
-static bool parse_const_overrides(
+bool parse_const_overrides(
     const std::string& spec,
     std::map<std::string, TypedValue>* const_overrides) {
   if (spec.empty()) {
@@ -246,7 +245,7 @@ static bool parse_const_overrides(
 }
 
 /* Parses the given file, and returns true on success. */
-static bool read_file(const char* name) {
+bool read_file(const char* name) {
   yyin = fopen(name, "r");
   if (yyin == 0) {
     std::cerr << PACKAGE << ':' << name << ": " << strerror(errno)
@@ -262,7 +261,7 @@ static bool read_file(const char* name) {
 
 
 /* Extracts a path formula from the given state formula. */
-static bool extract_path_formula(const PathFormula*& pf, double& theta,
+bool extract_path_formula(const PathFormula*& pf, double& theta,
 			  const StateFormula& f) {
   const Conjunction* cf = dynamic_cast<const Conjunction*>(&f);
   if (cf != 0) {
@@ -329,6 +328,8 @@ CompiledModel CompileModel(const Model& model) {
 
   return compiled_model;
 }
+
+}  // namespace
 
 /* The main program. */
 int main(int argc, char* argv[]) {
@@ -826,7 +827,7 @@ int main(int argc, char* argv[]) {
       }
     } else if (engine == HYBRID_ENGINE) {
       std::cout << "Hybrid engine: epsilon=" << epsilon << std::endl;
-      DecisionDiagramManager dd_man(2*num_model_bits);
+      DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -916,7 +917,7 @@ int main(int argc, char* argv[]) {
       std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", epsilon=" << epsilon
 		<< ", seed=" << seed << std::endl;
-      DecisionDiagramManager dd_man(2*num_model_bits);
+      DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
