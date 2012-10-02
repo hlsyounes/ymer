@@ -62,6 +62,10 @@ class CompiledModel {
   // Returns the variables for this compiled model.
   const std::vector<CompiledVariable>& variables() const { return variables_; }
 
+  // Returns the number of bits needed to represent the variables of this
+  // compiled model.
+  int NumBits() const;
+
  private:
   std::vector<CompiledVariable> variables_;
 };

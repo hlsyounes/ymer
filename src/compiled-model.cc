@@ -21,6 +21,8 @@
 
 #include <string>
 
+#include "ddutil.h"
+
 #include "glog/logging.h"
 
 CompiledVariable::CompiledVariable(
@@ -36,4 +38,14 @@ void CompiledModel::AddVariable(
     const std::string& name, int min_value, int max_value, int init_value) {
   variables_.push_back(
       CompiledVariable(name, min_value, max_value, init_value));
+}
+
+int CompiledModel::NumBits() const {
+  int num_bits = 0;
+  for (std::vector<CompiledVariable>::const_iterator i = variables_.begin();
+       i != variables_.end(); ++i) {
+    const CompiledVariable& v = *i;
+    num_bits += Log2(v.max_value() - v.min_value()) + 1;
+  }
+  return num_bits;
 }
