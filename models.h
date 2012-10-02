@@ -1,53 +1,75 @@
-/* -*-C++-*- */
-/*
- * Models.
- *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
- *
- * This file is part of Ymer.
- *
- * Ymer is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * Ymer is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Ymer; if not, write to the Free Software Foundation,
- * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: models.h,v 2.1 2004-01-25 12:36:58 lorens Exp $
- */
-#ifndef MODELS_H
-#define MODELS_H
+// Copyright (C) 2003--2005 Carnegie Mellon University
+// Copyright (C) 2011--2012 Google Inc
+//
+// This file is part of Ymer.
+//
+// Ymer is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Ymer is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Ymer; if not, write to the Free Software Foundation,
+// Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+//
+// A parsed model.
 
-#include <config.h>
-#include "modules.h"
-#include "odd.h"
-#include "distributions.h"
-#include "src/ddutil.h"
-#include <map>
+#ifndef MODELS_H_
+#define MODELS_H_
+
+#include <string>
 #include <vector>
 
-
-/* ====================================================================== */
-/* Model */
+#include "modules.h"
+#include "odd.h"
+#include "src/ddutil.h"
 
 struct PHData;
 
-/*
- * A model.
- */
-struct Model {
+// A parsed variable.
+class ParsedVariable {
+ public:
+  // Constructs a parsed variable with the given name, value range and initial
+  // value.
+  ParsedVariable(
+      const std::string& name, int min_value, int max_value, int init_range);
+
+  // Returns the name for this parsed variable.
+  const std::string& name() const { return name_; }
+
+  // Returns the minimum value for this parsed variable.
+  int min_value() const { return min_value_; }
+
+  // Returns the maximum value for this parsed variable.
+  int max_value() const { return max_value_; }
+
+  // Returns the initial value for this parsed variable.
+  int init_value() const { return init_value_; }
+
+ private:
+  std::string name_;
+  int min_value_;
+  int max_value_;
+  int init_value_;
+};
+
+// A parsed model.
+class Model {
+ public:
   /* Constructs a model. */
   Model();
 
   /* Deletes this model. */
   ~Model();
+
+  // Adds an int variable with the given name.
+  void AddIntVariable(
+      const std::string& name, int min_value, int max_value, int init_value);
 
   /* Adds a global variable to this model. */
   void add_variable(const Variable& variable);
@@ -58,8 +80,13 @@ struct Model {
   /* Compiles the commands of this model. */
   void compile();
 
+  // Returns the variables for this model.
+  const std::vector<ParsedVariable>& variables() const { return variables_; }
+
   /* Returns the global variables for this model. */
-  const std::vector<const Variable*>& variables() const { return variables_; }
+  const std::vector<const Variable*>& global_variables() const {
+    return global_variables_;
+  }
 
   /* Returns the name of the variable with index i. */
   const std::string& variable_name(int i) const { return variable_names_[i]; }
@@ -108,8 +135,9 @@ struct Model {
   void uncache_dds(const DecisionDiagramManager& dd_man) const;
 
 private:
+  std::vector<ParsedVariable> variables_;
   /* The global variables for this model. */
-  std::vector<const Variable*> variables_;
+  std::vector<const Variable*> global_variables_;
   /* Variable names. */
   std::vector<std::string> variable_names_;
   /* The modules for this model */
@@ -137,5 +165,4 @@ private:
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m);
 
-
-#endif /* MODELS_H */
+#endif  // MODELS_H_

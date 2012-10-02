@@ -831,7 +831,7 @@ static void add_update(const std::string* ident, const Expression& expr) {
   } else {
     v = (*vi).second;
   }
-  if (member(model->variables(), v)) {
+  if (member(model->global_variables(), v)) {
     if (command->synch() != 0) {
       yywarning("updating global variable in synchronized command");
     }
@@ -1004,6 +1004,7 @@ static const Variable* declare_variable(const std::string* ident,
     Expression::ref(start);
     variables.insert(std::make_pair(*ident, v));
     Expression::ref(v);
+    model->AddIntVariable(*ident, low, high, s);
     if (!delayed_addition) {
       if (module != NULL) {
 	module->add_variable(*v);

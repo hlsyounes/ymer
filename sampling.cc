@@ -24,6 +24,7 @@
 #include "formulas.h"
 #include "comm.h"
 #include "cudd.h"
+#include "distributions.h"
 #include "states.h"
 #include "models.h"
 #include <unistd.h>
