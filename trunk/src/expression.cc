@@ -56,6 +56,11 @@ void Expression::destructive_deref(const Expression* e) {
   }
 }
 
+VariableProperties::VariableProperties(int low_bit, int high_bit)
+    : low_bit_(low_bit), high_bit_(high_bit) {
+  CHECK_LE(low_bit, high_bit);
+}
+
 namespace {
 
 ADD CompileVariable(const DecisionDiagramManager& manager,
@@ -71,7 +76,10 @@ ADD CompileVariable(const DecisionDiagramManager& manager,
 
 class ExpressionCompiler : public ExpressionVisitor {
  public:
-  ExpressionCompiler(const DecisionDiagramManager* manager, bool primed);
+  ExpressionCompiler(
+      const DecisionDiagramManager* manager,
+      const std::map<std::string, VariableProperties>* variable_properties,
+      bool primed);
 
   ADD mtbdd() const { return mtbdd_; }
 
@@ -81,13 +89,17 @@ class ExpressionCompiler : public ExpressionVisitor {
   virtual void DoVisitComputation(const Computation& expr);
 
   const DecisionDiagramManager* manager_;
+  const std::map<std::string, VariableProperties>* variable_properties_;
   bool primed_;
   ADD mtbdd_;
 };
 
-ExpressionCompiler::ExpressionCompiler(const DecisionDiagramManager* manager,
-                                       bool primed)
-    : manager_(manager), primed_(primed), mtbdd_(manager->GetConstant(0)) {
+ExpressionCompiler::ExpressionCompiler(
+    const DecisionDiagramManager* manager,
+    const std::map<std::string, VariableProperties>* variable_properties,
+    bool primed)
+    : manager_(manager), variable_properties_(variable_properties),
+      primed_(primed), mtbdd_(manager->GetConstant(0)) {
 }
 
 void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
@@ -95,8 +107,11 @@ void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
 }
 
 void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
+  auto i = variable_properties_->find(expr.name());
+  CHECK(i != variable_properties_->end());
+  const VariableProperties& p = i->second;
   mtbdd_ = CompileVariable(
-      *manager_, expr.low(), expr.low_bit(), expr.high_bit(), primed_);
+      *manager_, expr.low(), p.low_bit(), p.high_bit(), primed_);
 }
 
 void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
@@ -121,14 +136,22 @@ void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
 
 }  // namespace
 
-ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e) {
-  ExpressionCompiler compiler(&manager, false /* primed */);
+ADD mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e) {
+  ExpressionCompiler compiler(
+      &manager, &variable_properties, false /* primed */);
   e.Accept(&compiler);
   return compiler.mtbdd();
 }
 
-ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e) {
-  ExpressionCompiler compiler(&manager, true /* primed */);
+ADD primed_mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e) {
+  ExpressionCompiler compiler(
+      &manager, &variable_properties, true /* primed */);
   e.Accept(&compiler);
   return compiler.mtbdd();
 }
@@ -335,14 +358,11 @@ void Variable::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitVariable(*this);
 }
 
-void Variable::SetVariableProperties(
-    int low, int high, int start, int index, int low_bit) {
+void Variable::SetVariableProperties(int low, int high, int start, int index) {
   low_ = low;
   high_ = high;
   start_ = start;
   index_ = index;
-  low_bit_ = low_bit;
-  high_bit_ = low_bit + Log2(high - low);
 }
 
 TypedValue Variable::value(const std::vector<int>& state) const {

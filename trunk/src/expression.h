@@ -23,6 +23,7 @@
 #ifndef EXPRESSION_H_
 #define EXPRESSION_H_
 
+#include <map>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -75,11 +76,30 @@ private:
   mutable int ref_count_;
 };
 
+class VariableProperties {
+ public:
+  VariableProperties(int low_bit, int high_bit);
+
+  int low_bit() const { return low_bit_; }
+
+  int high_bit() const { return high_bit_; }
+
+ private:
+  int low_bit_;
+  int high_bit_;
+};
+
 // Returns the 'current state' MTBDD representation for an expression.
-ADD mtbdd(const DecisionDiagramManager& manager, const Expression& e);
+ADD mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e);
 
 // Returns the 'next state' MTBDD representation for an expression.
-ADD primed_mtbdd(const DecisionDiagramManager& manager, const Expression& e);
+ADD primed_mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e);
 
 // Returns the 'current state' MTBDD representation for a variable.
 ADD variable_mtbdd(const DecisionDiagramManager& manager,
@@ -204,8 +224,7 @@ class Variable : public Expression {
 
   virtual ~Variable();
 
-  void SetVariableProperties(
-      int low, int high, int start, int index, int low_bit);
+  void SetVariableProperties(int low, int high, int start, int index);
 
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
@@ -221,14 +240,6 @@ class Variable : public Expression {
 
   // Returns the index of this variable.
   int index() const { return index_; }
-
-  // Returns the index of the first DD variable used to represent this
-  // variable.
-  int low_bit() const { return low_bit_; }
-
-  // Returns the index of the last DD variable used to represent this
-  // variable.
-  int high_bit() const { return high_bit_; }
 
   // Returns the value of this expression.
   virtual TypedValue value(const std::vector<int>& state) const;
@@ -246,10 +257,6 @@ private:
   int start_;
   // The index of this variable.
   int index_;
-  // Index of the first DD variable used to represent this variable.
-  int low_bit_;
-  // Index of the last DD variable used to represent this variable.
-  int high_bit_;
 };
 
 // A literal expression.

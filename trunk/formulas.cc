@@ -33,7 +33,10 @@ namespace {
 
 class StateFormulaCompiler : public StateFormulaVisitor {
  public:
-  StateFormulaCompiler(const DecisionDiagramManager* manager, bool primed);
+  StateFormulaCompiler(
+      const DecisionDiagramManager* manager,
+      const std::map<std::string, VariableProperties>* variable_properties,
+      bool primed);
 
   BDD bdd() const { return bdd_; }
 
@@ -46,13 +49,17 @@ class StateFormulaCompiler : public StateFormulaVisitor {
   virtual void DoVisitComparison(const Comparison& formula);
 
   const DecisionDiagramManager* manager_;
+  const std::map<std::string, VariableProperties>* variable_properties_;
   bool primed_;
   BDD bdd_;
 };
 
 StateFormulaCompiler::StateFormulaCompiler(
-    const DecisionDiagramManager* manager, bool primed)
-    : manager_(manager), primed_(primed), bdd_(manager->GetConstant(false)) {
+    const DecisionDiagramManager* manager,
+    const std::map<std::string, VariableProperties>* variable_properties,
+    bool primed)
+    : manager_(manager), variable_properties_(variable_properties),
+      primed_(primed), bdd_(manager->GetConstant(false)) {
 }
 
 void StateFormulaCompiler::DoVisitConjunction(const Conjunction& formula) {
@@ -93,11 +100,11 @@ void StateFormulaCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
 
 void StateFormulaCompiler::DoVisitComparison(const Comparison& formula) {
   ADD expr1 = primed_
-      ? primed_mtbdd(*manager_, formula.expr1())
-      : mtbdd(*manager_, formula.expr1());
+      ? primed_mtbdd(*manager_, *variable_properties_, formula.expr1())
+      : mtbdd(*manager_, *variable_properties_, formula.expr1());
   ADD expr2 = primed_
-      ? primed_mtbdd(*manager_, formula.expr2())
-      : mtbdd(*manager_, formula.expr2());
+      ? primed_mtbdd(*manager_, *variable_properties_, formula.expr2())
+      : mtbdd(*manager_, *variable_properties_, formula.expr2());
   switch (formula.op()) {
     case Comparison::LESS:
       bdd_ = expr1 < expr2;
@@ -122,14 +129,22 @@ void StateFormulaCompiler::DoVisitComparison(const Comparison& formula) {
 
 }  // namespace
 
-BDD bdd(const DecisionDiagramManager& manager, const StateFormula& f) {
-  StateFormulaCompiler compiler(&manager, false /* primed */);
+BDD bdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f) {
+  StateFormulaCompiler compiler(&manager, &variable_properties,
+                                false /* primed */);
   f.Accept(&compiler);
   return compiler.bdd();
 }
 
-BDD primed_bdd(const DecisionDiagramManager& manager, const StateFormula& f) {
-  StateFormulaCompiler compiler(&manager, true /* primed */);
+BDD primed_bdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f) {
+  StateFormulaCompiler compiler(&manager, &variable_properties,
+                                true /* primed */);
   f.Accept(&compiler);
   return compiler.bdd();
 }
