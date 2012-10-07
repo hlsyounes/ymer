@@ -92,8 +92,6 @@ static std::map<std::string, size_t> synchronizations;
 static std::set<std::string> undeclared;
 /* Next variable index. */
 static int next_variable_index;
-/* Number of bits required by binary encoding of state space. */
-static int num_model_bits;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
@@ -993,9 +991,8 @@ static const Variable* declare_variable(const std::string* ident,
     int s = ((start != NULL)
              ? EvaluateConstantExpression(*start, constant_values).value<int>()
              : low);
-    v->SetVariableProperties(low, high, s, next_variable_index, num_model_bits);
+    v->SetVariableProperties(low, high, s, next_variable_index);
     ++next_variable_index;
-    num_model_bits = v->high_bit() + 1;
     variable_lows.insert(std::make_pair(v, range.l));
     Expression::ref(range.l);
     variable_highs.insert(std::make_pair(v, range.h));
@@ -1507,7 +1504,6 @@ static void prepare_model() {
   }
   model = new Model();
   next_variable_index = 0;
-  num_model_bits = 0;
 }
 
 

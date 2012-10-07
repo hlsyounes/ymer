@@ -121,10 +121,16 @@ private:
 };
 
 // Returns the `current state' BDD representation for a state formula.
-BDD bdd(const DecisionDiagramManager& dd_man, const StateFormula& f);
+BDD bdd(
+    const DecisionDiagramManager& dd_man,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f);
 
 // Returns the `next state' BDD representation for a state formula.
-BDD primed_bdd(const DecisionDiagramManager& dd_man, const StateFormula& f);
+BDD primed_bdd(
+    const DecisionDiagramManager& dd_man,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f);
 
 // Output operator for state formulas.
 std::ostream& operator<<(std::ostream& os, const StateFormula& f);

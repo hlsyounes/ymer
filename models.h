@@ -83,6 +83,10 @@ class Model {
   // Returns the variables for this model.
   const std::vector<ParsedVariable>& variables() const { return variables_; }
 
+  const std::map<std::string, VariableProperties>& variable_properties() const {
+    return variable_properties_;
+  }
+
   /* Returns the global variables for this model. */
   const std::vector<const Variable*>& global_variables() const {
     return global_variables_;
@@ -148,6 +152,7 @@ private:
   std::vector<ModuleSet> command_modules_;
   /* Cached MTBDD representing rate matrix. */
   mutable DdNode* rate_mtbdd_;
+  std::map<std::string, VariableProperties> variable_properties_;
   /* Cached reachability BDD. */
   mutable DdNode* reach_bdd_;
   /* Cached ODD. */

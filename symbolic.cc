@@ -149,7 +149,7 @@ DdNode* Probabilistic::verify(const DecisionDiagramManager& dd_man,
 DdNode* Comparison::verify(const DecisionDiagramManager& dd_man,
                            const Model& model,
 			   double epsilon, bool estimate) const {
-  BDD ddc = bdd(dd_man, *this);
+  BDD ddc = bdd(dd_man, model.variable_properties(), *this);
   DdNode* ddr = model.reachability_bdd(dd_man);
   DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddc.get(), ddr);
   Cudd_Ref(sol);
