@@ -2749,6 +2749,17 @@ TypedValue EvaluateConstantExpression(
   return evaluator.value();
 }
 
+bool InVariableSet(
+    const Model& model, const std::set<int> variables, const std::string name) {
+  for (std::set<int>::const_iterator i = variables.begin();
+       i != variables.end(); ++i) {
+    if (name == model.variables()[*i].name()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 /* Clears all previously parsed declarations. */
@@ -3043,11 +3054,13 @@ static void add_update(const std::string* ident, const Expression& expr) {
   } else {
     v = (*vi).second;
   }
-  if (member(model->global_variables(), v)) {
+  const int module_index = model->modules().size();
+  if (InVariableSet(*model, model->global_variables(), v->name())) {
     if (command->synch() != 0) {
       yywarning("updating global variable in synchronized command");
     }
-  } else if (!member(module->variables(), v)) {
+  } else if (!InVariableSet(*model, model->module_variables(module_index),
+                            v->name())) {
     yyerror("updating variable belonging to other module");
   }
   command->add_update(new Update(*v, expr));
@@ -3219,8 +3232,6 @@ static const Variable* declare_variable(const std::string* ident,
     if (!delayed_addition) {
       if (module != NULL) {
 	module->add_variable(*v);
-      } else {
-	model->add_variable(*v);
       }
     }
   } else {
@@ -3636,6 +3647,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	}
       }
       std::map<std::string, const Variable*> v_subst;
+      model->OpenModuleScope();
       for (std::vector<const Variable*>::const_iterator vi =
                src_module.variables().begin();
 	   vi != src_module.variables().end(); vi++) {
@@ -3676,6 +3688,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
       Module* mod = SubstituteIdentifiers(src_module, v_subst, synch_subst);
       modules.insert(std::make_pair(*ident1, mod));
       model->add_module(*mod);
+      model->CloseModuleScope();
     }
   }
   subst.clear();
@@ -3689,6 +3702,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 static void add_module() {
   model->add_module(*module);
   module = NULL;
+  model->CloseModuleScope();
 }
 
 
@@ -3700,6 +3714,7 @@ static void prepare_module(const std::string* ident) {
   } else {
     module = new Module();
     modules.insert(std::make_pair(*ident, module));
+    model->OpenModuleScope();
   }
   delete ident;
 }

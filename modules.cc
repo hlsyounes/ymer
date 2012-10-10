@@ -99,8 +99,8 @@ Module::Module() {
 
 /* Deletes this module. */
 Module::~Module() {
-  for (std::vector<const Variable*>::const_iterator vi = variables().begin();
-       vi != variables().end(); vi++) {
+  for (std::vector<const Variable*>::const_iterator vi = variables_.begin();
+       vi != variables_.end(); vi++) {
     Expression::destructive_deref(*vi);
   }
   for (CommandList::const_iterator ci = commands().begin();

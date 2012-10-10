@@ -22,6 +22,7 @@
 #ifndef MODELS_H_
 #define MODELS_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -71,8 +72,12 @@ class Model {
   void AddIntVariable(
       const std::string& name, int min_value, int max_value, int init_value);
 
-  /* Adds a global variable to this model. */
-  void add_variable(const Variable& variable);
+  // Opens a new module scope.  Requires that no module scope is currently open.
+  void OpenModuleScope();
+
+  // Closes the current module scope.  Requires that a module scope is
+  // currently open.
+  void CloseModuleScope();
 
   /* Adds a module to this model. */
   void add_module(const Module& module);
@@ -83,17 +88,20 @@ class Model {
   // Returns the variables for this model.
   const std::vector<ParsedVariable>& variables() const { return variables_; }
 
+  // Returns the global variables (just indices) for this model.
+  const std::set<int>& global_variables() const { return global_variables_; }
+
+  // Returns the module variables (just indices) for the ith module.
+  const std::set<int>& module_variables(int i) const {
+    return module_variables_[i];
+  }
+
   const std::map<std::string, VariableProperties>& variable_properties() const {
     return variable_properties_;
   }
 
-  /* Returns the global variables for this model. */
-  const std::vector<const Variable*>& global_variables() const {
-    return global_variables_;
-  }
-
   /* Returns the name of the variable with index i. */
-  const std::string& variable_name(int i) const { return variable_names_[i]; }
+  const std::string& variable_name(int i) const { return variables_[i].name(); }
 
   /* Returns the modules for this model */
   const ModuleList& modules() const { return modules_; }
@@ -140,10 +148,9 @@ class Model {
 
 private:
   std::vector<ParsedVariable> variables_;
-  /* The global variables for this model. */
-  std::vector<const Variable*> global_variables_;
-  /* Variable names. */
-  std::vector<std::string> variable_names_;
+  std::set<int> global_variables_;
+  std::vector<std::set<int>> module_variables_;
+  int current_module_;
   /* The modules for this model */
   ModuleList modules_;
   /* Compiled commands for this model. */
