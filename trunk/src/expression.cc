@@ -358,10 +358,8 @@ void Variable::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitVariable(*this);
 }
 
-void Variable::SetVariableProperties(int low, int high, int start, int index) {
+void Variable::SetVariableProperties(int low, int index) {
   low_ = low;
-  high_ = high;
-  start_ = start;
   index_ = index;
 }
 

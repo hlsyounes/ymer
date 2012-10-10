@@ -224,19 +224,13 @@ class Variable : public Expression {
 
   virtual ~Variable();
 
-  void SetVariableProperties(int low, int high, int start, int index);
+  void SetVariableProperties(int low, int index);
 
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
 
   // Returns the lower bound for this variable.
   int low() const { return low_; }
-
-  // Returns the upper bound for this variable.
-  int high() const { return high_; }
-
-  // Returns the initial value for this variable.
-  int start() const { return start_; }
 
   // Returns the index of this variable.
   int index() const { return index_; }
@@ -251,10 +245,6 @@ private:
   std::string name_;
   // The lower bound for this variable.
   int low_;
-  // The upper bound for this variable.
-  int high_;
-  // The initial value for this variable.
-  int start_;
   // The index of this variable.
   int index_;
 };
