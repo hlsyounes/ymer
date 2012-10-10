@@ -21,39 +21,57 @@
 
 pass=1
 
-echo poll5_sprt96
-echo 'P<0.96[ true U<=10 (s=1 & a=0) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 src/testdata/poll5.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt96.golden -
-if [[ $? != 0 ]]; then
+echo -n poll5_sprt96...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 src/testdata/poll5.sm <(echo 'P<0.96[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt96.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
   pass=0
 fi
 
-echo poll5_sprt98
-echo 'P<0.98[ true U<=10 (s=1 & a=0) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 src/testdata/poll5.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt98.golden -
-if [[ $? != 0 ]]; then
+echo -n poll5_sprt98...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt98.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
   pass=0
 fi
 
-echo poll5_hybrid
-echo 'P>0[ true U<=10 (s=1 & a=0) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --estimate-probabilities --engine=hybrid src/testdata/poll5.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_hybrid.golden -
-if [[ $? != 0 ]]; then
+echo -n poll5_hybrid...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --estimate-probabilities --engine=hybrid src/testdata/poll5.sm <(echo 'P>0[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_hybrid.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
   pass=0
 fi
 
-echo tandem7_sprt08
-echo 'P<0.08[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt08.golden -
-if [[ $? != 0 ]]; then
+echo -n tandem7_sprt08...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm <(echo 'P<0.08[ true U<=26 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt08.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
   pass=0
 fi
 
-echo tandem7_sprt12
-echo 'P<0.12[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt12.golden -
-if [[ $? != 0 ]]; then
+echo -n tandem7_sprt12...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandem.sm <(echo 'P<0.12[ true U<=26 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt12.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
   pass=0
 fi
 
-echo tandem7_hybrid
-echo 'P>0[ true U<=26 (sc=c & sm=c) ]' | HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --estimate-probabilities --engine=hybrid --const=c=7 src/testdata/tandem.sm /dev/stdin 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_hybrid.golden -
-if [[ $? != 0 ]]; then
+echo -n tandem7_hybrid...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --estimate-probabilities --engine=hybrid --const=c=7 src/testdata/tandem.sm <(echo 'P>0[ true U<=26 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_hybrid.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
   pass=0
 fi
 

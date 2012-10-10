@@ -78,6 +78,9 @@ struct PHData {
 
 namespace {
 
+// Invalid module index.
+const int kNoModule = -1;
+
 /* Returns the number of phases of the given PH distribution. */
 int ph_phases(const PHData& data) {
   if (data.params.n == 0) {
@@ -182,19 +185,19 @@ BDD identity_bdd(const DecisionDiagramManager& manager,
 BDD variable_identities(
     const DecisionDiagramManager& dd_man,
     const BDD& dd_start,
-    const std::vector<const Variable*>& variables,
-    const std::set<std::string>& excluded,
-    const std::map<std::string, VariableProperties>& variable_properties) {
+    const Model& model,
+    const std::set<int>& variables,
+    const std::set<std::string>& excluded) {
   BDD ddu = dd_start;
-  for (std::vector<const Variable*>::const_reverse_iterator vi =
-           variables.rbegin();
-       vi != variables.rend(); vi++) {
-    const Variable& v = **vi;
+  for (std::set<int>::const_reverse_iterator i = variables.rbegin();
+       i != variables.rend(); i++) {
+    const ParsedVariable& v = model.variables()[*i];
     if (excluded.find(v.name()) == excluded.end()) {
-      auto i = variable_properties.find(v.name());
-      CHECK(i != variable_properties.end());
-      const VariableProperties& p = i->second;
-      ddu = identity_bdd(dd_man, v.low(), p.low_bit(), p.high_bit()) && ddu;
+      auto j = model.variable_properties().find(v.name());
+      CHECK(j != model.variable_properties().end());
+      const VariableProperties& p = j->second;
+      ddu = identity_bdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
+          && ddu;
     }
   }
   return ddu;
@@ -238,29 +241,27 @@ BDD variable_updates(const DecisionDiagramManager& manager,
                      const std::map<int, PHData>& ph_commands) {
   BDD ddu = dd_start;
   // Conjunction with identity BDD for untouched module variables.
-  for (ModuleList::const_reverse_iterator mi = model.modules().rbegin();
-       mi != model.modules().rend(); mi++) {
-    const Module* module = *mi;
+  for (int i = model.modules().size() - 1; i >= 0; --i) {
+    const Module* module = model.modules()[i];
     if (touched_modules.find(module) != touched_modules.end()) {
       ddu = variable_identities(
-          manager, ddu, module->variables(), updated_variables,
-          model.variable_properties());
+          manager, ddu, model, model.module_variables(i), updated_variables);
     } else {
-      for (std::vector<const Variable*>::const_reverse_iterator vi =
-               module->variables().rbegin();
-           vi != module->variables().rend(); ++vi) {
-        const Variable& v = **vi;
+      for (std::set<int>::const_reverse_iterator vi =
+               model.module_variables(i).rbegin();
+           vi != model.module_variables(i).rend(); ++vi) {
+        const ParsedVariable& v = model.variables()[*vi];
         auto i = model.variable_properties().find(v.name());
         CHECK(i != model.variable_properties().end());
         const VariableProperties& p = i->second;
-        ddu =
-            identity_bdd(manager, v.low(), p.low_bit(), p.high_bit()) && ddu;
+        ddu = identity_bdd(manager, v.max_value(), p.low_bit(), p.high_bit())
+            && ddu;
       }
     }
   }
   // Conjunction with identity BDD for untouched global variables.
-  ddu = variable_identities(manager, ddu, model.global_variables(),
-                            updated_variables, model.variable_properties());
+  ddu = variable_identities(
+      manager, ddu, model, model.global_variables(), updated_variables);
   // Conjunction with update rules for phase variables.
   for (std::map<int, PHData>::const_reverse_iterator ci = ph_commands.rbegin();
        ci != ph_commands.rend(); ci++) {
@@ -275,8 +276,9 @@ BDD variable_updates(const DecisionDiagramManager& manager,
 
 /* Constructs a model. */
 Model::Model()
-  : rate_mtbdd_(NULL), reach_bdd_(NULL), odd_(NULL), init_bdd_(NULL),
-    init_index_(-1), row_variables_(NULL), column_variables_(NULL) {
+    : current_module_(kNoModule), rate_mtbdd_(NULL), reach_bdd_(NULL),
+      odd_(NULL), init_bdd_(NULL), init_index_(-1), row_variables_(NULL),
+      column_variables_(NULL) {
 }
 
 
@@ -288,11 +290,6 @@ Model::~Model() {
       delete *ci;
     }
   }
-  for (std::vector<const Variable*>::const_iterator vi =
-           global_variables().begin();
-       vi != global_variables().end(); vi++) {
-    Expression::destructive_deref(*vi);
-  }
   for (ModuleList::const_iterator mi = modules().begin();
        mi != modules().end(); mi++) {
     delete *mi;
@@ -301,30 +298,30 @@ Model::~Model() {
 
 void Model::AddIntVariable(
     const std::string& name, int min_value, int max_value, int init_value) {
+  const int index = variables_.size();
   variables_.push_back(ParsedVariable(name, min_value, max_value, init_value));
+  if (current_module_ == kNoModule) {
+    global_variables_.insert(index);
+  } else {
+    module_variables_[current_module_].insert(index);
+  }
 }
 
-/* Adds a global variable to this model. */
-void Model::add_variable(const Variable& variable) {
-  global_variables_.push_back(&variable);
-  Expression::ref(&variable);
-  if (variable.index() >= variable_names_.size()) {
-    variable_names_.resize(variable.index() + 1);
-  }
-  variable_names_[variable.index()] = variable.name();
+void Model::OpenModuleScope() {
+  CHECK_EQ(current_module_, kNoModule);
+  current_module_ = module_variables_.size();
+  module_variables_.emplace_back();
+}
+
+void Model::CloseModuleScope() {
+  CHECK_NE(current_module_, kNoModule);
+  current_module_ = kNoModule;
 }
 
 
 /* Adds a module to this model. */
 void Model::add_module(const Module& module) {
   modules_.push_back(&module);
-  for (int i = 0; i < module.variables().size(); ++i) {
-    const Variable& variable = *module.variables()[i];
-    if (variable.index() >= variable_names_.size()) {
-      variable_names_.resize(variable.index() + 1);
-    }
-    variable_names_[variable.index()] = variable.name();
-  }
 }
 
 namespace {
@@ -604,7 +601,6 @@ void Model::compile() {
 	    /*
 	     * Synchronize ci with cj.
 	     */
-            std::map<std::string, const Variable*> empty_subst;
 	    Conjunction* guard = new Conjunction();
 	    guard->add_conjunct(CopyStateFormula(ci.guard()));
 	    guard->add_conjunct(CopyStateFormula(cj.guard()));
@@ -644,7 +640,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
                       size_t moments) const {
   if (rate_mtbdd_ == NULL) {
     if (verbosity > 0) {
-      std::cout << "Buidling model...";
+      std::cout << "Building model...";
     }
     /*
      * Precomute DDs for variables and modules.
@@ -652,27 +648,15 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     /* BDD for initial state. */
     init_bdd_ = Cudd_ReadOne(dd_man.manager());
     Cudd_Ref(init_bdd_);
-    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-	 mi != modules().rend(); mi++) {
-      const Module& mod = **mi;
-      for (std::vector<const Variable*>::const_reverse_iterator vi =
-               mod.variables().rbegin();
-	   vi != mod.variables().rend(); vi++) {
-	const Variable& v = **vi;
-        BDD dds = mtbdd(dd_man, variable_properties(), v)
-            .Interval(v.start(), v.start());
-	DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
-	Cudd_Ref(dda);
-	Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
-	init_bdd_ = dda;
-      }
-    }
-    for (std::vector<const Variable*>::const_reverse_iterator vi =
-             global_variables().rbegin();
-	 vi != global_variables().rend(); vi++) {
-      const Variable& v = **vi;
-      BDD dds = mtbdd(dd_man, variable_properties(), v)
-          .Interval(v.start(), v.start());
+    for (std::vector<ParsedVariable>::const_reverse_iterator i =
+             variables().rbegin();
+	 i != variables().rend(); ++i) {
+      const ParsedVariable& v = *i;
+      auto j = variable_properties().find(v.name());
+      CHECK(j != variable_properties().end());
+      const VariableProperties& p = j->second;
+      BDD dds = variable_mtbdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
+          .Interval(v.init_value(), v.init_value());
       DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
       Cudd_Ref(dda);
       Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
@@ -1068,24 +1052,14 @@ int Model::init_index(const DecisionDiagramManager& dd_man) const {
 BDD Model::state_bdd(const DecisionDiagramManager& dd_man,
                      const std::vector<int>& state) const {
   BDD dds = dd_man.GetConstant(true);
-  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-       mi != modules().rend(); mi++) {
-    const Module& mod = **mi;
-    for (std::vector<const Variable*>::const_reverse_iterator vi =
-             mod.variables().rbegin();
-         vi != mod.variables().rend(); vi++) {
-      const Variable& v = **vi;
-      const int value = state.at(v.index());
-      dds = mtbdd(dd_man, variable_properties(), v).Interval(value, value)
-          && dds;
-    }
-  }
-  for (std::vector<const Variable*>::const_reverse_iterator vi =
-           global_variables().rbegin();
-       vi != global_variables().rend(); vi++) {
-    const Variable& v = **vi;
-    const int value = state.at(v.index());
-    dds = mtbdd(dd_man, variable_properties(), v).Interval(value, value) && dds;
+  for (int i = variables_.size() - 1; i >= 0; --i) {
+    const ParsedVariable& v = variables_[i];
+    auto j = variable_properties().find(v.name());
+    CHECK(j != variable_properties().end());
+    const VariableProperties& p = j->second;
+    const int value = state.at(i);
+    dds = variable_mtbdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
+        .Interval(value, value) && dds;
   }
   return dds;
 }
@@ -1159,33 +1133,32 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m) {
   os << "stochastic";
-  std::vector<const Variable*>::const_iterator vi =
+  std::set<int>::const_iterator vi =
       m.global_variables().begin();
   if (vi != m.global_variables().end()) {
     os << std::endl;
     for (; vi != m.global_variables().end(); vi++) {
-      const Variable& v = **vi;
-      os << std::endl << "global " << v;
-      os << " : [" << v.low() << ".." << v.high() << "]";
-      if (v.low() != v.start()) {
-	os << " init " << v.start();
+      const ParsedVariable& v = m.variables()[*vi];
+      os << std::endl << "global " << v.name();
+      os << " : [" << v.min_value() << ".." << v.max_value() << "]";
+      if (v.min_value() != v.init_value()) {
+	os << " init " << v.init_value();
       }
       os << ';';
     }
   }
-  for (ModuleList::const_iterator mi = m.modules().begin();
-       mi != m.modules().end(); mi++) {
-    const Module& module = **mi;
-    os << std::endl << std::endl << "module M" << (mi - m.modules().begin());
-    vi = module.variables().begin();
-    if (vi != module.variables().end()) {
+  for (int i = 0; i < m.modules().size(); ++i) {
+    const Module& module = *m.modules()[i];
+    os << std::endl << std::endl << "module M" << i;
+    vi = m.module_variables(i).begin();
+    if (vi != m.module_variables(i).end()) {
       os << std::endl;
-      for (; vi != module.variables().end(); vi++) {
-	const Variable& v = **vi;
-	os << std::endl << "  " << v;
-	os << " : [" << v.low() << ".." << v.high() << "]";
-	if (v.low() != v.start()) {
-	  os << " init " << v.start();
+      for (; vi != m.module_variables(i).end(); vi++) {
+	const ParsedVariable& v = m.variables()[*vi];
+	os << std::endl << "  " << v.name();
+	os << " : [" << v.min_value() << ".." << v.max_value() << "]";
+	if (v.min_value() != v.init_value()) {
+	  os << " init " << v.init_value();
 	}
 	os << ';';
       }
