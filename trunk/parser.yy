@@ -90,8 +90,6 @@ static std::map<std::string, Module*> modules;
 static std::map<std::string, size_t> synchronizations;
 /* Yet undeclared state variables. */
 static std::set<std::string> undeclared;
-/* Next variable index. */
-static int next_variable_index;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
@@ -1004,8 +1002,7 @@ static const Variable* declare_variable(const std::string* ident,
     int s = ((start != NULL)
              ? EvaluateConstantExpression(*start, constant_values).value<int>()
              : low);
-    v->SetVariableProperties(low, next_variable_index);
-    ++next_variable_index;
+    v->SetVariableProperties(low, model->variables().size());
     variable_lows.insert(std::make_pair(v, range.l));
     Expression::ref(range.l);
     variable_highs.insert(std::make_pair(v, range.h));
@@ -1518,7 +1515,6 @@ static void prepare_model() {
     delete model;
   }
   model = new Model();
-  next_variable_index = 0;
 }
 
 
