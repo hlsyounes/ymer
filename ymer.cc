@@ -700,7 +700,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (engine == SAMPLING_ENGINE) {
-      init_genrand(seed);
+      init_genrand_id(seed, NULL);
       std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", seed=" << seed << std::endl;
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
@@ -913,7 +913,7 @@ int main(int argc, char* argv[]) {
       Cudd_RecursiveDeref(dd_man.manager(), init);
       global_model->uncache_dds(dd_man);
     } else if (engine == MIXED_ENGINE) {
-      init_genrand(seed);
+      init_genrand_id(seed, NULL);
       std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", epsilon=" << epsilon
 		<< ", seed=" << seed << std::endl;

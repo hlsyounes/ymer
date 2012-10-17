@@ -43,15 +43,6 @@ void init_genrand(unsigned long s);
    inclusive). */
 unsigned long genrand_int32(void);
 
-/* Generates a random number in the interval [0,1]. */
-double genrand_real1(void);
-
-/* Generates a random number in the interval [0,1). */
-double genrand_real2(void);
-
-/* Generates a random number in the interval (0,1). */
-double genrand_real3(void);
-
 /* Construct id-specific MT521 random number generator. */
 mt_struct *get_mt_parameter_id(unsigned short id);
 
@@ -61,21 +52,9 @@ void free_mt_struct(mt_struct *mts);
 /* Seeds the given id-specific random number generator. */
 void init_genrand_id(unsigned long s, mt_struct *mts);
 
-/* Generates an integer random number between 0 and 0xffffffff (both
-   inclusive) using the given id-specific generator. */
-unsigned long genrand_int32_id(mt_struct *mts);
-
-/* Generates a random number in the interval [0,1] using the given
-   id-specific generator. */
-double genrand_real1_id(mt_struct *mts);
-
 /* Generates a random number in the interval [0,1) using the given
    id-specific generator. */
 double genrand_real2_id(mt_struct *mts);
-
-/* Generates a random number in the interval (0,1) using the given
-   id-specific generator. */
-double genrand_real3_id(mt_struct *mts);
 
 #ifdef	__cplusplus
 }
