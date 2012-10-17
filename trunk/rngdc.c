@@ -1141,23 +1141,9 @@ unsigned long genrand_int32_id(mt_struct *mts)
     return y;
 }
 
-/* generates a random number on [0,1]-real-interval */
-double genrand_real1_id(mt_struct *mts)
-{
-    return (double)genrand_int32_id(mts) * (1.0/4294967295.0);
-    /* divided by 2^32-1 */
-}
-
 /* generates a random number on [0,1)-real-interval */
 double genrand_real2_id(mt_struct *mts)
 {
     return (double)genrand_int32_id(mts) * (1.0/4294967296.0);
-    /* divided by 2^32 */
-}
-
-/* generates a random number on (0,1)-real-interval */
-double genrand_real3_id(mt_struct *mts)
-{
-    return ((double)genrand_int32_id(mts) + 0.5) * (1.0/4294967296.0);
     /* divided by 2^32 */
 }
