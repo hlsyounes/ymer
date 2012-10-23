@@ -28,6 +28,7 @@
 #include <config.h>
 #include "src/compiled-model.h"
 #include "src/expression.h"
+#include "src/rng.h"
 
 struct Command;
 struct Model;
@@ -41,7 +42,8 @@ struct Model;
  */
 struct State {
   /* Constructs an initial state for the given model. */
-  State(const Model* model, const CompiledModel& compiled_model);
+  State(const Model* model, const CompiledModel& compiled_model,
+        DCEngine* engine);
 
   /* Deletes this state. */
   virtual ~State() {}
@@ -66,17 +68,20 @@ struct State {
 
 protected:
   /* Constructs a state. */
-  explicit State(const Model* model, const std::vector<int>& values)
-      : model_(model), values_(values) {}
+  State(const Model* model, const std::vector<int>& values, DCEngine* engine)
+      : model_(model), values_(values), engine_(engine) {}
 
   /* Returns the variable values for this state. */
   std::vector<int>& values() { return values_; }
+
+  DCEngine* engine() const { return engine_; }
 
 private:
   /* The model associated with this state. */
   const Model* model_;
   /* Variables values for this state. */
   std::vector<int> values_;
+  DCEngine* engine_;
 };
 
 

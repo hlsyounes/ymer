@@ -23,10 +23,6 @@ SUBDIRS = glog gtest
 
 noinst_LTLIBRARIES =
 
-#
-# CUDD libraries.
-#
-
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 
 # The main CUDD library.
@@ -85,6 +81,13 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 
+# Library for dynamic creation of Mersenne Twister generators.
+noinst_LTLIBRARIES += dcmt/lib/libdcmt.la
+dcmt_lib_libdcmt_la_SOURCES = dcmt/lib/dci.h dcmt/lib/check32.c \
+    dcmt/lib/prescr.c dcmt/lib/mt19937.c dcmt/lib/eqdeg.c dcmt/lib/seive.c \
+    dcmt/lib/genmtrand.c dcmt/lib/init.c
+dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
+
 #
 # Ymer libraries.
 #
@@ -93,6 +96,11 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 noinst_LTLIBRARIES += src/libddutil.la
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
+
+# Random number generator library.
+noinst_LTLIBRARIES += src/librng.la
+src_librng_la_SOURCES = src/rng.h src/rng.cc
+src_librng_la_LIBADD = dcmt/lib/libdcmt.la
 
 # Typed-value library.
 noinst_LTLIBRARIES += src/libtyped-value.la
@@ -114,9 +122,9 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la glog/libglog.la
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc rng.c rngdc.c rng.h formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/libtyped-value.la \
-    src/libexpression.la src/libcompiled-model.la
+ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
+ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/librng.la \
+    src/libtyped-value.la src/libexpression.la src/libcompiled-model.la
 
 #
 # Ymer tests.
@@ -160,7 +168,8 @@ EXTRA_DIST = cudd examples scripts
 CLEANFILES = core
 
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/glog/src -I$(builddir)/glog/src -I$(srcdir)/gtest/include
+    -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
+    -I$(srcdir)/gtest/include
 AM_YFLAGS = -d
 
 ACLOCAL_AMFLAGS = -I m4
