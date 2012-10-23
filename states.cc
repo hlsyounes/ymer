@@ -22,9 +22,9 @@
 #include "models.h"
 #include "distributions.h"
 #include "formulas.h"
-#include "rng.h"
 #include <cmath>
 #include <iostream>
+#include <random>
 
 /* Verbosity level. */
 extern int verbosity;
@@ -38,7 +38,8 @@ extern int verbosity;
  */
 struct ExtendedState : public State {
   /* Constructs an extended state. */
-  ExtendedState(const Model* model, const std::vector<int>& values, double dt);
+  ExtendedState(const Model* model, const std::vector<int>& values,
+                DCEngine* engine, double dt);
 
   /* Returns the time spent in the previous state. */
   virtual double dt() const { return dt_; }
@@ -71,8 +72,9 @@ private:
 
 
 /* Constructs an initial state for the given model. */
-State::State(const Model* model, const CompiledModel& compiled_model)
-    : model_(model) {
+State::State(const Model* model, const CompiledModel& compiled_model,
+             DCEngine* engine)
+    : model_(model), engine_(engine) {
   values_.reserve(compiled_model.variables().size());
   for (std::vector<CompiledVariable>::const_iterator vi =
            compiled_model.variables().begin();
@@ -92,13 +94,14 @@ const State& State::next() const {
       commands.push_back(c);
     }
   }
-  ExtendedState* next_state = new ExtendedState(model_, values(), 0.0);
+  ExtendedState* next_state =
+      new ExtendedState(model_, values(), engine(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
   for (CommandList::const_iterator ci = commands.begin();
        ci != commands.end(); ci++) {
     const Command* c = *ci;
-    double t = c->delay().sample(values());
+    double t = c->delay().sample(values(), engine());
     if (!c->delay().memoryless()) {
       next_state->lifetimes_.insert(std::make_pair(c, 0.0));
       next_state->trigger_times_.insert(std::make_pair(c, t));
@@ -106,7 +109,7 @@ const State& State::next() const {
     if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = genrand_real2_id(Distribution::mts);
+	tie_breaker = std::uniform_real_distribution<>()(*engine());
       }
     } else if (t < next_state->trigger_time_) {
       streak = 1;
@@ -133,13 +136,13 @@ const State& State::resampled() const {
       commands.push_back(c);
     }
   }
-  ExtendedState* new_state = new ExtendedState(model_, values(), 0.0);
+  ExtendedState* new_state = new ExtendedState(model_, values(), engine(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
   for (CommandList::const_iterator ci = commands.begin();
        ci != commands.end(); ci++) {
     const Command* c = *ci;
-    double t = c->delay().sample(values());
+    double t = c->delay().sample(values(), engine());
     if (!c->delay().memoryless()) {
       new_state->lifetimes_.insert(std::make_pair(c, 0.0));
       new_state->trigger_times_.insert(std::make_pair(c, t));
@@ -147,7 +150,7 @@ const State& State::resampled() const {
     if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = genrand_real2_id(Distribution::mts);
+	tie_breaker = std::uniform_real_distribution<>()(*engine());
       }
     } else if (t < new_state->trigger_time_) {
       streak = 1;
@@ -173,8 +176,10 @@ void State::print(std::ostream& os) const {
 
 /* Constructs an extended state. */
 ExtendedState::ExtendedState(const Model* model,
-                             const std::vector<int>& values, double dt)
-    : State(model, values), dt_(dt), trigger_(NULL), trigger_time_(HUGE_VAL) {}
+                             const std::vector<int>& values, DCEngine* engine,
+                             double dt)
+    : State(model, values, engine), dt_(dt), trigger_(NULL),
+      trigger_time_(HUGE_VAL) {}
 
 
 /* Returns a sampled successor of this state. */
@@ -186,7 +191,7 @@ const State& ExtendedState::next() const {
     }
   }
   ExtendedState* next_state =
-      new ExtendedState(model(), values(), trigger_time_);
+      new ExtendedState(model(), values(), engine(), trigger_time_);
   if (trigger_ != NULL) {
     for (UpdateList::const_iterator ui = trigger_->updates().begin();
 	 ui != trigger_->updates().end(); ui++) {
@@ -209,7 +214,7 @@ const State& ExtendedState::next() const {
       double l, t;
       if (c == trigger_) {
 	l = 0.0;
-	t = c->delay().sample(next_state->values());
+	t = c->delay().sample(next_state->values(), engine());
       } else {
 	CommandTimeMap::const_iterator li = lifetimes_.find(c);
 	if (li != lifetimes_.end()) {
@@ -221,7 +226,7 @@ const State& ExtendedState::next() const {
 	if (ti != trigger_times_.end()) {
 	  t = (*ti).second - trigger_time_;
 	} else {
-	  t = c->delay().sample(next_state->values());
+	  t = c->delay().sample(next_state->values(), engine());
 	}
       }
       if (!c->delay().memoryless()) {
@@ -231,7 +236,7 @@ const State& ExtendedState::next() const {
       if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
 	streak++;
 	if (tie_breaker < 0.0) {
-	  tie_breaker = genrand_real2_id(Distribution::mts);
+	  tie_breaker = std::uniform_real_distribution<>()(*engine());
 	}
       } else if (t < next_state->trigger_time_) {
 	streak = 1;
@@ -249,7 +254,8 @@ const State& ExtendedState::next() const {
 
 /* Returns a copy of this state with resampled trigger times. */
 const State& ExtendedState::resampled() const {
-  ExtendedState* new_state = new ExtendedState(model(), values(), dt());
+  ExtendedState* new_state =
+      new ExtendedState(model(), values(), engine(), dt());
   new_state->lifetimes_ = lifetimes_;
   int streak = 1;
   double tie_breaker = -1.0;
@@ -261,16 +267,16 @@ const State& ExtendedState::resampled() const {
     if (li != lifetimes_.end()) {
       double l = (*li).second;
       do {
-	t = c->delay().sample(values()) - l;
+	t = c->delay().sample(values(), engine()) - l;
       } while (t <= 0.0);
     } else {
-      t = c->delay().sample(values());
+      t = c->delay().sample(values(), engine());
     }
     new_state->trigger_times_.insert(std::make_pair(c, t));
     if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = genrand_real2_id(Distribution::mts);
+	tie_breaker = std::uniform_real_distribution<>()(*engine());
       }
     } else if (t < new_state->trigger_time_) {
       streak = 1;

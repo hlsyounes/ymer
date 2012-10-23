@@ -27,6 +27,7 @@
 #include "models.h"
 #include "formulas.h"
 #include "src/ddutil.h"
+#include "src/rng.h"
 #include "glog/logging.h"
 #include <cudd.h>
 #include <sys/time.h>
@@ -575,15 +576,15 @@ int main(int argc, char* argv[]) {
 	  std::cout << "Client " << client_id << std::endl;
 	  std::cout << "Initializing random number generator...";
 	}
-	Distribution::mts = get_mt_parameter_id(client_id);
-	init_genrand_id(seed, Distribution::mts);
+        DCEngine dc_engine(client_id, seed);
+        dc_engine.seed(seed);
 	if (verbosity > 0) {
 	  std::cout << "done" << std::endl;
 	}
 	fd_set master_fds;
 	FD_ZERO(&master_fds);
 	FD_SET(sockfd, &master_fds);
-	const State init_state(global_model, compiled_model);
+	const State init_state(global_model, compiled_model, &dc_engine);
 	const PathFormula* pf = 0;
 	double alphap = alpha, betap = beta;
 	timeval timeout;
@@ -700,7 +701,8 @@ int main(int argc, char* argv[]) {
     }
 
     if (engine == SAMPLING_ENGINE) {
-      init_genrand_id(seed, NULL);
+      DCEngine dc_engine;
+      dc_engine.seed(seed);
       std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", seed=" << seed << std::endl;
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
@@ -712,7 +714,7 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      const State init_state(global_model, compiled_model);
+      const State init_state(global_model, compiled_model, &dc_engine);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -913,7 +915,8 @@ int main(int argc, char* argv[]) {
       Cudd_RecursiveDeref(dd_man.manager(), init);
       global_model->uncache_dds(dd_man);
     } else if (engine == MIXED_ENGINE) {
-      init_genrand_id(seed, NULL);
+      DCEngine dc_engine;
+      dc_engine.seed(seed);
       std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
 		<< ", delta=" << delta << ", epsilon=" << epsilon
 		<< ", seed=" << seed << std::endl;
@@ -928,7 +931,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_PROF, &stimer);
 #endif
       global_model->cache_dds(dd_man, moments);
-      const State init_state(global_model, compiled_model);
+      const State init_state(global_model, compiled_model, &dc_engine);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1043,9 +1046,6 @@ int main(int argc, char* argv[]) {
   } catch (...) {
     std::cerr << std::endl << PACKAGE ": fatal error" << std::endl;
     return 1;
-  }
-  if (Distribution::mts != 0) {
-    free_mt_struct(Distribution::mts);
   }
 
   return 0;

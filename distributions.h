@@ -27,8 +27,8 @@
 #include <string>
 #include <vector>
 
+#include "src/rng.h"
 #include "src/expression.h"
-#include "rng.h"
 
 /* ====================================================================== */
 /* ECParameters */
@@ -97,9 +97,6 @@ class DistributionVisitor;
 //
 class Distribution {
  public:
-  /* An id-specific random number generator, or NULL. */
-  static mt_struct* mts;
-
   /* Deletes this distribution. */
   virtual ~Distribution();
 
@@ -122,7 +119,8 @@ class Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const = 0;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const std::vector<int>& state) const = 0;
+  virtual double sample(const std::vector<int>& state,
+                        DCEngine* engine) const = 0;
 
 protected:
   /* Constructs a distribution. */
@@ -164,7 +162,7 @@ class Exponential : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const std::vector<int>& state) const;
+  virtual double sample(const std::vector<int>& state, DCEngine* engine) const;
 
 private:
   /* Constructs an exponential distribution with the given rate. */
@@ -202,7 +200,7 @@ class Weibull : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const std::vector<int>& state) const;
+  virtual double sample(const std::vector<int>& state, DCEngine* engine) const;
 
 private:
   /* Constructs a Weibull distribution with the given scale and shape. */
@@ -242,7 +240,7 @@ class Lognormal : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const std::vector<int>& state) const;
+  virtual double sample(const std::vector<int>& state, DCEngine* engine) const;
 
 private:
   /* Constructs a lognormal distribution with the given scale and shape. */
@@ -254,10 +252,6 @@ private:
   const Expression* scale_;
   /* The shape of this lognormal distribution. */
   const Expression* shape_;
-  /* Whether there is an unused sample available. */
-  mutable bool have_unused_;
-  /* An unused sample. */
-  mutable double unused_;
 };
 
 
@@ -285,7 +279,7 @@ class Uniform : public Distribution {
   virtual void moments(std::vector<double>& m, size_t n) const;
 
   /* Returns a sample drawn from this distribution. */
-  virtual double sample(const std::vector<int>& state) const;
+  virtual double sample(const std::vector<int>& state, DCEngine* engine) const;
 
 private:
   /* Constructs a uniform distribution with the given bounds. */
