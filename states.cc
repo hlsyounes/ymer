@@ -22,9 +22,9 @@
 #include "models.h"
 #include "distributions.h"
 #include "formulas.h"
+#include "src/rng.h"
 #include <cmath>
 #include <iostream>
-#include <random>
 
 /* Verbosity level. */
 extern int verbosity;
@@ -109,7 +109,7 @@ const State& State::next() const {
     if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = std::uniform_real_distribution<>()(*engine());
+	tie_breaker = StandardUniform(*engine());
       }
     } else if (t < next_state->trigger_time_) {
       streak = 1;
@@ -150,7 +150,7 @@ const State& State::resampled() const {
     if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = std::uniform_real_distribution<>()(*engine());
+	tie_breaker = StandardUniform(*engine());
       }
     } else if (t < new_state->trigger_time_) {
       streak = 1;
@@ -236,7 +236,7 @@ const State& ExtendedState::next() const {
       if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
 	streak++;
 	if (tie_breaker < 0.0) {
-	  tie_breaker = std::uniform_real_distribution<>()(*engine());
+	  tie_breaker = StandardUniform(*engine());
 	}
       } else if (t < next_state->trigger_time_) {
 	streak = 1;
@@ -276,7 +276,7 @@ const State& ExtendedState::resampled() const {
     if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = std::uniform_real_distribution<>()(*engine());
+	tie_breaker = StandardUniform(*engine());
       }
     } else if (t < new_state->trigger_time_) {
       streak = 1;

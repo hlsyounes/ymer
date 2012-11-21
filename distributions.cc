@@ -22,7 +22,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <random>
 
 #include "config.h"
 #include "src/expression.h"
@@ -240,7 +239,7 @@ void Exponential::moments(std::vector<double>& m, size_t n) const {
 double Exponential::sample(const std::vector<int>& state,
                            DCEngine* engine) const {
   double lambda = rate().value(state).value<double>();
-  return std::exponential_distribution<>(lambda)(*engine);
+  return -log(1.0 - StandardUniform(*engine))/lambda;
 }
 
 
@@ -299,7 +298,7 @@ double Weibull::sample(const std::vector<int>& state,
                        DCEngine* engine) const {
   double eta = scale().value(state).value<double>();
   double beta = shape().value(state).value<double>();
-  return std::weibull_distribution<>(beta, eta)(*engine);
+  return eta*pow(-log(1.0 - StandardUniform(*engine)), 1.0/beta);
 }
 
 
@@ -315,7 +314,7 @@ const Lognormal* Lognormal::make(const Expression& scale,
 
 /* Constructs a lognormal distribution with the given scale and shape. */
 Lognormal::Lognormal(const Expression& scale, const Expression& shape)
-  : scale_(&scale), shape_(&shape) {
+    : scale_(&scale), shape_(&shape), have_unused_(false) {
   Expression::ref(scale_);
   Expression::ref(shape_);
 }
@@ -347,9 +346,23 @@ void Lognormal::moments(std::vector<double>& m, size_t n) const {
 /* Returns a sample drawn from this distribution. */
 double Lognormal::sample(const std::vector<int>& state,
                          DCEngine* engine) const {
-  double mu = scale().value(state).value<double>();
-  double sigma = shape().value(state).value<double>();
-  return std::lognormal_distribution<>(mu, sigma)(*engine);
+  if (have_unused_) {
+    have_unused_ = false;
+    return unused_;
+  } else {
+    /* Generate two N(0,1) samples using the Box-Muller transform. */
+    double mu = scale().value(state).value<double>();
+    double sigma = shape().value(state).value<double>();
+    double mean = log(mu) - sigma*sigma/2.0;
+    double u1 = 1.0 - StandardUniform(*engine);
+    double u2 = 1.0 - StandardUniform(*engine);
+    double tmp = sqrt(-2.0*log(u2));
+    double x1 = tmp*cos(2*M_PI*u1);
+    double x2 = tmp*sin(2*M_PI*u1);
+    unused_ = exp(x2*sigma + mean);
+    have_unused_ = true;
+    return exp(x1*sigma + mean);
+  }
 }
 
 
@@ -401,7 +414,7 @@ double Uniform::sample(const std::vector<int>& state,
                        DCEngine* engine) const {
   double a = low().value(state).value<double>();
   double b = high().value(state).value<double>();
-  return std::uniform_real_distribution<>(a, b)(*engine);
+  return (b - a)*StandardUniform(*engine) + a;
 }
 
 DistributionVisitor::DistributionVisitor() {
