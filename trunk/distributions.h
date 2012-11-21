@@ -252,6 +252,10 @@ private:
   const Expression* scale_;
   /* The shape of this lognormal distribution. */
   const Expression* shape_;
+  /* Whether there is an unused sample available. */
+  mutable bool have_unused_;
+  /* An unused sample. */
+  mutable double unused_;
 };
 
 

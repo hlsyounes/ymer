@@ -144,6 +144,11 @@ check_PROGRAMS += src/ddutil_test
 src_ddutil_test_SOURCES = src/ddutil_test.cc
 src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
 
+# Test for random number generator library.
+check_PROGRAMS += src/rng_test
+src_rng_test_SOURCES = src/rng_test.cc
+src_rng_test_LDADD = src/librng.la src/libtest-main.la
+
 # Test for typed-value library.
 check_PROGRAMS += src/typed-value_test
 src_typed_value_test_SOURCES = src/typed-value_test.cc

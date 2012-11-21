@@ -36,7 +36,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-check_PROGRAMS = src/ddutil_test$(EXEEXT) \
+check_PROGRAMS = src/ddutil_test$(EXEEXT) src/rng_test$(EXEEXT) \
 	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT) \
 	src/compiled-model_test$(EXEEXT)
 subdir = .
@@ -189,6 +189,9 @@ am_src_expression_test_OBJECTS = expression_test.$(OBJEXT)
 src_expression_test_OBJECTS = $(am_src_expression_test_OBJECTS)
 src_expression_test_DEPENDENCIES = src/libexpression.la \
 	src/libtest-main.la
+am_src_rng_test_OBJECTS = rng_test.$(OBJEXT)
+src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
+src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
 am_src_typed_value_test_OBJECTS = typed-value_test.$(OBJEXT)
 src_typed_value_test_OBJECTS = $(am_src_typed_value_test_OBJECTS)
 src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
@@ -240,8 +243,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_librng_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
-	$(src_expression_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
@@ -251,8 +254,8 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_librng_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
-	$(src_expression_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -544,6 +547,8 @@ src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
 src_ddutil_test_SOURCES = src/ddutil_test.cc
 src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
+src_rng_test_SOURCES = src/rng_test.cc
+src_rng_test_LDADD = src/librng.la src/libtest-main.la
 src_typed_value_test_SOURCES = src/typed-value_test.cc
 src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 src_expression_test_SOURCES = src/expression_test.cc
@@ -740,6 +745,9 @@ src/ddutil_test$(EXEEXT): $(src_ddutil_test_OBJECTS) $(src_ddutil_test_DEPENDENC
 src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_test_DEPENDENCIES) $(EXTRA_src_expression_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/expression_test$(EXEEXT)
 	$(CXXLINK) $(src_expression_test_OBJECTS) $(src_expression_test_LDADD) $(LIBS)
+src/rng_test$(EXEEXT): $(src_rng_test_OBJECTS) $(src_rng_test_DEPENDENCIES) $(EXTRA_src_rng_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/rng_test$(EXEEXT)
+	$(CXXLINK) $(src_rng_test_OBJECTS) $(src_rng_test_LDADD) $(LIBS)
 src/typed-value_test$(EXEEXT): $(src_typed_value_test_OBJECTS) $(src_typed_value_test_DEPENDENCIES) $(EXTRA_src_typed_value_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/typed-value_test$(EXEEXT)
 	$(CXXLINK) $(src_typed_value_test_OBJECTS) $(src_typed_value_test_LDADD) $(LIBS)
@@ -856,6 +864,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/odd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/states.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
@@ -1585,6 +1594,20 @@ expression_test.obj: src/expression_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/expression_test.cc' object='expression_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o expression_test.obj `if test -f 'src/expression_test.cc'; then $(CYGPATH_W) 'src/expression_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/expression_test.cc'; fi`
+
+rng_test.o: src/rng_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT rng_test.o -MD -MP -MF $(DEPDIR)/rng_test.Tpo -c -o rng_test.o `test -f 'src/rng_test.cc' || echo '$(srcdir)/'`src/rng_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/rng_test.Tpo $(DEPDIR)/rng_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/rng_test.cc' object='rng_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o rng_test.o `test -f 'src/rng_test.cc' || echo '$(srcdir)/'`src/rng_test.cc
+
+rng_test.obj: src/rng_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT rng_test.obj -MD -MP -MF $(DEPDIR)/rng_test.Tpo -c -o rng_test.obj `if test -f 'src/rng_test.cc'; then $(CYGPATH_W) 'src/rng_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/rng_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/rng_test.Tpo $(DEPDIR)/rng_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/rng_test.cc' object='rng_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o rng_test.obj `if test -f 'src/rng_test.cc'; then $(CYGPATH_W) 'src/rng_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/rng_test.cc'; fi`
 
 typed-value_test.o: src/typed-value_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT typed-value_test.o -MD -MP -MF $(DEPDIR)/typed-value_test.Tpo -c -o typed-value_test.o `test -f 'src/typed-value_test.cc' || echo '$(srcdir)/'`src/typed-value_test.cc
