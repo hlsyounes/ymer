@@ -112,6 +112,11 @@ src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
     glog/libglog.la
 
+# Compiled expression library.
+noinst_LTLIBRARIES += src/libcompiled-expression.la
+src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
+    src/compiled-expression.cc
+
 # Compiled model library.
 noinst_LTLIBRARIES += src/libcompiled-model.la
 src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
@@ -158,6 +163,12 @@ src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 check_PROGRAMS += src/expression_test
 src_expression_test_SOURCES = src/expression_test.cc
 src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+
+# Test for compiled expression library.
+check_PROGRAMS += src/compiled-expression_test
+src_compiled_expression_test_SOURCES = src/compiled-expression_test.cc
+src_compiled_expression_test_LDADD = src/libcompiled-expression.la \
+    src/libtest-main.la
 
 # Test for compiled model library.
 check_PROGRAMS += src/compiled-model_test
