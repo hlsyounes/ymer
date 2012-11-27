@@ -27,6 +27,10 @@
 
 namespace {
 
+size_t ManagerSize(DdManager* manager) {
+  return Cudd_ReadSize(manager);
+}
+
 template <typename ValueType>
 ValueType NodeValue(DdNode* dd);
 
@@ -116,7 +120,7 @@ bool BDD::Value() const {
 }
 
 bool BDD::ValueInState(const std::vector<bool>& state) const {
-  CHECK_EQ(Cudd_ReadSize(manager()), state.size());
+  CHECK_EQ(ManagerSize(manager()), state.size());
   return ValueInStateImpl<bool>(node(), state);
 }
 
@@ -175,7 +179,7 @@ double ADD::Value() const {
 }
 
 double ADD::ValueInState(const std::vector<bool>& state) const {
-  CHECK_EQ(Cudd_ReadSize(manager()), state.size());
+  CHECK_EQ(ManagerSize(manager()), state.size());
   return ValueInStateImpl<double>(node(), state);
 }
 
@@ -251,6 +255,7 @@ DecisionDiagramManager::~DecisionDiagramManager() {
   CHECK_EQ(0, Cudd_CheckZeroRef(manager_)) << "unreleased DDs";
   Cudd_Quit(manager_);
 }
+
 int DecisionDiagramManager::GetNumVariables() const {
   return Cudd_ReadSize(manager_);
 }

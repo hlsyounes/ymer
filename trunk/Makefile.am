@@ -105,6 +105,7 @@ src_librng_la_LIBADD = dcmt/lib/libdcmt.la
 # Typed-value library.
 noinst_LTLIBRARIES += src/libtyped-value.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
+src_libtyped_value_la_LIBADD = glog/libglog.la
 
 # Expression library.
 noinst_LTLIBRARIES += src/libexpression.la
@@ -116,6 +117,7 @@ src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
 noinst_LTLIBRARIES += src/libcompiled-expression.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
+src_libcompiled_expression_la_LIBADD = glog/libglog.la
 
 # Compiled model library.
 noinst_LTLIBRARIES += src/libcompiled-model.la
@@ -186,6 +188,7 @@ CLEANFILES = core
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
     -I$(srcdir)/gtest/include
+AM_CXXFLAGS = -Wall -Werror
 AM_YFLAGS = -d
 
 ACLOCAL_AMFLAGS = -I m4

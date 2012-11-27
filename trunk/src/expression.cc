@@ -296,6 +296,7 @@ const Expression* Computation::make(
     case DIVIDE:
       return new Division(operand1, operand2);
   }
+  LOG(FATAL) << "bad op";
 }
 
 void Computation::DoAccept(ExpressionVisitor* visitor) const {

@@ -33,7 +33,8 @@ enum class Opcode {
   INEG, DNEG, NOT,
   IADD, DADD, ISUB, DSUB, IMUL, DMUL, DDIV,
   IEQ, DEQ, INE, DNE, ILT, DLT, ILE, DLE, IGE, DGE, IGT, DGT,
-  IFFALSE, IFTRUE, GOTO
+  IFFALSE, IFTRUE, GOTO,
+  IMIN, DMIN, IMAX, DMAX, FLOOR, CEIL, POW, LOG, MOD
 };
 
 // An operation on the virtual machine used for evaluating compiled expressions.
@@ -109,6 +110,27 @@ class Operation {
   static Operation MakeIFTRUE(int src, int pc);
   // Unconditionally set program counter to pc.
   static Operation MakeGOTO(int pc);
+  // Put min of integer registers src1_dst and src2 in integer register
+  // src1_dst.
+  static Operation MakeIMIN(int src1_dst, int src2);
+  // Put min of double registers src1_dst and src2 in double register src2_dst.
+  static Operation MakeDMIN(int src1_dst, int src2);
+  // Put max of integer registers src1_dst and src2 in integer register
+  // src1_dst.
+  static Operation MakeIMAX(int src1_dst, int src2);
+  // Put max of double registers src1_dst and src2 in double register src2_dst.
+  static Operation MakeDMAX(int src1_dst, int src2);
+  // Put floor of double register src_dst in integer register src_dst.
+  static Operation MakeFLOOR(int src_dst);
+  // Put ceiling of double register src_dst in integer register src_dst.
+  static Operation MakeCEIL(int src_dst);
+  // Raise double register src1_dst to the power of double register src2.
+  static Operation MakePOW(int src1_dst, int src2);
+  // Take the logarithm of double register src1_dst with base in double register
+  // src2.
+  static Operation MakeLOG(int src1_dst, int src2);
+  // Make integer register src1_dst modulo value in integer register src2.
+  static Operation MakeMOD(int src1_dst, int src2);
 
   // Returns the opcode for this operation.
   Opcode opcode() const { return opcode_; }
