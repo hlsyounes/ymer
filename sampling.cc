@@ -47,7 +47,7 @@ extern double nested_error;
 /* Fixed sample size. */
 extern int fixed_sample_size;
 /* Maximum path length. */
-extern int max_path_length;
+extern size_t max_path_length;
 /* Total number of samples (for statistics). */
 extern size_t total_samples;
 /* Number of samples per trial (for statistics). */
@@ -234,7 +234,7 @@ static double erfinv(double y) {
     } else if (y > 0.7 && y < 1.0) {
       double z = sqrt(-log(0.5*(1.0 - y)));
       x = (((c[3]*z + c[2])*z + c[1])*z + c[0])/((d[1]*z + d[0])*z + 1.0);
-    } else if (y < -0.7 && y > -1.0) {
+    } else {  // y > -1.0 && y < -0.7
       double z = sqrt(-log(0.5*(1.0 + y)));
       x = -(((c[3]*z + c[2])*z + c[1])*z + c[0])/((d[1]*z + d[0])*z + 1.0);
     }
@@ -601,8 +601,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
   }
 
-  int n, c;
-  double logA, logB;
+  int n = 0, c = 0;
+  double logA, logB = 0;
   if (algorithm == SEQUENTIAL) {
     std::pair<int, int> nc = single_sampling_plan(p0, p1, alpha, beta);
     n = nc.first;
@@ -647,7 +647,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   std::map<short, size_t> usage_count;
   std::set<short> dead_clients;
   fd_set master_fds;
-  int fdmax;
+  int fdmax = -1;
   if (server_socket != -1) {
     FD_ZERO(&master_fds);
     FD_SET(server_socket, &master_fds);
@@ -680,7 +680,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
 	 || (algorithm == SPRT && logB < d && d < logA)) {
-    bool s, have_sample = false;
+    bool s = false, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
       short client_id = schedule.front();
       s = buffer[client_id].front();
@@ -1084,8 +1084,8 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     }
   }
 
-  int n, c;
-  double logA, logB;
+  int n = 0, c = 0;
+  double logA, logB = 0;
   if (algorithm == SEQUENTIAL) {
     std::pair<int, int> nc = single_sampling_plan(p0, p1, alpha, beta);
     n = nc.first;

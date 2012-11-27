@@ -1147,7 +1147,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << ';';
     }
   }
-  for (int i = 0; i < m.modules().size(); ++i) {
+  for (size_t i = 0; i < m.modules().size(); ++i) {
     const Module& module = *m.modules()[i];
     os << std::endl << std::endl << "module M" << i;
     vi = m.module_variables(i).begin();

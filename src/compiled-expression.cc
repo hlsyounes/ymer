@@ -19,7 +19,12 @@
 
 #include "compiled-expression.h"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
 #include <vector>
+
+#include "glog/logging.h"
 
 Operation Operation::MakeICONST(int value, int dst) {
   return Operation(Opcode::ICONST, value, dst);
@@ -137,6 +142,41 @@ Operation Operation::MakeGOTO(int pc) {
   return Operation(Opcode::GOTO, pc);
 }
 
+Operation Operation::MakeIMIN(int src1_dst, int src2) {
+  return Operation(Opcode::IMIN, src1_dst, src2);
+}
+
+Operation Operation::MakeDMIN(int src1_dst, int src2) {
+  return Operation(Opcode::DMIN, src1_dst, src2);
+}
+
+Operation Operation::MakeIMAX(int src1_dst, int src2) {
+  return Operation(Opcode::IMAX, src1_dst, src2);
+}
+
+Operation Operation::MakeDMAX(int src1_dst, int src2) {
+  return Operation(Opcode::DMAX, src1_dst, src2);
+}
+
+Operation Operation::MakeFLOOR(int src_dst) {
+  return Operation(Opcode::FLOOR, src_dst);
+}
+
+Operation Operation::MakeCEIL(int src_dst) {
+  return Operation(Opcode::CEIL, src_dst);
+}
+
+Operation Operation::MakePOW(int src1_dst, int src2) {
+  return Operation(Opcode::POW, src1_dst, src2);
+}
+
+Operation Operation::MakeLOG(int src1_dst, int src2) {
+  return Operation(Opcode::LOG, src1_dst, src2);
+}
+
+Operation Operation::MakeMOD(int src1_dst, int src2) {
+  return Operation(Opcode::MOD, src1_dst, src2);
+}
 
 Operation::Operation(Opcode opcode, int operand1, int operand2)
     : opcode_(opcode), operand2_(operand2) {
@@ -177,7 +217,7 @@ double CompiledExpressionEvaluator::EvaluateDoubleExpression(
 
 void CompiledExpressionEvaluator::ExecuteOperations(
     const std::vector<Operation>& operations, const std::vector<int>& state) {
-  for (int pc = 0; pc < operations.size(); ++pc) {
+  for (size_t pc = 0; pc < operations.size(); ++pc) {
     const Operation& o = operations[pc];
     switch (o.opcode()) {
       case Opcode::ICONST:
@@ -266,6 +306,39 @@ void CompiledExpressionEvaluator::ExecuteOperations(
         break;
       case Opcode::GOTO:
         pc = o.ioperand1() - 1;
+        break;
+      case Opcode::IMIN:
+        iregs_[o.ioperand1()] =
+            std::min(iregs_[o.ioperand1()], iregs_[o.operand2()]);
+        break;
+      case Opcode::DMIN:
+        dregs_[o.ioperand1()] =
+            std::min(dregs_[o.ioperand1()], dregs_[o.operand2()]);
+        break;
+      case Opcode::IMAX:
+        iregs_[o.ioperand1()] =
+            std::max(iregs_[o.ioperand1()], iregs_[o.operand2()]);
+        break;
+      case Opcode::DMAX:
+        dregs_[o.ioperand1()] =
+            std::max(dregs_[o.ioperand1()], dregs_[o.operand2()]);
+        break;
+      case Opcode::FLOOR:
+        iregs_[o.ioperand1()] = floor(dregs_[o.ioperand1()]);
+        break;
+      case Opcode::CEIL:
+        iregs_[o.ioperand1()] = ceil(dregs_[o.ioperand1()]);
+        break;
+      case Opcode::POW:
+        dregs_[o.ioperand1()] =
+            pow(dregs_[o.ioperand1()], dregs_[o.operand2()]);
+        break;
+      case Opcode::LOG:
+        dregs_[o.ioperand1()] =
+            log(dregs_[o.ioperand1()]) / log(dregs_[o.operand2()]);
+        break;
+      case Opcode::MOD:
+        iregs_[o.ioperand1()] %= iregs_[o.operand2()];
         break;
     }
   }

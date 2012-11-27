@@ -154,7 +154,7 @@ am_dcmt_lib_libdcmt_la_OBJECTS = dcmt_lib_libdcmt_la-check32.lo \
 	dcmt_lib_libdcmt_la-eqdeg.lo dcmt_lib_libdcmt_la-seive.lo \
 	dcmt_lib_libdcmt_la-genmtrand.lo dcmt_lib_libdcmt_la-init.lo
 dcmt_lib_libdcmt_la_OBJECTS = $(am_dcmt_lib_libdcmt_la_OBJECTS)
-src_libcompiled_expression_la_LIBADD =
+src_libcompiled_expression_la_DEPENDENCIES = glog/libglog.la
 am_src_libcompiled_expression_la_OBJECTS = compiled-expression.lo
 src_libcompiled_expression_la_OBJECTS =  \
 	$(am_src_libcompiled_expression_la_OBJECTS)
@@ -177,7 +177,7 @@ src_libtest_main_la_DEPENDENCIES = glog/libglog.la \
 	gtest/lib/libgtest.la
 am_src_libtest_main_la_OBJECTS = test-main.lo
 src_libtest_main_la_OBJECTS = $(am_src_libtest_main_la_OBJECTS)
-src_libtyped_value_la_LIBADD =
+src_libtyped_value_la_DEPENDENCIES = glog/libglog.la
 am_src_libtyped_value_la_OBJECTS = typed-value.lo
 src_libtyped_value_la_OBJECTS = $(am_src_libtyped_value_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
@@ -543,6 +543,7 @@ src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
 src_librng_la_SOURCES = src/rng.h src/rng.cc
 src_librng_la_LIBADD = dcmt/lib/libdcmt.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
+src_libtyped_value_la_LIBADD = glog/libglog.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
     glog/libglog.la
@@ -550,6 +551,7 @@ src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
 
+src_libcompiled_expression_la_LIBADD = glog/libglog.la
 src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
 src_libcompiled_model_la_LIBADD = src/libddutil.la glog/libglog.la
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
@@ -589,6 +591,7 @@ AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
     -I$(srcdir)/gtest/include
 
+AM_CXXFLAGS = -Wall -Werror
 AM_YFLAGS = -d
 ACLOCAL_AMFLAGS = -I m4
 all: config.h

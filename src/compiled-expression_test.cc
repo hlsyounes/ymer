@@ -19,6 +19,8 @@
 
 #include "compiled-expression.h"
 
+#include <cmath>
+
 #include "gtest/gtest.h"
 
 namespace {
@@ -408,6 +410,128 @@ TEST(CompiledExpressionEvaluatorTest, EvaluatesWithJumps) {
         Operation::MakeGOTO(5),
         Operation::MakeICONST(42, 0) });
   EXPECT_EQ(42, evaluator.EvaluateIntExpression(expr4, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesIntegerMin) {
+  CompiledExpressionEvaluator evaluator(2, 0);
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIMIN(0, 1) });
+  EXPECT_EQ(17, evaluator.EvaluateIntExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeIMIN(0, 1) });
+  EXPECT_EQ(17, evaluator.EvaluateIntExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesDoubleMin) {
+  CompiledExpressionEvaluator evaluator(0, 2);
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDMIN(0, 1) });
+  EXPECT_EQ(0.25, evaluator.EvaluateDoubleExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDMIN(0, 1) });
+  EXPECT_EQ(0.25, evaluator.EvaluateDoubleExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesIntegerMax) {
+  CompiledExpressionEvaluator evaluator(2, 0);
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIMAX(0, 1) });
+  EXPECT_EQ(42, evaluator.EvaluateIntExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeIMAX(0, 1) });
+  EXPECT_EQ(42, evaluator.EvaluateIntExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesDoubleMax) {
+  CompiledExpressionEvaluator evaluator(0, 2);
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDMAX(0, 1) });
+  EXPECT_EQ(0.5, evaluator.EvaluateDoubleExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDMAX(0, 1) });
+  EXPECT_EQ(0.5, evaluator.EvaluateDoubleExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesFloor) {
+  CompiledExpressionEvaluator evaluator(1, 1);
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeFLOOR(0) });
+  EXPECT_EQ(0, evaluator.EvaluateIntExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(-0.5, 0),
+        Operation::MakeFLOOR(0) });
+  EXPECT_EQ(-1, evaluator.EvaluateIntExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesCeil) {
+  CompiledExpressionEvaluator evaluator(1, 1);
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeCEIL(0) });
+  EXPECT_EQ(1, evaluator.EvaluateIntExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(-0.5, 0),
+        Operation::MakeCEIL(0) });
+  EXPECT_EQ(0, evaluator.EvaluateIntExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesPow) {
+  CompiledExpressionEvaluator evaluator(0, 2);
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(4.0, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakePOW(0, 1) });
+  EXPECT_EQ(pow(4.0, 0.5), evaluator.EvaluateDoubleExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(4.0, 1),
+        Operation::MakePOW(0, 1) });
+  EXPECT_EQ(pow(0.5, 4.0), evaluator.EvaluateDoubleExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesLog) {
+  CompiledExpressionEvaluator evaluator(0, 2);
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(4.0, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeLOG(0, 1) });
+  EXPECT_EQ(log(4.0) / log(0.5), evaluator.EvaluateDoubleExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(4.0, 1),
+        Operation::MakeLOG(0, 1) });
+  EXPECT_EQ(log(0.5) / log(4.0), evaluator.EvaluateDoubleExpression(expr2, {}));
+}
+
+TEST(CompiledExpressionEvaluatorTest, EvaluatesMod) {
+  CompiledExpressionEvaluator evaluator(2, 0);
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeMOD(0, 1) });
+  EXPECT_EQ(17 % 42, evaluator.EvaluateIntExpression(expr1, {}));
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeMOD(0, 1) });
+  EXPECT_EQ(42 % 17, evaluator.EvaluateIntExpression(expr2, {}));
 }
 
 }  // namespace

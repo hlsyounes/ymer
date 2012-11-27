@@ -76,7 +76,7 @@ double nested_error = -1.0;
 /* Fixed sample size. */
 int fixed_sample_size = 0;
 /* Maxumum path length. */
-int max_path_length = std::numeric_limits<int>::max();
+size_t max_path_length = std::numeric_limits<int>::max();
 /* Total number of samples (for statistics). */
 size_t total_samples;
 /* Number of samples per trial (for statistics). */

@@ -425,6 +425,7 @@ DistributionVisitor::DistributionVisitor(const DistributionVisitor&) {
 
 DistributionVisitor& DistributionVisitor::operator=(
     const DistributionVisitor&) {
+  return *this;
 }
 
 DistributionVisitor::~DistributionVisitor() {

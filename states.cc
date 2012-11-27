@@ -168,7 +168,7 @@ const State& State::resampled() const {
 /* Prints this object on the given stream. */
 void State::print(std::ostream& os) const {
   os << model_->variable_name(0) << '=' << values()[0];
-  for (int i = 1; i < values().size(); ++i) {
+  for (size_t i = 1; i < values().size(); ++i) {
     os << " & " << model_->variable_name(i) << '=' << values()[i];
   }
 }

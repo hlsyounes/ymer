@@ -22,6 +22,8 @@
 #include <cmath>
 #include <ostream>
 
+#include "glog/logging.h"
+
 bool operator==(const TypedValue& v1, const TypedValue& v2) {
   return v1.value<double>() == v2.value<double>();
 }
@@ -115,4 +117,5 @@ std::ostream& operator<<(std::ostream& os, const TypedValue& v) {
     case Type::BOOL:
       return os << (v.value<bool>() ? "true" : "false");
   }
+  LOG(FATAL) << "bad type";
 }

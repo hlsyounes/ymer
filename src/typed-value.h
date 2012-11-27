@@ -24,6 +24,8 @@
 
 #include <ostream>
 
+#include "glog/logging.h"
+
 // Supported value types.
 enum class Type { INT, DOUBLE, BOOL };
 
@@ -63,6 +65,7 @@ T TypedValue::value() const {
     case Type::BOOL:
       return value_.b;
   }
+  LOG(FATAL) << "bad type";
 }
 
 // Comparison operators for typed values.
