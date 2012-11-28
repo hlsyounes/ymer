@@ -319,10 +319,7 @@ double indifference_region(double theta) {
 CompiledModel CompileModel(const Model& model) {
   CompiledModel compiled_model;
 
-  for (std::vector<ParsedVariable>::const_iterator i =
-           model.variables().begin();
-       i != model.variables().end(); ++i) {
-    const ParsedVariable& v = *i;
+  for (const ParsedVariable& v : model.variables()) {
     compiled_model.AddVariable(
         v.name(), v.min_value(), v.max_value(), v.init_value());
   }

@@ -145,8 +145,11 @@ class Operation {
   int operand2() const { return operand2_; }
 
  private:
+  // Constructs an operation with a single integer operand.
   Operation(Opcode opcode, int operand1);
+  // Constructs an operation with two integer operands.
   Operation(Opcode opcode, int operand1, int operand2);
+  // Constructs an operation with a double and an integer operand.
   Operation(Opcode opcode, double operand1, int operand2);
 
   Opcode opcode_;
