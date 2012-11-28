@@ -20,7 +20,10 @@
 #include "compiled-model.h"
 
 #include <string>
+#include <vector>
 
+#include "compiled-distribution.h"
+#include "compiled-expression.h"
 #include "ddutil.h"
 
 #include "glog/logging.h"
@@ -32,6 +35,20 @@ CompiledVariable::CompiledVariable(
   CHECK_LE(min_value, max_value);
   CHECK_LE(min_value, init_value);
   CHECK_LE(init_value, max_value);
+}
+
+CompiledUpdate::CompiledUpdate(int variable, const CompiledExpression& expr)
+    : variable_(variable), expr_(expr) {
+}
+
+CompiledOutcome::CompiledOutcome(const CompiledDistribution& delay,
+                                 const std::vector<CompiledUpdate>& updates)
+    : delay_(delay), updates_(updates) {
+}
+
+CompiledCommand::CompiledCommand(const CompiledExpression& guard,
+                                 const std::vector<CompiledOutcome>& outcomes)
+    : guard_(guard), outcomes_(outcomes) {
 }
 
 void CompiledModel::AddVariable(

@@ -25,6 +25,9 @@
 #include <string>
 #include <vector>
 
+#include "compiled-distribution.h"
+#include "compiled-expression.h"
+
 // A compiled variable.
 class CompiledVariable {
  public:
@@ -50,6 +53,60 @@ class CompiledVariable {
   int min_value_;
   int max_value_;
   int init_value_;
+};
+
+// A compiled update.
+class CompiledUpdate {
+ public:
+  // Constructs a compiled update with the given variable index and expression.
+  CompiledUpdate(int variable, const CompiledExpression& expr);
+
+  // Returns the variable index for this update.
+  int variable() const { return variable_; }
+
+  // Returns the expression for this update.
+  const CompiledExpression& expr() const { return expr_; }
+
+ private:
+  int variable_;
+  CompiledExpression expr_;
+};
+
+// A compiled outcome.
+class CompiledOutcome {
+ public:
+  // Constructs a compiled outcome with the given delay distribution and
+  // updates.
+  CompiledOutcome(const CompiledDistribution& delay,
+                  const std::vector<CompiledUpdate>& updates);
+
+  // Returns the delay distribution for this outcome.
+  const CompiledDistribution& delay() const { return delay_; }
+
+  // Returns the updates for this outcome.
+  const std::vector<CompiledUpdate>& updates() const { return updates_; }
+
+ private:
+  CompiledDistribution delay_;
+  std::vector<CompiledUpdate> updates_;
+};
+
+// A compiled command.
+class CompiledCommand {
+ public:
+  // Constructs a compiled command with the given guard expression and outcomes.
+  CompiledCommand(const CompiledExpression& guard,
+                  const std::vector<CompiledOutcome>& outcomes);
+
+  // Returns the guard expression for this command.
+  const CompiledExpression& guard() const { return guard_; }
+
+  // Returns the outcomes for this command.
+  const std::vector<CompiledOutcome>& outcomes() const { return outcomes_; }
+
+ private:
+  CompiledExpression guard_;
+  std::vector<CompiledOutcome> outcomes_;
 };
 
 // A compiled model.

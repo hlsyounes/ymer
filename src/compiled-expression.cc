@@ -21,10 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <vector>
-
-#include "glog/logging.h"
 
 Operation Operation::MakeICONST(int value, int dst) {
   return Operation(Opcode::ICONST, value, dst);
