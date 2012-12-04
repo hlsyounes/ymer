@@ -216,16 +216,6 @@ std::ostream& operator<<(std::ostream& os, const PathFormula& f);
 
 
 /* ====================================================================== */
-/* FormulaList */
-
-/*
- * List of formulas.
- */
-struct FormulaList : public std::deque<const StateFormula*> {
-};
-
-
-/* ====================================================================== */
 /* Conjunction */
 
 class Conjunction : public StateFormula {
@@ -237,7 +227,9 @@ class Conjunction : public StateFormula {
   void add_conjunct(const StateFormula* conjunct);
 
   /* Returns the conjuncts for this conjunction. */
-  const FormulaList& conjuncts() const { return conjuncts_; }
+  const std::vector<const StateFormula*>& conjuncts() const {
+    return conjuncts_;
+  }
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
@@ -277,7 +269,7 @@ private:
   virtual void print(std::ostream& os) const;
 
   /* The conjuncts. */
-  FormulaList conjuncts_;
+  std::vector<const StateFormula*> conjuncts_;
 };
 
 
@@ -293,7 +285,9 @@ class Disjunction : public StateFormula {
   void add_disjunct(const StateFormula* disjunct);
 
   /* Returns the disjuncts for this disjunction. */
-  const FormulaList& disjuncts() const { return disjuncts_; }
+  const std::vector<const StateFormula*>& disjuncts() const {
+    return disjuncts_;
+  }
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
@@ -333,7 +327,7 @@ private:
   virtual void print(std::ostream& os) const;
 
   /* The disjuncts. */
-  FormulaList disjuncts_;
+  std::vector<const StateFormula*> disjuncts_;
 };
 
 

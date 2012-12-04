@@ -57,6 +57,10 @@ void CompiledModel::AddVariable(
       CompiledVariable(name, min_value, max_value, init_value));
 }
 
+void CompiledModel::AddCommand(const CompiledCommand& command) {
+  commands_.push_back(command);
+}
+
 int CompiledModel::NumBits() const {
   int num_bits = 0;
   for (std::vector<CompiledVariable>::const_iterator i = variables_.begin();

@@ -47,8 +47,7 @@ bool Conjunction::verify(const DecisionDiagramManager& dd_man,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
 			 double epsilon) const {
-  for (FormulaList::const_reverse_iterator fi = conjuncts().rbegin();
-       fi != conjuncts().rend(); fi++) {
+  for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
     if (!(*fi)->verify(dd_man, model, state,
 		       delta, alpha, beta, algorithm, epsilon)) {
       return false;
@@ -68,8 +67,7 @@ bool Disjunction::verify(const DecisionDiagramManager& dd_man,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
 			 double epsilon) const {
-  for (FormulaList::const_reverse_iterator fi = disjuncts().rbegin();
-       fi != disjuncts().rend(); fi++) {
+  for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
     if ((*fi)->verify(dd_man, model, state,
 		      delta, alpha, beta, algorithm, epsilon)) {
       return true;

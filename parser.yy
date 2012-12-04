@@ -56,7 +56,7 @@ extern std::map<std::string, TypedValue> const_overrides;
 /* Last model parsed. */
 const Model* global_model = NULL;
 /* Parsed properties. */
-FormulaList properties;
+std::vector<const StateFormula*> properties;
 
 /* Current model. */
 static Model* model;
@@ -1180,9 +1180,8 @@ const Command* SubstituteIdentifiers(
       s,
       SubstituteIdentifiers(command.guard(), substitutions),
       SubstituteIdentifiers(command.delay(), substitutions));
-  for (UpdateList::const_iterator ui = command.updates().begin();
-       ui != command.updates().end(); ui++) {
-    subst_comm->add_update(SubstituteIdentifiers(**ui, substitutions));
+  for (const Update* update : command.updates()) {
+    subst_comm->add_update(SubstituteIdentifiers(*update, substitutions));
   }
   return subst_comm;
 }
@@ -1197,9 +1196,9 @@ Module* SubstituteIdentifiers(
        vi != module.variables().end(); ++vi) {
     subst_mod->add_variable(*SubstituteVariable(*vi, substitutions));
   }
-  for (CommandList::const_iterator ci = module.commands().begin();
-       ci != module.commands().end(); ++ci) {
-    subst_mod->add_command(SubstituteIdentifiers(**ci, substitutions, syncs));
+  for (const Command* command : module.commands()) {
+    subst_mod->add_command(
+        SubstituteIdentifiers(*command, substitutions, syncs));
   }
   return subst_mod;
 }
@@ -1261,9 +1260,8 @@ const StateFormula* StateFormulaIdentifierSubstituter::release_formula() {
 void StateFormulaIdentifierSubstituter::DoVisitConjunction(
     const Conjunction& formula) {
   Conjunction* conjunction = new Conjunction();
-  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
-       fi != formula.conjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* conjunct : formula.conjuncts()) {
+    conjunct->Accept(this);
     conjunction->add_conjunct(release_formula());
   }
   formula_ = conjunction;
@@ -1272,9 +1270,8 @@ void StateFormulaIdentifierSubstituter::DoVisitConjunction(
 void StateFormulaIdentifierSubstituter::DoVisitDisjunction(
     const Disjunction& formula) {
   Disjunction* disjunction = new Disjunction();
-  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
-       fi != formula.disjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* disjunct : formula.disjuncts()) {
+    disjunct->Accept(this);
     disjunction->add_disjunct(release_formula());
   }
   formula_ = disjunction;
@@ -1506,9 +1503,8 @@ static void prepare_module(const std::string* ident) {
 /* Prepares a model for parsing. */
 static void prepare_model() {
   clear_declarations();
-  for (FormulaList::const_iterator fi = properties.begin();
-       fi != properties.end(); fi++) {
-    delete *fi;
+  for (const StateFormula* property : properties) {
+    delete property;
   }
   properties.clear();
   if (model != NULL) {

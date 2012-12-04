@@ -36,8 +36,9 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-check_PROGRAMS = src/ddutil_test$(EXEEXT) src/rng_test$(EXEEXT) \
-	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT) \
+check_PROGRAMS = src/strutil_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
+	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
+	src/expression_test$(EXEEXT) \
 	src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
 	src/compiled-model_test$(EXEEXT)
@@ -180,6 +181,9 @@ src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
+src_libstrutil_la_LIBADD =
+am_src_libstrutil_la_OBJECTS =
+src_libstrutil_la_OBJECTS = $(am_src_libstrutil_la_OBJECTS)
 src_libtest_main_la_DEPENDENCIES = glog/libglog.la \
 	gtest/lib/libgtest.la
 am_src_libtest_main_la_OBJECTS = test-main.lo
@@ -213,23 +217,26 @@ src_ddutil_test_DEPENDENCIES = src/libddutil.la src/libtest-main.la
 am_src_expression_test_OBJECTS = expression_test.$(OBJEXT)
 src_expression_test_OBJECTS = $(am_src_expression_test_OBJECTS)
 src_expression_test_DEPENDENCIES = src/libexpression.la \
-	src/libtest-main.la
+	src/libstrutil.la src/libtest-main.la
 am_src_rng_test_OBJECTS = rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
+am_src_strutil_test_OBJECTS = strutil_test.$(OBJEXT)
+src_strutil_test_OBJECTS = $(am_src_strutil_test_OBJECTS)
+src_strutil_test_DEPENDENCIES = src/libstrutil.la src/libtest-main.la
 am_src_typed_value_test_OBJECTS = typed-value_test.$(OBJEXT)
 src_typed_value_test_OBJECTS = $(am_src_typed_value_test_OBJECTS)
 src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
-	src/libtest-main.la
+	src/libstrutil.la src/libtest-main.la
 am_ymer_OBJECTS = ymer.$(OBJEXT) formulas.$(OBJEXT) \
 	distributions.$(OBJEXT) modules.$(OBJEXT) models.$(OBJEXT) \
 	states.$(OBJEXT) sampling.$(OBJEXT) odd.$(OBJEXT) \
 	hybrid.$(OBJEXT) symbolic.$(OBJEXT) mixed.$(OBJEXT) \
 	parser.$(OBJEXT) tokenizer.$(OBJEXT)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
-ymer_DEPENDENCIES = cudd/cudd/libcudd.la src/libddutil.la \
-	src/librng.la src/libtyped-value.la src/libexpression.la \
-	src/libcompiled-model.la
+ymer_DEPENDENCIES = cudd/cudd/libcudd.la src/libstrutil.la \
+	src/libddutil.la src/librng.la src/libtyped-value.la \
+	src/libexpression.la src/libcompiled-model.la
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -267,13 +274,15 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstrutil_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
@@ -282,13 +291,15 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstrutil_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -488,6 +499,8 @@ SUBDIRS = glog gtest
 # Ymer libraries.
 #
 
+# String utility library.
+
 # Decision diagram utility library.
 
 # Random number generator library.
@@ -503,8 +516,8 @@ SUBDIRS = glog gtest
 # Compiled model library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
-	dcmt/lib/libdcmt.la src/libddutil.la src/librng.la \
-	src/libtyped-value.la src/libexpression.la \
+	dcmt/lib/libdcmt.la src/libstrutil.la src/libddutil.la \
+	src/librng.la src/libtyped-value.la src/libexpression.la \
 	src/libcompiled-expression.la src/libcompiled-distribution.la \
 	src/libcompiled-model.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
@@ -559,6 +572,7 @@ dcmt_lib_libdcmt_la_SOURCES = dcmt/lib/dci.h dcmt/lib/check32.c \
     dcmt/lib/genmtrand.c dcmt/lib/init.c
 
 dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
+src_libstrutil_la_SOURCES = src/strutil.h
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
 src_librng_la_SOURCES = src/rng.h src/rng.cc
@@ -582,8 +596,9 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     glog/libglog.la
 
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/librng.la \
-    src/libtyped-value.la src/libexpression.la src/libcompiled-model.la
+ymer_LDADD = cudd/cudd/libcudd.la src/libstrutil.la src/libddutil.la \
+    src/librng.la src/libtyped-value.la src/libexpression.la \
+    src/libcompiled-model.la
 
 
 #
@@ -594,14 +609,20 @@ ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/librng.la \
 check_LTLIBRARIES = src/libtest-main.la
 src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
+src_strutil_test_SOURCES = src/strutil_test.cc
+src_strutil_test_LDADD = src/libstrutil.la src/libtest-main.la
 src_ddutil_test_SOURCES = src/ddutil_test.cc
 src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
 src_rng_test_SOURCES = src/rng_test.cc
 src_rng_test_LDADD = src/librng.la src/libtest-main.la
 src_typed_value_test_SOURCES = src/typed-value_test.cc
-src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
+src_typed_value_test_LDADD = src/libtyped-value.la src/libstrutil.la \
+    src/libtest-main.la
+
 src_expression_test_SOURCES = src/expression_test.cc
-src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+src_expression_test_LDADD = src/libexpression.la src/libstrutil.la \
+    src/libtest-main.la
+
 src_compiled_expression_test_SOURCES = src/compiled-expression_test.cc
 src_compiled_expression_test_LDADD = src/libcompiled-expression.la \
     src/libtest-main.la
@@ -742,6 +763,8 @@ src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEP
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
+src/libstrutil.la: $(src_libstrutil_la_OBJECTS) $(src_libstrutil_la_DEPENDENCIES) $(EXTRA_src_libstrutil_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(LINK)  $(src_libstrutil_la_OBJECTS) $(src_libstrutil_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) $(EXTRA_src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
 src/libtyped-value.la: $(src_libtyped_value_la_OBJECTS) $(src_libtyped_value_la_DEPENDENCIES) $(EXTRA_src_libtyped_value_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -816,6 +839,9 @@ src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_te
 src/rng_test$(EXEEXT): $(src_rng_test_OBJECTS) $(src_rng_test_DEPENDENCIES) $(EXTRA_src_rng_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/rng_test$(EXEEXT)
 	$(CXXLINK) $(src_rng_test_OBJECTS) $(src_rng_test_LDADD) $(LIBS)
+src/strutil_test$(EXEEXT): $(src_strutil_test_OBJECTS) $(src_strutil_test_DEPENDENCIES) $(EXTRA_src_strutil_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/strutil_test$(EXEEXT)
+	$(CXXLINK) $(src_strutil_test_OBJECTS) $(src_strutil_test_LDADD) $(LIBS)
 src/typed-value_test$(EXEEXT): $(src_typed_value_test_OBJECTS) $(src_typed_value_test_DEPENDENCIES) $(EXTRA_src_typed_value_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/typed-value_test$(EXEEXT)
 	$(CXXLINK) $(src_typed_value_test_OBJECTS) $(src_typed_value_test_LDADD) $(LIBS)
@@ -939,6 +965,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/states.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-main.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokenizer.Po@am__quote@
@@ -1722,6 +1749,20 @@ rng_test.obj: src/rng_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/rng_test.cc' object='rng_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o rng_test.obj `if test -f 'src/rng_test.cc'; then $(CYGPATH_W) 'src/rng_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/rng_test.cc'; fi`
+
+strutil_test.o: src/strutil_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT strutil_test.o -MD -MP -MF $(DEPDIR)/strutil_test.Tpo -c -o strutil_test.o `test -f 'src/strutil_test.cc' || echo '$(srcdir)/'`src/strutil_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/strutil_test.Tpo $(DEPDIR)/strutil_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/strutil_test.cc' object='strutil_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o strutil_test.o `test -f 'src/strutil_test.cc' || echo '$(srcdir)/'`src/strutil_test.cc
+
+strutil_test.obj: src/strutil_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT strutil_test.obj -MD -MP -MF $(DEPDIR)/strutil_test.Tpo -c -o strutil_test.obj `if test -f 'src/strutil_test.cc'; then $(CYGPATH_W) 'src/strutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/strutil_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/strutil_test.Tpo $(DEPDIR)/strutil_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/strutil_test.cc' object='strutil_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o strutil_test.obj `if test -f 'src/strutil_test.cc'; then $(CYGPATH_W) 'src/strutil_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/strutil_test.cc'; fi`
 
 typed-value_test.o: src/typed-value_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT typed-value_test.o -MD -MP -MF $(DEPDIR)/typed-value_test.Tpo -c -o typed-value_test.o `test -f 'src/typed-value_test.cc' || echo '$(srcdir)/'`src/typed-value_test.cc

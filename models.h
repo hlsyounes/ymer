@@ -104,10 +104,10 @@ class Model {
   const std::string& variable_name(int i) const { return variables_[i].name(); }
 
   /* Returns the modules for this model */
-  const ModuleList& modules() const { return modules_; }
+  const std::vector<const Module*>& modules() const { return modules_; }
 
   /* Returns all commands for this model. */
-  const CommandList& commands() const { return commands_; }
+  const std::vector<const Command*>& commands() const { return commands_; }
 
   /* Caches DDs for this model. */
   void cache_dds(const DecisionDiagramManager& dd_man, size_t moments) const;
@@ -152,11 +152,11 @@ private:
   std::vector<std::set<int>> module_variables_;
   int current_module_;
   /* The modules for this model */
-  ModuleList modules_;
+  std::vector<const Module*> modules_;
   /* Compiled commands for this model. */
-  CommandList commands_;
+  std::vector<const Command*> commands_;
   /* Modules that the above commands are associated with. */
-  std::vector<ModuleSet> command_modules_;
+  std::vector<std::set<const Module*>> command_modules_;
   /* Cached MTBDD representing rate matrix. */
   mutable DdNode* rate_mtbdd_;
   std::map<std::string, VariableProperties> variable_properties_;

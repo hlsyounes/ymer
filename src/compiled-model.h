@@ -116,8 +116,14 @@ class CompiledModel {
   void AddVariable(
       const std::string& name, int min_value, int max_value, int init_value);
 
+  // Adds a command to this compiled model.
+  void AddCommand(const CompiledCommand& command);
+
   // Returns the variables for this compiled model.
   const std::vector<CompiledVariable>& variables() const { return variables_; }
+
+  // Returns the commands for this compiled model.
+  const std::vector<CompiledCommand>& commands() const { return commands_; }
 
   // Returns the number of bits needed to represent the variables of this
   // compiled model.
@@ -125,6 +131,7 @@ class CompiledModel {
 
  private:
   std::vector<CompiledVariable> variables_;
+  std::vector<CompiledCommand> commands_;
 };
 
 #endif  // COMPILED_MODEL_H_

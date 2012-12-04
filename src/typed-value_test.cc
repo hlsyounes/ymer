@@ -19,7 +19,7 @@
 
 #include "typed-value.h"
 
-#include <sstream>
+#include "strutil.h"
 
 #include "gtest/gtest.h"
 
@@ -160,9 +160,8 @@ TEST(TypedValueTest, Log) {
 }
 
 TEST(TypedValueTest, Output) {
-  std::ostringstream out;
-  out << TypedValue(17) << ';' << TypedValue(0.5) << ';' << TypedValue(true);
-  EXPECT_EQ("17;0.5;true", out.str());
+  const TypedValue a(17), b(0.5), c(true);
+  EXPECT_EQ("17;0.5;true", StrCat(a, ';', b, ';', c));
 }
 
 }  // namespace

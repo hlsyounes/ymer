@@ -86,25 +86,21 @@ State::State(const Model* model, const CompiledModel& compiled_model,
 
 /* Returns a sampled successor of this state. */
 const State& State::next() const {
-  CommandList commands;
-  for (CommandList::const_iterator ci = model_->commands().begin();
-       ci != model_->commands().end(); ci++) {
-    const Command* c = *ci;
-    if (c->guard().holds(values())) {
-      commands.push_back(c);
+  std::vector<const Command*> commands;
+  for (const Command* command : model_->commands()) {
+    if (command->guard().holds(values())) {
+      commands.push_back(command);
     }
   }
   ExtendedState* next_state =
       new ExtendedState(model_, values(), engine(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
-  for (CommandList::const_iterator ci = commands.begin();
-       ci != commands.end(); ci++) {
-    const Command* c = *ci;
-    double t = c->delay().sample(values(), engine());
-    if (!c->delay().memoryless()) {
-      next_state->lifetimes_.insert(std::make_pair(c, 0.0));
-      next_state->trigger_times_.insert(std::make_pair(c, t));
+  for (const Command* command : commands) {
+    double t = command->delay().sample(values(), engine());
+    if (!command->delay().memoryless()) {
+      next_state->lifetimes_.insert(std::make_pair(command, 0.0));
+      next_state->trigger_times_.insert(std::make_pair(command, t));
     }
     if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
       streak++;
@@ -116,7 +112,7 @@ const State& State::next() const {
     }
     if (t < next_state->trigger_time_
 	|| (t == next_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      next_state->trigger_ = c;
+      next_state->trigger_ = command;
       next_state->trigger_time_ = t;
     }
   }
@@ -128,24 +124,20 @@ const State& State::next() const {
 
 /* Returns a copy of this state with resampled trigger times. */
 const State& State::resampled() const {
-  CommandList commands;
-  for (CommandList::const_iterator ci = model_->commands().begin();
-       ci != model_->commands().end(); ci++) {
-    const Command* c = *ci;
-    if (c->guard().holds(values())) {
-      commands.push_back(c);
+  std::vector<const Command*> commands;
+  for (const Command* command : model_->commands()) {
+    if (command->guard().holds(values())) {
+      commands.push_back(command);
     }
   }
   ExtendedState* new_state = new ExtendedState(model_, values(), engine(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
-  for (CommandList::const_iterator ci = commands.begin();
-       ci != commands.end(); ci++) {
-    const Command* c = *ci;
-    double t = c->delay().sample(values(), engine());
-    if (!c->delay().memoryless()) {
-      new_state->lifetimes_.insert(std::make_pair(c, 0.0));
-      new_state->trigger_times_.insert(std::make_pair(c, t));
+  for (const Command* command : commands) {
+    double t = command->delay().sample(values(), engine());
+    if (!command->delay().memoryless()) {
+      new_state->lifetimes_.insert(std::make_pair(command, 0.0));
+      new_state->trigger_times_.insert(std::make_pair(command, t));
     }
     if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
       streak++;
@@ -157,7 +149,7 @@ const State& State::resampled() const {
     }
     if (t < new_state->trigger_time_
 	|| (t == new_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      new_state->trigger_ = c;
+      new_state->trigger_ = command;
       new_state->trigger_time_ = t;
     }
   }
@@ -193,45 +185,40 @@ const State& ExtendedState::next() const {
   ExtendedState* next_state =
       new ExtendedState(model(), values(), engine(), trigger_time_);
   if (trigger_ != NULL) {
-    for (UpdateList::const_iterator ui = trigger_->updates().begin();
-	 ui != trigger_->updates().end(); ui++) {
-      next_state->values().at((*ui)->variable().index()) =
-          (*ui)->expr().value(values()).value<int>();
+    for (const Update* update : trigger_->updates()) {
+      next_state->values().at(update->variable().index()) =
+          update->expr().value(values()).value<int>();
     }
-    CommandList commands;
-    for (CommandList::const_iterator ci = model()->commands().begin();
-	 ci != model()->commands().end(); ci++) {
-      const Command* c = *ci;
-      if (c->guard().holds(next_state->values())) {
-	commands.push_back(c);
+    std::vector<const Command*> commands;
+    for (const Command* command : model()->commands()) {
+      if (command->guard().holds(next_state->values())) {
+	commands.push_back(command);
       }
     }
     int streak = 1;
     double tie_breaker = -1.0;
-    for (CommandList::const_iterator ci = commands.begin();
-	 ci != commands.end(); ci++) {
-      const Command* c = *ci;
+    for (const Command* command : commands) {
       double l, t;
-      if (c == trigger_) {
+      if (command == trigger_) {
 	l = 0.0;
-	t = c->delay().sample(next_state->values(), engine());
+	t = command->delay().sample(next_state->values(), engine());
       } else {
-	CommandTimeMap::const_iterator li = lifetimes_.find(c);
+	CommandTimeMap::const_iterator li = lifetimes_.find(command);
 	if (li != lifetimes_.end()) {
 	  l = (*li).second + trigger_time_;
 	} else {
 	  l = 0.0;
 	}
-	CommandTimeMap::const_iterator ti = trigger_times_.find(c);
+	CommandTimeMap::const_iterator ti = trigger_times_.find(command);
 	if (ti != trigger_times_.end()) {
 	  t = (*ti).second - trigger_time_;
 	} else {
-	  t = c->delay().sample(next_state->values(), engine());
+	  t = command->delay().sample(next_state->values(), engine());
 	}
       }
-      if (!c->delay().memoryless()) {
-	next_state->lifetimes_.insert(std::make_pair(c, l));
-	next_state->trigger_times_.insert(std::make_pair(c, t));
+      if (!command->delay().memoryless()) {
+	next_state->lifetimes_.insert(std::make_pair(command, l));
+	next_state->trigger_times_.insert(std::make_pair(command, t));
       }
       if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
 	streak++;
@@ -243,7 +230,7 @@ const State& ExtendedState::next() const {
       }
       if (t < next_state->trigger_time_
 	  || (t == next_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-	next_state->trigger_ = c;
+	next_state->trigger_ = command;
 	next_state->trigger_time_ = t;
       }
     }

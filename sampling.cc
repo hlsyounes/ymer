@@ -73,9 +73,8 @@ double Conjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   double h = 0.0;
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    h += (*fi)->effort(q, delta, alpha, beta, alphap, betap, algorithm);
+  for (const StateFormula* conjunct : conjuncts()) {
+    h += conjunct->effort(q, delta, alpha, beta, alphap, betap, algorithm);
   }
   return h;
 }
@@ -85,8 +84,7 @@ double Conjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 bool Conjunction::verify(const Model& model, const State& state,
 			 DeltaFun delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm) const {
-  for (FormulaList::const_reverse_iterator fi = conjuncts().rbegin();
-       fi != conjuncts().rend(); fi++) {
+  for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
     if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
       return false;
     }
@@ -98,9 +96,8 @@ bool Conjunction::verify(const Model& model, const State& state,
 /* Clears the cache of any probabilistic operator. */
 size_t Conjunction::clear_cache() const {
   size_t n = 0;
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    n += (*fi)->clear_cache();
+  for (const StateFormula* conjunct : conjuncts()) {
+    n += conjunct->clear_cache();
   }
   return n;
 }
@@ -115,9 +112,8 @@ double Disjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   double h = 0.0;
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    h += (*fi)->effort(q, delta, alpha, beta, alphap, betap, algorithm);
+  for (const StateFormula* disjunct : disjuncts()) {
+    h += disjunct->effort(q, delta, alpha, beta, alphap, betap, algorithm);
   }
   return h;
 }
@@ -127,8 +123,7 @@ double Disjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 bool Disjunction::verify(const Model& model, const State& state,
 			 DeltaFun delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm) const {
-  for (FormulaList::const_reverse_iterator fi = disjuncts().rbegin();
-       fi != disjuncts().rend(); fi++) {
+  for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
     if ((*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
       return true;
     }
@@ -140,9 +135,8 @@ bool Disjunction::verify(const Model& model, const State& state,
 /* Clears the cache of any probabilistic operator. */
 size_t Disjunction::clear_cache() const {
   size_t n = 0;
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    n += (*fi)->clear_cache();
+  for (const StateFormula* disjunct : disjuncts()) {
+    n += disjunct->clear_cache();
   }
   return n;
 }
@@ -453,10 +447,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
   double betap;
   if (formula().probabilistic()) {
     double q = 0.0;
-    for (CommandList::const_iterator ci = model.commands().begin();
-	 ci != model.commands().end(); ci++) {
+    for (const Command* command : model.commands()) {
       std::vector<double> m;
-      (*ci)->delay().moments(m, 1);
+      command->delay().moments(m, 1);
       q = std::max(q, 1.0/m[0]);
     }
     double r = 0.5*(sqrt(5) - 1.0);

@@ -28,6 +28,7 @@
 #include "formulas.h"
 #include "src/ddutil.h"
 #include "src/rng.h"
+#include "src/strutil.h"
 #include "glog/logging.h"
 #include <cudd.h>
 #include <sys/time.h>
@@ -59,7 +60,7 @@ extern FILE* yyin;
 /* Current model. */
 extern const Model* global_model;
 /* Parsed properties. */
-extern FormulaList properties;
+extern std::vector<const StateFormula*> properties;
 /* Clears all previously parsed declarations. */
 extern void clear_declarations();
 
@@ -266,9 +267,8 @@ bool extract_path_formula(const PathFormula*& pf, double& theta,
 			  const StateFormula& f) {
   const Conjunction* cf = dynamic_cast<const Conjunction*>(&f);
   if (cf != 0) {
-    for (FormulaList::const_iterator fi = cf->conjuncts().begin();
-	 fi != cf->conjuncts().end(); fi++) {
-      if (!extract_path_formula(pf, theta, **fi)) {
+    for (const StateFormula* conjunct : cf->conjuncts()) {
+      if (!extract_path_formula(pf, theta, *conjunct)) {
 	return false;
       }
     }
@@ -276,9 +276,8 @@ bool extract_path_formula(const PathFormula*& pf, double& theta,
   }
   const Disjunction* df = dynamic_cast<const Disjunction*>(&f);
   if (df != 0) {
-    for (FormulaList::const_iterator fi = df->disjuncts().begin();
-	 fi != df->disjuncts().end(); fi++) {
-      if (!extract_path_formula(pf, theta, **fi)) {
+    for (const StateFormula* disjunct : df->disjuncts()) {
+      if (!extract_path_formula(pf, theta, *disjunct)) {
 	return false;
       }
     }
@@ -316,12 +315,120 @@ double indifference_region(double theta) {
   }
 }
 
-CompiledModel CompileModel(const Model& model) {
+CompiledExpression CompileExpression(const Expression& expr) {
+  // TODO(hlsyounes): Implement.
+  return CompiledExpression({});
+}
+
+CompiledExpression CompileExpression(const StateFormula& expr) {
+  // TODO(hlsyounes): Implement.
+  return CompiledExpression({});
+}
+
+class DistributionCompiler : public DistributionVisitor {
+ public:
+  DistributionCompiler();
+
+  CompiledDistribution release_dist() { return std::move(dist_); }
+
+ private:
+  virtual void DoVisitExponential(const Exponential& dist);
+  virtual void DoVisitWeibull(const Weibull& dist);
+  virtual void DoVisitLognormal(const Lognormal& dist);
+  virtual void DoVisitUniform(const Uniform& dist);
+
+  CompiledDistribution dist_;
+};
+
+DistributionCompiler::DistributionCompiler()
+    : dist_(CompiledDistribution::MakeMemoryless(CompiledExpression({}))) {
+}
+
+void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
+  dist_ = CompiledDistribution::MakeMemoryless(CompileExpression(dist.rate()));
+}
+
+void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
+  dist_ = CompiledDistribution::MakeWeibull(CompileExpression(dist.scale()),
+                                            CompileExpression(dist.shape()));
+}
+
+void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
+  dist_ = CompiledDistribution::MakeLognormal(CompileExpression(dist.scale()),
+                                              CompileExpression(dist.shape()));
+}
+
+void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
+  dist_ = CompiledDistribution::MakeUniform(CompileExpression(dist.low()),
+                                            CompileExpression(dist.high()));
+}
+
+CompiledDistribution CompileDistribution(const Distribution& dist) {
+  DistributionCompiler compiler;
+  dist.Accept(&compiler);
+  return compiler.release_dist();
+}
+
+CompiledUpdate CompileUpdate(
+    const Update& update,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  auto i = variables_by_name.find(update.variable().name());
+  int variable;
+  if (i == variables_by_name.end()) {
+    errors->push_back(StrCat(
+        "undefined variable '", update.variable().name(), "' in update"));
+    variable = -1;
+  } else {
+    variable = i->second;
+  }
+  return CompiledUpdate(variable, CompileExpression(update.expr()));
+}
+
+std::vector<CompiledUpdate> CompileUpdates(
+    const std::vector<const Update*>& updates,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  std::vector<CompiledUpdate> compiled_updates;
+  for (const Update* update : updates) {
+    compiled_updates.push_back(
+        CompileUpdate(*update, variables_by_name, errors));
+  }
+  return compiled_updates;
+}
+
+CompiledOutcome CompileOutcome(
+    const Distribution& delay,
+    const std::vector<const Update*>& updates,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  return CompiledOutcome(CompileDistribution(delay),
+                         CompileUpdates(updates, variables_by_name, errors));
+}
+
+CompiledCommand CompileCommand(
+    const Command& command,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  return CompiledCommand(
+      CompileExpression(command.guard()),
+      { CompileOutcome(command.delay(), command.updates(),
+                       variables_by_name, errors) });
+}
+
+CompiledModel CompileModel(const Model& model,
+                           std::vector<std::string>* errors) {
   CompiledModel compiled_model;
 
+  std::map<std::string, int> variables_by_name;
   for (const ParsedVariable& v : model.variables()) {
     compiled_model.AddVariable(
         v.name(), v.min_value(), v.max_value(), v.init_value());
+    variables_by_name.insert({ v.name(), variables_by_name.size() });
+  }
+
+  for (const Command* c : model.commands()) {
+    compiled_model.AddCommand(CompileCommand(*c, variables_by_name, errors));
   }
 
   return compiled_model;
@@ -530,7 +637,14 @@ int main(int argc, char* argv[]) {
     if (verbosity > 1) {
       std::cout << *global_model << std::endl;
     }
-    const CompiledModel compiled_model = CompileModel(*global_model);
+    std::vector<std::string> errors;
+    const CompiledModel compiled_model = CompileModel(*global_model, &errors);
+    if (!errors.empty()) {
+      for (const std::string& error : errors) {
+        std::cerr << PACKAGE << ": " << error << std::endl;
+      }
+      return 0;
+    }
 
     std::cout.setf(std::ios::unitbuf);
     if (port >= 0) {
@@ -726,8 +840,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "Events:    " << global_model->commands().size()
 		  << std::endl;
       }
-      for (FormulaList::const_iterator fi = properties.begin();
-	   fi != properties.end(); fi++) {
+      for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
 	current_property = fi - properties.begin();
@@ -859,8 +972,7 @@ int main(int argc, char* argv[]) {
 		  << std::endl;
       }
       DdNode* init = global_model->init_bdd(dd_man);
-      for (FormulaList::const_iterator fi = properties.begin();
-	   fi != properties.end(); fi++) {
+      for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
 	double total_time = 0.0;
@@ -953,8 +1065,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
 		  << std::endl;
       }
-      for (FormulaList::const_iterator fi = properties.begin();
-	   fi != properties.end(); fi++) {
+      for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
 	size_t accepts = 0;
@@ -1032,9 +1143,8 @@ int main(int argc, char* argv[]) {
       global_model->uncache_dds(dd_man);
     }
     delete global_model;
-    for (FormulaList::const_iterator fi = properties.begin();
-	 fi != properties.end(); fi++) {
-      delete *fi;
+    for (const StateFormula* f : properties) {
+      delete f;
     }
     properties.clear();
   } catch (const std::exception& e) {

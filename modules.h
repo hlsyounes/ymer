@@ -62,13 +62,6 @@ private:
 
 
 /* ====================================================================== */
-/* UpdateList */
-
-struct UpdateList : public std::vector<const Update*> {
-};
-
-
-/* ====================================================================== */
 /* Command */
 
 /*
@@ -95,7 +88,7 @@ struct Command {
   const Distribution& delay() const { return *delay_; }
 
   /* Returns the updates for this command. */
-  const UpdateList& updates() const { return updates_; }
+  const std::vector<const Update*>& updates() const { return updates_; }
 
 private:
   // Disallow copy and assign.
@@ -110,21 +103,11 @@ private:
   /* The rate for this command. */
   const Distribution* delay_;
   /* The updates for this command. */
-  UpdateList updates_;
+  std::vector<const Update*> updates_;
 };
 
 /* Output operator for commands. */
 std::ostream& operator<<(std::ostream& os, const Command& c);
-
-
-/* ====================================================================== */
-/* CommandList */
-
-/*
- * A list of commands.
- */
-struct CommandList : public std::vector<const Command*> {
-};
 
 
 /* ====================================================================== */
@@ -154,34 +137,13 @@ struct Module {
   const std::vector<const Variable*>& variables() const { return variables_; }
 
   /* Returns the commands for this module. */
-  const CommandList& commands() const { return commands_; }
+  const std::vector<const Command*>& commands() const { return commands_; }
 
 private:
   /* The variables for this module. */
   std::vector<const Variable*> variables_;
   /* The commands for this module. */
-  CommandList commands_;
+  std::vector<const Command*> commands_;
 };
-
-
-/* ====================================================================== */
-/* ModuleList */
-
-/*
- * A list of modules.
- */
-struct ModuleList : public std::vector<const Module*> {
-};
-
-
-/* ====================================================================== */
-/* ModuleSet */
-
-/*
- * A set of modules.
- */
-struct ModuleSet : public std::set<const Module*> {
-};
-
 
 #endif /* MODULES_H */
