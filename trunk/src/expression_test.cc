@@ -18,29 +18,23 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "expression.h"
-
-#include <sstream>
+#include "strutil.h"
 
 #include "gtest/gtest.h"
 
 namespace {
 
 TEST(LiteralTest, Output) {
-  std::ostringstream out;
-  Literal a(17), b(0.5), c(true), d(false);
-  out << a << ';' << b << ';' << c << ';' << d;
-  EXPECT_EQ("17;0.5;true;false", out.str());
+  const Literal a(17), b(0.5), c(true), d(false);
+  EXPECT_EQ("17;0.5;true;false", StrCat(a, ';', b, ';', c, ';', d));
 }
 
 TEST(VariableTest, Output) {
-  std::ostringstream out;
-  Variable a("foo"), b("bar"), c("baz");
-  out << a << ';' << b << ';' << c;
-  EXPECT_EQ("foo;bar;baz", out.str());
+  const Variable a("foo"), b("bar"), c("baz");
+  EXPECT_EQ("foo;bar;baz", StrCat(a, ';', b, ';', c));
 }
 
 TEST(ComputationTest, OutputAddition) {
-  std::ostringstream out;
   const Expression* expr1 =
       Computation::make(Computation::PLUS,
                         *Computation::make(Computation::PLUS,
@@ -73,16 +67,15 @@ TEST(ComputationTest, OutputAddition) {
                         *Computation::make(Computation::PLUS,
                                            *new Variable("c"),
                                            *new Variable("d")));
-  out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
+  EXPECT_EQ("a+b+c-d;a-b+c*d;a*b+c/d;a/b+c+d",
+            StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("a+b+c-d;a-b+c*d;a*b+c/d;a/b+c+d", out.str());
 }
 
 TEST(ComputationTest, OutputSubtraction) {
-  std::ostringstream out;
   const Expression* expr1 =
       Computation::make(Computation::MINUS,
                         *Computation::make(Computation::PLUS,
@@ -115,16 +108,15 @@ TEST(ComputationTest, OutputSubtraction) {
                         *Computation::make(Computation::PLUS,
                                            *new Variable("c"),
                                            *new Variable("d")));
-  out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
+  EXPECT_EQ("a+b-(c-d);a-b-c*d;a*b-c/d;a/b-(c+d)",
+            StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("a+b-(c-d);a-b-c*d;a*b-c/d;a/b-(c+d)", out.str());
 }
 
 TEST(ComputationTest, OutputMultiplication) {
-  std::ostringstream out;
   const Expression* expr1 =
       Computation::make(Computation::MULTIPLY,
                         *Computation::make(Computation::PLUS,
@@ -157,16 +149,15 @@ TEST(ComputationTest, OutputMultiplication) {
                         *Computation::make(Computation::PLUS,
                                            *new Variable("c"),
                                            *new Variable("d")));
-  out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
+  EXPECT_EQ("(a+b)*(c-d);(a-b)*c*d;a*b*c/d;a/b*(c+d)",
+            StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("(a+b)*(c-d);(a-b)*c*d;a*b*c/d;a/b*(c+d)", out.str());
 }
 
 TEST(ComputationTest, OutputDivision) {
-  std::ostringstream out;
   const Expression* expr1 =
       Computation::make(Computation::DIVIDE,
                         *Computation::make(Computation::PLUS,
@@ -199,12 +190,12 @@ TEST(ComputationTest, OutputDivision) {
                         *Computation::make(Computation::PLUS,
                                            *new Variable("c"),
                                            *new Variable("d")));
-  out << *expr1 << ';' << *expr2 << ';' << *expr3 << ';' << *expr4;
+  EXPECT_EQ("(a+b)/(c-d);(a-b)/(c*d);a*b/(c/d);a/b/(c+d)",
+            StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
   delete expr1;
   delete expr2;
   delete expr3;
   delete expr4;
-  EXPECT_EQ("(a+b)/(c-d);(a-b)/(c*d);a*b/(c/d);a/b/(c+d)", out.str());
 }
 
 }  // namespace

@@ -220,11 +220,9 @@ BDD command_bdd(
     const Command& command,
     std::set<std::string>* updated_variables) {
   BDD ddu = manager.GetConstant(true);
-  for (UpdateList::const_iterator ui = command.updates().begin();
-       ui != command.updates().end(); ++ui) {
-    const Update& update = **ui;
-    ddu = update_bdd(manager, variable_properties, update) && ddu;
-    updated_variables->insert(update.variable().name());
+  for (const Update* update : command.updates()) {
+    ddu = update_bdd(manager, variable_properties, *update) && ddu;
+    updated_variables->insert(update->variable().name());
   }
   return bdd(manager, variable_properties, command.guard()) && ddu;
 }
@@ -235,7 +233,7 @@ BDD command_bdd(
 BDD variable_updates(const DecisionDiagramManager& manager,
                      const BDD& dd_start,
                      const Model& model,
-                     const ModuleSet& touched_modules,
+                     const std::set<const Module*>& touched_modules,
                      const std::set<std::string>& updated_variables,
                      int command_index,
                      const std::map<int, PHData>& ph_commands) {
@@ -284,15 +282,13 @@ Model::Model()
 
 /* Deletes this model. */
 Model::~Model() {
-  for (CommandList::const_iterator ci = commands().begin();
-       ci != commands().end(); ci++) {
-    if ((*ci)->synch() != 0) {
-      delete *ci;
+  for (const Command* command : commands()) {
+    if (command->synch() != 0) {
+      delete command;
     }
   }
-  for (ModuleList::const_iterator mi = modules().begin();
-       mi != modules().end(); mi++) {
-    delete *mi;
+  for (const Module* module : modules()) {
+    delete module;
   }
 }
 
@@ -419,9 +415,8 @@ const StateFormula* StateFormulaCopier::release_formula() {
 
 void StateFormulaCopier::DoVisitConjunction(const Conjunction& formula) {
   Conjunction* conjunction = new Conjunction();
-  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
-       fi != formula.conjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* conjunct : formula.conjuncts()) {
+    conjunct->Accept(this);
     conjunction->add_conjunct(release_formula());
   }
   formula_ = conjunction;
@@ -429,9 +424,8 @@ void StateFormulaCopier::DoVisitConjunction(const Conjunction& formula) {
 
 void StateFormulaCopier::DoVisitDisjunction(const Disjunction& formula) {
   Disjunction* disjunction = new Disjunction();
-  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
-       fi != formula.disjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* disjunct : formula.disjuncts()) {
+    disjunct->Accept(this);
     disjunction->add_disjunct(release_formula());
   }
   formula_ = disjunction;
@@ -538,10 +532,9 @@ void Model::compile() {
   /*
    * Clear currently compiled commands.
    */
-  for (CommandList::const_iterator ci = commands().begin();
-       ci != commands().end(); ci++) {
-    if ((*ci)->synch() != 0) {
-      delete *ci;
+  for (const Command* command : commands()) {
+    if (command->synch() != 0) {
+      delete command;
     }
   }
   variable_properties_.clear();
@@ -561,20 +554,17 @@ void Model::compile() {
    */
   std::set<size_t> synchs;
   SynchronizationMap synch_commands;
-  for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-       mi != modules().rend(); mi++) {
-    for (CommandList::const_iterator ci = (*mi)->commands().begin();
-	 ci != (*mi)->commands().end(); ci++) {
-      const Command& command = **ci;
-      size_t synch = command.synch();
+  for (auto mi = modules().rbegin(); mi != modules().rend(); mi++) {
+    for (const Command* command : (*mi)->commands()) {
+      size_t synch = command->synch();
       if (synch != 0) {
 	/* Command is synchronized so store it for later processing. */
-	synch_commands.insert(std::make_pair(std::make_pair(*mi, synch), *ci));
+	synch_commands.insert({ { *mi, synch }, command });
 	synchs.insert(synch);
       } else { /* synch == 0 */
 	/* Command is not synchronized. */
-	commands_.push_back(*ci);
-	command_modules_.push_back(ModuleSet());
+	commands_.push_back(command);
+	command_modules_.push_back({});
 	command_modules_.back().insert(*mi);
       }
     }
@@ -584,15 +574,13 @@ void Model::compile() {
    */
   for (std::set<size_t>::const_iterator si = synchs.begin();
        si != synchs.end(); si++) {
-    for (ModuleList::const_reverse_iterator mi = modules().rbegin();
-	 mi != modules().rend(); mi++) {
+    for (auto mi = modules().rbegin(); mi != modules().rend(); mi++) {
       SynchronizationMapRange sri =
 	synch_commands.equal_range(std::make_pair(*mi, *si));
       for (SynchronizationMap::const_iterator smi = sri.first;
 	   smi != sri.second; smi++) {
 	const Command& ci = *(*smi).second;
-	for (ModuleList::const_reverse_iterator mj = mi + 1;
-	     mj != modules().rend(); mj++) {
+	for (auto mj = mi + 1; mj != modules().rend(); mj++) {
 	  SynchronizationMapRange srj =
 	    synch_commands.equal_range(std::make_pair(*mj, *si));
 	  for (SynchronizationMap::const_iterator smj = srj.first;
@@ -613,18 +601,14 @@ void Model::compile() {
 	      throw std::logic_error("at least one command in a"
 				     " synchronization pair must have rate 1");
 	    }
-	    for (UpdateList::const_iterator ui = ci.updates().begin();
-		 ui != ci.updates().end(); ui++) {
-	      const Update& u = **ui;
-	      c->add_update(new Update(u.variable(), u.expr()));
+	    for (const Update* update : ci.updates()) {
+	      c->add_update(new Update(update->variable(), update->expr()));
 	    }
-	    for (UpdateList::const_iterator uj = cj.updates().begin();
-		 uj != cj.updates().end(); uj++) {
-	      const Update& u = **uj;
-	      c->add_update(new Update(u.variable(), u.expr()));
+	    for (const Update* update : cj.updates()) {
+	      c->add_update(new Update(update->variable(), update->expr()));
 	    }
 	    commands_.push_back(c);
-	    command_modules_.push_back(ModuleSet());
+	    command_modules_.push_back({});
 	    command_modules_.back().insert(*mi);
 	    command_modules_.back().insert(*mj);
 	  }
@@ -755,8 +739,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	ADD ddvp = variable_primed_mtbdd(
             dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
-	ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
-			       std::set<std::string>(), i, ph_commands);
+	ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	ADD ddr = dd_man.GetConstant(ph_data->params2.p*ph_data->params2.r1);
 	ADD ddq = ADD(ddu) * ddr;
 	if (verbosity > 1) {
@@ -799,8 +782,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	   */
 	  dds = ddv.Interval(1, ph_data->params2.n - 2);
 	  ddu = dds && ddvp == ddv + dd_man.GetConstant(1) && ddg;
-	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
-				 std::set<std::string>(), i, ph_commands);
+	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	  ddr = dd_man.GetConstant(ph_data->params2.r1);
 	  ddq = ADD(ddu) * ddr;
 	  if (verbosity > 1) {
@@ -836,8 +818,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
               dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	  ADD ddp = ddv + dd_man.GetConstant(1);
 	  BDD ddu = dds && ddvp == ddp && ddg;
-	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
-				 std::set<std::string>(), i, ph_commands);
+	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	  ADD ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.re);
 	  if (verbosity > 1) {
 	    Cudd_PrintDebug(dd_man.manager(),
@@ -859,8 +840,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
               dd_man, 0, ph_data->low_bit, ph_data->high_bit);
 	  BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
 	  ddu = dds && ddu && ddg;
-	  ddu = variable_updates(dd_man, ddu, *this, ModuleSet(),
-				 std::set<std::string>(), i, ph_commands);
+	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	  ADD ddr = dd_man.GetConstant(ph_data->params.pc*ph_data->params.rc1);
 	  ADD ddq = ADD(ddu) * ddr;
 	  if (verbosity > 1) {
@@ -1163,7 +1143,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
 	os << ';';
       }
     }
-    CommandList::const_iterator ci = module.commands().begin();
+    auto ci = module.commands().begin();
     if (ci != module.commands().end()) {
       os << std::endl;
       for (; ci != module.commands().end(); ci++) {

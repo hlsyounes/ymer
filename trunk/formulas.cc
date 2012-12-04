@@ -64,9 +64,8 @@ StateFormulaCompiler::StateFormulaCompiler(
 
 void StateFormulaCompiler::DoVisitConjunction(const Conjunction& formula) {
   BDD result = manager_->GetConstant(true);
-  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
-       fi != formula.conjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* conjunct : formula.conjuncts()) {
+    conjunct->Accept(this);
     result = bdd_ && result;
   }
   bdd_ = result;
@@ -74,9 +73,8 @@ void StateFormulaCompiler::DoVisitConjunction(const Conjunction& formula) {
 
 void StateFormulaCompiler::DoVisitDisjunction(const Disjunction& formula) {
   BDD result = manager_->GetConstant(false);
-  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
-       fi != formula.disjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* disjunct : formula.disjuncts()) {
+    disjunct->Accept(this);
     result = bdd_ || result;
   }
   bdd_ = result;
@@ -173,9 +171,8 @@ std::ostream& operator<<(std::ostream& os, const PathFormula& f) {
 
 /* Deletes this conjunction. */
 Conjunction::~Conjunction() {
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    delete *fi;
+  for (const StateFormula* conjunct : conjuncts()) {
+    delete conjunct;
   }
 }
 
@@ -186,7 +183,7 @@ void Conjunction::DoAccept(StateFormulaVisitor* visitor) const {
 /* Adds a conjunct to this conjunction. */
 void Conjunction::add_conjunct(const StateFormula* conjunct) {
   if (conjunct->probabilistic()) {
-    conjuncts_.push_front(conjunct);
+    conjuncts_.insert(conjuncts_.begin(), conjunct);
   } else {
     conjuncts_.push_back(conjunct);
   }
@@ -201,9 +198,8 @@ bool Conjunction::probabilistic() const {
 
 /* Tests if this state formula holds in the given state. */
 bool Conjunction::holds(const std::vector<int>& state) const {
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    if (!(*fi)->holds(state)) {
+  for (const StateFormula* conjunct : conjuncts()) {
+    if (!conjunct->holds(state)) {
       return false;
     }
   }
@@ -218,7 +214,7 @@ void Conjunction::print(std::ostream& os) const {
   } else if (conjuncts().size() == 1) {
     os << *conjuncts().front();
   } else {
-    FormulaList::const_iterator fi = conjuncts().begin();
+    auto fi = conjuncts().begin();
     bool par = (typeid(**fi) == typeid(Disjunction)
 		|| typeid(**fi) == typeid(Implication));
     if (par) {
@@ -249,9 +245,8 @@ void Conjunction::print(std::ostream& os) const {
 
 /* Deletes this disjunction. */
 Disjunction::~Disjunction() {
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    delete *fi;
+  for (const StateFormula* disjunct : disjuncts()) {
+    delete disjunct;
   }
 }
 
@@ -262,7 +257,7 @@ void Disjunction::DoAccept(StateFormulaVisitor* visitor) const {
 /* Adds a disjunct to this disjunction. */
 void Disjunction::add_disjunct(const StateFormula* disjunct) {
   if (disjunct->probabilistic()) {
-    disjuncts_.push_front(disjunct);
+    disjuncts_.insert(disjuncts_.begin(), disjunct);
   } else {
     disjuncts_.push_back(disjunct);
   }
@@ -277,9 +272,8 @@ bool Disjunction::probabilistic() const {
 
 /* Tests if this state formula holds in the given state. */
 bool Disjunction::holds(const std::vector<int>& state) const {
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    if ((*fi)->holds(state)) {
+  for (const StateFormula* disjunct : disjuncts()) {
+    if (disjunct->holds(state)) {
       return true;
     }
   }
@@ -294,7 +288,7 @@ void Disjunction::print(std::ostream& os) const {
   } else if (disjuncts().size() == 1) {
     os << *disjuncts().front();
   } else {
-    FormulaList::const_iterator fi = disjuncts().begin();
+    auto fi = disjuncts().begin();
     bool par = (typeid(**fi) == typeid(Conjunction)
 		|| typeid(**fi) == typeid(Implication));
     if (par) {

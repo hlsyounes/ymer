@@ -92,6 +92,10 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 # Ymer libraries.
 #
 
+# String utility library.
+noinst_LTLIBRARIES += src/libstrutil.la
+src_libstrutil_la_SOURCES = src/strutil.h
+
 # Decision diagram utility library.
 noinst_LTLIBRARIES += src/libddutil.la
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
@@ -137,8 +141,9 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
 
 bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la src/libddutil.la src/librng.la \
-    src/libtyped-value.la src/libexpression.la src/libcompiled-model.la
+ymer_LDADD = cudd/cudd/libcudd.la src/libstrutil.la src/libddutil.la \
+    src/librng.la src/libtyped-value.la src/libexpression.la \
+    src/libcompiled-model.la
 
 #
 # Ymer tests.
@@ -153,6 +158,11 @@ src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
 
 check_PROGRAMS =
 
+# Test for string utility library.
+check_PROGRAMS += src/strutil_test
+src_strutil_test_SOURCES = src/strutil_test.cc
+src_strutil_test_LDADD = src/libstrutil.la src/libtest-main.la
+
 # Test for decision diagram utility library.
 check_PROGRAMS += src/ddutil_test
 src_ddutil_test_SOURCES = src/ddutil_test.cc
@@ -166,12 +176,14 @@ src_rng_test_LDADD = src/librng.la src/libtest-main.la
 # Test for typed-value library.
 check_PROGRAMS += src/typed-value_test
 src_typed_value_test_SOURCES = src/typed-value_test.cc
-src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
+src_typed_value_test_LDADD = src/libtyped-value.la src/libstrutil.la \
+    src/libtest-main.la
 
 # Test for expression library.
 check_PROGRAMS += src/expression_test
 src_expression_test_SOURCES = src/expression_test.cc
-src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+src_expression_test_LDADD = src/libexpression.la src/libstrutil.la \
+    src/libtest-main.la
 
 # Test for compiled expression library.
 check_PROGRAMS += src/compiled-expression_test

@@ -56,9 +56,8 @@ Command::Command(size_t synch, const StateFormula* guard,
 Command::~Command() {
   delete guard_;
   delete delay_;
-  for (UpdateList::const_iterator ui = updates().begin();
-       ui != updates().end(); ui++) {
-    delete *ui;
+  for (const Update* update : updates()) {
+    delete update;
   }
 }
 
@@ -76,7 +75,7 @@ std::ostream& operator<<(std::ostream& os, const Command& c) {
     os << 's' << c.synch();
   }
   os << "] " << c.guard() << " -> " << c.delay() << " : ";
-  UpdateList::const_iterator ui = c.updates().begin();
+  auto ui = c.updates().begin();
   if (ui != c.updates().end()) {
     const Update* u = *ui;
     os << u->variable() << "\'=" << u->expr();
@@ -103,9 +102,8 @@ Module::~Module() {
        vi != variables_.end(); vi++) {
     Expression::destructive_deref(*vi);
   }
-  for (CommandList::const_iterator ci = commands().begin();
-       ci != commands().end(); ci++) {
-    delete *ci;
+  for (const Command* command : commands()) {
+    delete command;
   }
 }
 
@@ -250,9 +248,8 @@ const Command* SubstituteConstants(
       command.synch(),
       SubstituteConstants(command.guard(), constant_values),
       SubstituteConstants(command.delay(), rate_values));
-  for (UpdateList::const_iterator ui = command.updates().begin();
-       ui != command.updates().end(); ui++) {
-    subst_comm->add_update(SubstituteConstants(**ui, constant_values));
+  for (const Update* update: command.updates()) {
+    subst_comm->add_update(SubstituteConstants(*update, constant_values));
   }
   return subst_comm;
 }
@@ -309,9 +306,8 @@ const StateFormula* StateFormulaConstantSubstituter::release_formula() {
 void StateFormulaConstantSubstituter::DoVisitConjunction(
     const Conjunction& formula) {
   Conjunction* subst_conj = new Conjunction();
-  for (FormulaList::const_iterator fi = formula.conjuncts().begin();
-       fi != formula.conjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* conjunct : formula.conjuncts()) {
+    conjunct->Accept(this);
     subst_conj->add_conjunct(release_formula());
   }
   formula_ = subst_conj;
@@ -320,9 +316,8 @@ void StateFormulaConstantSubstituter::DoVisitConjunction(
 void StateFormulaConstantSubstituter::DoVisitDisjunction(
     const Disjunction& formula) {
   Disjunction* subst_disj = new Disjunction();
-  for (FormulaList::const_iterator fi = formula.disjuncts().begin();
-       fi != formula.disjuncts().end(); ++fi) {
-    (*fi)->Accept(this);
+  for (const StateFormula* disjunct : formula.disjuncts()) {
+    disjunct->Accept(this);
     subst_disj->add_disjunct(release_formula());
   }
   formula_ = subst_disj;

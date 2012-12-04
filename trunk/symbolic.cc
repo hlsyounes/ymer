@@ -42,9 +42,8 @@ DdNode* Conjunction::verify(const DecisionDiagramManager& dd_man,
                             const Model& model,
 			    double epsilon, bool estimate) const {
   DdNode* sol = model.reachability_bdd(dd_man);
-  for (FormulaList::const_iterator fi = conjuncts().begin();
-       fi != conjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
+  for (const StateFormula* conjunct : conjuncts()) {
+    DdNode* ddf = conjunct->verify(dd_man, model, epsilon, estimate);
     DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddf, sol);
     Cudd_Ref(dda);
     Cudd_RecursiveDeref(dd_man.manager(), ddf);
@@ -64,9 +63,8 @@ DdNode* Disjunction::verify(const DecisionDiagramManager& dd_man,
 			    double epsilon, bool estimate) const {
   DdNode* sol = Cudd_ReadLogicZero(dd_man.manager());
   Cudd_Ref(sol);
-  for (FormulaList::const_iterator fi = disjuncts().begin();
-       fi != disjuncts().end(); fi++) {
-    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
+  for (const StateFormula* disjunct : disjuncts()) {
+    DdNode* ddf = disjunct->verify(dd_man, model, epsilon, estimate);
     DdNode* ddo = Cudd_bddOr(dd_man.manager(), ddf, sol);
     Cudd_Ref(ddo);
     Cudd_RecursiveDeref(dd_man.manager(), ddf);
