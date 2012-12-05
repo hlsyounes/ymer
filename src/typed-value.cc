@@ -24,6 +24,18 @@
 
 #include "glog/logging.h"
 
+std::ostream& operator<<(std::ostream& os, Type type) {
+  switch (type) {
+    case Type::INT:
+      return os << "int";
+    case Type::DOUBLE:
+      return os << "double";
+    case Type::BOOL:
+      return os << "bool";
+  }
+  LOG(FATAL) << "bad type";
+}
+
 bool operator==(const TypedValue& v1, const TypedValue& v2) {
   return v1.value<double>() == v2.value<double>();
 }
