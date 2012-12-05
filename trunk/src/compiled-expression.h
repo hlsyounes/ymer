@@ -33,7 +33,7 @@ enum class Opcode {
   INEG, DNEG, NOT,
   IADD, DADD, ISUB, DSUB, IMUL, DMUL, DDIV,
   IEQ, DEQ, INE, DNE, ILT, DLT, ILE, DLE, IGE, DGE, IGT, DGT,
-  IFFALSE, IFTRUE, GOTO,
+  IFFALSE, IFTRUE, GOTO, NOP,
   IMIN, DMIN, IMAX, DMAX, FLOOR, CEIL, POW, LOG, MOD
 };
 
@@ -110,6 +110,8 @@ class Operation {
   static Operation MakeIFTRUE(int src, int pc);
   // Unconditionally set program counter to pc.
   static Operation MakeGOTO(int pc);
+  // Does nothing.
+  static Operation MakeNOP();
   // Put min of integer registers src1_dst and src2 in integer register
   // src1_dst.
   static Operation MakeIMIN(int src1_dst, int src2);
@@ -145,6 +147,8 @@ class Operation {
   int operand2() const { return operand2_; }
 
  private:
+  // Constructs an operation with no operands.
+  explicit Operation(Opcode opcode);
   // Constructs an operation with a single integer operand.
   Operation(Opcode opcode, int operand1);
   // Constructs an operation with two integer operands.

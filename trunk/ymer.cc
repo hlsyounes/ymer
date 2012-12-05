@@ -29,6 +29,7 @@
 #include "src/ddutil.h"
 #include "src/rng.h"
 #include "src/strutil.h"
+#include "src/typed-value.h"
 #include "glog/logging.h"
 #include <cudd.h>
 #include <sys/time.h>
@@ -51,7 +52,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
-
+#include <utility>
 
 /* The parse function. */
 extern int yyparse();
@@ -315,19 +316,291 @@ double indifference_region(double theta) {
   }
 }
 
-CompiledExpression CompileExpression(const Expression& expr) {
-  // TODO(hlsyounes): Implement.
-  return CompiledExpression({});
+class ExpressionCompiler
+    : public ExpressionVisitor, public StateFormulaVisitor {
+ public:
+  ExpressionCompiler(const std::map<std::string, int>* variables_by_name,
+                     std::vector<std::string>* errors);
+
+  std::vector<Operation> release_operations() { return std::move(operations_); }
+
+  Type type() const { return type_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  std::vector<Operation> operations_;
+  int dst_;
+  Type type_;
+  const std::map<std::string, int>* variables_by_name_;
+  std::vector<std::string>* errors_;
+};
+
+ExpressionCompiler::ExpressionCompiler(
+    const std::map<std::string, int>* variables_by_name,
+    std::vector<std::string>* errors)
+    : dst_(0), variables_by_name_(variables_by_name), errors_(errors) {
+  CHECK(variables_by_name);
+  CHECK(errors);
 }
 
-CompiledExpression CompileExpression(const StateFormula& expr) {
-  // TODO(hlsyounes): Implement.
-  return CompiledExpression({});
+void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
+  const TypedValue& value = expr.value();
+  if (value.type() == Type::DOUBLE) {
+    operations_.push_back(Operation::MakeDCONST(value.value<double>(), dst_));
+  } else {
+    operations_.push_back(Operation::MakeICONST(value.value<int>(), dst_));
+  }
+  type_ = value.type();
+}
+
+void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
+  auto i = variables_by_name_->find(expr.name());
+  int variable;
+  if (i == variables_by_name_->end()) {
+    errors_->push_back(StrCat(
+        "undefined variable '", expr.name(), "' in expression"));
+    variable = -1;
+  } else {
+    variable = i->second;
+  }
+  operations_.push_back(Operation::MakeILOAD(variable, dst_));
+  type_ = Type::INT;
+}
+
+void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  Type type1 = type_;
+  ++dst_;
+  expr.operand2().Accept(this);
+  Type type2 = type_;
+  --dst_;
+  if (type1 == Type::BOOL || type2 == Type::BOOL) {
+    errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
+                              " applied to ", Type::BOOL));
+  }
+  if (type1 != Type::DOUBLE &&
+      (type2 == Type::DOUBLE || expr.op() == Computation::DIVIDE)) {
+    operations_.push_back(Operation::MakeI2D(dst_));
+    type1 = Type::DOUBLE;
+  }
+  if (type2 != Type::DOUBLE && type1 == Type::DOUBLE) {
+    operations_.push_back(Operation::MakeI2D(dst_ + 1));
+    type2 = Type::DOUBLE;
+  }
+  switch (expr.op()) {
+    case Computation::PLUS:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDADD(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeIADD(dst_, dst_ + 1));
+      }
+      break;
+    case Computation::MINUS:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDSUB(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeISUB(dst_, dst_ + 1));
+      }
+      break;
+    case Computation::MULTIPLY:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDMUL(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeIMUL(dst_, dst_ + 1));
+      }
+      break;
+    case Computation::DIVIDE:
+      operations_.push_back(Operation::MakeDDIV(dst_, dst_ + 1));
+      break;
+  }
+  type_ = type1;
+}
+
+void ExpressionCompiler::DoVisitConjunction(const Conjunction& formula) {
+  size_t n = formula.conjuncts().size();
+  for (size_t i = 0; i < n; ++i) {
+    const StateFormula& conjunct = *formula.conjuncts()[i];
+    size_t iffalse_pos = operations_.size();
+    if (i > 0) {
+      operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
+    }
+    conjunct.Accept(this);
+    if (type_ != Type::BOOL) {
+      errors_->push_back(StrCat("type mismatch; binary operator & applied to ",
+                                type_));
+    }
+    if (i > 0) {
+      operations_[iffalse_pos] =
+          Operation::MakeIFFALSE(dst_, operations_.size());
+    }
+  }
+  type_ = Type::BOOL;
+}
+
+void ExpressionCompiler::DoVisitDisjunction(const Disjunction& formula) {
+  size_t n = formula.disjuncts().size();
+  for (size_t i = 0; i < n; ++i) {
+    const StateFormula& disjunct = *formula.disjuncts()[i];
+    size_t iftrue_pos = operations_.size();
+    if (i > 0) {
+      operations_.push_back(Operation::MakeNOP());  // placeholder for IFTRUE
+    }
+    disjunct.Accept(this);
+    if (type_ != Type::BOOL) {
+      errors_->push_back(StrCat("type mismatch; binary operator | applied to ",
+                                type_));
+    }
+    if (i > 0) {
+      operations_[iftrue_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
+    }
+  }
+  type_ = Type::BOOL;
+}
+
+void ExpressionCompiler::DoVisitNegation(const Negation& formula) {
+  formula.negand().Accept(this);
+  if (type_ != Type::BOOL) {
+    errors_->push_back(StrCat("type mismatch; unary operator ! applied to ",
+                              type_));
+  }
+  operations_.push_back(Operation::MakeNOT(dst_));
+  type_ = Type::BOOL;
+}
+
+void ExpressionCompiler::DoVisitImplication(const Implication& formula) {
+  formula.antecedent().Accept(this);
+  if (type_ != Type::BOOL) {
+    errors_->push_back(StrCat("type mismatch; binary operator => applied to ",
+                              type_));
+  }
+  operations_.push_back(Operation::MakeNOT(dst_));
+  size_t iftrue_pos = operations_.size();
+  operations_.push_back(Operation::MakeNOP());  // placeholder for IFTRUE
+  formula.consequent().Accept(this);
+  if (type_ != Type::BOOL) {
+    errors_->push_back(StrCat("type mismatch; binary operator => applied to ",
+                              type_));
+  }
+  operations_[iftrue_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
+  type_ = Type::BOOL;
+}
+
+void ExpressionCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
+  LOG(FATAL) << "not an expression";
+}
+
+void ExpressionCompiler::DoVisitComparison(const Comparison& formula) {
+  formula.expr1().Accept(this);
+  Type type1 = type_;
+  ++dst_;
+  formula.expr2().Accept(this);
+  Type type2 = type_;
+  if (!(type1 == type2 ||
+        (type1 == Type::INT && type2 == Type::DOUBLE) ||
+        (type2 == Type::INT && type2 == Type::DOUBLE))) {
+    errors_->push_back(StrCat("incompatible types for binary operator ",
+                              formula.op(), "; ", type1, " and ", type2));
+  }
+  if (type1 != Type::DOUBLE && type2 == Type::DOUBLE) {
+    operations_.push_back(Operation::MakeI2D(dst_));
+    type1 = Type::DOUBLE;
+  }
+  if (type2 != Type::DOUBLE && type1 == Type::DOUBLE) {
+    operations_.push_back(Operation::MakeI2D(dst_ + 1));
+    type2 = Type::DOUBLE;
+  }
+  switch (formula.op()) {
+    case Comparison::LESS:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDLT(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeILT(dst_, dst_ + 1));
+      }
+      break;
+    case Comparison::LESS_EQUAL:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDLE(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeILE(dst_, dst_ + 1));
+      }
+      break;
+    case Comparison::GREATER_EQUAL:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDGE(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeIGE(dst_, dst_ + 1));
+      }
+      break;
+    case Comparison::GREATER:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDGT(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeIGT(dst_, dst_ + 1));
+      }
+      break;
+    case Comparison::EQUAL:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDEQ(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeIEQ(dst_, dst_ + 1));
+      }
+      break;
+    case Comparison::NOT_EQUAL:
+      if (type1 == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDNE(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeINE(dst_, dst_ + 1));
+      }
+      break;
+  }
+  type_ = Type::BOOL;
+}
+
+CompiledExpression CompileExpression(
+    const Expression& expr, Type expected_type,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  ExpressionCompiler compiler(&variables_by_name, errors);
+  expr.Accept(&compiler);
+  std::vector<Operation> operations = compiler.release_operations();
+  Type type = compiler.type();
+  if (type == Type::INT && expected_type == Type::DOUBLE) {
+    operations.push_back(Operation::MakeI2D(0));
+    type = Type::DOUBLE;
+  }
+  if (type != expected_type) {
+    errors->push_back(StrCat("type mismatch; expecting expression of type ",
+                             expected_type, "; found ", type));
+  }
+  return CompiledExpression(operations);
+}
+
+CompiledExpression CompileExpression(
+    const StateFormula& expr,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  ExpressionCompiler compiler(&variables_by_name, errors);
+  expr.Accept(&compiler);
+  if (compiler.type() != Type::BOOL) {
+    errors->push_back(StrCat("type mismatch; expecting expression of type ",
+                             Type::BOOL, "; found ", compiler.type()));
+  }
+  return CompiledExpression(compiler.release_operations());
 }
 
 class DistributionCompiler : public DistributionVisitor {
  public:
-  DistributionCompiler();
+  DistributionCompiler(const std::map<std::string, int>* variables_by_name,
+                       std::vector<std::string>* errors);
 
   CompiledDistribution release_dist() { return std::move(dist_); }
 
@@ -338,33 +611,53 @@ class DistributionCompiler : public DistributionVisitor {
   virtual void DoVisitUniform(const Uniform& dist);
 
   CompiledDistribution dist_;
+  const std::map<std::string, int>* variables_by_name_;
+  std::vector<std::string>* errors_;
 };
 
-DistributionCompiler::DistributionCompiler()
-    : dist_(CompiledDistribution::MakeMemoryless(CompiledExpression({}))) {
+DistributionCompiler::DistributionCompiler(
+    const std::map<std::string, int>* variables_by_name,
+    std::vector<std::string>* errors)
+    : dist_(CompiledDistribution::MakeMemoryless(CompiledExpression({}))),
+      variables_by_name_(variables_by_name), errors_(errors) {
+  CHECK(variables_by_name);
+  CHECK(errors);
 }
 
 void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
-  dist_ = CompiledDistribution::MakeMemoryless(CompileExpression(dist.rate()));
+  dist_ = CompiledDistribution::MakeMemoryless(
+      CompileExpression(
+          dist.rate(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
-  dist_ = CompiledDistribution::MakeWeibull(CompileExpression(dist.scale()),
-                                            CompileExpression(dist.shape()));
+  dist_ = CompiledDistribution::MakeWeibull(
+      CompileExpression(
+          dist.scale(), Type::DOUBLE, *variables_by_name_, errors_),
+      CompileExpression(
+          dist.shape(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
-  dist_ = CompiledDistribution::MakeLognormal(CompileExpression(dist.scale()),
-                                              CompileExpression(dist.shape()));
+  dist_ = CompiledDistribution::MakeLognormal(
+      CompileExpression(
+          dist.scale(), Type::DOUBLE, *variables_by_name_, errors_),
+      CompileExpression(
+          dist.shape(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
-  dist_ = CompiledDistribution::MakeUniform(CompileExpression(dist.low()),
-                                            CompileExpression(dist.high()));
+  dist_ = CompiledDistribution::MakeUniform(
+      CompileExpression(dist.low(), Type::DOUBLE, *variables_by_name_, errors_),
+      CompileExpression(
+          dist.high(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
-CompiledDistribution CompileDistribution(const Distribution& dist) {
-  DistributionCompiler compiler;
+CompiledDistribution CompileDistribution(
+    const Distribution& dist,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  DistributionCompiler compiler(&variables_by_name, errors);
   dist.Accept(&compiler);
   return compiler.release_dist();
 }
@@ -382,7 +675,9 @@ CompiledUpdate CompileUpdate(
   } else {
     variable = i->second;
   }
-  return CompiledUpdate(variable, CompileExpression(update.expr()));
+  return CompiledUpdate(
+      variable,
+      CompileExpression(update.expr(), Type::INT, variables_by_name, errors));
 }
 
 std::vector<CompiledUpdate> CompileUpdates(
@@ -402,7 +697,7 @@ CompiledOutcome CompileOutcome(
     const std::vector<const Update*>& updates,
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
-  return CompiledOutcome(CompileDistribution(delay),
+  return CompiledOutcome(CompileDistribution(delay, variables_by_name, errors),
                          CompileUpdates(updates, variables_by_name, errors));
 }
 
@@ -411,7 +706,7 @@ CompiledCommand CompileCommand(
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
   return CompiledCommand(
-      CompileExpression(command.guard()),
+      CompileExpression(command.guard(), variables_by_name, errors),
       { CompileOutcome(command.delay(), command.updates(),
                        variables_by_name, errors) });
 }

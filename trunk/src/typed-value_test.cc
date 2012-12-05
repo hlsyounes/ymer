@@ -25,6 +25,11 @@
 
 namespace {
 
+TEST(TypeTest, Output) {
+  EXPECT_EQ("int;double;bool",
+            StrCat(Type::INT, ';', Type::DOUBLE, ';', Type::BOOL));
+}
+
 TEST(TypedValueTest, Type) {
   EXPECT_EQ(Type::INT, TypedValue(17).type());
   EXPECT_EQ(Type::INT, TypedValue(-4711).type());

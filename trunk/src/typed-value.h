@@ -29,6 +29,9 @@
 // Supported value types.
 enum class Type { INT, DOUBLE, BOOL };
 
+// Output operator for types.
+std::ostream& operator<<(std::ostream& os, Type type);
+
 // A typed value.
 class TypedValue {
  public:

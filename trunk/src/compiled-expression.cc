@@ -139,6 +139,10 @@ Operation Operation::MakeGOTO(int pc) {
   return Operation(Opcode::GOTO, pc);
 }
 
+Operation Operation::MakeNOP() {
+  return Operation(Opcode::NOP);
+}
+
 Operation Operation::MakeIMIN(int src1_dst, int src2) {
   return Operation(Opcode::IMIN, src1_dst, src2);
 }
@@ -188,6 +192,10 @@ Operation::Operation(Opcode opcode, double operand1, int operand2)
 Operation::Operation(Opcode opcode, int operand)
     : opcode_(opcode) {
   operand1_.i = operand;
+}
+
+Operation::Operation(Opcode opcode)
+    : opcode_(opcode) {
 }
 
 CompiledExpression::CompiledExpression(
@@ -303,6 +311,9 @@ void CompiledExpressionEvaluator::ExecuteOperations(
         break;
       case Opcode::GOTO:
         pc = o.ioperand1() - 1;
+        break;
+      case Opcode::NOP:
+        // Do nothing.
         break;
       case Opcode::IMIN:
         iregs_[o.ioperand1()] =
