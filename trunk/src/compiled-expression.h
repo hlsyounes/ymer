@@ -24,6 +24,7 @@
 #ifndef COMPILED_EXPRESSION_H_
 #define COMPILED_EXPRESSION_H_
 
+#include <utility>
 #include <vector>
 
 // Opcodes supported by the virtual machine used for evaluating compiled
@@ -173,6 +174,10 @@ class CompiledExpression {
  private:
   std::vector<Operation> operations_;
 };
+
+// Returns the number of integer and double registers referenced by the given
+// compiled expression.
+std::pair<int, int> GetNumRegisters(const CompiledExpression& expr);
 
 // A virtual machine for evaluating for compiled expressions.
 class CompiledExpressionEvaluator {

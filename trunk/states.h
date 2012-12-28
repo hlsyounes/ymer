@@ -30,7 +30,6 @@
 #include "src/expression.h"
 #include "src/rng.h"
 
-struct Command;
 struct Model;
 
 
@@ -42,8 +41,8 @@ struct Model;
  */
 struct State {
   /* Constructs an initial state for the given model. */
-  State(const Model* model, const CompiledModel& compiled_model,
-        DCEngine* engine);
+  State(const Model* model, const CompiledModel* compiled_model,
+        CompiledExpressionEvaluator* evaluator, DCEngine* engine);
 
   /* Deletes this state. */
   virtual ~State() {}
@@ -68,19 +67,29 @@ struct State {
 
 protected:
   /* Constructs a state. */
-  State(const Model* model, const std::vector<int>& values, DCEngine* engine)
-      : model_(model), values_(values), engine_(engine) {}
+  State(const Model* model, const CompiledModel* compiled_model,
+        const std::vector<int>& values, CompiledExpressionEvaluator* evaluator,
+        DCEngine* engine)
+      : model_(model), compiled_model_(compiled_model), values_(values),
+        evaluator_(evaluator), engine_(engine) {
+  }
+
+  const CompiledModel* compiled_model() const { return compiled_model_; }
 
   /* Returns the variable values for this state. */
   std::vector<int>& values() { return values_; }
+
+  CompiledExpressionEvaluator* evaluator() const { return evaluator_; }
 
   DCEngine* engine() const { return engine_; }
 
 private:
   /* The model associated with this state. */
   const Model* model_;
+  const CompiledModel* compiled_model_;
   /* Variables values for this state. */
   std::vector<int> values_;
+  CompiledExpressionEvaluator* evaluator_;
   DCEngine* engine_;
 };
 

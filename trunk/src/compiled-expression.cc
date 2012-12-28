@@ -203,6 +203,74 @@ CompiledExpression::CompiledExpression(
     : operations_(operations) {
 }
 
+std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
+  int max_ireg = -1;
+  int max_dreg = -1;
+  for (const Operation& o : expr.operations()) {
+    switch (o.opcode()) {
+      case Opcode::ICONST:
+      case Opcode::ILOAD:
+        max_ireg = std::max(max_ireg, o.operand2());
+        break;
+      case Opcode::DCONST:
+        max_dreg = std::max(max_dreg, o.operand2());
+        break;
+      case Opcode::I2D:
+      case Opcode::FLOOR:
+      case Opcode::CEIL:
+        max_ireg = std::max(max_ireg, o.ioperand1());
+        max_dreg = std::max(max_dreg, o.ioperand1());
+        break;
+      case Opcode::INEG:
+      case Opcode::NOT:
+      case Opcode::IFFALSE:
+      case Opcode::IFTRUE:
+        max_ireg = std::max(max_ireg, o.ioperand1());
+        break;
+      case Opcode::DNEG:
+        max_dreg = std::max(max_dreg, o.ioperand1());
+        break;
+      case Opcode::IADD:
+      case Opcode::ISUB:
+      case Opcode::IMUL:
+      case Opcode::IEQ:
+      case Opcode::INE:
+      case Opcode::ILT:
+      case Opcode::ILE:
+      case Opcode::IGE:
+      case Opcode::IGT:
+      case Opcode::IMIN:
+      case Opcode::IMAX:
+      case Opcode::MOD:
+        max_ireg = std::max({ max_ireg, o.ioperand1(), o.operand2() });
+        break;
+      case Opcode::DADD:
+      case Opcode::DSUB:
+      case Opcode::DMUL:
+      case Opcode::DDIV:
+      case Opcode::DMIN:
+      case Opcode::DMAX:
+      case Opcode::POW:
+      case Opcode::LOG:
+        max_dreg = std::max({ max_dreg, o.ioperand1(), o.operand2() });
+        break;
+      case Opcode::DEQ:
+      case Opcode::DNE:
+      case Opcode::DLT:
+      case Opcode::DLE:
+      case Opcode::DGE:
+      case Opcode::DGT:
+        max_ireg = std::max(max_ireg, o.ioperand1());
+        max_dreg = std::max({ max_dreg, o.ioperand1(), o.operand2() });
+        break;
+      case Opcode::GOTO:
+      case Opcode::NOP:
+        break;
+    }
+  }
+  return { max_ireg + 1, max_dreg + 1 };
+}
+
 CompiledExpressionEvaluator::CompiledExpressionEvaluator(
     int num_iregs, int num_dregs)
     : iregs_(num_iregs), dregs_(num_dregs) {

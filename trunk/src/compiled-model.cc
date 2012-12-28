@@ -61,6 +61,57 @@ void CompiledModel::AddCommand(const CompiledCommand& command) {
   commands_.push_back(command);
 }
 
+namespace {
+
+std::pair<int, int> GetNumDistributionRegisters(
+    const CompiledDistribution& dist) {
+  int num_iregs = 0;
+  int num_dregs = 0;
+  for (const CompiledExpression& expr : dist.parameters()) {
+    std::pair<int, int> num_regs_expr = GetNumRegisters(expr);
+    num_iregs = std::max(num_iregs, num_regs_expr.first);
+    num_dregs = std::max(num_dregs, num_regs_expr.second);
+  }
+  return { num_iregs, num_dregs };
+}
+
+std::pair<int, int> GetNumUpdateRegisters(const CompiledUpdate& update) {
+  return GetNumRegisters(update.expr());
+}
+
+std::pair<int, int> GetNumOutcomeRegisters(const CompiledOutcome& outcome) {
+  std::pair<int, int> num_regs = GetNumDistributionRegisters(outcome.delay());
+  for (const CompiledUpdate& update : outcome.updates()) {
+    std::pair<int, int> num_regs_update = GetNumUpdateRegisters(update);
+    num_regs.first = std::max(num_regs.first, num_regs_update.first);
+    num_regs.second = std::max(num_regs.second, num_regs_update.second);
+  }
+  return num_regs;
+}
+
+std::pair<int, int> GetNumCommandRegisters(const CompiledCommand& command) {
+  std::pair<int, int> num_regs = GetNumRegisters(command.guard());
+  for (const CompiledOutcome& outcome : command.outcomes()) {
+    std::pair<int, int> num_regs_outcome = GetNumOutcomeRegisters(outcome);
+    num_regs.first = std::max(num_regs.first, num_regs_outcome.first);
+    num_regs.second = std::max(num_regs.second, num_regs_outcome.second);
+  }
+  return num_regs;
+}
+
+}  // namespace
+
+std::pair<int, int> CompiledModel::GetNumRegisters() const {
+  int num_iregs = 0;
+  int num_dregs = 0;
+  for (const CompiledCommand& command : commands_) {
+    std::pair<int, int> num_regs = GetNumCommandRegisters(command);
+    num_iregs = std::max(num_iregs, num_regs.first);
+    num_dregs = std::max(num_dregs, num_regs.second);
+  }
+  return { num_iregs, num_dregs };
+}
+
 int CompiledModel::NumBits() const {
   int num_bits = 0;
   for (std::vector<CompiledVariable>::const_iterator i = variables_.begin();

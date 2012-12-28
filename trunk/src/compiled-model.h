@@ -23,6 +23,7 @@
 #define COMPILED_MODEL_H_
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "compiled-distribution.h"
@@ -124,6 +125,10 @@ class CompiledModel {
 
   // Returns the commands for this compiled model.
   const std::vector<CompiledCommand>& commands() const { return commands_; }
+
+  // Returns the number of integer and double registers referenced by this
+  // compiled model.
+  std::pair<int, int> GetNumRegisters() const;
 
   // Returns the number of bits needed to represent the variables of this
   // compiled model.
