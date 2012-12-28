@@ -75,6 +75,24 @@ else
   pass=0
 fi
 
+echo -n tandemW7_sprt18...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandemW.sm <(echo 'P<0.18[ true U<=227 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandemW7_sprt18.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
+  pass=0
+fi
+
+echo -n tandemW7_sprt22...
+HEAPCHECK=normal GLOG_logtostderr=1 ./ymer --verbose=1 --seed=0 --const=c=7 src/testdata/tandemW.sm <(echo 'P<0.22[ true U<=227 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandemW7_sprt22.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
+  pass=0
+fi
+
 if (( ${pass} )); then
   echo PASS
 else

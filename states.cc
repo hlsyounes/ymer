@@ -38,8 +38,10 @@ extern int verbosity;
  */
 struct ExtendedState : public State {
   /* Constructs an extended state. */
-  ExtendedState(const Model* model, const std::vector<int>& values,
-                DCEngine* engine, double dt);
+  ExtendedState(const Model* model, const CompiledModel* compiled_model,
+                const std::vector<int>& values,
+                CompiledExpressionEvaluator* evaluator, DCEngine* engine,
+                double dt);
 
   /* Returns the time spent in the previous state. */
   virtual double dt() const { return dt_; }
@@ -72,31 +74,30 @@ private:
 
 
 /* Constructs an initial state for the given model. */
-State::State(const Model* model, const CompiledModel& compiled_model,
-             DCEngine* engine)
-    : model_(model), engine_(engine) {
-  values_.reserve(compiled_model.variables().size());
-  for (std::vector<CompiledVariable>::const_iterator vi =
-           compiled_model.variables().begin();
-       vi != compiled_model.variables().end(); vi++) {
-    values_.push_back(vi->init_value());
+State::State(const Model* model, const CompiledModel* compiled_model,
+             CompiledExpressionEvaluator* evaluator, DCEngine* engine)
+    : model_(model), compiled_model_(compiled_model), evaluator_(evaluator),
+      engine_(engine) {
+  values_.reserve(compiled_model_->variables().size());
+  for (const CompiledVariable& v : compiled_model->variables()) {
+    values_.push_back(v.init_value());
   }
 }
 
 
 /* Returns a sampled successor of this state. */
 const State& State::next() const {
-  std::vector<const Command*> commands;
-  for (const Command* command : model_->commands()) {
-    if (command->guard().holds(values())) {
-      commands.push_back(command);
-    }
-  }
-  ExtendedState* next_state =
-      new ExtendedState(model_, values(), engine(), 0.0);
+  ExtendedState* next_state = new ExtendedState(
+      model_, compiled_model_, values(), evaluator_, engine(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
-  for (const Command* command : commands) {
+  const int num_commands = compiled_model_->commands().size();
+  for (int i = 0; i < num_commands; ++i) {
+    const Command* command = model_->commands()[i];
+    const CompiledCommand& compiled_command = compiled_model_->commands()[i];
+    if (!evaluator_->EvaluateIntExpression(compiled_command.guard(), values_)) {
+      continue;
+    }
     double t = command->delay().sample(values(), engine());
     if (!command->delay().memoryless()) {
       next_state->lifetimes_.insert(std::make_pair(command, 0.0));
@@ -124,16 +125,17 @@ const State& State::next() const {
 
 /* Returns a copy of this state with resampled trigger times. */
 const State& State::resampled() const {
-  std::vector<const Command*> commands;
-  for (const Command* command : model_->commands()) {
-    if (command->guard().holds(values())) {
-      commands.push_back(command);
-    }
-  }
-  ExtendedState* new_state = new ExtendedState(model_, values(), engine(), 0.0);
+  ExtendedState* new_state = new ExtendedState(
+      model_, compiled_model_, values(), evaluator_, engine(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
-  for (const Command* command : commands) {
+  const int num_commands = compiled_model_->commands().size();
+  for (int i = 0; i < num_commands; ++i) {
+    const Command* command = model_->commands()[i];
+    const CompiledCommand& compiled_command = compiled_model_->commands()[i];
+    if (!evaluator_->EvaluateIntExpression(compiled_command.guard(), values_)) {
+      continue;
+    }
     double t = command->delay().sample(values(), engine());
     if (!command->delay().memoryless()) {
       new_state->lifetimes_.insert(std::make_pair(command, 0.0));
@@ -168,10 +170,13 @@ void State::print(std::ostream& os) const {
 
 /* Constructs an extended state. */
 ExtendedState::ExtendedState(const Model* model,
-                             const std::vector<int>& values, DCEngine* engine,
+                             const CompiledModel* compiled_model,
+                             const std::vector<int>& values,
+                             CompiledExpressionEvaluator* evaluator,
+                             DCEngine* engine,
                              double dt)
-    : State(model, values, engine), dt_(dt), trigger_(NULL),
-      trigger_time_(HUGE_VAL) {}
+    : State(model, compiled_model, values, evaluator, engine), dt_(dt),
+      trigger_(NULL), trigger_time_(HUGE_VAL) {}
 
 
 /* Returns a sampled successor of this state. */
@@ -182,22 +187,24 @@ const State& ExtendedState::next() const {
       std::cout << "  " << *(*ti).first << " @ " << (*ti).second << std::endl;
     }
   }
-  ExtendedState* next_state =
-      new ExtendedState(model(), values(), engine(), trigger_time_);
+  ExtendedState* next_state = new ExtendedState(
+      model(), compiled_model(), values(), evaluator(), engine(),
+      trigger_time_);
   if (trigger_ != NULL) {
     for (const Update* update : trigger_->updates()) {
       next_state->values().at(update->variable().index()) =
           update->expr().value(values()).value<int>();
     }
-    std::vector<const Command*> commands;
-    for (const Command* command : model()->commands()) {
-      if (command->guard().holds(next_state->values())) {
-	commands.push_back(command);
-      }
-    }
     int streak = 1;
     double tie_breaker = -1.0;
-    for (const Command* command : commands) {
+    const int num_commands = compiled_model()->commands().size();
+    for (int i = 0; i < num_commands; ++i) {
+      const Command* command = model()->commands()[i];
+      const CompiledCommand& compiled_command = compiled_model()->commands()[i];
+      if (!evaluator()->EvaluateIntExpression(compiled_command.guard(),
+                                              next_state->values())) {
+        continue;
+      }
       double l, t;
       if (command == trigger_) {
 	l = 0.0;
@@ -241,8 +248,8 @@ const State& ExtendedState::next() const {
 
 /* Returns a copy of this state with resampled trigger times. */
 const State& ExtendedState::resampled() const {
-  ExtendedState* new_state =
-      new ExtendedState(model(), values(), engine(), dt());
+  ExtendedState* new_state = new ExtendedState(
+      model(), compiled_model(), values(), evaluator(), engine(), dt());
   new_state->lifetimes_ = lifetimes_;
   int streak = 1;
   double tie_breaker = -1.0;
