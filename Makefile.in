@@ -161,7 +161,7 @@ src_libcompiled_distribution_la_DEPENDENCIES =  \
 am_src_libcompiled_distribution_la_OBJECTS = compiled-distribution.lo
 src_libcompiled_distribution_la_OBJECTS =  \
 	$(am_src_libcompiled_distribution_la_OBJECTS)
-src_libcompiled_expression_la_LIBADD =
+src_libcompiled_expression_la_DEPENDENCIES = glog/libglog.la
 am_src_libcompiled_expression_la_OBJECTS = compiled-expression.lo
 src_libcompiled_expression_la_OBJECTS =  \
 	$(am_src_libcompiled_expression_la_OBJECTS)
@@ -586,6 +586,7 @@ src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
 
+src_libcompiled_expression_la_LIBADD = glog/libglog.la
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
     src/compiled-distribution.cc
 

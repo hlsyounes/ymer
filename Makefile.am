@@ -121,6 +121,7 @@ src_libexpression_la_LIBADD = src/libddutil.la src/libtyped-value.la \
 noinst_LTLIBRARIES += src/libcompiled-expression.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
+src_libcompiled_expression_la_LIBADD = glog/libglog.la
 
 # Compiled distribution library.
 noinst_LTLIBRARIES += src/libcompiled-distribution.la

@@ -21,7 +21,95 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ostream>
 #include <vector>
+#include <utility>
+
+#include "glog/logging.h"
+
+std::ostream& operator<<(std::ostream& os, Opcode opcode) {
+  switch (opcode) {
+    case Opcode::ICONST:
+      return os << "ICONST";
+    case Opcode::DCONST:
+      return os << "DCONST";
+    case Opcode::ILOAD:
+      return os << "ILOAD";
+    case Opcode::I2D:
+      return os << "I2D";
+    case Opcode::INEG:
+      return os << "INEG";
+    case Opcode::DNEG:
+      return os << "DNEG";
+    case Opcode::NOT:
+      return os << "NOT";
+    case Opcode::IADD:
+      return os << "IADD";
+    case Opcode::DADD:
+      return os << "DADD";
+    case Opcode::ISUB:
+      return os << "ISUB";
+    case Opcode::DSUB:
+      return os << "DSUB";
+    case Opcode::IMUL:
+      return os << "IMUL";
+    case Opcode::DMUL:
+      return os << "DMUL";
+    case Opcode::DDIV:
+      return os << "DDIV";
+    case Opcode::IEQ:
+      return os << "IEQ";
+    case Opcode::DEQ:
+      return os << "DEQ";
+    case Opcode::INE:
+      return os << "INE";
+    case Opcode::DNE:
+      return os << "DNE";
+    case Opcode::ILT:
+      return os << "ILT";
+    case Opcode::DLT:
+      return os << "DLT";
+    case Opcode::ILE:
+      return os << "ILE";
+    case Opcode::DLE:
+      return os << "DLE";
+    case Opcode::IGE:
+      return os << "IGE";
+    case Opcode::DGE:
+      return os << "DGE";
+    case Opcode::IGT:
+      return os << "IGT";
+    case Opcode::DGT:
+      return os << "DGT";
+    case Opcode::IFFALSE:
+      return os << "IFFALSE";
+    case Opcode::IFTRUE:
+      return os << "IFTRUE";
+    case Opcode::GOTO:
+      return os << "GOTO";
+    case Opcode::NOP:
+      return os << "NOP";
+    case Opcode::IMIN:
+      return os << "IMIN";
+    case Opcode::DMIN:
+      return os << "DMIN";
+    case Opcode::IMAX:
+      return os << "IMAX";
+    case Opcode::DMAX:
+      return os << "DMAX";
+    case Opcode::FLOOR:
+      return os << "FLOOR";
+    case Opcode::CEIL:
+      return os << "CEIL";
+    case Opcode::POW:
+      return os << "POW";
+    case Opcode::LOG:
+      return os << "LOG";
+    case Opcode::MOD:
+      return os << "MOD";
+  }
+  LOG(FATAL) << "bad opcode";
+}
 
 Operation Operation::MakeICONST(int value, int dst) {
   return Operation(Opcode::ICONST, value, dst);
@@ -198,9 +286,72 @@ Operation::Operation(Opcode opcode)
     : opcode_(opcode) {
 }
 
+std::ostream& operator<<(std::ostream& os, const Operation& operation) {
+  os << operation.opcode();
+  switch (operation.opcode()) {
+    case Opcode::ICONST:
+    case Opcode::ILOAD:
+    case Opcode::IADD:
+    case Opcode::DADD:
+    case Opcode::ISUB:
+    case Opcode::DSUB:
+    case Opcode::IMUL:
+    case Opcode::DMUL:
+    case Opcode::DDIV:
+    case Opcode::IEQ:
+    case Opcode::DEQ:
+    case Opcode::INE:
+    case Opcode::DNE:
+    case Opcode::ILT:
+    case Opcode::DLT:
+    case Opcode::ILE:
+    case Opcode::DLE:
+    case Opcode::IGE:
+    case Opcode::DGE:
+    case Opcode::IGT:
+    case Opcode::DGT:
+    case Opcode::IFFALSE:
+    case Opcode::IFTRUE:
+    case Opcode::IMIN:
+    case Opcode::DMIN:
+    case Opcode::IMAX:
+    case Opcode::DMAX:
+    case Opcode::POW:
+    case Opcode::LOG:
+    case Opcode::MOD:
+      os << ' ' << operation.ioperand1() << ' ' << operation.operand2();
+      break;
+    case Opcode::DCONST:
+      os << ' ' << operation.doperand1() << ' ' << operation.operand2();
+      break;
+    case Opcode::I2D:
+    case Opcode::INEG:
+    case Opcode::DNEG:
+    case Opcode::NOT:
+    case Opcode::GOTO:
+    case Opcode::FLOOR:
+    case Opcode::CEIL:
+      os << ' ' << operation.ioperand1();
+      break;
+    case Opcode::NOP:
+      break;
+  }
+  return os;
+}
+
 CompiledExpression::CompiledExpression(
     const std::vector<Operation>& operations)
     : operations_(operations) {
+}
+
+std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr) {
+  for (size_t pc = 0; pc < expr.operations().size(); ++pc) {
+    if (pc > 0) {
+      os << std::endl;
+    }
+    os << pc << ": " << expr.operations()[pc];
+  }
+  return os;
 }
 
 std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
