@@ -22,10 +22,12 @@
 #ifndef COMPILED_DISTRIBUTION_H_
 #define COMPILED_DISTRIBUTION_H_
 
+#include <cmath>
 #include <initializer_list>
 #include <vector>
 
 #include "compiled-expression.h"
+#include "rng.h"
 
 // Supported distribution types.
 enum class DistributionType {
@@ -63,5 +65,88 @@ class CompiledDistribution {
   DistributionType type_;
   std::vector<CompiledExpression> parameters_;
 };
+
+// A sampler for compiled distributions.
+template <typename Engine>
+class CompiledDistributionSampler {
+ public:
+  // Constructs a sampler for compiled distributions.
+  CompiledDistributionSampler(CompiledExpressionEvaluator* evaluator,
+                              Engine* engine);
+
+  // Generates a sample for the given compiled distribution.
+  double Sample(const CompiledDistribution& dist, const std::vector<int>& state);
+
+  double StandardUniform();
+
+ private:
+  CompiledExpressionEvaluator* evaluator_;
+  Engine* engine_;
+  bool has_unused_lognormal_;
+  double unused_lognormal_;
+};
+
+template <typename Engine>
+CompiledDistributionSampler<Engine>::CompiledDistributionSampler(
+    CompiledExpressionEvaluator* evaluator, Engine* engine)
+    : evaluator_(evaluator), engine_(engine), has_unused_lognormal_(false) {
+}
+
+template <typename Engine>
+double CompiledDistributionSampler<Engine>::Sample(
+    const CompiledDistribution& dist, const std::vector<int>& state) {
+  double sample = 0.0;
+  switch (dist.type()) {
+    case DistributionType::MEMORYLESS: {
+      double lambda =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
+      sample = -log(1.0 - StandardUniform())/lambda;
+      break;
+    }
+    case DistributionType::WEIBULL: {
+      double eta =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
+      double beta =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[1], state);
+      sample = eta * pow(-log(1.0 - StandardUniform()), 1.0 / beta);
+      break;
+    }
+    case DistributionType::LOGNORMAL: {
+      if (has_unused_lognormal_) {
+        has_unused_lognormal_ = false;
+        return unused_lognormal_;
+      }
+      // Generate two N(0,1) samples using the Box-Muller transform.
+      double mu =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
+      double sigma =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[1], state);
+      double mean = log(mu) - 0.5 * sigma * sigma;
+      double u1 = 1.0 - StandardUniform();
+      double u2 = 1.0 - StandardUniform();
+      double tmp = sqrt(-2.0 * log(u2));
+      double x1 =  tmp * cos(2 * M_PI * u1);
+      double x2 = tmp * sin(2 * M_PI * u1);
+      unused_lognormal_ = exp(x2 * sigma + mean);
+      has_unused_lognormal_ = true;
+      sample = exp(x1 * sigma + mean);
+      break;
+    }
+    case DistributionType::UNIFORM: {
+      double a =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
+      double b =
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[1], state);
+      sample = (b - a) * StandardUniform() + a;
+      break;
+    }
+  }
+  return sample;
+}
+
+template <typename Engine>
+double CompiledDistributionSampler<Engine>::StandardUniform() {
+  return ::StandardUniform(*engine_);
+}
 
 #endif  // COMPILED_DISTRIBUTION_H_

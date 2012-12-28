@@ -157,7 +157,7 @@ am_dcmt_lib_libdcmt_la_OBJECTS = dcmt_lib_libdcmt_la-check32.lo \
 	dcmt_lib_libdcmt_la-genmtrand.lo dcmt_lib_libdcmt_la-init.lo
 dcmt_lib_libdcmt_la_OBJECTS = $(am_dcmt_lib_libdcmt_la_OBJECTS)
 src_libcompiled_distribution_la_DEPENDENCIES =  \
-	src/libcompiled-expression.la
+	src/libcompiled-expression.la src/librng.la
 am_src_libcompiled_distribution_la_OBJECTS = compiled-distribution.lo
 src_libcompiled_distribution_la_OBJECTS =  \
 	$(am_src_libcompiled_distribution_la_OBJECTS)
@@ -590,7 +590,9 @@ src_libcompiled_expression_la_LIBADD = glog/libglog.la
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
     src/compiled-distribution.cc
 
-src_libcompiled_distribution_la_LIBADD = src/libcompiled-expression.la
+src_libcompiled_distribution_la_LIBADD = src/libcompiled-expression.la \
+    src/librng.la
+
 src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
 src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \

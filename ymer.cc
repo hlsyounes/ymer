@@ -993,8 +993,8 @@ int main(int argc, char* argv[]) {
 	FD_SET(sockfd, &master_fds);
         std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
         CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
-	const State init_state(global_model, &compiled_model, &evaluator,
-                               &dc_engine);
+        CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
+	const State init_state(&compiled_model, &evaluator, &sampler);
 	const PathFormula* pf = 0;
 	double alphap = alpha, betap = beta;
 	timeval timeout;
@@ -1126,8 +1126,8 @@ int main(int argc, char* argv[]) {
 #endif
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
-      const State init_state(global_model, &compiled_model, &evaluator,
-                             &dc_engine);
+      CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
+      const State init_state(&compiled_model, &evaluator, &sampler);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1344,8 +1344,8 @@ int main(int argc, char* argv[]) {
       global_model->cache_dds(dd_man, moments);
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
-      const State init_state(global_model, &compiled_model, &evaluator,
-                             &dc_engine);
+      CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
+      const State init_state(&compiled_model, &evaluator, &sampler);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
