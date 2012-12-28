@@ -504,6 +504,7 @@ void ExpressionCompiler::DoVisitComparison(const Comparison& formula) {
   ++dst_;
   formula.expr2().Accept(this);
   Type type2 = type_;
+  --dst_;
   if (!(type1 == type2 ||
         (type1 == Type::INT && type2 == Type::DOUBLE) ||
         (type2 == Type::INT && type2 == Type::DOUBLE))) {

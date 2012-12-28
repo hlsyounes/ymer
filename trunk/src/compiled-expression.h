@@ -24,6 +24,7 @@
 #ifndef COMPILED_EXPRESSION_H_
 #define COMPILED_EXPRESSION_H_
 
+#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -37,6 +38,9 @@ enum class Opcode {
   IFFALSE, IFTRUE, GOTO, NOP,
   IMIN, DMIN, IMAX, DMAX, FLOOR, CEIL, POW, LOG, MOD
 };
+
+// Output operator for opcodes.
+std::ostream& operator<<(std::ostream& os, Opcode opcode);
 
 // An operation on the virtual machine used for evaluating compiled expressions.
 class Operation {
@@ -162,6 +166,9 @@ class Operation {
   int operand2_;
 };
 
+// Output operator for operations.
+std::ostream& operator<<(std::ostream& os, const Operation& operation);
+
 // A compiled expression.
 class CompiledExpression {
  public:
@@ -174,6 +181,9 @@ class CompiledExpression {
  private:
   std::vector<Operation> operations_;
 };
+
+// Output operator for compiled expressions.
+std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr);
 
 // Returns the number of integer and double registers referenced by the given
 // compiled expression.
