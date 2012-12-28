@@ -18,11 +18,8 @@
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include "states.h"
-#include "models.h"
-#include "distributions.h"
 #include "formulas.h"
-#include "src/rng.h"
+#include "states.h"
 #include <cmath>
 #include <iostream>
 
@@ -38,9 +35,10 @@ extern int verbosity;
  */
 struct ExtendedState : public State {
   /* Constructs an extended state. */
-  ExtendedState(const Model* model, const CompiledModel* compiled_model,
+  ExtendedState(const CompiledModel* model,
                 const std::vector<int>& values,
-                CompiledExpressionEvaluator* evaluator, DCEngine* engine,
+                CompiledExpressionEvaluator* evaluator,
+                CompiledDistributionSampler<DCEngine>* sampler,
                 double dt);
 
   /* Returns the time spent in the previous state. */
@@ -53,8 +51,8 @@ struct ExtendedState : public State {
   virtual const State& resampled() const;
 
 private:
-  /* A mapping from commands to times. */
-  struct CommandTimeMap : public std::map<const Command*, double> {
+  /* A mapping from command index to time. */
+  struct CommandTimeMap : public std::map<int, double> {
   };
 
   /* Time spent in the previous state. */
@@ -63,8 +61,8 @@ private:
   CommandTimeMap lifetimes_;
   /* Sampled trigger times for enabled commands. */
   CommandTimeMap trigger_times_;
-  /* Command with earliest sampled trigger time. */
-  const Command* trigger_;
+  /* Index of command with earliest sampled trigger time. */
+  int trigger_;
   /* The earliest sampled trigger time. */
   double trigger_time_;
 
@@ -72,14 +70,19 @@ private:
   friend const State& State::resampled() const;
 };
 
+namespace {
+
+const int kNoTrigger = -1;
+
+}  // namespace
 
 /* Constructs an initial state for the given model. */
-State::State(const Model* model, const CompiledModel* compiled_model,
-             CompiledExpressionEvaluator* evaluator, DCEngine* engine)
-    : model_(model), compiled_model_(compiled_model), evaluator_(evaluator),
-      engine_(engine) {
-  values_.reserve(compiled_model_->variables().size());
-  for (const CompiledVariable& v : compiled_model->variables()) {
+State::State(const CompiledModel* model,
+             CompiledExpressionEvaluator* evaluator,
+             CompiledDistributionSampler<DCEngine>* sampler)
+    : model_(model), evaluator_(evaluator), sampler_(sampler) {
+  values_.reserve(model->variables().size());
+  for (const CompiledVariable& v : model->variables()) {
     values_.push_back(v.init_value());
   }
 }
@@ -88,32 +91,32 @@ State::State(const Model* model, const CompiledModel* compiled_model,
 /* Returns a sampled successor of this state. */
 const State& State::next() const {
   ExtendedState* next_state = new ExtendedState(
-      model_, compiled_model_, values(), evaluator_, engine(), 0.0);
+      model_, values(), evaluator_, sampler(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
-  const int num_commands = compiled_model_->commands().size();
+  const int num_commands = model_->commands().size();
   for (int i = 0; i < num_commands; ++i) {
-    const Command* command = model_->commands()[i];
-    const CompiledCommand& compiled_command = compiled_model_->commands()[i];
-    if (!evaluator_->EvaluateIntExpression(compiled_command.guard(), values_)) {
+    const CompiledCommand& command = model_->commands()[i];
+    const CompiledOutcome& outcome = command.outcomes()[0];
+    if (!evaluator_->EvaluateIntExpression(command.guard(), values_)) {
       continue;
     }
-    double t = command->delay().sample(values(), engine());
-    if (!command->delay().memoryless()) {
-      next_state->lifetimes_.insert(std::make_pair(command, 0.0));
-      next_state->trigger_times_.insert(std::make_pair(command, t));
+    double t = sampler_->Sample(outcome.delay(), values_);
+    if (outcome.delay().type() != DistributionType::MEMORYLESS) {
+      next_state->lifetimes_.insert({ i, 0.0 });
+      next_state->trigger_times_.insert({ i, t });
     }
-    if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
+    if (next_state->trigger_ != kNoTrigger && t == next_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = StandardUniform(*engine());
+	tie_breaker = sampler_->StandardUniform();
       }
     } else if (t < next_state->trigger_time_) {
       streak = 1;
     }
     if (t < next_state->trigger_time_
 	|| (t == next_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      next_state->trigger_ = command;
+      next_state->trigger_ = i;
       next_state->trigger_time_ = t;
     }
   }
@@ -126,32 +129,32 @@ const State& State::next() const {
 /* Returns a copy of this state with resampled trigger times. */
 const State& State::resampled() const {
   ExtendedState* new_state = new ExtendedState(
-      model_, compiled_model_, values(), evaluator_, engine(), 0.0);
+      model_, values(), evaluator_, sampler(), 0.0);
   int streak = 1;
   double tie_breaker = -1.0;
-  const int num_commands = compiled_model_->commands().size();
+  const int num_commands = model_->commands().size();
   for (int i = 0; i < num_commands; ++i) {
-    const Command* command = model_->commands()[i];
-    const CompiledCommand& compiled_command = compiled_model_->commands()[i];
-    if (!evaluator_->EvaluateIntExpression(compiled_command.guard(), values_)) {
+    const CompiledCommand& command = model_->commands()[i];
+    const CompiledOutcome& outcome = command.outcomes()[0];
+    if (!evaluator_->EvaluateIntExpression(command.guard(), values_)) {
       continue;
     }
-    double t = command->delay().sample(values(), engine());
-    if (!command->delay().memoryless()) {
-      new_state->lifetimes_.insert(std::make_pair(command, 0.0));
-      new_state->trigger_times_.insert(std::make_pair(command, t));
+    double t = sampler_->Sample(outcome.delay(), values_);
+    if (outcome.delay().type() != DistributionType::MEMORYLESS) {
+      new_state->lifetimes_.insert({ i, 0.0 });
+      new_state->trigger_times_.insert({ i, t });
     }
-    if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
+    if (new_state->trigger_ != kNoTrigger && t == new_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = StandardUniform(*engine());
+	tie_breaker = sampler_->StandardUniform();
       }
     } else if (t < new_state->trigger_time_) {
       streak = 1;
     }
     if (t < new_state->trigger_time_
 	|| (t == new_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      new_state->trigger_ = command;
+      new_state->trigger_ = i;
       new_state->trigger_time_ = t;
     }
   }
@@ -161,83 +164,82 @@ const State& State::resampled() const {
 
 /* Prints this object on the given stream. */
 void State::print(std::ostream& os) const {
-  os << model_->variable_name(0) << '=' << values()[0];
+  os << model_->variables()[0].name() << '=' << values()[0];
   for (size_t i = 1; i < values().size(); ++i) {
-    os << " & " << model_->variable_name(i) << '=' << values()[i];
+    os << " & " << model_->variables()[i].name() << '=' << values()[i];
   }
 }
 
 
 /* Constructs an extended state. */
-ExtendedState::ExtendedState(const Model* model,
-                             const CompiledModel* compiled_model,
+ExtendedState::ExtendedState(const CompiledModel* model,
                              const std::vector<int>& values,
                              CompiledExpressionEvaluator* evaluator,
-                             DCEngine* engine,
+                             CompiledDistributionSampler<DCEngine>* sampler,
                              double dt)
-    : State(model, compiled_model, values, evaluator, engine), dt_(dt),
-      trigger_(NULL), trigger_time_(HUGE_VAL) {}
+    : State(model, values, evaluator, sampler),
+      dt_(dt), trigger_(kNoTrigger), trigger_time_(HUGE_VAL) {}
 
 
 /* Returns a sampled successor of this state. */
 const State& ExtendedState::next() const {
   if (verbosity > 2 && StateFormula::formula_level() == 1) {
-    for (CommandTimeMap::const_iterator ti = trigger_times_.begin();
-	 ti != trigger_times_.end(); ti++) {
-      std::cout << "  " << *(*ti).first << " @ " << (*ti).second << std::endl;
+    for (auto ti = trigger_times_.begin(); ti != trigger_times_.end(); ti++) {
+      std::cout << "  " << ti->first << " @ " << ti->second << std::endl;
     }
   }
   ExtendedState* next_state = new ExtendedState(
-      model(), compiled_model(), values(), evaluator(), engine(),
-      trigger_time_);
-  if (trigger_ != NULL) {
-    for (const Update* update : trigger_->updates()) {
-      next_state->values().at(update->variable().index()) =
-          update->expr().value(values()).value<int>();
+      model(), values(), evaluator(), sampler(), trigger_time_);
+  if (trigger_ != kNoTrigger) {
+    const CompiledCommand& trigger_command = model()->commands()[trigger_];
+    const CompiledOutcome& trigger_outcome = trigger_command.outcomes()[0];
+    for (const CompiledUpdate& update : trigger_outcome.updates()) {
+      next_state->values()[update.variable()] =
+          evaluator()->EvaluateIntExpression(update.expr(), values());
     }
     int streak = 1;
     double tie_breaker = -1.0;
-    const int num_commands = compiled_model()->commands().size();
+    const int num_commands = model()->commands().size();
     for (int i = 0; i < num_commands; ++i) {
-      const Command* command = model()->commands()[i];
-      const CompiledCommand& compiled_command = compiled_model()->commands()[i];
-      if (!evaluator()->EvaluateIntExpression(compiled_command.guard(),
+      const CompiledCommand& command = model()->commands()[i];
+      const CompiledOutcome& outcome = command.outcomes()[0];
+      if (!evaluator()->EvaluateIntExpression(command.guard(),
                                               next_state->values())) {
         continue;
       }
       double l, t;
-      if (command == trigger_) {
+      if (i == trigger_) {
 	l = 0.0;
-	t = command->delay().sample(next_state->values(), engine());
+	t = sampler()->Sample(outcome.delay(), next_state->values());
       } else {
-	CommandTimeMap::const_iterator li = lifetimes_.find(command);
+	auto li = lifetimes_.find(i);
 	if (li != lifetimes_.end()) {
 	  l = (*li).second + trigger_time_;
 	} else {
 	  l = 0.0;
 	}
-	CommandTimeMap::const_iterator ti = trigger_times_.find(command);
+	auto ti = trigger_times_.find(i);
 	if (ti != trigger_times_.end()) {
 	  t = (*ti).second - trigger_time_;
 	} else {
-	  t = command->delay().sample(next_state->values(), engine());
+	  t = sampler()->Sample(outcome.delay(), next_state->values());
 	}
       }
-      if (!command->delay().memoryless()) {
-	next_state->lifetimes_.insert(std::make_pair(command, l));
-	next_state->trigger_times_.insert(std::make_pair(command, t));
+      if (outcome.delay().type() != DistributionType::MEMORYLESS) {
+	next_state->lifetimes_.insert({ i, l });
+	next_state->trigger_times_.insert({ i, t });
       }
-      if (next_state->trigger_ != NULL && t == next_state->trigger_time_) {
+      if (next_state->trigger_ != kNoTrigger && t == next_state->trigger_time_) {
 	streak++;
 	if (tie_breaker < 0.0) {
-	  tie_breaker = StandardUniform(*engine());
+	  tie_breaker = sampler()->StandardUniform();
 	}
       } else if (t < next_state->trigger_time_) {
 	streak = 1;
       }
       if (t < next_state->trigger_time_
 	  || (t == next_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-	next_state->trigger_ = command;
+	next_state->trigger_ = i;
 	next_state->trigger_time_ = t;
       }
     }
@@ -249,35 +251,36 @@ const State& ExtendedState::next() const {
 /* Returns a copy of this state with resampled trigger times. */
 const State& ExtendedState::resampled() const {
   ExtendedState* new_state = new ExtendedState(
-      model(), compiled_model(), values(), evaluator(), engine(), dt());
+      model(), values(), evaluator(), sampler(), dt());
   new_state->lifetimes_ = lifetimes_;
   int streak = 1;
   double tie_breaker = -1.0;
-  for (CommandTimeMap::const_iterator ti = trigger_times_.begin();
-       ti != trigger_times_.end(); ti++) {
-    const Command* c = (*ti).first;
+  for (auto ti = trigger_times_.begin(); ti != trigger_times_.end(); ti++) {
+    const int i = ti->first;
+    const CompiledCommand& command = model()->commands()[i];
+    const CompiledOutcome& outcome = command.outcomes()[0];
     double t;
-    CommandTimeMap::const_iterator li = lifetimes_.find(c);
+    auto li = lifetimes_.find(i);
     if (li != lifetimes_.end()) {
       double l = (*li).second;
       do {
-	t = c->delay().sample(values(), engine()) - l;
+	t = sampler()->Sample(outcome.delay(), values()) - l;
       } while (t <= 0.0);
     } else {
-      t = c->delay().sample(values(), engine());
+      t = sampler()->Sample(outcome.delay(), values());
     }
-    new_state->trigger_times_.insert(std::make_pair(c, t));
-    if (new_state->trigger_ != NULL && t == new_state->trigger_time_) {
+    new_state->trigger_times_.insert({ i, t });
+    if (new_state->trigger_ != kNoTrigger && t == new_state->trigger_time_) {
       streak++;
       if (tie_breaker < 0.0) {
-	tie_breaker = StandardUniform(*engine());
+	tie_breaker = sampler()->StandardUniform();
       }
     } else if (t < new_state->trigger_time_) {
       streak = 1;
     }
     if (t < new_state->trigger_time_
 	|| (t == new_state->trigger_time_ && tie_breaker < 1.0/streak)) {
-      new_state->trigger_ = c;
+      new_state->trigger_ = i;
       new_state->trigger_time_ = t;
     }
   }

@@ -127,7 +127,8 @@ src_libcompiled_expression_la_LIBADD = glog/libglog.la
 noinst_LTLIBRARIES += src/libcompiled-distribution.la
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
     src/compiled-distribution.cc
-src_libcompiled_distribution_la_LIBADD = src/libcompiled-expression.la
+src_libcompiled_distribution_la_LIBADD = src/libcompiled-expression.la \
+    src/librng.la
 
 # Compiled model library.
 noinst_LTLIBRARIES += src/libcompiled-model.la

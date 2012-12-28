@@ -30,9 +30,6 @@
 #include "src/expression.h"
 #include "src/rng.h"
 
-struct Model;
-
-
 /* ====================================================================== */
 /* State */
 
@@ -41,14 +38,12 @@ struct Model;
  */
 struct State {
   /* Constructs an initial state for the given model. */
-  State(const Model* model, const CompiledModel* compiled_model,
-        CompiledExpressionEvaluator* evaluator, DCEngine* engine);
+  State(const CompiledModel* model,
+        CompiledExpressionEvaluator* evaluator,
+        CompiledDistributionSampler<DCEngine>* sampler);
 
   /* Deletes this state. */
   virtual ~State() {}
-
-  /* Returns the model associated with this state. */
-  const Model* model() const { return model_; }
 
   /* Returns the variable values for this state. */
   const std::vector<int>& values() const { return values_; }
@@ -67,30 +62,27 @@ struct State {
 
 protected:
   /* Constructs a state. */
-  State(const Model* model, const CompiledModel* compiled_model,
+  State(const CompiledModel* model,
         const std::vector<int>& values, CompiledExpressionEvaluator* evaluator,
-        DCEngine* engine)
-      : model_(model), compiled_model_(compiled_model), values_(values),
-        evaluator_(evaluator), engine_(engine) {
+        CompiledDistributionSampler<DCEngine>* sampler)
+      : model_(model), values_(values), evaluator_(evaluator),
+        sampler_(sampler) {
   }
 
-  const CompiledModel* compiled_model() const { return compiled_model_; }
+  const CompiledModel* model() const { return model_; }
 
   /* Returns the variable values for this state. */
   std::vector<int>& values() { return values_; }
 
   CompiledExpressionEvaluator* evaluator() const { return evaluator_; }
 
-  DCEngine* engine() const { return engine_; }
+  CompiledDistributionSampler<DCEngine>* sampler() const { return sampler_; }
 
 private:
-  /* The model associated with this state. */
-  const Model* model_;
-  const CompiledModel* compiled_model_;
-  /* Variables values for this state. */
+  const CompiledModel* model_;
   std::vector<int> values_;
   CompiledExpressionEvaluator* evaluator_;
-  DCEngine* engine_;
+  CompiledDistributionSampler<DCEngine>* sampler_;
 };
 
 
