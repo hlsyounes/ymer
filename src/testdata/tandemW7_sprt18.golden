@@ -3,5 +3,5 @@ Variables: 2
 Events:    3
 
 Model checking !P>=0.18 [ true U[0,227] sc=7 & sm=7 ] ...
-Acceptance sampling.........:.........:.........:..3297 samples.
+Acceptance sampling.........:.........:.........:..3236 samples.
 Property is false in the initial state.

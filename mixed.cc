@@ -150,14 +150,14 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
 		   double epsilon, DdNode* dd1, DdNode* dd2) const {
   double t = 0.0;
   size_t path_size = 1;
-  const State* curr_state = &state;
+  State curr_state = state;
   bool result = false;
   double t_max = max_time().value<double>();
   while (true) {
     if (t <= t_max) {
       DdNode* dds = NULL;
       if (dd2 != NULL) {
-	dds = model.state_bdd(dd_man, curr_state->values()).release();
+	dds = model.state_bdd(dd_man, curr_state.values()).release();
 	DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
 	Cudd_Ref(sol);
 	if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
@@ -167,7 +167,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
 	  break;
 	}
 	Cudd_RecursiveDeref(dd_man.manager(), sol);
-      } else if (post().holds(curr_state->values())) {
+      } else if (post().holds(curr_state.values())) {
 	result = true;
 	break;
       }
@@ -177,7 +177,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
 	  break;
 	} else if (dd1 != Cudd_ReadOne(dd_man.manager())) {
 	  if (dds == NULL) {
-	    dds = model.state_bdd(dd_man, curr_state->values()).release();
+	    dds = model.state_bdd(dd_man, curr_state.values()).release();
 	  }
 	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
 	  Cudd_Ref(sol);
@@ -189,7 +189,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
 	  }
 	  Cudd_RecursiveDeref(dd_man.manager(), sol);
 	}
-      } else if (!pre().holds(curr_state->values())) {
+      } else if (!pre().holds(curr_state.values())) {
 	result = false;
 	break;
       }
@@ -202,22 +202,19 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
     }
     if (verbosity > 2) {
       std::cout << "t = " << t << ": ";
-      curr_state->print(std::cout);
+      curr_state.print(std::cout);
       std::cout << std::endl;
     }
-    const State& next_state = curr_state->next();
-    t += next_state.dt();
+    State next_state = curr_state.Next();
+    t += next_state.time() - curr_state.time();
     if (t <= t_max) {
       path_size++;
     }
-    if (curr_state != &state) {
-      delete curr_state;
-    }
-    curr_state = &next_state;
+    curr_state = std::move(next_state);
   }
   if (verbosity > 2) {
     std::cout << "t = " << t << ": ";
-    curr_state->print(std::cout);
+    curr_state.print(std::cout);
     std::cout << std::endl;
     if (result) {
       std::cout << ">>positive sample" << std::endl;
@@ -227,9 +224,6 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
   }
   if (StateFormula::formula_level() == 1) {
     total_path_lengths += path_size;
-  }
-  if (curr_state != &state) {
-    delete curr_state;
   }
   return result;
 }
