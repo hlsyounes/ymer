@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2002 Dave Parker
  * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -17,9 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: hybrid.cc,v 1.1 2003-11-07 04:24:35 lorens Exp $
  */
+
 #include "hybrid.h"
 
 // static variables
@@ -182,8 +182,8 @@ HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, D
 		num_hdd_matrix_nodes++;
 		ptr = new HDDNode();
 		ptr->type.val = Cudd_V(dd);
-		ptr->off = (int)row;
-		ptr->off2 = (int)col;
+		ptr->off = (size_t)row;
+		ptr->off2 = (size_t)col;
 		ptr->sb = (SparseBit*)dd;
 		ptr->next = hddm->row_tables[num_vars];
 		hddm->row_tables[num_vars] = ptr;
@@ -204,8 +204,8 @@ HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, D
 	ptr = new HDDNode();
 	ptr->type.kids.e = hdd_e;
 	ptr->type.kids.t = hdd_t;
-	ptr->off = (int)row;
-	ptr->off2 = (int)col;
+	ptr->off = (size_t)row;
+	ptr->off2 = (size_t)col;
 	ptr->sb = (SparseBit*)dd;
 	ptr->next = hddm->row_tables[level];
 	hddm->row_tables[level] = ptr;
@@ -252,8 +252,8 @@ HDDNode *build_hdd_matrix_colrec(DdManager *ddman, DdNode *dd, DdNode **rvars, D
 	ptr = new HDDNode();
 	ptr->type.kids.e = hdd_e;
 	ptr->type.kids.t = hdd_t;
-	ptr->off = (int)col;
-	ptr->off2 = (int)row;
+	ptr->off = (size_t)col;
+	ptr->off2 = (size_t)row;
 	ptr->sb = (SparseBit*)dd;
 	ptr->next = hddm->col_tables[level];
 	hddm->col_tables[level] = ptr;
@@ -313,7 +313,7 @@ void add_sparse_bits(HDDMatrix *hddm)
 			level_memory = 0;
 			ptr = hddm->row_tables[i];
 			while (ptr != NULL) {
-				level_memory += ((ptr->off2)*12.0 + ((int)ptr->sb)*4.0 + 5*4.0);
+				level_memory += ((ptr->off2)*12.0 + ((size_t)ptr->sb)*4.0 + 5*4.0);
 				if (level_memory/1024.0 > sb_max_mem) {
 					sb_mem_out = true;
 					break;
@@ -435,7 +435,7 @@ SparseBit *build_sparse_bit(HDDNode *hdd, int level, int num_levels)
 	// number of nonzeros is stored in off2
 	nnz = hdd->off2;
 	// size of submatrix is stored in sb pointer
-	n = (int)hdd->sb;
+	n = (size_t)hdd->sb;
 	// work out memory running total
 	sparse_bits_memory += (nnz*12.0 + n*4.0 + 5*4.0);
 	// create the sparse bit

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2002 Dave Parker
  * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -17,15 +18,14 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: odd.h,v 1.1 2003-11-07 04:26:00 lorens Exp $
  */
+
 #ifndef ODD_H
 #define ODD_H
 
 //------------------------------------------------------------------------------
 
-#include <util.h>
+#include <cstdio>
 #include <cudd.h>
 
 // odd definitions

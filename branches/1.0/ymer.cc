@@ -2,6 +2,7 @@
  * Main program.
  *
  * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -18,14 +19,12 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: ymer.cc,v 1.6 2003-11-07 21:59:53 lorens Exp $
  */
+
 #include <config.h>
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
-#include <util.h>
 #include <cudd.h>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
@@ -37,6 +36,10 @@
 #include "getopt.h"
 #endif
 #include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -137,6 +140,7 @@ static void display_help() {
 static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003 Carnegie Mellon University" << std::endl
+            << "Copyright (C) 2012 Google Inc" << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
@@ -145,7 +149,7 @@ static void display_version() {
 	    << "see the file named COPYING in the " PACKAGE_NAME
 	    << " distribution." << std::endl
 	    << std::endl
-	    << "Written by H\345kan L. S. Younes." << std::endl;
+	    << "Written by Haakan Younes." << std::endl;
 }
 
 
