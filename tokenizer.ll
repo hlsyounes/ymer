@@ -3,6 +3,7 @@
  * Tokenizer.
  *
  * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -19,9 +20,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: tokenizer.ll,v 1.3 2003-11-07 04:26:40 lorens Exp $
  */
+
 %{
 #include <config.h>
 #include "rational.h"
@@ -54,7 +54,7 @@ IDENT	[A-Za-z]([A-Za-z0-9_])*
 %%
 
 stochastic		return STOCHASTIC;
-const			return CONST;
+const			return CONST_TOKEN;
 rate			return RATE;
 global			return GLOBAL;
 module			return MODULE;

@@ -3,6 +3,7 @@
  * Formulas.
  *
  * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -19,15 +20,13 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: formulas.h,v 1.6 2003-11-07 21:59:56 lorens Exp $
  */
+
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
 #include <config.h>
 #include "expressions.h"
-#include <util.h>
 #include <cudd.h>
 #include <deque>
 

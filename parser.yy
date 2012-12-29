@@ -3,6 +3,7 @@
  * Parser.
  *
  * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2012 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -19,13 +20,13 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * $Id: parser.yy,v 1.5 2003-11-07 22:00:08 lorens Exp $
  */
+
 %{
 #include <config.h>
 #include "models.h"
 #include "formulas.h"
+#include <algorithm>
 #include <map>
 #include <set>
 #include <string>
@@ -165,7 +166,7 @@ static void compile_model();
 %}
 
 %token STOCHASTIC
-%token CONST RATE GLOBAL INIT
+%token CONST_TOKEN RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
 %token MODULE ENDMODULE
 %token PNAME NAME NUMBER
@@ -227,7 +228,7 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST NAME '=' integer ';' { declare_constant($2, $4); }
+declaration : CONST_TOKEN NAME '=' integer ';' { declare_constant($2, $4); }
             | RATE NAME '=' NUMBER ';' { declare_rate($2, $4); }
             | GLOBAL NAME ':' range ';' { declare_variable($2, $4, NULL); }
             | GLOBAL NAME ':' range INIT const_expr ';'
