@@ -1,0 +1,16 @@
+Hybrid engine: epsilon=1e-06
+Buidling model...14 variables.
+Computing reachable states 23 iterations.
+States:      120
+Transitions: 363
+Rate matrix: 93 nodes 6 leaves 363 minterms
+ODD:         15 nodes
+
+Model checking P>0 [ true U[0,26] sc=7 & sm=7 ] ...
+Building hybrid MTBDD matrix...115 nodes.
+Adding sparse bits...7 levels, 1 bits.
+Uniformization: 34*26 = 884
+Fox-Glynn: left = 744, right = 1104
+Computing probabilities.........:. 1104 iterations.
+Pr[true U[0,26] sc=7 & sm=7] = 0.09994636431
+Property is true in the initial state.

@@ -1,0 +1,7 @@
+Sampling engine: alpha=0.01, beta=0.01, delta=0.01, seed=0
+Variables: 7
+Events:    20
+
+Model checking !P>=0.98 [ true U[0,10] s=1 & a=0 ] ...
+Acceptance sampling65 samples.
+Property is true in the initial state.
