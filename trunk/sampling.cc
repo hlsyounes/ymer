@@ -787,11 +787,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     } else {
       /* Local mode. */
-      const State& ns = state.resampled();
-      s = formula().sample(model, ns, delta, alphap, betap, algorithm);
-      if (&ns != &state) {
-	delete &ns;
-      }
+      s = formula().sample(model, state, delta, alphap, betap, algorithm);
       have_sample = true;
     }
     if (!have_sample) {
@@ -931,34 +927,34 @@ bool Until::sample(const Model& model, const State& state,
 		   DeltaFun delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm) const {
   double t = 0.0;
-  const State* curr_state = &state;
-  double t_min = min_time().value<double>();
-  double t_max = max_time().value<double>();
+  State curr_state = state;
+  const double t_min = min_time().value<double>();
+  const double t_max = max_time().value<double>();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
   while (!done && path_length < max_path_length) {
     if (verbosity > 2 && StateFormula::formula_level() == 1) {
       std::cout << "t = " << t << ": ";
-      curr_state->print(std::cout);
+      curr_state.print(std::cout);
       std::cout << std::endl;
     }
-    const State& next_state = curr_state->next();
-    double next_t = t + next_state.dt();
+    State next_state = curr_state.Next();
+    double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
-      if (post().verify(model, *curr_state, delta, alpha, beta, algorithm)) {
+      if (post().verify(model, curr_state, delta, alpha, beta, algorithm)) {
 	result = true;
 	done = true;
-      } else if (!pre().verify(model, *curr_state,
+      } else if (!pre().verify(model, curr_state,
 			       delta, alpha, beta, algorithm)) {
 	result = false;
 	done = true;
       }
     } else {
-      if (!pre().verify(model, *curr_state, delta, alpha, beta, algorithm)) {
+      if (!pre().verify(model, curr_state, delta, alpha, beta, algorithm)) {
 	result = false;
 	done = true;
       } else if (t_min < next_t
-		 && post().verify(model, *curr_state,
+		 && post().verify(model, curr_state,
 				  delta, alpha, beta, algorithm)) {
 	t = t_min;
 	result = true;
@@ -966,13 +962,8 @@ bool Until::sample(const Model& model, const State& state,
 	output = true;
       }
     }
-    if (done) {
-      delete &next_state;
-    } else {
-      if (curr_state != &state) {
-	delete curr_state;
-      }
-      curr_state = &next_state;
+    if (!done) {
+      curr_state = std::move(next_state);
       t = next_t;
       if (t_max < t) {
 	result = false;
@@ -985,7 +976,7 @@ bool Until::sample(const Model& model, const State& state,
   if (verbosity > 2) {
     if (output) {
       std::cout << "t = " << t << ": ";
-      curr_state->print(std::cout);
+      curr_state.print(std::cout);
       std::cout << std::endl;
     }
     if (result) {
@@ -993,9 +984,6 @@ bool Until::sample(const Model& model, const State& state,
     } else {
       std::cout << ">>negative sample" << std::endl;
     }
-  }
-  if (curr_state != &state) {
-    delete curr_state;
   }
   if (StateFormula::formula_level() == 1) {
     total_path_lengths += path_length;
@@ -1108,11 +1096,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   double d = 0.0;
   while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
 	 || (algorithm == SPRT && logB < d && d < logA)) {
-    const State& ns = state.resampled();
-    bool s = sample(dd_man, model, ns, epsilon, dd1, dd2);
-    if (&ns != &state) {
-      delete &ns;
-    }
+    bool s = sample(dd_man, model, state, epsilon, dd1, dd2);
     if (s) {
       if (algorithm == SEQUENTIAL) {
 	d += 1.0;
