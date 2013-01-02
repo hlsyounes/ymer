@@ -69,7 +69,7 @@ static short next_client_id = 1;
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Conjunction::effort(double q, DeltaFun delta, double alpha, double beta,
+double Conjunction::effort(double q, double delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   double h = 0.0;
@@ -82,7 +82,7 @@ double Conjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 
 /* Verifies this state formula using the statistical engine. */
 bool Conjunction::verify(const Model& model, const State& state,
-			 DeltaFun delta, double alpha, double beta,
+			 double delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm) const {
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
     if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
@@ -108,7 +108,7 @@ size_t Conjunction::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Disjunction::effort(double q, DeltaFun delta, double alpha, double beta,
+double Disjunction::effort(double q, double delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   double h = 0.0;
@@ -121,7 +121,7 @@ double Disjunction::effort(double q, DeltaFun delta, double alpha, double beta,
 
 /* Verifies this state formula using the statistical engine. */
 bool Disjunction::verify(const Model& model, const State& state,
-			 DeltaFun delta, double alpha, double beta,
+			 double delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm) const {
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
     if ((*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
@@ -147,7 +147,7 @@ size_t Disjunction::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Negation::effort(double q, DeltaFun delta, double alpha, double beta,
+double Negation::effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const {
   return negand().effort(q, delta, alpha, beta, alphap, betap, algorithm);
@@ -156,7 +156,7 @@ double Negation::effort(double q, DeltaFun delta, double alpha, double beta,
 
 /* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const {
   return !negand().verify(model, state, delta, beta, alpha, algorithm);
 }
@@ -173,7 +173,7 @@ size_t Negation::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Implication::effort(double q, DeltaFun delta, double alpha, double beta,
+double Implication::effort(double q, double delta, double alpha, double beta,
 			   double alphap, double betap,
 			   SamplingAlgorithm algorithm) const {
   return (antecedent().effort(q, delta, alpha, beta, alphap, betap, algorithm)
@@ -184,7 +184,7 @@ double Implication::effort(double q, DeltaFun delta, double alpha, double beta,
 
 /* Verifies this state formula using the statistical engine. */
 bool Implication::verify(const Model& model, const State& state,
-			 DeltaFun delta, double alpha, double beta,
+			 double delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm) const {
   if (!antecedent().verify(model, state, delta, beta, alpha, algorithm)) {
     return true;
@@ -385,7 +385,7 @@ single_sampling_plan(double p0, double p1, double alpha, double beta) {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Probabilistic::effort(double q, DeltaFun delta,
+double Probabilistic::effort(double q, double delta,
 			     double alpha, double beta,
 			     double alphap, double betap,
 			     SamplingAlgorithm algorithm) const {
@@ -395,7 +395,7 @@ double Probabilistic::effort(double q, DeltaFun delta,
   if (formula().probabilistic()) {
     double r = 0.5*(sqrt(5) - 1.0);
     double a = 0.0;
-    double b = 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta));
+    double b = 2.0*delta/(1.0 + 2.0*delta);
     double x1 = a + (1.0 - r)*(b - a);
     double x2 = a + r*(b - a);
     double f1 = formula().effort(q, delta, alphap, betap, x1, x1, algorithm);
@@ -416,11 +416,11 @@ double Probabilistic::effort(double q, DeltaFun delta,
       }
     } while ((b - a)/(b + a) > 1e-3);
     nested_effort = 0.5*(f1 + f2);
-    p0 = std::min(1.0, (theta + (*delta)(theta))*(1.0 - alphap));
-    p1 = std::max(0.0, 1.0 - (1.0 - (theta - (*delta)(theta)))*(1.0 - betap));
+    p0 = std::min(1.0, (theta + delta)*(1.0 - alphap));
+    p1 = std::max(0.0, 1.0 - (1.0 - (theta - delta))*(1.0 - betap));
   } else {
-    p0 = std::min(1.0, theta + (*delta)(theta));
-    p1 = std::max(0.0, theta - (*delta)(theta));
+    p0 = std::min(1.0, theta + delta);
+    p1 = std::max(0.0, theta - delta);
     nested_effort = formula().effort(q, delta, alphap, betap, 0, 0, algorithm);
   }
   double n;
@@ -439,7 +439,7 @@ double Probabilistic::effort(double q, DeltaFun delta,
 
 /* Verifies this state formula using the statistical engine. */
 bool Probabilistic::verify(const Model& model, const State& state,
-			   DeltaFun delta, double alpha, double beta,
+			   double delta, double alpha, double beta,
 			   SamplingAlgorithm algorithm) const {
   double p0, p1;
   double theta = threshold().value<double>();
@@ -454,7 +454,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     double r = 0.5*(sqrt(5) - 1.0);
     double a = 0.0;
-    double b = 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta));
+    double b = 2.0*delta/(1.0 + 2.0*delta);
     if (nested_error > a && nested_error < b) {
       a = b = nested_error;
     } else {
@@ -483,7 +483,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       if (verbosity > 0) {
 	std::cout << "Nested error: " << alphap << ", " << betap << std::endl;
 	std::cout << "Maximum symmetric nested error: "
-		  << 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta))
+		  << 2.0*delta/(1.0 + 2.0*delta)
 		  << std::endl;
       }
     }
@@ -491,8 +491,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
     alphap = 0.0;
     betap = 0.0;
   }
-  p0 = std::min(1.0, (theta + (*delta)(theta))*(1.0 - alphap));
-  p1 = std::max(0.0, 1.0 - (1.0 - (theta - (*delta)(theta)))*(1.0 - betap));
+  p0 = std::min(1.0, (theta + delta)*(1.0 - alphap));
+  p1 = std::max(0.0, 1.0 - (1.0 - (theta - delta))*(1.0 - betap));
   if (algorithm == FIXED) {
     int c = 0;
     if (formula_level() == 0) {
@@ -540,7 +540,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   if (algorithm == ESTIMATE) {
     int c = 0, n = 0;
-    double es = (*delta)(theta)*(*delta)(theta);
+    double es = delta*delta;
     double a = 1.0 - 0.5*alpha;
     double p, t, b;
     if (formula_level() == 0) {
@@ -570,8 +570,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
         for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
           std::cout << ' ';
         }
-	std::cout << n << '\t' << c << '\t' << p/(1 + (*delta)(theta)) << '\t'
-		  << p/(1 - (*delta)(theta)) << std::endl;
+	std::cout << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
+		  << p/(1 - delta) << std::endl;
       }
       t = c*(1.0 - p);
       b = tinv(a, n - 1.0);
@@ -582,7 +582,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
         std::cout << n << " samples." << std::endl;
       }
       std::cout << "Pr[" << formula() << "] = " << p << " ("
-                << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
+                << p/(1 + delta) << ',' << p/(1 - delta)
                 << ")" << std::endl;
       total_samples += n;
       samples.push_back(n);
@@ -887,7 +887,7 @@ size_t Probabilistic::clear_cache() const {
 
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
-double Comparison::effort(double q, DeltaFun delta, double alpha, double beta,
+double Comparison::effort(double q, double delta, double alpha, double beta,
 			  double alphap, double betap,
 			  SamplingAlgorithm algorithm) const {
   return 1.0;
@@ -896,7 +896,7 @@ double Comparison::effort(double q, DeltaFun delta, double alpha, double beta,
 
 /* Verifies this state formula using the statistical engine. */
 bool Comparison::verify(const Model& model, const State& state,
-			DeltaFun delta, double alpha, double beta,
+			double delta, double alpha, double beta,
 			SamplingAlgorithm algorithm) const {
   return holds(state.values());
 }
@@ -912,7 +912,7 @@ size_t Comparison::clear_cache() const {
 /* Until */
 
 /* Estimated effort for generating a sample for this path formula. */
-double Until::effort(double q, DeltaFun delta, double alpha, double beta,
+double Until::effort(double q, double delta, double alpha, double beta,
 		     double alphap, double betap,
 		     SamplingAlgorithm algorithm) const {
   double a = max_time().value<double>();
@@ -924,7 +924,7 @@ double Until::effort(double q, DeltaFun delta, double alpha, double beta,
 
 /* Generates a sample for this path formula. */
 bool Until::sample(const Model& model, const State& state,
-		   DeltaFun delta, double alpha, double beta,
+		   double delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm) const {
   double t = 0.0;
   State curr_state = state;
@@ -995,12 +995,12 @@ bool Until::sample(const Model& model, const State& state,
 /* Verifies this path formula using the mixed engine. */
 bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
-		   DeltaFun delta, double alpha, double beta,
+		   double delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm,
 		   double epsilon) const {
   double theta = p.value<double>();
-  double p0 = std::min(1.0, theta + (*delta)(theta));
-  double p1 = std::max(0.0, theta - (*delta)(theta));
+  double p0 = std::min(1.0, theta + delta);
+  double p1 = std::max(0.0, theta - delta);
 
   DdNode* dd1 = (pre().probabilistic()
 		 ? pre().verify(dd_man, model, epsilon, false) : NULL);
@@ -1018,7 +1018,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 
   if (algorithm == ESTIMATE) {
     int c = 0, n = 0;
-    double es = (*delta)(theta)*(*delta)(theta);
+    double es = delta*delta;
     double a = 1.0 - 0.5*alpha;
     double p, t, b;
     if (verbosity > 0) {
@@ -1040,8 +1040,8 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 	  std::cout << '.';
 	}
       } else if (verbosity > 1) {
-	std::cout << n << '\t' << c << '\t' << p/(1 + (*delta)(theta)) << '\t'
-		  << p/(1 - (*delta)(theta)) << std::endl;
+	std::cout << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
+		  << p/(1 - delta) << std::endl;
       }
       t = c*(1.0 - p);
       b = tinv(a, n - 1.0);
@@ -1050,7 +1050,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       std::cout << n << " samples." << std::endl;
     }
     std::cout << "Pr[" << *this << "] = " << p << " ("
-	      << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
+	      << p/(1 + delta) << ',' << p/(1 - delta)
 	      << ")" << std::endl;
     if (dd1 != NULL) {
       Cudd_RecursiveDeref(dd_man.manager(), dd1);

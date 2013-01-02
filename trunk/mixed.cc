@@ -43,7 +43,7 @@ extern double total_path_lengths;
 /* Verifies this state formula using the mixed engine. */
 bool Conjunction::verify(const DecisionDiagramManager& dd_man,
                          const Model& model,
-			 const State& state, DeltaFun delta,
+			 const State& state, double delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
 			 double epsilon) const {
@@ -63,7 +63,7 @@ bool Conjunction::verify(const DecisionDiagramManager& dd_man,
 /* Verifies this state formula using the mixed engine. */
 bool Disjunction::verify(const DecisionDiagramManager& dd_man,
                          const Model& model,
-			 const State& state, DeltaFun delta,
+			 const State& state, double delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
 			 double epsilon) const {
@@ -82,7 +82,7 @@ bool Disjunction::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the mixed engine. */
 bool Negation::verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const {
   return !negand().verify(dd_man, model, state,
@@ -96,7 +96,7 @@ bool Negation::verify(const DecisionDiagramManager& dd_man, const Model& model,
 /* Verifies this state formula using the mixed engine. */
 bool Implication::verify(const DecisionDiagramManager& dd_man,
                          const Model& model,
-			 const State& state, DeltaFun delta,
+			 const State& state, double delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
 			 double epsilon) const {
@@ -116,7 +116,7 @@ bool Implication::verify(const DecisionDiagramManager& dd_man,
 /* Verifies this state formula using the mixed engine. */
 bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
                            const Model& model,
-			   const State& state, DeltaFun delta,
+			   const State& state, double delta,
 			   double alpha, double beta,
 			   SamplingAlgorithm algorithm,
 			   double epsilon) const {
@@ -134,7 +134,7 @@ bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
 /* Verifies this state formula using the mixed engine. */
 bool Comparison::verify(const DecisionDiagramManager& dd_man,
                         const Model& model,
-			const State& state, DeltaFun delta,
+			const State& state, double delta,
 			double alpha, double beta, SamplingAlgorithm algorithm,
 			double epsilon) const {
   return holds(state.values());
