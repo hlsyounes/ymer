@@ -34,10 +34,6 @@
 struct Model;
 struct State;
 
-
-/* Delta function determining half-width of indifference region. */
-typedef double (*DeltaFun)(double theta);
-
 /* Sampling algorithm. */
 enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
 
@@ -77,18 +73,18 @@ class StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const = 0;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const = 0;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const = 0;
 
@@ -164,13 +160,13 @@ class PathFormula {
   virtual bool probabilistic() const = 0;
 
   /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const = 0;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const = 0;
 
   /* Generates a sample for this path formula. */
@@ -181,7 +177,7 @@ class PathFormula {
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
 		      double epsilon) const = 0;
 
@@ -239,18 +235,18 @@ class Conjunction : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
@@ -297,18 +293,18 @@ class Disjunction : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
@@ -356,18 +352,18 @@ class Negation : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
@@ -418,18 +414,18 @@ class Implication : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
@@ -486,18 +482,18 @@ class Probabilistic : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
@@ -556,18 +552,18 @@ class Comparison : public StateFormula {
 
   /* Estimated effort for verifying this state formula using the
      statistical engine. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DeltaFun delta,
+		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
 		      double epsilon) const;
 
@@ -740,13 +736,13 @@ class Until : public PathFormula {
   virtual bool probabilistic() const;
 
   /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(double q, DeltaFun delta, double alpha, double beta,
+  virtual double effort(double q, double delta, double alpha, double beta,
 			double alphap, double betap,
 			SamplingAlgorithm algorithm) const;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm) const;
 
   /* Generates a sample for this path formula. */
@@ -757,7 +753,7 @@ class Until : public PathFormula {
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
-		      DeltaFun delta, double alpha, double beta,
+		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
 		      double epsilon) const;
 

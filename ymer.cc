@@ -90,17 +90,11 @@ int server_socket = -1;
 /* Current property. */
 int current_property;
 
-/* Set default delta. */
-static double delta = 1e-2;
-/* Whether delta is relative or not. */
-static bool relative_delta = false;
-
 /* Program options. */
 static option long_options[] = {
   { "alpha", required_argument, 0, 'A' },
   { "beta", required_argument, 0, 'B' },
   { "delta", required_argument, 0, 'D' },
-  { "relative-delta", required_argument, 0, 'd' },
   { "epsilon", required_argument, 0, 'E' },
   { "const", required_argument, 0, 'c' },
   { "engine", required_argument, 0, 'e' },
@@ -141,9 +135,6 @@ void display_help() {
             << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
 	    << "  -D d,  --delta=d\t"
 	    << "use indifference region of width 2*d with sampling"
-	    << std::endl
-	    << "  -d d,  --relative-delta=d" << std::endl
-	    << "\t\t\tuse indifference region of relative with sampling"
 	    << std::endl
 	    << "\t\t\t  engine (default is 1e-2)" << std::endl
 	    << "  -E e,  --epsilon=e\t"
@@ -305,15 +296,6 @@ bool extract_path_formula(const PathFormula*& pf, double& theta,
     }
   }
   return true;
-}
-
-
-double indifference_region(double theta) {
-  if (relative_delta) {
-    return 2*delta*((theta <= 0.5) ? theta : 1.0 - theta);
-  } else {
-    return delta;
-  }
 }
 
 class ExpressionCompiler
@@ -740,6 +722,8 @@ int main(int argc, char* argv[]) {
   double alpha = 1e-2;
   /* Set default beta. */
   double beta = 1e-2;
+  /* Set default delta. */
+  double delta = 1e-2;
   /* Set default epsilon. */
   double epsilon = 1e-6;
   /* Verification without estimation by default. */
@@ -801,16 +785,6 @@ int main(int argc, char* argv[]) {
         break;
       case 'D':
 	delta = atof(optarg);
-	relative_delta = false;
-	if (delta < 1e-10) {
-	  throw std::invalid_argument("delta < 1e-10");
-	} else if (delta > 0.5) {
-	  throw std::invalid_argument("delta > 0.5");
-	}
-	break;
-      case 'd':
-	delta = atof(optarg);
-	relative_delta = true;
 	if (delta < 1e-10) {
 	  throw std::invalid_argument("delta < 1e-10");
 	} else if (delta > 0.5) {
@@ -1013,8 +987,7 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
 	      msg.value = pf->sample(*global_model, init_state,
-				     indifference_region, alphap, betap,
-				     algorithm);
+				     delta, alphap, betap, algorithm);
 	      if (verbosity > 1) {
 		std::cout << "Sending sample " << msg.value << std::endl;
 	      }
@@ -1169,8 +1142,7 @@ int main(int argc, char* argv[]) {
 #endif
 	  }
 	  bool sol = (*fi)->verify(*global_model, init_state,
-				   indifference_region, alpha, beta,
-				   algorithm);
+				   delta, alpha, beta, algorithm);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1390,8 +1362,7 @@ int main(int argc, char* argv[]) {
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
 	  bool sol = (*fi)->verify(dd_man, *global_model, init_state,
-				   indifference_region, alpha, beta, algorithm,
-				   epsilon);
+				   delta, alpha, beta, algorithm, epsilon);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
