@@ -30,6 +30,7 @@
 
 #include "src/ddutil.h"
 #include "src/expression.h"
+#include "src/statistics.h"
 
 struct Model;
 struct State;
@@ -37,6 +38,11 @@ struct State;
 /* Sampling algorithm. */
 enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
 
+struct ModelCheckingStats {
+  Sample<double> time;
+  Sample<int> sample_size;
+  Sample<size_t> path_length;
+};
 
 /* ====================================================================== */
 /* StateFormula */
@@ -80,13 +86,15 @@ class StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const = 0;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const = 0;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const = 0;
+		      double epsilon,
+                      ModelCheckingStats* stats) const = 0;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -167,19 +175,22 @@ class PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const = 0;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const = 0;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double epsilon,
-		      DdNode* dd1, DdNode* dd2) const = 0;
+		      DdNode* dd1, DdNode* dd2,
+                      ModelCheckingStats* stats) const = 0;
 
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
-		      double epsilon) const = 0;
+		      double epsilon,
+                      ModelCheckingStats* stats) const = 0;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -242,13 +253,15 @@ class Conjunction : public StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -300,13 +313,15 @@ class Disjunction : public StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -359,13 +374,15 @@ class Negation : public StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -421,13 +438,15 @@ class Implication : public StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -489,13 +508,15 @@ class Probabilistic : public StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -559,13 +580,15 @@ class Comparison : public StateFormula {
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,
@@ -743,19 +766,22 @@ class Until : public PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const;
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double epsilon,
-		      DdNode* dd1, DdNode* dd2) const;
+		      DdNode* dd1, DdNode* dd2,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
-		      double epsilon) const;
+		      double epsilon,
+                      ModelCheckingStats* stats) const;
 
   /* Verifies this path formula using the hybrid engine. */
   virtual DdNode* verify(const DecisionDiagramManager& dd_man,

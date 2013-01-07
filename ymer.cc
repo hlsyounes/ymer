@@ -79,12 +79,6 @@ double nested_error = -1.0;
 int fixed_sample_size = 0;
 /* Maxumum path length. */
 size_t max_path_length = std::numeric_limits<int>::max();
-/* Total number of samples (for statistics). */
-size_t total_samples;
-/* Number of samples per trial (for statistics). */
-std::vector<size_t> samples;
-/* Total path lengths (for statistics). */
-double total_path_lengths;
 /* Sockets for communication. */
 int server_socket = -1;
 /* Current property. */
@@ -986,8 +980,9 @@ int main(int argc, char* argv[]) {
 	  } else if (result == 0) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
+              ModelCheckingStats stats;
 	      msg.value = pf->sample(*global_model, init_state,
-				     delta, alphap, betap, algorithm);
+				     delta, alphap, betap, algorithm, &stats);
 	      if (verbosity > 1) {
 		std::cout << "Sending sample " << msg.value << std::endl;
 	      }
@@ -1120,11 +1115,7 @@ int main(int argc, char* argv[]) {
 		  << std::endl;
 	current_property = fi - properties.begin();
 	size_t accepts = 0;
-	std::vector<double> times;
-	double total_time = 0.0;
-	total_samples = 0;
-	samples.clear();
-	total_path_lengths = 0.0;
+        ModelCheckingStats stats;
 	double total_cached = 0.0;
 	for (size_t i = 0; i < trials; i++) {
 	  timeval start_time;
@@ -1142,7 +1133,7 @@ int main(int argc, char* argv[]) {
 #endif
 	  }
 	  bool sol = (*fi)->verify(*global_model, init_state,
-				   delta, alpha, beta, algorithm);
+				   delta, alpha, beta, algorithm, &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1179,33 +1170,35 @@ int main(int argc, char* argv[]) {
 	    if (sol) {
 	      accepts++;
 	    }
-	    total_time += t;
-	    times.push_back(t);
+            stats.time.AddObservation(t);
 	  }
 	}
 	if (trials > 1) {
-	  double time_avg = total_time/trials;
-	  double sample_avg = double(total_samples)/trials;
-	  double path_avg = total_path_lengths/total_samples;
-	  double time_var = 0.0;
-	  double sample_var = 0.0;
-	  for (size_t i = 0; i < trials; i++) {
-	    double diff = times[i] - time_avg;
-	    time_var += diff*diff;
-	    diff = samples[i] - sample_avg;
-	    sample_var += diff*diff;
-	  }
-	  time_var /= trials - 1;
-	  sample_var /= trials - 1;
 	  double cached_avg = total_cached/trials;
-	  std::cout << "Average model checking time: " << time_avg
+	  std::cout << "Model checking time mean: " << stats.time.mean()
 		    << " seconds" << std::endl
-		    << "Time standard deviation: " << sqrt(time_var)
-		    << std::endl
-		    << "Average number of samples: " << sample_avg << std::endl
-		    << "Samples standard deviation: " << sqrt(sample_var)
-		    << std::endl
-		    << "Average path lengths: " << path_avg << std::endl
+                    << "Model checking time min: " << stats.time.min()
+                    << " seconds" << std::endl
+                    << "Model checking time max: " << stats.time.max()
+                    << " seconds" << std::endl
+		    << "Model checking time std.dev.: " << stats.time.stddev()
+                    << std::endl
+		    << "Sample size mean: " << stats.sample_size.mean()
+                    << std::endl
+                    << "Sample size min: " << stats.sample_size.min()
+                    << std::endl
+                    << "Sample size max: " << stats.sample_size.max()
+                    << std::endl
+                    << "Sample size std.dev.: " << stats.sample_size.stddev()
+                    << std::endl
+		    << "Path length mean: " << stats.path_length.mean()
+                    << std::endl
+		    << "Path length min: " << stats.path_length.min()
+                    << std::endl
+		    << "Path length max: " << stats.path_length.max()
+                    << std::endl
+                    << "Path length std.dev.: " << stats.path_length.stddev()
+                    << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl
 		    << "Average cached: " << cached_avg << std::endl;
@@ -1346,11 +1339,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
 	size_t accepts = 0;
-	std::vector<double> times;
-	double total_time = 0.0;
-	total_samples = 0;
-	samples.clear();
-	total_path_lengths = 0.0;
+        ModelCheckingStats stats;
 	for (size_t i = 0; i < trials; i++) {
 	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
 	  itimerval stimer;
@@ -1362,7 +1351,8 @@ int main(int argc, char* argv[]) {
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
 	  bool sol = (*fi)->verify(dd_man, *global_model, init_state,
-				   delta, alpha, beta, algorithm, epsilon);
+				   delta, alpha, beta, algorithm, epsilon,
+                                   &stats);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
@@ -1386,32 +1376,34 @@ int main(int argc, char* argv[]) {
 	    if (sol) {
 	      accepts++;
 	    }
-	    total_time += t;
-	    times.push_back(t);
+            stats.time.AddObservation(t);
 	  }
 	}
 	if (trials > 1) {
-	  double time_avg = total_time/trials;
-	  double sample_avg = double(total_samples)/trials;
-	  double path_avg = total_path_lengths/total_samples;
-	  double time_var = 0.0;
-	  double sample_var = 0.0;
-	  for (size_t i = 0; i < trials; i++) {
-	    double diff = times[i] - time_avg;
-	    time_var += diff*diff;
-	    diff = samples[i] - sample_avg;
-	    sample_var += diff*diff;
-	  }
-	  time_var /= trials - 1;
-	  sample_var /= trials - 1;
-	  std::cout << "Average model checking time: " << time_avg
+	  std::cout << "Model checking time mean: " << stats.time.mean()
 		    << " seconds" << std::endl
-		    << "Time standard deviation: " << sqrt(time_var)
-		    << std::endl
-		    << "Average number of samples: " << sample_avg << std::endl
-		    << "Samples standard deviation: " << sqrt(sample_var)
-		    << std::endl
-		    << "Average path lengths: " << path_avg << std::endl
+                    << "Model checking time min: " << stats.time.min()
+                    << " seconds" << std::endl
+                    << "Model checking time max: " << stats.time.max()
+                    << " seconds" << std::endl
+		    << "Model checking time std.dev.: " << stats.time.stddev()
+                    << std::endl
+		    << "Sample size mean: " << stats.sample_size.mean()
+                    << std::endl
+                    << "Sample size min: " << stats.sample_size.min()
+                    << std::endl
+                    << "Sample size max: " << stats.sample_size.max()
+                    << std::endl
+                    << "Sample size std.dev.: " << stats.sample_size.stddev()
+                    << std::endl
+		    << "Path length mean: " << stats.path_length.mean()
+                    << std::endl
+		    << "Path length min: " << stats.path_length.min()
+                    << std::endl
+		    << "Path length max: " << stats.path_length.max()
+                    << std::endl
+                    << "Path length std.dev.: " << stats.path_length.stddev()
+                    << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl;
 	}
