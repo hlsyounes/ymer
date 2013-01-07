@@ -36,7 +36,8 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-check_PROGRAMS = src/strutil_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
+check_PROGRAMS = src/strutil_test$(EXEEXT) \
+	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
 	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
 	src/expression_test$(EXEEXT) \
 	src/compiled-expression_test$(EXEEXT) \
@@ -181,6 +182,9 @@ src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
+src_libstatistics_la_LIBADD =
+am_src_libstatistics_la_OBJECTS =
+src_libstatistics_la_OBJECTS = $(am_src_libstatistics_la_OBJECTS)
 src_libstrutil_la_LIBADD =
 am_src_libstrutil_la_OBJECTS =
 src_libstrutil_la_OBJECTS = $(am_src_libstrutil_la_OBJECTS)
@@ -221,6 +225,10 @@ src_expression_test_DEPENDENCIES = src/libexpression.la \
 am_src_rng_test_OBJECTS = rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
+am_src_statistics_test_OBJECTS = statistics_test.$(OBJEXT)
+src_statistics_test_OBJECTS = $(am_src_statistics_test_OBJECTS)
+src_statistics_test_DEPENDENCIES = src/libstatistics.la \
+	src/libtest-main.la
 am_src_strutil_test_OBJECTS = strutil_test.$(OBJEXT)
 src_strutil_test_OBJECTS = $(am_src_strutil_test_OBJECTS)
 src_strutil_test_DEPENDENCIES = src/libstrutil.la src/libtest-main.la
@@ -274,15 +282,15 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstrutil_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
+	$(src_libstrutil_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
 	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
@@ -291,15 +299,15 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstrutil_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
+	$(src_libstrutil_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -501,6 +509,8 @@ SUBDIRS = glog gtest
 
 # String utility library.
 
+# Statistics library.
+
 # Decision diagram utility library.
 
 # Random number generator library.
@@ -516,10 +526,10 @@ SUBDIRS = glog gtest
 # Compiled model library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
-	dcmt/lib/libdcmt.la src/libstrutil.la src/libddutil.la \
-	src/librng.la src/libtyped-value.la src/libexpression.la \
-	src/libcompiled-expression.la src/libcompiled-distribution.la \
-	src/libcompiled-model.la
+	dcmt/lib/libdcmt.la src/libstrutil.la src/libstatistics.la \
+	src/libddutil.la src/librng.la src/libtyped-value.la \
+	src/libexpression.la src/libcompiled-expression.la \
+	src/libcompiled-distribution.la src/libcompiled-model.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -573,6 +583,7 @@ dcmt_lib_libdcmt_la_SOURCES = dcmt/lib/dci.h dcmt/lib/check32.c \
 
 dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 src_libstrutil_la_SOURCES = src/strutil.h
+src_libstatistics_la_SOURCES = src/statistics.h
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
 src_librng_la_SOURCES = src/rng.h src/rng.cc
@@ -614,6 +625,8 @@ src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
 src_strutil_test_SOURCES = src/strutil_test.cc
 src_strutil_test_LDADD = src/libstrutil.la src/libtest-main.la
+src_statistics_test_SOURCES = src/statistics_test.cc
+src_statistics_test_LDADD = src/libstatistics.la src/libtest-main.la
 src_ddutil_test_SOURCES = src/ddutil_test.cc
 src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
 src_rng_test_SOURCES = src/rng_test.cc
@@ -766,6 +779,8 @@ src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEP
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
+src/libstatistics.la: $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_DEPENDENCIES) $(EXTRA_src_libstatistics_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(LINK)  $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_LIBADD) $(LIBS)
 src/libstrutil.la: $(src_libstrutil_la_OBJECTS) $(src_libstrutil_la_DEPENDENCIES) $(EXTRA_src_libstrutil_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(LINK)  $(src_libstrutil_la_OBJECTS) $(src_libstrutil_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) $(EXTRA_src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -842,6 +857,9 @@ src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_te
 src/rng_test$(EXEEXT): $(src_rng_test_OBJECTS) $(src_rng_test_DEPENDENCIES) $(EXTRA_src_rng_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/rng_test$(EXEEXT)
 	$(CXXLINK) $(src_rng_test_OBJECTS) $(src_rng_test_LDADD) $(LIBS)
+src/statistics_test$(EXEEXT): $(src_statistics_test_OBJECTS) $(src_statistics_test_DEPENDENCIES) $(EXTRA_src_statistics_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/statistics_test$(EXEEXT)
+	$(CXXLINK) $(src_statistics_test_OBJECTS) $(src_statistics_test_LDADD) $(LIBS)
 src/strutil_test$(EXEEXT): $(src_strutil_test_OBJECTS) $(src_strutil_test_DEPENDENCIES) $(EXTRA_src_strutil_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/strutil_test$(EXEEXT)
 	$(CXXLINK) $(src_strutil_test_OBJECTS) $(src_strutil_test_LDADD) $(LIBS)
@@ -968,6 +986,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/states.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statistics_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-main.Plo@am__quote@
@@ -1752,6 +1771,20 @@ rng_test.obj: src/rng_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/rng_test.cc' object='rng_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o rng_test.obj `if test -f 'src/rng_test.cc'; then $(CYGPATH_W) 'src/rng_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/rng_test.cc'; fi`
+
+statistics_test.o: src/statistics_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT statistics_test.o -MD -MP -MF $(DEPDIR)/statistics_test.Tpo -c -o statistics_test.o `test -f 'src/statistics_test.cc' || echo '$(srcdir)/'`src/statistics_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/statistics_test.Tpo $(DEPDIR)/statistics_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/statistics_test.cc' object='statistics_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o statistics_test.o `test -f 'src/statistics_test.cc' || echo '$(srcdir)/'`src/statistics_test.cc
+
+statistics_test.obj: src/statistics_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT statistics_test.obj -MD -MP -MF $(DEPDIR)/statistics_test.Tpo -c -o statistics_test.obj `if test -f 'src/statistics_test.cc'; then $(CYGPATH_W) 'src/statistics_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/statistics_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/statistics_test.Tpo $(DEPDIR)/statistics_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/statistics_test.cc' object='statistics_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o statistics_test.obj `if test -f 'src/statistics_test.cc'; then $(CYGPATH_W) 'src/statistics_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/statistics_test.cc'; fi`
 
 strutil_test.o: src/strutil_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT strutil_test.o -MD -MP -MF $(DEPDIR)/strutil_test.Tpo -c -o strutil_test.o `test -f 'src/strutil_test.cc' || echo '$(srcdir)/'`src/strutil_test.cc

@@ -48,12 +48,6 @@ extern double nested_error;
 extern int fixed_sample_size;
 /* Maximum path length. */
 extern size_t max_path_length;
-/* Total number of samples (for statistics). */
-extern size_t total_samples;
-/* Number of samples per trial (for statistics). */
-extern std::vector<size_t> samples;
-/* Total path lengths (for statistics). */
-extern double total_path_lengths;
 
 /* Nesting level of formula just being verified. */
 size_t StateFormula::formula_level_ = 0;
@@ -83,9 +77,10 @@ double Conjunction::effort(double q, double delta, double alpha, double beta,
 /* Verifies this state formula using the statistical engine. */
 bool Conjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
-			 SamplingAlgorithm algorithm) const {
+			 SamplingAlgorithm algorithm,
+                         ModelCheckingStats* stats) const {
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
+    if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm, stats)) {
       return false;
     }
   }
@@ -122,9 +117,10 @@ double Disjunction::effort(double q, double delta, double alpha, double beta,
 /* Verifies this state formula using the statistical engine. */
 bool Disjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
-			 SamplingAlgorithm algorithm) const {
+			 SamplingAlgorithm algorithm,
+                         ModelCheckingStats* stats) const {
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
+    if ((*fi)->verify(model, state, delta, alpha, beta, algorithm, stats)) {
       return true;
     }
   }
@@ -157,8 +153,9 @@ double Negation::effort(double q, double delta, double alpha, double beta,
 /* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm) const {
-  return !negand().verify(model, state, delta, beta, alpha, algorithm);
+		      SamplingAlgorithm algorithm,
+                      ModelCheckingStats* stats) const {
+  return !negand().verify(model, state, delta, beta, alpha, algorithm, stats);
 }
 
 
@@ -185,11 +182,14 @@ double Implication::effort(double q, double delta, double alpha, double beta,
 /* Verifies this state formula using the statistical engine. */
 bool Implication::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
-			 SamplingAlgorithm algorithm) const {
-  if (!antecedent().verify(model, state, delta, beta, alpha, algorithm)) {
+			 SamplingAlgorithm algorithm,
+                         ModelCheckingStats* stats) const {
+  if (!antecedent().verify(model, state,
+                           delta, beta, alpha, algorithm, stats)) {
     return true;
   } else {
-    return consequent().verify(model, state, delta, alpha, beta, algorithm);
+    return consequent().verify(model, state,
+                               delta, alpha, beta, algorithm, stats);
   }
 }
 
@@ -440,7 +440,8 @@ double Probabilistic::effort(double q, double delta,
 /* Verifies this state formula using the statistical engine. */
 bool Probabilistic::verify(const Model& model, const State& state,
 			   double delta, double alpha, double beta,
-			   SamplingAlgorithm algorithm) const {
+			   SamplingAlgorithm algorithm,
+                           ModelCheckingStats* stats) const {
   double p0, p1;
   double theta = threshold().value<double>();
   double alphap;
@@ -505,7 +506,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     formula_level_++;
     for (int i = 1; i <= fixed_sample_size; ++i) {
-      if (formula().sample(model, state, delta, alphap, betap, algorithm)) {
+      if (formula().sample(model, state,
+                           delta, alphap, betap, algorithm, stats)) {
         c++;
       }
       if (verbosity == 1) {
@@ -528,8 +530,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       if (verbosity > 0) {
         std::cout << fixed_sample_size << " samples." << std::endl;
       }
-      total_samples += fixed_sample_size;
-      samples.push_back(fixed_sample_size);
+      stats->sample_size.AddObservation(fixed_sample_size);
     }
     double p = double(c)/fixed_sample_size;
     if (strict()) {
@@ -553,7 +554,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     formula_level_++;
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
-      if (formula().sample(model, state, delta, alphap, betap, algorithm)) {
+      if (formula().sample(model, state,
+                           delta, alphap, betap, algorithm, stats)) {
 	c++;
       }
       n++;
@@ -584,8 +586,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       std::cout << "Pr[" << formula() << "] = " << p << " ("
                 << p/(1 + delta) << ',' << p/(1 - delta)
                 << ")" << std::endl;
-      total_samples += n;
-      samples.push_back(n);
+      stats->sample_size.AddObservation(n);
     }
     if (strict()) {
       return p > theta;
@@ -787,7 +788,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(model, state, delta, alphap, betap, algorithm);
+      s = formula().sample(model, state,
+                           delta, alphap, betap, algorithm, stats);
       have_sample = true;
     }
     if (!have_sample) {
@@ -841,8 +843,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     if (verbosity > 0) {
       std::cout << m << " samples." << std::endl;
     }
-    total_samples += m;
-    samples.push_back(m);
+    stats->sample_size.AddObservation(m);
   }
   if (server_socket != -1) {
     if (verbosity > 0) {
@@ -897,7 +898,8 @@ double Comparison::effort(double q, double delta, double alpha, double beta,
 /* Verifies this state formula using the statistical engine. */
 bool Comparison::verify(const Model& model, const State& state,
 			double delta, double alpha, double beta,
-			SamplingAlgorithm algorithm) const {
+			SamplingAlgorithm algorithm,
+                        ModelCheckingStats* stats) const {
   return holds(state.values());
 }
 
@@ -925,7 +927,8 @@ double Until::effort(double q, double delta, double alpha, double beta,
 /* Generates a sample for this path formula. */
 bool Until::sample(const Model& model, const State& state,
 		   double delta, double alpha, double beta,
-		   SamplingAlgorithm algorithm) const {
+		   SamplingAlgorithm algorithm,
+                   ModelCheckingStats* stats) const {
   double t = 0.0;
   State curr_state = state;
   const double t_min = min_time().value<double>();
@@ -941,21 +944,23 @@ bool Until::sample(const Model& model, const State& state,
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
-      if (post().verify(model, curr_state, delta, alpha, beta, algorithm)) {
+      if (post().verify(model, curr_state,
+                        delta, alpha, beta, algorithm, stats)) {
 	result = true;
 	done = true;
       } else if (!pre().verify(model, curr_state,
-			       delta, alpha, beta, algorithm)) {
+			       delta, alpha, beta, algorithm, stats)) {
 	result = false;
 	done = true;
       }
     } else {
-      if (!pre().verify(model, curr_state, delta, alpha, beta, algorithm)) {
+      if (!pre().verify(model, curr_state,
+                        delta, alpha, beta, algorithm, stats)) {
 	result = false;
 	done = true;
       } else if (t_min < next_t
 		 && post().verify(model, curr_state,
-				  delta, alpha, beta, algorithm)) {
+				  delta, alpha, beta, algorithm, stats)) {
 	t = t_min;
 	result = true;
 	done = true;
@@ -986,7 +991,7 @@ bool Until::sample(const Model& model, const State& state,
     }
   }
   if (StateFormula::formula_level() == 1) {
-    total_path_lengths += path_length;
+    stats->path_length.AddObservation(path_length);
   }
   return result;
 }
@@ -997,7 +1002,8 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
 		   double delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm,
-		   double epsilon) const {
+		   double epsilon,
+                   ModelCheckingStats* stats) const {
   double theta = p.value<double>();
   double p0 = std::min(1.0, theta + delta);
   double p1 = std::max(0.0, theta - delta);
@@ -1028,7 +1034,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       std::cout << std::endl;
     }
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
-      if (sample(dd_man, model, state, epsilon, dd1, dd2)) {
+      if (sample(dd_man, model, state, epsilon, dd1, dd2, stats)) {
 	c++;
       }
       n++;
@@ -1096,7 +1102,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   double d = 0.0;
   while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
 	 || (algorithm == SPRT && logB < d && d < logA)) {
-    bool s = sample(dd_man, model, state, epsilon, dd1, dd2);
+    bool s = sample(dd_man, model, state, epsilon, dd1, dd2, stats);
     if (s) {
       if (algorithm == SEQUENTIAL) {
 	d += 1.0;
@@ -1138,8 +1144,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   if (verbosity > 0) {
     std::cout << m << " samples." << std::endl;
   }
-  total_samples += m;
-  samples.push_back(m);
+  stats->sample_size.AddObservation(m);
   if (dd1 != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), dd1);
   }

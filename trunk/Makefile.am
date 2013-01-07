@@ -96,6 +96,10 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 noinst_LTLIBRARIES += src/libstrutil.la
 src_libstrutil_la_SOURCES = src/strutil.h
 
+# Statistics library.
+noinst_LTLIBRARIES += src/libstatistics.la
+src_libstatistics_la_SOURCES = src/statistics.h
+
 # Decision diagram utility library.
 noinst_LTLIBRARIES += src/libddutil.la
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
@@ -164,6 +168,11 @@ check_PROGRAMS =
 check_PROGRAMS += src/strutil_test
 src_strutil_test_SOURCES = src/strutil_test.cc
 src_strutil_test_LDADD = src/libstrutil.la src/libtest-main.la
+
+# Test for statistics library.
+check_PROGRAMS += src/statistics_test
+src_statistics_test_SOURCES = src/statistics_test.cc
+src_statistics_test_LDADD = src/libstatistics.la src/libtest-main.la
 
 # Test for decision diagram utility library.
 check_PROGRAMS += src/ddutil_test

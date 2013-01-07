@@ -29,13 +29,6 @@
 
 /* Verbosity level. */
 extern int verbosity;
-/* Total number of samples (for statistics). */
-extern size_t total_samples;
-/* Number of samples per trial (for statistics). */
-extern std::vector<size_t> samples;
-/* Total path lengths (for statistics). */
-extern double total_path_lengths;
-
 
 /* ====================================================================== */
 /* Conjunction */
@@ -46,10 +39,11 @@ bool Conjunction::verify(const DecisionDiagramManager& dd_man,
 			 const State& state, double delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
-			 double epsilon) const {
+			 double epsilon,
+                         ModelCheckingStats* stats) const {
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
     if (!(*fi)->verify(dd_man, model, state,
-		       delta, alpha, beta, algorithm, epsilon)) {
+		       delta, alpha, beta, algorithm, epsilon, stats)) {
       return false;
     }
   }
@@ -66,10 +60,11 @@ bool Disjunction::verify(const DecisionDiagramManager& dd_man,
 			 const State& state, double delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
-			 double epsilon) const {
+			 double epsilon,
+                         ModelCheckingStats* stats) const {
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
     if ((*fi)->verify(dd_man, model, state,
-		      delta, alpha, beta, algorithm, epsilon)) {
+		      delta, alpha, beta, algorithm, epsilon, stats)) {
       return true;
     }
   }
@@ -84,9 +79,10 @@ bool Disjunction::verify(const DecisionDiagramManager& dd_man,
 bool Negation::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, double delta,
 		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon) const {
+		      double epsilon,
+                      ModelCheckingStats* stats) const {
   return !negand().verify(dd_man, model, state,
-			  delta, beta, alpha, algorithm, epsilon);
+			  delta, beta, alpha, algorithm, epsilon, stats);
 }
 
 
@@ -99,13 +95,14 @@ bool Implication::verify(const DecisionDiagramManager& dd_man,
 			 const State& state, double delta,
 			 double alpha, double beta,
 			 SamplingAlgorithm algorithm,
-			 double epsilon) const {
+			 double epsilon,
+                         ModelCheckingStats* stats) const {
   if (!antecedent().verify(dd_man, model, state,
-			   delta, beta, alpha, algorithm, epsilon)) {
+			   delta, beta, alpha, algorithm, epsilon, stats)) {
     return true;
   } else {
     return consequent().verify(dd_man, model, state,
-			       delta, alpha, beta, algorithm, epsilon);
+			       delta, alpha, beta, algorithm, epsilon, stats);
   }
 }
 
@@ -119,10 +116,11 @@ bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
 			   const State& state, double delta,
 			   double alpha, double beta,
 			   SamplingAlgorithm algorithm,
-			   double epsilon) const {
+			   double epsilon,
+                           ModelCheckingStats* stats) const {
   formula_level_++;
   bool res = formula().verify(dd_man, model, state, threshold(), strict(),
-			      delta, alpha, beta, algorithm, epsilon);
+			      delta, alpha, beta, algorithm, epsilon, stats);
   formula_level_--;
   return res;
 }
@@ -136,7 +134,8 @@ bool Comparison::verify(const DecisionDiagramManager& dd_man,
                         const Model& model,
 			const State& state, double delta,
 			double alpha, double beta, SamplingAlgorithm algorithm,
-			double epsilon) const {
+			double epsilon,
+                        ModelCheckingStats* stats) const {
   return holds(state.values());
 }
 
@@ -147,9 +146,10 @@ bool Comparison::verify(const DecisionDiagramManager& dd_man,
 /* Generates a sample for this path formula. */
 bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
                    const State& state,
-		   double epsilon, DdNode* dd1, DdNode* dd2) const {
+		   double epsilon, DdNode* dd1, DdNode* dd2,
+                   ModelCheckingStats* stats) const {
   double t = 0.0;
-  size_t path_size = 1;
+  size_t path_length = 1;
   State curr_state = state;
   bool result = false;
   double t_max = max_time().value<double>();
@@ -208,7 +208,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
     State next_state = curr_state.Next();
     t += next_state.time() - curr_state.time();
     if (t <= t_max) {
-      path_size++;
+      path_length++;
     }
     curr_state = std::move(next_state);
   }
@@ -223,7 +223,7 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
     }
   }
   if (StateFormula::formula_level() == 1) {
-    total_path_lengths += path_size;
+    stats->path_length.AddObservation(path_length);
   }
   return result;
 }
