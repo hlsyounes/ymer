@@ -21,14 +21,14 @@
  */
 
 #include "formulas.h"
-#include "states.h"
-#include "models.h"
-#include "cudd.h"
-#include <cmath>
-#include <iostream>
 
-/* Verbosity level. */
-extern int verbosity;
+#include <cmath>
+
+#include "models.h"
+#include "states.h"
+
+#include "cudd.h"
+#include "glog/logging.h"
 
 /* ====================================================================== */
 /* Conjunction */
@@ -200,10 +200,8 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
       result = false;
       break;
     }
-    if (verbosity > 2) {
-      std::cout << "t = " << t << ": ";
-      curr_state.print(std::cout);
-      std::cout << std::endl;
+    if (VLOG_IS_ON(3)) {
+      LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
     }
     State next_state = curr_state.Next();
     t += next_state.time() - curr_state.time();
@@ -212,14 +210,12 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
     }
     curr_state = std::move(next_state);
   }
-  if (verbosity > 2) {
-    std::cout << "t = " << t << ": ";
-    curr_state.print(std::cout);
-    std::cout << std::endl;
+  if (VLOG_IS_ON(3)) {
+    LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
     if (result) {
-      std::cout << ">>positive sample" << std::endl;
+      LOG(INFO) << ">>positive sample";
     } else {
-      std::cout << ">>negative sample" << std::endl;
+      LOG(INFO) << ">>negative sample";
     }
   }
   if (StateFormula::formula_level() == 1) {

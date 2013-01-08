@@ -20,7 +20,8 @@
 #include "states.h"
 
 #include <limits>
-#include <ostream>
+
+#include "src/strutil.h"
 
 State::State(const CompiledModel* model,
              CompiledExpressionEvaluator* evaluator,
@@ -89,9 +90,10 @@ State State::Next() const {
   return next_state;
 }
 
-void State::print(std::ostream& os) const {
-  os << model_->variables()[0].name() << '=' << values()[0];
+std::string State::ToString() const {
+  std::string str = StrCat(model_->variables()[0].name(), '=', values()[0]);
   for (size_t i = 1; i < values().size(); ++i) {
-    os << " & " << model_->variables()[i].name() << '=' << values()[i];
+    str += StrCat(" & ", model_->variables()[i].name(), '=', values()[i]);
   }
+  return str;
 }
