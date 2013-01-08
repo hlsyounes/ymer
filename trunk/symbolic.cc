@@ -30,10 +30,6 @@
 #include <iostream>
 #include <stdexcept>
 
-/* Verbosity level. */
-extern int verbosity;
-
-
 /* ====================================================================== */
 /* Conjunction */
 
@@ -652,9 +648,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   /*
    * Build HDD for matrix.
    */
-  if (verbosity > 0) {
-    std::cout << "Building hybrid MTBDD matrix...";
-  }
+  std::cout << "Building hybrid MTBDD matrix...";
   DdNode* ddm = Cudd_BddToAdd(dd_man.manager(), maybe);
   Cudd_Ref(ddm);
   Cudd_RecursiveDeref(dd_man.manager(), maybe);
@@ -667,21 +661,15 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   DdNode** cvars = model.column_variables(dd_man);
   int nvars = dd_man.GetNumVariables() / 2;
   HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars, cvars, nvars, odd);
-  if (verbosity > 0) {
-    std::cout << hddm->num_nodes << " nodes." << std::endl;
-  }
+  std::cout << hddm->num_nodes << " nodes." << std::endl;
 
   /*
    * Add sparse bits.
    */
-  if (verbosity > 0) {
-    std::cout << "Adding sparse bits...";
-  }
+  std::cout << "Adding sparse bits...";
   add_sparse_bits(hddm);
-  if (verbosity > 0) {
-    std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
-	      << std::endl;
-  }
+  std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
+            << std::endl;
 
   /* Get vector of diagonals. */
   double* diags = hdd_negative_row_sums(hddm, nstates);
@@ -735,33 +723,25 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   int left, right;
   double* weights;
   double weight_sum;
-  if (verbosity > 0) {
-    std::cout << "Uniformization: " << max_diag << "*" << time << " = "
-	      << (max_diag*time) << std::endl;
-  }
+  std::cout << "Uniformization: " << max_diag << "*" << time << " = "
+            << (max_diag*time) << std::endl;
   fox_glynn_weighter(left, right, weights, weight_sum,
 		     1.01*max_diag*time, epsilon);
-  if (verbosity > 0) {
-    std::cout << "Fox-Glynn: left = " << left << ", right = " << right
-	      << std::endl;
-  }
+  std::cout << "Fox-Glynn: left = " << left << ", right = " << right
+            << std::endl;
 
   /*
    * Iterations before left bound to update vector.
    */
-  if (verbosity > 0) {
-    std::cout << "Computing probabilities";
-  }
+  std::cout << "Computing probabilities";
   int iters;
   bool done = false;
   bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
-    if (verbosity > 0) {
-      if (iters % 1000 == 0) {
-	std::cout << ':';
-      } else if (iters % 100 == 0) {
-	std::cout << '.';
-      }
+    if (iters % 1000 == 0) {
+      std::cout << ':';
+    } else if (iters % 100 == 0) {
+      std::cout << '.';
     }
     /*
      * Matrix vector multiplication.
@@ -808,16 +788,11 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   /*
    * Accumulate weights.
    */
-  if (verbosity > 1) {
-    std::cout << std::endl;
-  }
   for (; iters <= right && !done; iters++) {
-    if (verbosity == 1) {
-      if (iters % 1000 == 0) {
-	std::cout << ':';
-      } else if (iters % 100 == 0) {
-	std::cout << '.';
-      }
+    if (iters % 1000 == 0) {
+      std::cout << ':';
+    } else if (iters % 100 == 0) {
+      std::cout << '.';
     }
     if (iters > 0) {
       /*
@@ -877,10 +852,10 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       }
       double slack = tail_bound(iters, 1.01*max_diag*time,
 				left, right, epsilon);
-      if (verbosity > 1 && init >= 0) {
-	std::cout << iters
+      if (VLOG_IS_ON(2) && init >= 0) {
+	LOG(INFO) << iters
 		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"
-		  << "; threshold = " << threshold << std::endl;
+		  << "; threshold = " << threshold;
       }
       if (!estimate) {
 	bool pass = false;
@@ -908,15 +883,13 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   if (iters > right) {
     iters = right;
   }
-  if (verbosity > 0) {
-    std::cout << ' ' << iters << " iterations." << std::endl;
-    if (estimate) {
-      std::cout.precision(10);
-      std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
-      std::cout.precision(6);
-    }
+  std::cout << ' ' << iters << " iterations." << std::endl;
+  if (estimate) {
+    std::cout.precision(10);
+    std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
+    std::cout.precision(6);
   }
-  if (verbosity > 0 && steady) {
+  if (steady) {
     std::cout << "Steady state detected." << std::endl;
   }
   /*

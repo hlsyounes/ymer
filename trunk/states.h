@@ -22,6 +22,10 @@
 #ifndef STATES_H_
 #define STATES_H_
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include "src/compiled-model.h"
 #include "src/expression.h"
 #include "src/rng.h"
@@ -43,8 +47,8 @@ class State {
   // Returns a sampled successor of this state.
   State Next() const;
 
-  // Prints this object on the given stream.
-  void print(std::ostream& os) const;
+  // Returns a string representation of this state.
+  std::string ToString() const;
 
 private:
   const CompiledModel* model_;

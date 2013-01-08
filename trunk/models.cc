@@ -30,9 +30,6 @@
 #include "cudd.h"
 #include "glog/logging.h"
 
-/* Verbosity level. */
-extern int verbosity;
-
 ParsedVariable::ParsedVariable(
     const std::string& name, int min_value, int max_value, int init_value)
     : name_(name),
@@ -107,9 +104,7 @@ void match_first_moment(ECParameters& params, const Distribution& dist) {
 DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
                          DdNode* init, const ADD& rates,
                          DdNode** row_variables) {
-  if (verbosity > 0) {
-    std::cout << "Computing reachable states";
-  }
+  std::cout << "Computing reachable states";
   /*
    * Precompute variable permutations and cubes.
    */
@@ -137,12 +132,10 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
   size_t iters = 0;
   while (!done) {
     iters++;
-    if (verbosity > 0) {
-      if (iters % 1000 == 0) {
-	std::cout << ':';
-      } else if (iters % 100 == 0) {
-	std::cout << '.';
-      }
+    if (iters % 1000 == 0) {
+      std::cout << ':';
+    } else if (iters % 100 == 0) {
+      std::cout << '.';
     }
     DdNode* dda = Cudd_bddAnd(dd_man.manager(), trans.get(), solr);
     Cudd_Ref(dda);
@@ -166,9 +159,7 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
   Cudd_RecursiveDeref(dd_man.manager(), row_cube);
   delete row_to_col;
   delete col_to_row;
-  if (verbosity > 0) {
-    std::cout << ' ' << iters << " iterations." << std::endl;
-  }
+  std::cout << ' ' << iters << " iterations." << std::endl;
   return solr;
 }
 
@@ -623,9 +614,7 @@ void Model::compile() {
 void Model::cache_dds(const DecisionDiagramManager& dd_man,
                       size_t moments) const {
   if (rate_mtbdd_ == NULL) {
-    if (verbosity > 0) {
-      std::cout << "Building model...";
-    }
+    std::cout << "Building model...";
     /*
      * Precomute DDs for variables and modules.
      */
@@ -710,8 +699,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     ADD ddR = dd_man.GetConstant(0);
     for (int i = commands().size() - 1; i >= 0; i--) {
       const Command& command = *commands_[i];
-      if (verbosity > 1) {
-	std::cout << std::endl << "processing " << command << std::endl;
+      if (VLOG_IS_ON(2)) {
+	LOG(INFO) << "processing " << command;
       }
       /* BDD for guard. */
       BDD ddg = bdd(dd_man, variable_properties(), command.guard());
@@ -724,11 +713,11 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       PHData* ph_data =
           (exp_delay != NULL) ? NULL : &ph_commands.find(i)->second;
       if (ph_data != NULL && ph_data->params.n == 0) {
-	if (verbosity > 1) {
-	  std::cout << "n=" << ph_data->params2.n
+	if (VLOG_IS_ON(2)) {
+	  LOG(INFO) << "n=" << ph_data->params2.n
 		    << " p=" << ph_data->params2.p
 		    << " r1=" << ph_data->params2.r1
-		    << " r2=" << ph_data->params2.r2 << std::endl;
+		    << " r2=" << ph_data->params2.r2;
 	}
 	/*
 	 * Event 1: phi & s=0 => s'=1
@@ -742,7 +731,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	ADD ddr = dd_man.GetConstant(ph_data->params2.p*ph_data->params2.r1);
 	ADD ddq = ADD(ddu) * ddr;
-	if (verbosity > 1) {
+	if (VLOG_IS_ON(2)) {
 	  Cudd_PrintDebug(dd_man.manager(),
                           ddq.get(), dd_man.GetNumVariables(), 2);
 	}
@@ -757,7 +746,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	ddr = dd_man.GetConstant(
             (1.0 - ph_data->params2.p) * ph_data->params2.r1);
 	ddq = ADD(ddu) * ddr;
-	if (verbosity > 1) {
+	if (VLOG_IS_ON(2)) {
 	  Cudd_PrintDebug(dd_man.manager(),
                           ddq.get(), dd_man.GetNumVariables(), 2);
 	}
@@ -771,7 +760,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 			       updated_variables, i, ph_commands);
 	ddr = dd_man.GetConstant(ph_data->params2.r2);
 	ddq = ADD(ddu) * ddr;
-	if (verbosity > 1) {
+	if (VLOG_IS_ON(2)) {
 	  Cudd_PrintDebug(dd_man.manager(),
                           ddq.get(), dd_man.GetNumVariables(), 2);
 	}
@@ -785,24 +774,23 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	  ddr = dd_man.GetConstant(ph_data->params2.r1);
 	  ddq = ADD(ddu) * ddr;
-	  if (verbosity > 1) {
+	  if (VLOG_IS_ON(2)) {
 	    Cudd_PrintDebug(dd_man.manager(),
                             ddq.get(), dd_man.GetNumVariables(), 2);
 	  }
 	  ddR = ddq + ddR;
 	}
       } else {
-	if (ph_data != NULL && verbosity > 1) {
-	  std::cout << "n=" << ph_data->params.n;
+	if (ph_data != NULL && VLOG_IS_ON(2)) {
+	  LOG(INFO) << "n=" << ph_data->params.n;
 	  if (ph_data->params.n > 2) {
-	    std::cout << " re=" << ph_data->params.re;
+	    LOG(INFO) << "re=" << ph_data->params.re;
 	  }
-	  std::cout << " pc=" << ph_data->params.pc
-		    << " rc1=" << ph_data->params.rc1;
+	  LOG(INFO) << "pc=" << ph_data->params.pc
+		    << "rc1=" << ph_data->params.rc1;
 	  if (ph_data->params.pc > 0.0) {
-	    std::cout << " rc2=" << ph_data->params.rc2;
+	    LOG(INFO) << "rc2=" << ph_data->params.rc2;
 	  }
-	  std::cout << std::endl;
 	}
 	if (ph_data != NULL && ph_data->params.n > 2) {
 	  /*
@@ -820,7 +808,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  BDD ddu = dds && ddvp == ddp && ddg;
 	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	  ADD ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.re);
-	  if (verbosity > 1) {
+	  if (VLOG_IS_ON(2)) {
 	    Cudd_PrintDebug(dd_man.manager(),
                             ddq.get(), dd_man.GetNumVariables(), 2);
 	  }
@@ -843,7 +831,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
 	  ADD ddr = dd_man.GetConstant(ph_data->params.pc*ph_data->params.rc1);
 	  ADD ddq = ADD(ddu) * ddr;
-	  if (verbosity > 1) {
+	  if (VLOG_IS_ON(2)) {
 	    Cudd_PrintDebug(dd_man.manager(),
                             ddq.get(), dd_man.GetNumVariables(), 2);
 	  }
@@ -861,7 +849,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ddr = dd_man.GetConstant(
               (1.0 - ph_data->params.pc)*ph_data->params.rc1);
 	  ddq = ADD(ddu) * ddr;
-	  if (verbosity > 1) {
+	  if (VLOG_IS_ON(2)) {
 	    Cudd_PrintDebug(dd_man.manager(),
                             ddq.get(), dd_man.GetNumVariables(), 2);
 	  }
@@ -877,7 +865,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	  ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
 				 updated_variables, i, ph_commands);
 	  ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.rc2);
-	  if (verbosity > 1) {
+	  if (VLOG_IS_ON(2)) {
 	    Cudd_PrintDebug(dd_man.manager(),
                             ddq.get(), dd_man.GetNumVariables(), 2);
 	  }
@@ -908,7 +896,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
               ? mtbdd(dd_man, variable_properties(), exp_delay->rate())
               : dd_man.GetConstant(ph_data->params.rc1);
 	  ADD ddq = ADD(ddu) * ddr;
-	  if (verbosity > 1) {
+	  if (VLOG_IS_ON(2)) {
 	    Cudd_PrintDebug(dd_man.manager(),
                             ddq.get(), dd_man.GetNumVariables(), 2);
 	  }
@@ -916,9 +904,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	}
       }
     }
-    if (verbosity > 0) {
-      std::cout << dd_man.GetNumVariables() << " variables." << std::endl;
-    }
+    std::cout << dd_man.GetNumVariables() << " variables." << std::endl;
     /*
      * Collect row and column variables.
      */

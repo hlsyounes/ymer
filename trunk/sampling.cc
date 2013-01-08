@@ -38,8 +38,8 @@
 #include <cstdio>
 #include <iostream>
 
-/* Verbosity level. */
-extern int verbosity;
+#include "glog/logging.h"
+
 /* Whether memoization is enabled. */
 extern bool memoization;
 /* Fixed nested error. */
@@ -481,12 +481,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     alphap = betap = 0.5*(a + b);
     if (formula_level() == 0) {
-      if (verbosity > 0) {
-	std::cout << "Nested error: " << alphap << ", " << betap << std::endl;
-	std::cout << "Maximum symmetric nested error: "
-		  << 2.0*delta/(1.0 + 2.0*delta)
-		  << std::endl;
-      }
+      VLOG(1) << "Nested error: " << alphap << ", " << betap;
+      VLOG(1) << "Maximum symmetric nested error: "
+              << 2.0*delta/(1.0 + 2.0*delta);
     }
   } else {
     alphap = 0.0;
@@ -497,12 +494,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   if (algorithm == FIXED) {
     int c = 0;
     if (formula_level() == 0) {
-      if (verbosity > 0) {
-        std::cout << "Fixed-size sampling";
-      }
-      if (verbosity > 1) {
-        std::cout << std::endl;
-      }
+      std::cout << "Fixed-size sampling";
     }
     formula_level_++;
     for (int i = 1; i <= fixed_sample_size; ++i) {
@@ -510,26 +502,21 @@ bool Probabilistic::verify(const Model& model, const State& state,
                            delta, alphap, betap, algorithm, stats)) {
         c++;
       }
-      if (verbosity == 1) {
-        if (formula_level() == 1) {
-          if (i % 1000 == 0) {
-            std::cout << ':';
-          } else if (i % 100 == 0) {
-            std::cout << '.';
-          }
+      if (formula_level() == 1) {
+        if (i % 1000 == 0) {
+          std::cout << ':';
+        } else if (i % 100 == 0) {
+          std::cout << '.';
         }
-      } else if (verbosity > 1) {
-        for (size_t j = 0; j < 2*(formula_level() - 1); j++) {
-          std::cout << ' ';
-        }
-        std::cout << i << '\t' << c << std::endl;
+      }
+      if (VLOG_IS_ON(2)) {
+        LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+                  << i << '\t' << c;
       }
     }
     formula_level_--;
     if (formula_level() == 0) {
-      if (verbosity > 0) {
-        std::cout << fixed_sample_size << " samples." << std::endl;
-      }
+      std::cout << fixed_sample_size << " samples." << std::endl;
       stats->sample_size.AddObservation(fixed_sample_size);
     }
     double p = double(c)/fixed_sample_size;
@@ -545,12 +532,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     double a = 1.0 - 0.5*alpha;
     double p, t, b;
     if (formula_level() == 0) {
-      if (verbosity > 0) {
-        std::cout << "Sequential estimation";
-      }
-      if (verbosity > 1) {
-        std::cout << std::endl;
-      }
+      std::cout << "Sequential estimation";
     }
     formula_level_++;
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
@@ -560,29 +542,24 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
       n++;
       p = double(c)/n;
-      if (verbosity == 1) {
-        if (formula_level() == 1) {
-          if (n % 1000 == 0) {
-            std::cout << ':';
-          } else if (n % 100 == 0) {
-            std::cout << '.';
-          }
+      if (formula_level() == 1) {
+        if (n % 1000 == 0) {
+          std::cout << ':';
+        } else if (n % 100 == 0) {
+          std::cout << '.';
         }
-      } else if (verbosity > 1) {
-        for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
-          std::cout << ' ';
-        }
-	std::cout << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
-		  << p/(1 - delta) << std::endl;
+      }
+      if (VLOG_IS_ON(2)) {
+        LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+                  << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
+		  << p/(1 - delta);
       }
       t = c*(1.0 - p);
       b = tinv(a, n - 1.0);
     }
     formula_level_--;
     if (formula_level() == 0) {
-      if (verbosity > 0) {
-        std::cout << n << " samples." << std::endl;
-      }
+      std::cout << n << " samples." << std::endl;
       std::cout << "Pr[" << formula() << "] = " << p << " ("
                 << p/(1 + delta) << ',' << p/(1 - delta)
                 << ")" << std::endl;
@@ -614,14 +591,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
   }
   if (formula_level() == 0) {
-    if (verbosity > 0) {
-      std::cout << "Acceptance sampling";
-      if (algorithm == SEQUENTIAL) {
-	std::cout << " <" << n << ',' << c << ">";
-      }
-    }
-    if (verbosity > 1) {
-      std::cout << std::endl;
+    std::cout << "Acceptance sampling";
+    if (algorithm == SEQUENTIAL) {
+      std::cout << " <" << n << ',' << c << ">";
     }
   }
   int m = 0;
@@ -681,9 +653,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
       buffer[client_id].pop();
       schedule.push(client_id);
       schedule.pop();
-      if (verbosity > 1) {
-	std::cout << "Using sample (" << s << ") from client "
-		  << client_id << std::endl;
+      if (VLOG_IS_ON(2)) {
+	LOG(INFO) << "Using sample (" << s << ") from client " << client_id;
       }
       usage_count[client_id]++;
       have_sample = true;
@@ -759,17 +730,17 @@ bool Probabilistic::verify(const Model& model, const State& state,
 	    FD_CLR(sockfd, &master_fds);
 	  } else if (msg.id == ClientMsg::SAMPLE) {
 	    s = msg.value;
-	    if (verbosity > 1) {
-	      std::cout << "Receiving sample (" << s << ") from client "
-			<< client_id << std::endl;
+	    if (VLOG_IS_ON(2)) {
+	      LOG(INFO) << "Receiving sample (" << s << ") from client "
+			<< client_id;
 	    }
 	    sample_count[client_id]++;
 	    schedule.push(client_id);
 	    if (schedule.front() == client_id) {
 	      schedule.pop();
-	      if (verbosity > 1) {
-		std::cout << "Using sample (" << s << ") from client "
-			  << client_id << std::endl;
+	      if (VLOG_IS_ON(2)) {
+		LOG(INFO) << "Using sample (" << s << ") from client "
+			  << client_id;
 	      }
 	      usage_count[client_id]++;
 	      have_sample = true;
@@ -817,41 +788,35 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     }
     m++;
-    if (verbosity == 1) {
-      if (formula_level() == 1) {
-	if (m % 1000 == 0) {
-	  std::cout << ':';
-	} else if (m % 100 == 0) {
-	  std::cout << '.';
-	}
+    if (formula_level() == 1) {
+      if (m % 1000 == 0) {
+        std::cout << ':';
+      } else if (m % 100 == 0) {
+        std::cout << '.';
       }
-    } else if (verbosity > 1) {
-      for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
-	std::cout << ' ';
-      }
+    }
+    if (VLOG_IS_ON(2)) {
       if (algorithm == SEQUENTIAL) {
-	std::cout << m << '\t' << d << '\t' << (c + m - n) << '\t' << c
-		  << std::endl;
+	LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+                  << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
       } else { /* algorithm == SPRT */
-	std::cout << m << '\t' << d << '\t' << logB << '\t' << logA
-		  << std::endl;
+	LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+                  << m << '\t' << d << '\t' << logB << '\t' << logA;
       }
     }
   }
   formula_level_--;
   if (formula_level() == 0) {
-    if (verbosity > 0) {
-      std::cout << m << " samples." << std::endl;
-    }
+    std::cout << m << " samples." << std::endl;
     stats->sample_size.AddObservation(m);
   }
   if (server_socket != -1) {
-    if (verbosity > 0) {
+    if (VLOG_IS_ON(1)) {
       for (std::map<short, size_t>::const_iterator si = sample_count.begin();
 	   si != sample_count.end(); si++) {
-	std::cout << "Client " << (*si).first << ": "
+	LOG(INFO) << "Client " << (*si).first << ": "
 		  << (*si).second << " generated "
-		  << usage_count[(*si).first] << " used" << std::endl;
+		  << usage_count[(*si).first] << " used";
       }
     }
     for (std::map<int, short>::const_iterator ci = registered_clients.begin();
@@ -936,10 +901,8 @@ bool Until::sample(const Model& model, const State& state,
   size_t path_length = 1;
   bool result = false, done = false, output = false;
   while (!done && path_length < max_path_length) {
-    if (verbosity > 2 && StateFormula::formula_level() == 1) {
-      std::cout << "t = " << t << ": ";
-      curr_state.print(std::cout);
-      std::cout << std::endl;
+    if (VLOG_IS_ON(3) && StateFormula::formula_level() == 1) {
+      LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
     }
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
@@ -978,16 +941,14 @@ bool Until::sample(const Model& model, const State& state,
       path_length++;
     }
   }
-  if (verbosity > 2) {
+  if (VLOG_IS_ON(3)) {
     if (output) {
-      std::cout << "t = " << t << ": ";
-      curr_state.print(std::cout);
-      std::cout << std::endl;
+      LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
     }
     if (result) {
-      std::cout << ">>positive sample" << std::endl;
+      LOG(INFO) << ">>positive sample";
     } else {
-      std::cout << ">>negative sample" << std::endl;
+      LOG(INFO) << ">>negative sample";
     }
   }
   if (StateFormula::formula_level() == 1) {
@@ -1027,34 +988,26 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     double es = delta*delta;
     double a = 1.0 - 0.5*alpha;
     double p, t, b;
-    if (verbosity > 0) {
-      std::cout << "Sequential estimation";
-    }
-    if (verbosity > 1) {
-      std::cout << std::endl;
-    }
+    std::cout << "Sequential estimation";
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
       if (sample(dd_man, model, state, epsilon, dd1, dd2, stats)) {
 	c++;
       }
       n++;
       p = double(c)/n;
-      if (verbosity == 1) {
-	if (n % 1000 == 0) {
-	  std::cout << ':';
-	} else if (n % 100 == 0) {
-	  std::cout << '.';
-	}
-      } else if (verbosity > 1) {
-	std::cout << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
-		  << p/(1 - delta) << std::endl;
+      if (n % 1000 == 0) {
+        std::cout << ':';
+      } else if (n % 100 == 0) {
+        std::cout << '.';
+      }
+      if (VLOG_IS_ON(2)) {
+	LOG(INFO) << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
+		  << p/(1 - delta);
       }
       t = c*(1.0 - p);
       b = tinv(a, n - 1.0);
     }
-    if (verbosity > 0) {
-      std::cout << n << " samples." << std::endl;
-    }
+    std::cout << n << " samples." << std::endl;
     std::cout << "Pr[" << *this << "] = " << p << " ("
 	      << p/(1 + delta) << ',' << p/(1 - delta)
 	      << ")" << std::endl;
@@ -1089,14 +1042,9 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       logB -= log(1.0 - alpha);
     }
   }
-  if (verbosity > 0) {
-    std::cout << "Acceptance sampling";
-    if (algorithm == SEQUENTIAL) {
-      std::cout << " <" << n << ',' << c << ">";
-    }
-  }
-  if (verbosity > 1) {
-    std::cout << std::endl;
+  std::cout << "Acceptance sampling";
+  if (algorithm == SEQUENTIAL) {
+    std::cout << " <" << n << ',' << c << ">";
   }
   int m = 0;
   double d = 0.0;
@@ -1125,25 +1073,20 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       }
     }
     m++;
-    if (verbosity == 1) {
-      if (m % 1000 == 0) {
-	std::cout << ':';
-      } else if (m % 100 == 0) {
-	std::cout << '.';
-      }
-    } else if (verbosity > 1) {
+    if (m % 1000 == 0) {
+      std::cout << ':';
+    } else if (m % 100 == 0) {
+      std::cout << '.';
+    }
+    if (VLOG_IS_ON(2)) {
       if (algorithm == SEQUENTIAL) {
-	std::cout << m << '\t' << d << '\t' << (c + m - n) << '\t' << c
-		  << std::endl;
+	LOG(INFO) << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
       } else { /* algorithm == SPRT */
-	std::cout << m << '\t' << d << '\t' << logB << '\t' << logA
-		  << std::endl;
+	LOG(INFO) << m << '\t' << d << '\t' << logB << '\t' << logA;
       }
     }
   }
-  if (verbosity > 0) {
-    std::cout << m << " samples." << std::endl;
-  }
+  std::cout << m << " samples." << std::endl;
   stats->sample_size.AddObservation(m);
   if (dd1 != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), dd1);

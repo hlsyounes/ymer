@@ -69,8 +69,6 @@ extern void clear_declarations();
 std::string current_file;
 /* Constant overrides. */
 std::map<std::string, TypedValue> const_overrides;
-/* Verbosity level. */
-int verbosity;
 /* Whether memoization is enabled. */
 bool memoization = false;
 /* Fixed nested error. */
@@ -103,12 +101,11 @@ static option long_options[] = {
   { "sampling-algorithm", required_argument, 0, 's' },
   { "seed", required_argument, 0, 'S' },
   { "trials", required_argument, 0, 'T' },
-  { "verbose", optional_argument, 0, 'v' },
   { "version", no_argument, 0, 'V' },
   { "help", no_argument, 0, 'h' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hL:Mm:N:n:pP:s:S:T:v::V";
+static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:pP:s:S:T:V";
 
 namespace {
 
@@ -162,10 +159,6 @@ void display_help() {
 	    << "\t\t\t  (sampling engine only)" << std::endl
 	    << "  -T t,  --trials=t\t"
 	    << "number of trials for sampling engine (default is 1)"
-	    << std::endl
-	    << "  -v[n], --verbose[=n]\t"
-	    << "use verbosity level n;" << std::endl
-	    << "\t\t\t  n is a number from 0 (verbose mode off) and up;"
 	    << std::endl
 	    << "\t\t\t  default level is 1 if optional argument is left out"
 	    << std::endl
@@ -733,8 +726,6 @@ int main(int argc, char* argv[]) {
   size_t seed = time(0);
   /* Set default number of trials. */
   size_t trials = 1;
-  /* Set default verbosity. */
-  verbosity = 0;
   /* Sever hostname */
   std::string hostname;
   /* Server port. */
@@ -855,9 +846,6 @@ int main(int argc, char* argv[]) {
       case 'T':
 	trials = atoi(optarg);
 	break;
-      case 'v':
-	verbosity = (optarg != 0) ? atoi(optarg) : 1;
-	break;
       case 'V':
 	display_version();
 	return 0;
@@ -898,9 +886,7 @@ int main(int argc, char* argv[]) {
       std::cout << "no model" << std::endl;
       return 0;
     }
-    if (verbosity > 1) {
-      std::cout << *global_model << std::endl;
-    }
+    VLOG(2) << *global_model;
     std::vector<std::string> errors;
     const CompiledModel compiled_model = CompileModel(*global_model, &errors);
     if (!errors.empty()) {
@@ -938,24 +924,18 @@ int main(int argc, char* argv[]) {
 	  perror(PACKAGE);
 	  return 1;
 	} else if (nbytes == 0) {
-	  if (verbosity > 0) {
-	    std::cout << "Shutting down (server unavailable)" << std::endl;
-	  }
+	  VLOG(1) << "Shutting down (server unavailable)";
 	  return 0;
 	}
 	if (smsg.id != ServerMsg::REGISTER) {
 	  throw std::logic_error("expecting register message");
 	}
 	int client_id = smsg.value;
-	if (verbosity > 0) {
-	  std::cout << "Client " << client_id << std::endl;
-	  std::cout << "Initializing random number generator...";
-	}
+        std::cout << "Client " << client_id << std::endl;
+        std::cout << "Initializing random number generator...";
         DCEngine dc_engine(client_id, seed);
         dc_engine.seed(seed);
-	if (verbosity > 0) {
-	  std::cout << "done" << std::endl;
-	}
+        std::cout << "done" << std::endl;
 	fd_set master_fds;
 	FD_ZERO(&master_fds);
 	FD_SET(sockfd, &master_fds);
@@ -983,18 +963,13 @@ int main(int argc, char* argv[]) {
               ModelCheckingStats stats;
 	      msg.value = pf->sample(*global_model, init_state,
 				     delta, alphap, betap, algorithm, &stats);
-	      if (verbosity > 1) {
-		std::cout << "Sending sample " << msg.value << std::endl;
-	      }
+	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
 		perror(PACKAGE);
 		return 1;
 	      } else if (nbytes == 0) {
-		if (verbosity > 0) {
-		  std::cout << "Shutting down (server unavailable)"
-			    << std::endl;
-		}
+		VLOG(1) << "Shutting down (server unavailable)";
 		return 0;
 	      }
 	    }
@@ -1004,9 +979,7 @@ int main(int argc, char* argv[]) {
 	      perror(PACKAGE);
 	      return 1;
 	    } else if (nbytes == 0) {
-	      if (verbosity > 0) {
-		std::cout << "Shutting down (server unavailable)" << std::endl;
-	      }
+	      VLOG(1) << "Shutting down (server unavailable)";
 	      return 0;
 	    }
 	    if (smsg.id == ServerMsg::START) {
@@ -1035,15 +1008,10 @@ int main(int argc, char* argv[]) {
 		}
 	      }
 	      to = &timeout;
-	      if (verbosity > 0) {
-		std::cout << "Sampling started for property "
-			  << smsg.value << std::endl;
-	      }
+	      VLOG(1) << "Sampling started for property " << smsg.value;
 	    } else if (smsg.id == ServerMsg::STOP) {
 	      to = 0;
-	      if (verbosity > 0) {
-		std::cout << "Sampling stopped." << std::endl;
-	      }
+	      VLOG(1) << "Sampling stopped.";
 	    } else {
 	      std::cerr << "Message with bad id (" << smsg.id << ") ignored."
 			<< std::endl;
@@ -1072,9 +1040,7 @@ int main(int argc, char* argv[]) {
 	  perror(PACKAGE);
 	  return 1;
 	}
-	if (verbosity > 0) {
-	  std::cout << "Server at port " << port << std::endl;
-	}
+	VLOG(1) << "Server at port " << port;
       }
     }
 
@@ -1105,11 +1071,9 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      if (verbosity > 0) {
-	std::cout << "Variables: " << init_state.values().size() << std::endl;
-	std::cout << "Events:    " << global_model->commands().size()
-		  << std::endl;
-      }
+      std::cout << "Variables: " << init_state.values().size() << std::endl;
+      std::cout << "Events:    " << global_model->commands().size()
+                << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
@@ -1226,25 +1190,22 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      if (verbosity > 0) {
-	std::cout << "States:      " << global_model->num_states(dd_man)
-		  << std::endl
-		  << "Transitions: " << global_model->num_transitions(dd_man)
-		  << std::endl;
-	DdNode* ddR = global_model->rate_mtbdd(dd_man);
-	std::cout << "Rate matrix";
-	Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
-	Cudd_RecursiveDeref(dd_man.manager(), ddR);
-	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
-		  << std::endl;
-      }
+      std::cout << "States:      " << global_model->num_states(dd_man)
+                << std::endl
+                << "Transitions: " << global_model->num_transitions(dd_man)
+                << std::endl;
+      DdNode* ddR = global_model->rate_mtbdd(dd_man);
+      std::cout << "Rate matrix";
+      Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
+      Cudd_RecursiveDeref(dd_man.manager(), ddR);
+      std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+                << std::endl;
       DdNode* init = global_model->init_bdd(dd_man);
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
 	double total_time = 0.0;
 	bool accepted = false;
-	int old_verbosity = verbosity;
 	for (size_t i = 0; i < trials; i++) {
 	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
 	  itimerval stimer;
@@ -1275,11 +1236,7 @@ int main(int argc, char* argv[]) {
 	    total_time *= trials;
 	    break;
 	  }
-	  if (trials > 1) {
-	    verbosity = 0;
-	  }
 	}
-	verbosity = old_verbosity;
 	std::cout << "Model checking completed in " << total_time/trials
 		  << " seconds." << std::endl;
 	if (accepted) {
@@ -1320,21 +1277,19 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      if (verbosity > 0) {
-	std::cout << "Variables: " << init_state.values().size() << std::endl;
-	std::cout << "Events:    " << global_model->commands().size()
-		  << std::endl;
-	std::cout << "States:      " << global_model->num_states(dd_man)
-		  << std::endl
-		  << "Transitions: " << global_model->num_transitions(dd_man)
-		  << std::endl;
-	DdNode* ddR = global_model->rate_mtbdd(dd_man);
-	std::cout << "Rate matrix";
-	Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
-	Cudd_RecursiveDeref(dd_man.manager(), ddR);
-	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
-		  << std::endl;
-      }
+      std::cout << "Variables: " << init_state.values().size() << std::endl;
+      std::cout << "Events:    " << global_model->commands().size()
+                << std::endl;
+      std::cout << "States:      " << global_model->num_states(dd_man)
+                << std::endl
+                << "Transitions: " << global_model->num_transitions(dd_man)
+                << std::endl;
+      DdNode* ddR = global_model->rate_mtbdd(dd_man);
+      std::cout << "Rate matrix";
+      Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
+      Cudd_RecursiveDeref(dd_man.manager(), ddR);
+      std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+                << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;

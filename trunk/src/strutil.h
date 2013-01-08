@@ -28,7 +28,7 @@
 
 namespace internal {
 
-void StrCatImpl(std::ostream& out) {
+inline void StrCatImpl(std::ostream& out) {
 }
 
 template <typename Arg, typename... Args>
