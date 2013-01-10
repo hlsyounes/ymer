@@ -40,15 +40,6 @@
 
 #include "glog/logging.h"
 
-/* Whether memoization is enabled. */
-extern bool memoization;
-/* Fixed nested error. */
-extern double nested_error;
-/* Fixed sample size. */
-extern int fixed_sample_size;
-/* Maximum path length. */
-extern size_t max_path_length;
-
 /* Nesting level of formula just being verified. */
 size_t StateFormula::formula_level_ = 0;
 
@@ -78,9 +69,11 @@ double Conjunction::effort(double q, double delta, double alpha, double beta,
 bool Conjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm,
+                         const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm, stats)) {
+    if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm, params,
+                       stats)) {
       return false;
     }
   }
@@ -118,9 +111,11 @@ double Disjunction::effort(double q, double delta, double alpha, double beta,
 bool Disjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm,
+                         const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(model, state, delta, alpha, beta, algorithm, stats)) {
+    if ((*fi)->verify(model, state, delta, alpha, beta, algorithm, params,
+                      stats)) {
       return true;
     }
   }
@@ -154,8 +149,10 @@ double Negation::effort(double q, double delta, double alpha, double beta,
 bool Negation::verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const {
-  return !negand().verify(model, state, delta, beta, alpha, algorithm, stats);
+  return !negand().verify(model, state, delta, beta, alpha, algorithm, params,
+                          stats);
 }
 
 
@@ -183,13 +180,14 @@ double Implication::effort(double q, double delta, double alpha, double beta,
 bool Implication::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
 			 SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
   if (!antecedent().verify(model, state,
-                           delta, beta, alpha, algorithm, stats)) {
+                           delta, beta, alpha, algorithm, params, stats)) {
     return true;
   } else {
     return consequent().verify(model, state,
-                               delta, alpha, beta, algorithm, stats);
+                               delta, alpha, beta, algorithm, params, stats);
   }
 }
 
@@ -441,6 +439,7 @@ double Probabilistic::effort(double q, double delta,
 bool Probabilistic::verify(const Model& model, const State& state,
 			   double delta, double alpha, double beta,
 			   SamplingAlgorithm algorithm,
+                           const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
   double p0, p1;
   double theta = threshold().value<double>();
@@ -456,8 +455,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
     double r = 0.5*(sqrt(5) - 1.0);
     double a = 0.0;
     double b = 2.0*delta/(1.0 + 2.0*delta);
-    if (nested_error > a && nested_error < b) {
-      a = b = nested_error;
+    if (params.nested_error > a && params.nested_error < b) {
+      a = b = params.nested_error;
     } else {
       double x1 = a + (1.0 - r)*(b - a);
       double x2 = a + r*(b - a);
@@ -497,9 +496,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
       std::cout << "Fixed-size sampling";
     }
     formula_level_++;
-    for (int i = 1; i <= fixed_sample_size; ++i) {
+    for (int i = 1; i <= params.fixed_sample_size; ++i) {
       if (formula().sample(model, state,
-                           delta, alphap, betap, algorithm, stats)) {
+                           delta, alphap, betap, algorithm, params, stats)) {
         c++;
       }
       if (formula_level() == 1) {
@@ -516,10 +515,10 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     formula_level_--;
     if (formula_level() == 0) {
-      std::cout << fixed_sample_size << " samples." << std::endl;
-      stats->sample_size.AddObservation(fixed_sample_size);
+      std::cout << params.fixed_sample_size << " samples." << std::endl;
+      stats->sample_size.AddObservation(params.fixed_sample_size);
     }
-    double p = double(c)/fixed_sample_size;
+    double p = double(c)/params.fixed_sample_size;
     if (strict()) {
       return p > theta;
     } else {
@@ -537,7 +536,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     formula_level_++;
     while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
       if (formula().sample(model, state,
-                           delta, alphap, betap, algorithm, stats)) {
+                           delta, alphap, betap, algorithm, params, stats)) {
 	c++;
       }
       n++;
@@ -598,7 +597,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   int m = 0;
   double d = 0.0;
-  if (memoization) {
+  if (params.memoization) {
     std::map<std::vector<int>, std::pair<size_t, double> >::const_iterator ci =
       cache_.find(state.values());
     if (ci != cache_.end()) {
@@ -760,7 +759,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     } else {
       /* Local mode. */
       s = formula().sample(model, state,
-                           delta, alphap, betap, algorithm, stats);
+                           delta, alphap, betap, algorithm, params, stats);
       have_sample = true;
     }
     if (!have_sample) {
@@ -829,7 +828,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     }
   }
-  if (memoization) {
+  if (params.memoization) {
     cache_[state.values()] = std::make_pair(m, d);
   }
   if (algorithm == SEQUENTIAL) {
@@ -864,6 +863,7 @@ double Comparison::effort(double q, double delta, double alpha, double beta,
 bool Comparison::verify(const Model& model, const State& state,
 			double delta, double alpha, double beta,
 			SamplingAlgorithm algorithm,
+                        const ModelCheckingParams& params,
                         ModelCheckingStats* stats) const {
   return holds(state.values());
 }
@@ -893,6 +893,7 @@ double Until::effort(double q, double delta, double alpha, double beta,
 bool Until::sample(const Model& model, const State& state,
 		   double delta, double alpha, double beta,
 		   SamplingAlgorithm algorithm,
+                   const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double t = 0.0;
   State curr_state = state;
@@ -900,7 +901,7 @@ bool Until::sample(const Model& model, const State& state,
   const double t_max = max_time().value<double>();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
-  while (!done && path_length < max_path_length) {
+  while (!done && path_length < params.max_path_length) {
     if (VLOG_IS_ON(3) && StateFormula::formula_level() == 1) {
       LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
     }
@@ -908,22 +909,23 @@ bool Until::sample(const Model& model, const State& state,
     double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
       if (post().verify(model, curr_state,
-                        delta, alpha, beta, algorithm, stats)) {
+                        delta, alpha, beta, algorithm, params, stats)) {
 	result = true;
 	done = true;
       } else if (!pre().verify(model, curr_state,
-			       delta, alpha, beta, algorithm, stats)) {
+			       delta, alpha, beta, algorithm, params, stats)) {
 	result = false;
 	done = true;
       }
     } else {
       if (!pre().verify(model, curr_state,
-                        delta, alpha, beta, algorithm, stats)) {
+                        delta, alpha, beta, algorithm, params, stats)) {
 	result = false;
 	done = true;
       } else if (t_min < next_t
 		 && post().verify(model, curr_state,
-				  delta, alpha, beta, algorithm, stats)) {
+				  delta, alpha, beta, algorithm, params,
+                                  stats)) {
 	t = t_min;
 	result = true;
 	done = true;
