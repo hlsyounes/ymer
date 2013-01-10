@@ -25,6 +25,13 @@
 
 #include "glog/logging.h"
 
+ModelCheckingParams::ModelCheckingParams()
+    : fixed_sample_size(0),
+      max_path_length(std::numeric_limits<size_t>::max()),
+      nested_error(-1),
+      memoization(false) {
+}
+
 void StateFormula::Accept(StateFormulaVisitor* visitor) const {
   DoAccept(visitor);
 }

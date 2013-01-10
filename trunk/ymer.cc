@@ -69,14 +69,6 @@ extern void clear_declarations();
 std::string current_file;
 /* Constant overrides. */
 std::map<std::string, TypedValue> const_overrides;
-/* Whether memoization is enabled. */
-bool memoization = false;
-/* Fixed nested error. */
-double nested_error = -1.0;
-/* Fixed sample size. */
-int fixed_sample_size = 0;
-/* Maxumum path length. */
-size_t max_path_length = std::numeric_limits<int>::max();
 /* Sockets for communication. */
 int server_socket = -1;
 /* Current property. */
@@ -705,6 +697,7 @@ CompiledModel CompileModel(const Model& model,
 int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
+  ModelCheckingParams params;
   /* Set default alpha. */
   double alpha = 1e-2;
   /* Set default beta. */
@@ -800,10 +793,10 @@ int main(int argc, char* argv[]) {
 	hostname = optarg;
 	break;
       case 'L':
-        max_path_length = atoi(optarg);
+        params.max_path_length = atoi(optarg);
         break;
       case 'M':
-	memoization = true;
+	params.memoization = true;
 	break;
       case 'm':
 	moments = atoi(optarg);
@@ -815,10 +808,10 @@ int main(int argc, char* argv[]) {
 	break;
       case 'N':
 	algorithm = FIXED;
-        fixed_sample_size = atoi(optarg);
+        params.fixed_sample_size = atoi(optarg);
 	break;
       case 'n':
-	nested_error = atof(optarg);
+	params.nested_error = atof(optarg);
 	break;
       case 'p':
 	estimate = true;
@@ -962,7 +955,8 @@ int main(int argc, char* argv[]) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
 	      msg.value = pf->sample(*global_model, init_state,
-				     delta, alphap, betap, algorithm, &stats);
+				     delta, alphap, betap, algorithm, params,
+                                     &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1097,7 +1091,8 @@ int main(int argc, char* argv[]) {
 #endif
 	  }
 	  bool sol = (*fi)->verify(*global_model, init_state,
-				   delta, alpha, beta, algorithm, &stats);
+				   delta, alpha, beta, algorithm, params,
+                                   &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {

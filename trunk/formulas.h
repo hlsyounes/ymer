@@ -38,6 +38,15 @@ struct State;
 /* Sampling algorithm. */
 enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
 
+struct ModelCheckingParams {
+  ModelCheckingParams();
+
+  int fixed_sample_size;
+  size_t max_path_length;
+  double nested_error;
+  bool memoization;
+};
+
 struct ModelCheckingStats {
   Sample<double> time;
   Sample<int> sample_size;
@@ -87,6 +96,7 @@ class StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this state formula using the mixed engine. */
@@ -176,6 +186,7 @@ class PathFormula {
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Generates a sample for this path formula. */
@@ -254,6 +265,7 @@ class Conjunction : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
@@ -314,6 +326,7 @@ class Disjunction : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
@@ -375,6 +388,7 @@ class Negation : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
@@ -439,6 +453,7 @@ class Implication : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
@@ -509,6 +524,7 @@ class Probabilistic : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
@@ -581,6 +597,7 @@ class Comparison : public StateFormula {
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
@@ -767,6 +784,7 @@ class Until : public PathFormula {
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
 		      SamplingAlgorithm algorithm,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Generates a sample for this path formula. */
