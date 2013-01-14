@@ -172,6 +172,10 @@ src_libcompiled_model_la_DEPENDENCIES = src/libddutil.la \
 am_src_libcompiled_model_la_OBJECTS = compiled-model.lo
 src_libcompiled_model_la_OBJECTS =  \
 	$(am_src_libcompiled_model_la_OBJECTS)
+src_libcompiled_property_la_LIBADD =
+am_src_libcompiled_property_la_OBJECTS = compiled-property.lo
+src_libcompiled_property_la_OBJECTS =  \
+	$(am_src_libcompiled_property_la_OBJECTS)
 src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
 am_src_libddutil_la_OBJECTS = ddutil.lo
 src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
@@ -281,6 +285,7 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_distribution_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
+	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
 	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
 	$(src_libstrutil_la_SOURCES) $(src_libtest_main_la_SOURCES) \
@@ -298,6 +303,7 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_distribution_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
+	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
 	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
 	$(src_libstrutil_la_SOURCES) $(src_libtest_main_la_SOURCES) \
@@ -524,12 +530,15 @@ SUBDIRS = glog gtest
 # Compiled distribution library.
 
 # Compiled model library.
+
+# Compiled property library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
 	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
 	dcmt/lib/libdcmt.la src/libstrutil.la src/libstatistics.la \
 	src/libddutil.la src/librng.la src/libtyped-value.la \
 	src/libexpression.la src/libcompiled-expression.la \
-	src/libcompiled-distribution.la src/libcompiled-model.la
+	src/libcompiled-distribution.la src/libcompiled-model.la \
+	src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -608,6 +617,9 @@ src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
 src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
+
+src_libcompiled_property_la_SOURCES = src/compiled-property.h \
+    src/compiled-property.cc
 
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la src/libstrutil.la src/libddutil.la \
@@ -773,6 +785,8 @@ src/libcompiled-expression.la: $(src_libcompiled_expression_la_OBJECTS) $(src_li
 	$(CXXLINK)  $(src_libcompiled_expression_la_OBJECTS) $(src_libcompiled_expression_la_LIBADD) $(LIBS)
 src/libcompiled-model.la: $(src_libcompiled_model_la_OBJECTS) $(src_libcompiled_model_la_DEPENDENCIES) $(EXTRA_src_libcompiled_model_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libcompiled_model_la_OBJECTS) $(src_libcompiled_model_la_LIBADD) $(LIBS)
+src/libcompiled-property.la: $(src_libcompiled_property_la_OBJECTS) $(src_libcompiled_property_la_DEPENDENCIES) $(EXTRA_src_libcompiled_property_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(CXXLINK)  $(src_libcompiled_property_la_OBJECTS) $(src_libcompiled_property_la_LIBADD) $(LIBS)
 src/libddutil.la: $(src_libddutil_la_OBJECTS) $(src_libddutil_la_DEPENDENCIES) $(EXTRA_src_libddutil_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libddutil_la_OBJECTS) $(src_libddutil_la_LIBADD) $(LIBS)
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) $(EXTRA_src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -885,6 +899,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-expression_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-model_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-property.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Plo@am__quote@
@@ -1652,6 +1667,13 @@ compiled-model.lo: src/compiled-model.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/compiled-model.cc' object='compiled-model.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o compiled-model.lo `test -f 'src/compiled-model.cc' || echo '$(srcdir)/'`src/compiled-model.cc
+
+compiled-property.lo: src/compiled-property.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT compiled-property.lo -MD -MP -MF $(DEPDIR)/compiled-property.Tpo -c -o compiled-property.lo `test -f 'src/compiled-property.cc' || echo '$(srcdir)/'`src/compiled-property.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/compiled-property.Tpo $(DEPDIR)/compiled-property.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/compiled-property.cc' object='compiled-property.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o compiled-property.lo `test -f 'src/compiled-property.cc' || echo '$(srcdir)/'`src/compiled-property.cc
 
 ddutil.lo: src/ddutil.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil.lo -MD -MP -MF $(DEPDIR)/ddutil.Tpo -c -o ddutil.lo `test -f 'src/ddutil.cc' || echo '$(srcdir)/'`src/ddutil.cc
