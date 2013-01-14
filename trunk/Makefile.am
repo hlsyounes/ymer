@@ -141,6 +141,11 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
 
+# Compiled property library.
+noinst_LTLIBRARIES += src/libcompiled-property.la
+src_libcompiled_property_la_SOURCES = src/compiled-property.h \
+    src/compiled-property.cc
+
 #
 # Ymer binaries.
 #
