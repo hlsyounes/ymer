@@ -186,8 +186,8 @@ src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
-src_libstatistics_la_LIBADD =
-am_src_libstatistics_la_OBJECTS =
+src_libstatistics_la_DEPENDENCIES = glog/libglog.la
+am_src_libstatistics_la_OBJECTS = statistics.lo
 src_libstatistics_la_OBJECTS = $(am_src_libstatistics_la_OBJECTS)
 src_libstrutil_la_LIBADD =
 am_src_libstrutil_la_OBJECTS =
@@ -247,8 +247,9 @@ am_ymer_OBJECTS = ymer.$(OBJEXT) formulas.$(OBJEXT) \
 	parser.$(OBJEXT) tokenizer.$(OBJEXT)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la src/libstrutil.la \
-	src/libddutil.la src/librng.la src/libtyped-value.la \
-	src/libexpression.la src/libcompiled-model.la
+	src/libstatistics.la src/libddutil.la src/librng.la \
+	src/libtyped-value.la src/libexpression.la \
+	src/libcompiled-model.la
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -592,7 +593,8 @@ dcmt_lib_libdcmt_la_SOURCES = dcmt/lib/dci.h dcmt/lib/check32.c \
 
 dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 src_libstrutil_la_SOURCES = src/strutil.h
-src_libstatistics_la_SOURCES = src/statistics.h
+src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
+src_libstatistics_la_LIBADD = glog/libglog.la
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
 src_librng_la_SOURCES = src/rng.h src/rng.cc
@@ -622,8 +624,8 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la src/libstrutil.la src/libddutil.la \
-    src/librng.la src/libtyped-value.la src/libexpression.la \
+ymer_LDADD = cudd/cudd/libcudd.la src/libstrutil.la src/libstatistics.la \
+    src/libddutil.la src/librng.la src/libtyped-value.la src/libexpression.la \
     src/libcompiled-model.la
 
 
@@ -794,7 +796,7 @@ src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEP
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
 src/libstatistics.la: $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_DEPENDENCIES) $(EXTRA_src_libstatistics_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(LINK)  $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_LIBADD) $(LIBS)
+	$(CXXLINK)  $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_LIBADD) $(LIBS)
 src/libstrutil.la: $(src_libstrutil_la_OBJECTS) $(src_libstrutil_la_DEPENDENCIES) $(EXTRA_src_libstrutil_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(LINK)  $(src_libstrutil_la_OBJECTS) $(src_libstrutil_la_LIBADD) $(LIBS)
 src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPENDENCIES) $(EXTRA_src_libtest_main_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1001,6 +1003,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/states.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statistics.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statistics_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
@@ -1695,6 +1698,13 @@ rng.lo: src/rng.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/rng.cc' object='rng.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o rng.lo `test -f 'src/rng.cc' || echo '$(srcdir)/'`src/rng.cc
+
+statistics.lo: src/statistics.cc
+@am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT statistics.lo -MD -MP -MF $(DEPDIR)/statistics.Tpo -c -o statistics.lo `test -f 'src/statistics.cc' || echo '$(srcdir)/'`src/statistics.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/statistics.Tpo $(DEPDIR)/statistics.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/statistics.cc' object='statistics.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o statistics.lo `test -f 'src/statistics.cc' || echo '$(srcdir)/'`src/statistics.cc
 
 test-main.lo: src/test-main.cc
 @am__fastdepCXX_TRUE@	$(LIBTOOL)  --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT test-main.lo -MD -MP -MF $(DEPDIR)/test-main.Tpo -c -o test-main.lo `test -f 'src/test-main.cc' || echo '$(srcdir)/'`src/test-main.cc

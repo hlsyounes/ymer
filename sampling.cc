@@ -270,117 +270,6 @@ static double tinv(double p, double v) {
 }
 
 
-/*
- * Inverse of the binomial cumulative distribution function.
- */
-int binoinv(double y, int n, double p) {
-  if (y < 0.0 || y > 1.0 || n < 1 || p < 0.0 || p > 1.0) {
-    return -1;
-  } else if (y == 0.0 || p == 0.0) {
-    return 0;
-  } else if (y == 1.0 || p == 1.0) {
-    return n;
-  } else {
-    double q = 1.0 - p;
-    double lp = log(p);
-    double lq = log(q);
-    double yy = pow(q, n);
-    int x = 0;
-    while (yy < y && x < n) {
-      x++;
-      double lc = lgamma(n + 1) - lgamma(n - x + 1) - lgamma(x + 1);
-      yy += exp(lc + x*lp + (n - x)*lq);
-    }
-    return x;
-  }
-}
-
-
-/*
- * Inverse of the binomial cumulative distribution function with
- * linear interpolation.
- */
-double realbinoinv(double y, int n, double p) {
-  if (y < 0.0 || y > 1.0 || n < 1 || p < 0.0 || p > 1.0) {
-    return -1.0;
-  } else if (y == 0.0 || p == 0.0) {
-    return 0.0;
-  } else if (y == 1.0 || p == 1.0) {
-    return n;
-  } else {
-    double q = 1.0 - p;
-    double lp = log(p);
-    double lq = log(q);
-    double yy = pow(q, n);
-    if (yy > y) {
-      return -1.0;
-    } else {
-      int x = 0;
-      while (yy < y && x < n) {
-	x++;
-	double lc = lgamma(n + 1) - lgamma(n - x + 1) - lgamma(x + 1);
-	double f = exp(lc + x*lp + (n - x)*lq);
-	if (yy + f > y) {
-	  return x - 1 + (y - yy)/f;
-	} else {
-	  yy += f;
-	}
-      }
-      return n;
-    }
-  }
-}
-
-
-/*
- * Returns a single sampling plan.
- */
-static std::pair<int, int>
-single_sampling_plan(double p0, double p1, double alpha, double beta) {
-  if (p1 <= 0.0) {
-    if (p0 >= 1.0) {
-      return std::make_pair(1, 0);
-    } else {
-      return std::make_pair(int(ceil(log(alpha)/log(1.0 - p0))), 0);
-    }
-  } else if (p0 >= 1.0) {
-    int n = int(ceil(log(beta)/log(p1)) + 0.5);
-    return std::make_pair(n, n - 1);
-  } else {
-    int nmin = 1, nmax = -1;
-    int n = nmin;
-    while (nmax < 0 || nmin < nmax) {
-      double x0 = realbinoinv(alpha, n, p0);
-      double x1 = realbinoinv(1 - beta, n, p1);
-      std::cout << n << '\t' << x0 << '\t' << x1 << '\t' << (x0 >= x1 - 1e-10)
-		<< std::endl;
-      if (x0 >= x1 - 1e-10 && x0 >= 0.0) {
-	nmax = n;
-      } else {
-	nmin = n + 1;
-      }
-      if (nmax < 0) {
-	n *= 2;
-      } else {
-	n = (nmin + nmax)/2;
-      }
-    }
-    int c0 = n - binoinv(1 - alpha, n, 1 - p0) - 1;
-    int c1 = binoinv(1 - beta, n, p1);
-    std::cout << n << '\t' << c0 << '\t' << c1 << '\t' << (c0 >= c1)
-	      << std::endl;
-    while (c0 < c1 || c0 < 0) {
-      n++;
-      c0 = n - binoinv(1 - alpha, n, 1 - p0) - 1;
-      c1 = binoinv(1 - beta, n, p1);
-      std::cout << n << '\t' << c0 << '\t' << c1 << '\t' << (c0 >= c1)
-		<< std::endl;
-    }
-    return std::make_pair(n, (c0 + c1)/2);
-  }
-}
-
-
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
 double Probabilistic::effort(double q, double delta,
@@ -574,9 +463,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
   int n = 0, c = 0;
   double logA, logB = 0;
   if (algorithm == SEQUENTIAL) {
-    std::pair<int, int> nc = single_sampling_plan(p0, p1, alpha, beta);
-    n = nc.first;
-    c = nc.second;
+    const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
+    n = ssp.n();
+    c = ssp.c();
   } else { /* algorithm == SPRT */
     logA = -log(alpha);
     /* If p1 is 0, then a beta of 0 can always be guaranteed. */
@@ -598,11 +487,10 @@ bool Probabilistic::verify(const Model& model, const State& state,
   int m = 0;
   double d = 0.0;
   if (params.memoization) {
-    std::map<std::vector<int>, std::pair<size_t, double> >::const_iterator ci =
-      cache_.find(state.values());
+    auto ci = cache_.find(state.values());
     if (ci != cache_.end()) {
-      m = (*ci).second.first;
-      d = (*ci).second.second;
+      m = ci->second.first;
+      d = ci->second.second;
     }
   }
   formula_level_++;
@@ -829,7 +717,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
   }
   if (params.memoization) {
-    cache_[state.values()] = std::make_pair(m, d);
+    cache_[state.values()] = { m, d };
   }
   if (algorithm == SEQUENTIAL) {
     return d > c;
@@ -1029,9 +917,9 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   int n = 0, c = 0;
   double logA, logB = 0;
   if (algorithm == SEQUENTIAL) {
-    std::pair<int, int> nc = single_sampling_plan(p0, p1, alpha, beta);
-    n = nc.first;
-    c = nc.second;
+    const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
+    n = ssp.n();
+    c = ssp.c();
   } else { /* algorithm == SPRT */
     logA = -log(alpha);
     /* If p1 is 0, then a beta of 0 can always be guaranteed. */

@@ -25,6 +25,28 @@
 #include <algorithm>
 #include <cmath>
 
+// Returns the natural logarithm of the generalized binomial coefficient.
+double lchoose(double x, double y);
+
+// Returns the inverse of the binomial cumulative distribution function.
+int binoinv(double y, int n, double p);
+
+// A single sampling plan.
+class SingleSamplingPlan {
+ public:
+  static SingleSamplingPlan Create(double p0, double p1,
+                                   double alpha, double beta);
+
+  int n() const { return n_; }
+  int c() const { return c_; }
+
+ private:
+  SingleSamplingPlan(int n, int c);
+
+  int n_;
+  int c_;
+};
+
 // A collection of observations.
 template <typename T>
 class Sample {
