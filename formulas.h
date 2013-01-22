@@ -36,7 +36,7 @@ struct Model;
 struct State;
 
 /* Sampling algorithm. */
-enum SamplingAlgorithm { ESTIMATE, SEQUENTIAL, SPRT, FIXED };
+enum SamplingAlgorithm { ESTIMATE, SSP, SPRT, FIXED };
 
 struct ModelCheckingParams {
   ModelCheckingParams();

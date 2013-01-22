@@ -311,7 +311,7 @@ double Probabilistic::effort(double q, double delta,
     nested_effort = formula().effort(q, delta, alphap, betap, 0, 0, algorithm);
   }
   double n;
-  if (algorithm == SEQUENTIAL) {
+  if (algorithm == SSP) {
     double x = (norminv(alpha)*sqrt(p0*(1.0 - p0))
 		+ norminv(beta)*sqrt(p1*(1.0 - p1)));
     double y = p0 - p1;
@@ -462,7 +462,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 
   int n = 0, c = 0;
   double logA, logB = 0;
-  if (algorithm == SEQUENTIAL) {
+  if (algorithm == SSP) {
     const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
     n = ssp.n();
     c = ssp.c();
@@ -480,7 +480,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   if (formula_level() == 0) {
     std::cout << "Acceptance sampling";
-    if (algorithm == SEQUENTIAL) {
+    if (algorithm == SSP) {
       std::cout << " <" << n << ',' << c << ">";
     }
   }
@@ -531,7 +531,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       registered_clients.erase(*ci);
     }
   }
-  while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
+  while ((algorithm == SSP && d <= c && d + n - m > c)
 	 || (algorithm == SPRT && logB < d && d < logA)) {
     bool s = false, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
@@ -654,7 +654,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       continue;
     }
     if (s) {
-      if (algorithm == SEQUENTIAL) {
+      if (algorithm == SSP) {
 	d += 1.0;
       } else { /* algorithm == SPRT */
 	if (p1 > 0.0) {
@@ -664,7 +664,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 	}
       }
     } else {
-      if (algorithm == SEQUENTIAL) {
+      if (algorithm == SSP) {
 	/* do nothing */
       } else { /* algorithm == SPRT */
 	if (p0 < 1.0) {
@@ -683,7 +683,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     }
     if (VLOG_IS_ON(2)) {
-      if (algorithm == SEQUENTIAL) {
+      if (algorithm == SSP) {
 	LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
                   << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
       } else { /* algorithm == SPRT */
@@ -719,7 +719,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   if (params.memoization) {
     cache_[state.values()] = { m, d };
   }
-  if (algorithm == SEQUENTIAL) {
+  if (algorithm == SSP) {
     return d > c;
   } else { /* algorithm == SPRT */
     return d <= logB;
@@ -916,7 +916,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 
   int n = 0, c = 0;
   double logA, logB = 0;
-  if (algorithm == SEQUENTIAL) {
+  if (algorithm == SSP) {
     const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
     n = ssp.n();
     c = ssp.c();
@@ -933,16 +933,16 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     }
   }
   std::cout << "Acceptance sampling";
-  if (algorithm == SEQUENTIAL) {
+  if (algorithm == SSP) {
     std::cout << " <" << n << ',' << c << ">";
   }
   int m = 0;
   double d = 0.0;
-  while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
+  while ((algorithm == SSP && d <= c && d + n - m > c)
 	 || (algorithm == SPRT && logB < d && d < logA)) {
     bool s = sample(dd_man, model, state, epsilon, dd1, dd2, stats);
     if (s) {
-      if (algorithm == SEQUENTIAL) {
+      if (algorithm == SSP) {
 	d += 1.0;
       } else { /* algorithm == SPRT */
 	if (p1 > 0.0) {
@@ -952,7 +952,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 	}
       }
     } else {
-      if (algorithm == SEQUENTIAL) {
+      if (algorithm == SSP) {
 	/* do nothing */
       } else { /* algorithm == SPRT */
 	if (p0 < 1.0) {
@@ -969,7 +969,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       std::cout << '.';
     }
     if (VLOG_IS_ON(2)) {
-      if (algorithm == SEQUENTIAL) {
+      if (algorithm == SSP) {
 	LOG(INFO) << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
       } else { /* algorithm == SPRT */
 	LOG(INFO) << m << '\t' << d << '\t' << logB << '\t' << logA;
@@ -984,7 +984,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   if (dd2 != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), dd2);
   }
-  if (algorithm == SEQUENTIAL) {
+  if (algorithm == SSP) {
     return d > c;
   } else { /* algorithm == SPRT */
     return d <= logB;

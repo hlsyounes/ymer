@@ -824,8 +824,8 @@ int main(int argc, char* argv[]) {
 	}
 	break;
       case 's':
-	if (strcasecmp(optarg, "sequential") == 0) {
-	  algorithm = SEQUENTIAL;
+	if (strcasecmp(optarg, "ssp") == 0) {
+	  algorithm = SSP;
 	} else if (strcasecmp(optarg, "sprt") == 0) {
 	  algorithm = SPRT;
 	} else {
