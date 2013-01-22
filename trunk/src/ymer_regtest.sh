@@ -41,6 +41,24 @@ else
   pass=0
 fi
 
+echo -n poll5_ssp96...
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.96[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp96.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
+  pass=0
+fi
+
+echo -n poll5_ssp98...
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp98.golden -
+if [[ $? = 0 ]]; then
+  echo pass
+else
+  echo fail
+  pass=0
+fi
+
 echo -n poll5_hybrid...
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --estimate-probabilities --engine=hybrid src/testdata/poll5.sm <(echo 'P>0[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_hybrid.golden -
 if [[ $? = 0 ]]; then
