@@ -26,6 +26,7 @@
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
+#include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/rng.h"
 #include "src/strutil.h"
@@ -50,6 +51,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -691,6 +693,73 @@ CompiledModel CompileModel(const Model& model,
   return compiled_model;
 }
 
+class PropertyCompiler : public StateFormulaVisitor {
+ public:
+  PropertyCompiler(const std::map<std::string, int>* variables_by_name,
+                   std::vector<std::string>* errors);
+
+  std::unique_ptr<const CompiledProperty> release_property() {
+    return std::move(property_);
+  }
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  std::unique_ptr<const CompiledProperty> property_;
+  const std::map<std::string, int>* variables_by_name_;
+  std::vector<std::string>* errors_;
+};
+
+PropertyCompiler::PropertyCompiler(
+    const std::map<std::string, int>* variables_by_name,
+    std::vector<std::string>* errors)
+    : variables_by_name_(variables_by_name), errors_(errors) {
+  CHECK(variables_by_name);
+  CHECK(errors);
+}
+
+void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
+  // TODO(hlsyounes): implement.
+}
+
+void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
+  // TODO(hlsyounes): implement.
+}
+
+void PropertyCompiler::DoVisitNegation(const Negation& formula) {
+  // TODO(hlsyounes): implement.
+}
+
+void PropertyCompiler::DoVisitImplication(const Implication& formula) {
+  // TODO(hlsyounes): implement.
+}
+
+void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
+  // TODO(hlsyounes): implement.
+}
+
+void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
+  // TODO(hlsyounes): implement.
+}
+
+std::unique_ptr<const CompiledProperty> CompileProperty(
+    const StateFormula& property,
+    const CompiledModel& model,
+    std::vector<std::string>* errors) {
+  std::map<std::string, int> variables_by_name;
+  for (const CompiledVariable& v : model.variables()) {
+    variables_by_name.insert({ v.name(), variables_by_name.size() });
+  }
+  PropertyCompiler compiler(&variables_by_name, errors);
+  property.Accept(&compiler);
+  return compiler.release_property();
+}
+
 }  // namespace
 
 /* The main program. */
@@ -1071,6 +1140,8 @@ int main(int argc, char* argv[]) {
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
+        std::unique_ptr<const CompiledProperty> property =
+            CompileProperty(**fi, compiled_model, nullptr);
 	current_property = fi - properties.begin();
 	size_t accepts = 0;
         ModelCheckingStats stats;
