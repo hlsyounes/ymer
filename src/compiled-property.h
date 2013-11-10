@@ -49,6 +49,9 @@ class CompiledProperty {
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const = 0;
 };
 
+// Output operator for compiled properties.
+std::ostream& operator<<(std::ostream& os, const CompiledProperty& p);
+
 class CompiledPathPropertyVisitor;
 
 // Abstract base class for compiled path properties that supports the visitor
@@ -70,6 +73,9 @@ class CompiledPathProperty {
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const = 0;
 };
 
+// Output operator for compiled path properties.
+std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
+
 // A compiled logical operation property.
 class CompiledLogicalOperationProperty : public CompiledProperty {
  public:
@@ -77,20 +83,27 @@ class CompiledLogicalOperationProperty : public CompiledProperty {
     AND, OR
   };
 
-  CompiledLogicalOperationProperty(
-      Operator op, PointerVector<CompiledProperty>&& operands);
-
   virtual ~CompiledLogicalOperationProperty();
+
+  static std::unique_ptr<const CompiledProperty> MakeAnd(
+      PointerVector<const CompiledProperty>&& conjuncts);
+  static std::unique_ptr<const CompiledProperty> MakeOr(
+      PointerVector<const CompiledProperty>&& disjuncts);
 
   Operator op() const { return op_; }
 
-  const PointerVector<CompiledProperty>& operands() const { return operands_; }
+  const PointerVector<const CompiledProperty>& operands() const {
+    return operands_;
+  }
 
  private:
+  CompiledLogicalOperationProperty(
+      Operator op, PointerVector<const CompiledProperty>&& operands);
+
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   Operator op_;
-  PointerVector<CompiledProperty> operands_;
+  PointerVector<const CompiledProperty> operands_;
 };
 
 // A compiled probabilistic property.
@@ -100,11 +113,20 @@ class CompiledProbabilisticProperty : public CompiledProperty {
     LESS, LESS_EQUAL, GREATER_EQUAL, GREATER
   };
 
-  CompiledProbabilisticProperty(
-      Operator op, double threshold,
-      std::unique_ptr<const CompiledPathProperty>&& path_property);
-
   virtual ~CompiledProbabilisticProperty();
+
+  static std::unique_ptr<const CompiledProperty> MakeLess(
+      double threshold,
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+  static std::unique_ptr<const CompiledProperty> MakeLessEqual(
+      double threshold,
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+  static std::unique_ptr<const CompiledProperty> MakeGreaterEqual(
+      double threshold,
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+  static std::unique_ptr<const CompiledProperty> MakeGreater(
+      double threshold,
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
 
   Operator op() const { return op_; }
 
@@ -113,6 +135,10 @@ class CompiledProbabilisticProperty : public CompiledProperty {
   const CompiledPathProperty& path_property() const { return *path_property_; }
 
  private:
+  CompiledProbabilisticProperty(
+      Operator op, double threshold,
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   Operator op_;
@@ -123,13 +149,16 @@ class CompiledProbabilisticProperty : public CompiledProperty {
 // A compiled expression property.
 class CompiledExpressionProperty : public CompiledProperty {
  public:
-  explicit CompiledExpressionProperty(const CompiledExpression& expr);
-
   virtual ~CompiledExpressionProperty();
+
+  static std::unique_ptr<const CompiledProperty> Make(
+      const CompiledExpression& expr);
 
   const CompiledExpression& expr() const { return expr_; }
 
  private:
+  explicit CompiledExpressionProperty(const CompiledExpression& expr);
+
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   CompiledExpression expr_;
@@ -138,11 +167,12 @@ class CompiledExpressionProperty : public CompiledProperty {
 // A compiled until property.
 class CompiledUntilProperty : public CompiledPathProperty {
  public:
-  CompiledUntilProperty(double min_time, double max_time,
-                        std::unique_ptr<const CompiledProperty>&& pre,
-                        std::unique_ptr<const CompiledProperty>&& post);
-
   virtual ~CompiledUntilProperty();
+
+  static std::unique_ptr<const CompiledPathProperty> Make(
+      double min_time, double max_time,
+      std::unique_ptr<const CompiledProperty>&& pre,
+      std::unique_ptr<const CompiledProperty>&& post);
 
   double min_time() const { return min_time_; }
 
@@ -153,6 +183,10 @@ class CompiledUntilProperty : public CompiledPathProperty {
   const CompiledProperty& post() const { return *post_; }
 
  private:
+  CompiledUntilProperty(double min_time, double max_time,
+                        std::unique_ptr<const CompiledProperty>&& pre,
+                        std::unique_ptr<const CompiledProperty>&& post);
+
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const;
 
   double min_time_;
