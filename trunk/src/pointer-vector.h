@@ -28,7 +28,13 @@
 template <typename T>
 class PointerVector {
  public:
+  typedef typename std::vector<std::unique_ptr<const T>>::size_type size_type;
+
+  size_type size() const { return elements_.size(); }
   const T& operator[](int i) const { return *elements_[i]; }
+  void push_back(std::unique_ptr<const T>&& element) {
+    elements_.push_back(std::move(element));
+  }
 
  private:
   std::vector<std::unique_ptr<const T>> elements_;

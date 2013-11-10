@@ -161,7 +161,7 @@ bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la src/libstrutil.la src/libstatistics.la \
     src/libddutil.la src/librng.la src/libtyped-value.la src/libexpression.la \
-    src/libcompiled-model.la
+    src/libcompiled-model.la src/libcompiled-property.la
 
 #
 # Ymer tests.

@@ -711,11 +711,135 @@ class PropertyCompiler : public StateFormulaVisitor {
   virtual void DoVisitComparison(const Comparison& formula);
 
   std::unique_ptr<const CompiledProperty> property_;
+  bool negate_;
   const std::map<std::string, int>* variables_by_name_;
   std::vector<std::string>* errors_;
 };
 
+std::unique_ptr<const CompiledProperty> CompileProperty(
+    const StateFormula& property,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
+  PropertyCompiler compiler(&variables_by_name, errors);
+  property.Accept(&compiler);
+  return compiler.release_property();
+}
+
+class PathPropertyCompiler : public PathFormulaVisitor {
+ public:
+  PathPropertyCompiler(const std::map<std::string, int>* variables_by_name,
+                       std::vector<std::string>* errors);
+
+  std::unique_ptr<const CompiledPathProperty> release_path_property() {
+    return std::move(path_property_);
+  }
+
+ private:
+  virtual void DoVisitUntil(const Until& formula);
+
+  std::unique_ptr<const CompiledPathProperty> path_property_;
+  const std::map<std::string, int>* variables_by_name_;
+  std::vector<std::string>* errors_;
+};
+
+std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
+    const PathFormula& path_property,
+    const std::map<std::string, int> variables_by_name,
+    std::vector<std::string>* errors) {
+  PathPropertyCompiler compiler(&variables_by_name, errors);
+  path_property.Accept(&compiler);
+  return compiler.release_path_property();
+}
+
 PropertyCompiler::PropertyCompiler(
+    const std::map<std::string, int>* variables_by_name,
+    std::vector<std::string>* errors)
+    : negate_(false), variables_by_name_(variables_by_name), errors_(errors) {
+  CHECK(variables_by_name);
+  CHECK(errors);
+}
+
+void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
+  size_t n = formula.conjuncts().size();
+  PointerVector<const CompiledProperty> operands;
+  for (size_t i = 0; i < n; ++i) {
+    const StateFormula& operand = *formula.conjuncts()[i];
+    operand.Accept(this);
+    operands.push_back(std::move(property_));
+  }
+  if (negate_) {
+    property_ = CompiledLogicalOperationProperty::MakeOr(std::move(operands));
+  } else {
+    property_ = CompiledLogicalOperationProperty::MakeAnd(std::move(operands));
+  }
+}
+
+void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
+  size_t n = formula.disjuncts().size();
+  PointerVector<const CompiledProperty> operands;
+  for (size_t i = 0; i < n; ++i) {
+    const StateFormula& operand = *formula.disjuncts()[i];
+    operand.Accept(this);
+    operands.push_back(std::move(property_));
+  }
+  if (negate_) {
+    property_ = CompiledLogicalOperationProperty::MakeAnd(std::move(operands));
+  } else {
+    property_ = CompiledLogicalOperationProperty::MakeOr(std::move(operands));
+  }
+}
+
+void PropertyCompiler::DoVisitNegation(const Negation& formula) {
+  negate_ = !negate_;
+  formula.negand().Accept(this);
+  negate_ = !negate_;
+}
+
+void PropertyCompiler::DoVisitImplication(const Implication& formula) {
+  PointerVector<const CompiledProperty> operands;
+  negate_ = !negate_;
+  formula.antecedent().Accept(this);
+  negate_ = !negate_;
+  operands.push_back(std::move(property_));
+  formula.consequent().Accept(this);
+  operands.push_back(std::move(property_));
+  if (negate_) {
+    property_ = CompiledLogicalOperationProperty::MakeAnd(std::move(operands));
+  } else {
+    property_ = CompiledLogicalOperationProperty::MakeOr(std::move(operands));
+  }
+}
+
+void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
+  std::unique_ptr<const CompiledPathProperty> path_property =
+      CompilePathProperty(formula.formula(), *variables_by_name_, errors_);
+  if (negate_ && !formula.strict()) {
+    property_ = CompiledProbabilisticProperty::MakeLess(
+        formula.threshold().value<double>(), std::move(path_property));
+  } else if (negate_ && formula.strict()) {
+    property_ = CompiledProbabilisticProperty::MakeLessEqual(
+        formula.threshold().value<double>(), std::move(path_property));
+  } else if (!negate_ && !formula.strict()) {
+    property_ = CompiledProbabilisticProperty::MakeGreaterEqual(
+        formula.threshold().value<double>(), std::move(path_property));
+  } else {
+    property_ = CompiledProbabilisticProperty::MakeGreater(
+        formula.threshold().value<double>(), std::move(path_property));
+  }
+}
+
+void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
+  CompiledExpression compiled_expr =
+      CompileExpression(formula, *variables_by_name_, errors_);
+  if (negate_) {
+    std::vector<Operation> operations = compiled_expr.operations();
+    operations.push_back(Operation::MakeNOT(0));
+    compiled_expr = CompiledExpression(operations);
+  }
+  property_ = CompiledExpressionProperty::Make(compiled_expr);
+}
+
+PathPropertyCompiler::PathPropertyCompiler(
     const std::map<std::string, int>* variables_by_name,
     std::vector<std::string>* errors)
     : variables_by_name_(variables_by_name), errors_(errors) {
@@ -723,28 +847,14 @@ PropertyCompiler::PropertyCompiler(
   CHECK(errors);
 }
 
-void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
-  // TODO(hlsyounes): implement.
-}
-
-void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
-  // TODO(hlsyounes): implement.
-}
-
-void PropertyCompiler::DoVisitNegation(const Negation& formula) {
-  // TODO(hlsyounes): implement.
-}
-
-void PropertyCompiler::DoVisitImplication(const Implication& formula) {
-  // TODO(hlsyounes): implement.
-}
-
-void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
-  // TODO(hlsyounes): implement.
-}
-
-void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
-  // TODO(hlsyounes): implement.
+void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
+  std::unique_ptr<const CompiledProperty> pre =
+      CompileProperty(formula.pre(), *variables_by_name_, errors_);
+  std::unique_ptr<const CompiledProperty> post =
+      CompileProperty(formula.post(), *variables_by_name_, errors_);
+  path_property_ = CompiledUntilProperty::Make(
+      formula.min_time().value<double>(), formula.max_time().value<double>(),
+      std::move(pre), std::move(post));
 }
 
 std::unique_ptr<const CompiledProperty> CompileProperty(
@@ -755,9 +865,7 @@ std::unique_ptr<const CompiledProperty> CompileProperty(
   for (const CompiledVariable& v : model.variables()) {
     variables_by_name.insert({ v.name(), variables_by_name.size() });
   }
-  PropertyCompiler compiler(&variables_by_name, errors);
-  property.Accept(&compiler);
-  return compiler.release_property();
+  return CompileProperty(property, variables_by_name, errors);
 }
 
 }  // namespace
@@ -1141,7 +1249,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileProperty(**fi, compiled_model, nullptr);
+            CompileProperty(**fi, compiled_model, &errors);
 	current_property = fi - properties.begin();
 	size_t accepts = 0;
         ModelCheckingStats stats;
