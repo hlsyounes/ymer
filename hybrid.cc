@@ -632,11 +632,14 @@ void free_hdd_matrix(HDDMatrix *hddm)
 		// get next node
 		ptr = ptr2;
 	}
-	
+
+        // free zero constant
+        delete hddm->zero;
+
 	// free tables
 	delete hddm->row_tables;
 	delete hddm->col_tables;
-	
+
 	// free data structure
 	delete hddm;
 }

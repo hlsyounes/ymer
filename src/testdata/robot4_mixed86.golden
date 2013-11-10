@@ -1,0 +1,18 @@
+Mixed engine: alpha=0.01, beta=0.01, delta=0.05, epsilon=1e-06, seed=0
+Building model...18 variables.
+Computing reachable states 14 iterations.
+Variables: 5
+Events:    28
+States:      216
+Transitions: 921
+Rate matrix: 267 nodes 5 leaves 921 minterms
+ODD:         37 nodes
+
+Model checking P>=0.86 [ P>=0.5 [ true U[0,9] c=1 ] U[0,10] x1=4 & y1=4 ] ...
+Building hybrid MTBDD matrix...285 nodes.
+Adding sparse bits...9 levels, 1 bits.
+Uniformization: 3.1*9 = 27.9
+Fox-Glynn: left = 0, right = 167
+Computing probabilities 34 iterations.
+Acceptance sampling.108 samples.
+Property is false in the initial state.

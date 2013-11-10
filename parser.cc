@@ -3247,14 +3247,16 @@ static const Variable* declare_variable(const std::string* ident,
     std::map<std::string, Variable*>::const_iterator vi =
       variables.find(*ident);
     if (vi != variables.end()) {
+      v = (*vi).second;
       if (undeclared.find(*ident) != undeclared.end()) {
-	v = (*vi).second;
 	undeclared.erase(*ident);
       } else {
 	yyerror("ignoring repeated declaration of variable `" + *ident + "'");
       }
     } else {
       v = new Variable(*ident);
+      variables.insert(std::make_pair(*ident, v));
+      Expression::ref(v);
     }
   }
   if (v != NULL) {
@@ -3272,8 +3274,6 @@ static const Variable* declare_variable(const std::string* ident,
     Expression::ref(range.h);
     variable_starts.insert(std::make_pair(v, start));
     Expression::ref(start);
-    variables.insert(std::make_pair(*ident, v));
-    Expression::ref(v);
     model->AddIntVariable(*ident, low, high, s);
     if (!delayed_addition) {
       if (module != NULL) {
