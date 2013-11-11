@@ -27,6 +27,7 @@
 #include "distributions.h"
 #include "states.h"
 #include "models.h"
+#include "src/compiled-property.h"
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -37,6 +38,7 @@
 #include <math.h>
 #include <cstdio>
 #include <iostream>
+#include <limits>
 
 #include "glog/logging.h"
 
@@ -48,6 +50,19 @@ static std::map<int, short> registered_clients;
 /* Next client id. */
 static short next_client_id = 1;
 
+class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
+ private:
+  virtual void DoVisitCompiledLogicalOperationProperty(
+      const CompiledLogicalOperationProperty& property);
+  virtual void DoVisitCompiledProbabilisticProperty(
+      const CompiledProbabilisticProperty& property);
+  virtual void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property);
+
+  bool result_;
+  CompiledExpressionEvaluator* evaluator_;
+  const std::vector<int>* state_;
+};
 
 /* ====================================================================== */
 /* Conjunction */
@@ -64,6 +79,17 @@ double Conjunction::effort(double q, double delta, double alpha, double beta,
   return h;
 }
 
+void CompiledPropertySamplingVerifier::DoVisitCompiledLogicalOperationProperty(
+    const CompiledLogicalOperationProperty& property) {
+  bool short_circuit_result =
+      (property.op() == CompiledLogicalOperationProperty::Operator::OR);
+  for (const CompiledProperty& operand : property.operands()) {
+    operand.Accept(this);
+    if (result_ == short_circuit_result) {
+      return;
+    }
+  }
+}
 
 /* Verifies this state formula using the statistical engine. */
 bool Conjunction::verify(const Model& model, const State& state,
@@ -212,11 +238,11 @@ static double erfinv(double y) {
   static double d[] = { 3.543889200, 1.637067800 };
 
   if (y == -1.0) {
-    return -HUGE_VAL;
+    return -std::numeric_limits<double>::infinity();
   } else if (y == 1.0) {
-    return HUGE_VAL;
+    return std::numeric_limits<double>::infinity();
   } else if (isnan(y) || fabs(y) > 1.0) {
-    return NAN;
+    return std::numeric_limits<double>::quiet_NaN();
   } else {
     double x;
     if (fabs(y) <= 0.7) {
@@ -249,11 +275,11 @@ static double norminv(double p) {
  */
 static double tinv(double p, double v) {
   if (v <= 0.0) {
-    return NAN;
+    return std::numeric_limits<double>::quiet_NaN();
   } else if (p == 0.0) {
-    return -HUGE_VAL;
+    return -std::numeric_limits<double>::infinity();
   } else if (p == 1.0) {
-    return HUGE_VAL;
+    return std::numeric_limits<double>::infinity();
   } else if (v == 1.0) {
     // MATLAB code
     return tan(M_PI*(p - 0.5));
@@ -323,6 +349,10 @@ double Probabilistic::effort(double q, double delta,
   return n*nested_effort;
 }
 
+void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
+    const CompiledProbabilisticProperty& property) {
+  // TODO(hlsyounes): implement.
+}
 
 /* Verifies this state formula using the statistical engine. */
 bool Probabilistic::verify(const Model& model, const State& state,
@@ -660,7 +690,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 	if (p1 > 0.0) {
 	  d += log(p1) - log(p0);
 	} else {
-	  d = -HUGE_VAL;
+	  d = -std::numeric_limits<double>::infinity();
 	}
       }
     } else {
@@ -670,7 +700,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 	if (p0 < 1.0) {
 	  d += log(1.0 - p1) - log(1.0 - p0);
 	} else {
-	  d = HUGE_VAL;
+	  d = std::numeric_limits<double>::infinity();
 	}
       }
     }
@@ -746,6 +776,10 @@ double Comparison::effort(double q, double delta, double alpha, double beta,
   return 1.0;
 }
 
+void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
+    const CompiledExpressionProperty& property) {
+  result_ = evaluator_->EvaluateIntExpression(property.expr(), *state_);
+}
 
 /* Verifies this state formula using the statistical engine. */
 bool Comparison::verify(const Model& model, const State& state,
@@ -948,7 +982,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 	if (p1 > 0.0) {
 	  d += log(p1) - log(p0);
 	} else {
-	  d = -HUGE_VAL;
+	  d = -std::numeric_limits<double>::infinity();
 	}
       }
     } else {
@@ -958,7 +992,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 	if (p0 < 1.0) {
 	  d += log(1.0 - p1) - log(1.0 - p0);
 	} else {
-	  d = HUGE_VAL;
+	  d = std::numeric_limits<double>::infinity();
 	}
       }
     }

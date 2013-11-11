@@ -22,16 +22,44 @@
 
 #include "formulas.h"
 
-#include <cmath>
+#include <utility>
+#include <vector>
 
 #include "models.h"
 #include "states.h"
+#include "src/compiled-property.h"
 
 #include "cudd.h"
 #include "glog/logging.h"
 
+class CompiledPropertyMixedVerifier : public CompiledPropertyVisitor {
+ private:
+    virtual void DoVisitCompiledLogicalOperationProperty(
+      const CompiledLogicalOperationProperty& property);
+  virtual void DoVisitCompiledProbabilisticProperty(
+      const CompiledProbabilisticProperty& property);
+  virtual void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property);
+
+  bool result_;
+  CompiledExpressionEvaluator* evaluator_;
+  const std::vector<int>* state_;
+};
+
 /* ====================================================================== */
 /* Conjunction */
+
+void CompiledPropertyMixedVerifier::DoVisitCompiledLogicalOperationProperty(
+    const CompiledLogicalOperationProperty& property) {
+  bool short_circuit_result =
+      (property.op() == CompiledLogicalOperationProperty::Operator::OR);
+  for (const CompiledProperty& operand : property.operands()) {
+    operand.Accept(this);
+    if (result_ == short_circuit_result) {
+      return;
+    }
+  }
+}
 
 /* Verifies this state formula using the mixed engine. */
 bool Conjunction::verify(const DecisionDiagramManager& dd_man,
@@ -110,6 +138,11 @@ bool Implication::verify(const DecisionDiagramManager& dd_man,
 /* ====================================================================== */
 /* Probabilistic */
 
+void CompiledPropertyMixedVerifier::DoVisitCompiledProbabilisticProperty(
+    const CompiledProbabilisticProperty& property) {
+  // TODO(hlsyounes): implement.
+}
+
 /* Verifies this state formula using the mixed engine. */
 bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
                            const Model& model,
@@ -128,6 +161,11 @@ bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
 
 /* ====================================================================== */
 /* Comparison */
+
+void CompiledPropertyMixedVerifier::DoVisitCompiledExpressionProperty(
+    const CompiledExpressionProperty& property) {
+  result_ = evaluator_->EvaluateIntExpression(property.expr(), *state_);
+}
 
 /* Verifies this state formula using the mixed engine. */
 bool Comparison::verify(const DecisionDiagramManager& dd_man,
