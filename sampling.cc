@@ -22,25 +22,24 @@
  */
 
 #include "formulas.h"
-#include "comm.h"
-#include "cudd.h"
-#include "distributions.h"
-#include "states.h"
-#include "models.h"
-#include "src/compiled-property.h"
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <queue>
-#ifndef __USE_ISOC99
-#define __USE_ISOC99
-#endif
-#include <math.h>
-#include <cstdio>
+
 #include <iostream>
 #include <limits>
+#include <queue>
 
+#include "comm.h"
+#include "distributions.h"
+#include "models.h"
+#include "states.h"
+#include "src/compiled-property.h"
+
+#include "cudd.h"
 #include "glog/logging.h"
+#include "gsl/gsl_cdf.h"
 
 /* Nesting level of formula just being verified. */
 size_t StateFormula::formula_level_ = 0;
@@ -227,75 +226,6 @@ size_t Implication::clear_cache() const {
 /* ====================================================================== */
 /* Probabilistic */
 
-/*
- * Inverse error function.
- */
-static double erfinv(double y) {
-  // MATLAB code
-  static double a[] = { 0.886226899, -1.645349621, 0.914624893, -0.140543331 };
-  static double b[] = { -2.118377725, 1.442710462, -0.329097515, 0.012229801 };
-  static double c[] = { -1.970840454, -1.624906493, 3.429567803, 1.641345311 };
-  static double d[] = { 3.543889200, 1.637067800 };
-
-  if (y == -1.0) {
-    return -std::numeric_limits<double>::infinity();
-  } else if (y == 1.0) {
-    return std::numeric_limits<double>::infinity();
-  } else if (isnan(y) || fabs(y) > 1.0) {
-    return std::numeric_limits<double>::quiet_NaN();
-  } else {
-    double x;
-    if (fabs(y) <= 0.7) {
-      double z = y*y;
-      x = y*(((a[3]*z + a[2])*z + a[1])*z + a[0]);
-      x /= (((b[3]*z + b[2])*z + b[1])*z + b[0])*z + 1.0;
-    } else if (y > 0.7 && y < 1.0) {
-      double z = sqrt(-log(0.5*(1.0 - y)));
-      x = (((c[3]*z + c[2])*z + c[1])*z + c[0])/((d[1]*z + d[0])*z + 1.0);
-    } else {  // y > -1.0 && y < -0.7
-      double z = sqrt(-log(0.5*(1.0 + y)));
-      x = -(((c[3]*z + c[2])*z + c[1])*z + c[0])/((d[1]*z + d[0])*z + 1.0);
-    }
-    double u = (erf(x) - y)/(M_2_SQRTPI*exp(-x*x));
-    return x - u/(1.0 + x*u);
-  }
-}
-
-
-/*
- * Inverse of the standard normal cumulative distribution function.
- */
-static double norminv(double p) {
-  return M_SQRT2*erfinv(2.0*p - 1.0);
-}
-
-
-/*
- * Inverse of Student's T cumulative distribution function.
- */
-static double tinv(double p, double v) {
-  if (v <= 0.0) {
-    return std::numeric_limits<double>::quiet_NaN();
-  } else if (p == 0.0) {
-    return -std::numeric_limits<double>::infinity();
-  } else if (p == 1.0) {
-    return std::numeric_limits<double>::infinity();
-  } else if (v == 1.0) {
-    // MATLAB code
-    return tan(M_PI*(p - 0.5));
-  } else {
-    // Abramowitz & Stegun formula 26.7.5? (from MATLAB)
-    double x = norminv(p);
-    double z = x*x;
-    return x*(1.0 + (z + 1.0)/(4.0*v)
-	      + ((5.0*z + 16.0)*z + 3.0)/(96.0*v*v)
-	      + (((3.0*z + 19.0)*z + 17)*z - 15.0)/(384.0*v*v*v)
-	      + (((((79.0*z + 776.0)*z + 1482.0)*z - 1920.0)*z - 945.0)
-		 /(92160.0*v*v*v*v)));
-  }
-}
-
-
 /* Estimated effort for verifying this state formula using the
    statistical engine. */
 double Probabilistic::effort(double q, double delta,
@@ -338,8 +268,8 @@ double Probabilistic::effort(double q, double delta,
   }
   double n;
   if (algorithm == SSP) {
-    double x = (norminv(alpha)*sqrt(p0*(1.0 - p0))
-		+ norminv(beta)*sqrt(p1*(1.0 - p1)));
+    double x = (gsl_cdf_ugaussian_Pinv(alpha)*sqrt(p0*(1.0 - p0))
+		+ gsl_cdf_ugaussian_Pinv(beta)*sqrt(p1*(1.0 - p1)));
     double y = p0 - p1;
     n = x*x/y/y;
   } else {
@@ -473,7 +403,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 		  << p/(1 - delta);
       }
       t = c*(1.0 - p);
-      b = tinv(a, n - 1.0);
+      b = gsl_cdf_tdist_Pinv(a, n - 1.0);
     }
     formula_level_--;
     if (formula_level() == 0) {
@@ -929,7 +859,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		  << p/(1 - delta);
       }
       t = c*(1.0 - p);
-      b = tinv(a, n - 1.0);
+      b = gsl_cdf_tdist_Pinv(a, n - 1.0);
     }
     std::cout << n << " samples." << std::endl;
     std::cout << "Pr[" << *this << "] = " << p << " ("
