@@ -63,8 +63,8 @@ CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
-cudd_cudd_libcudd_la_DEPENDENCIES = cudd/epd/libepd.la \
-	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la
+cudd_cudd_libcudd_la_DEPENDENCIES = cudd/mtr/libmtr.la \
+	cudd/st/libst.la cudd/util/libutil.la
 am_cudd_cudd_libcudd_la_OBJECTS = cudd_cudd_libcudd_la-cuddAPI.lo \
 	cudd_cudd_libcudd_la-cuddAddAbs.lo \
 	cudd_cudd_libcudd_la-cuddAddApply.lo \
@@ -128,9 +128,6 @@ am_cudd_cudd_libcudd_la_OBJECTS = cudd_cudd_libcudd_la-cuddAPI.lo \
 	cudd_cudd_libcudd_la-cuddZddUtil.lo
 cudd_cudd_libcudd_la_OBJECTS = $(am_cudd_cudd_libcudd_la_OBJECTS)
 am__dirstamp = $(am__leading_dot)dirstamp
-cudd_epd_libepd_la_DEPENDENCIES = cudd/util/libutil.la
-am_cudd_epd_libepd_la_OBJECTS = cudd_epd_libepd_la-epd.lo
-cudd_epd_libepd_la_OBJECTS = $(am_cudd_epd_libepd_la_OBJECTS)
 cudd_mtr_libmtr_la_DEPENDENCIES = cudd/st/libst.la \
 	cudd/util/libutil.la
 am_cudd_mtr_libmtr_la_OBJECTS = cudd_mtr_libmtr_la-mtrBasic.lo \
@@ -287,9 +284,8 @@ YACCCOMPILE = $(YACC) $(AM_YFLAGS) $(YFLAGS)
 LTYACCCOMPILE = $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=compile $(YACC) $(AM_YFLAGS) $(YFLAGS)
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
-	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
-	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(dcmt_lib_libdcmt_la_SOURCES) \
+	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
+	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
 	$(src_libcompiled_distribution_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
@@ -306,9 +302,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
 	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
-	$(cudd_epd_libepd_la_SOURCES) $(cudd_mtr_libmtr_la_SOURCES) \
-	$(cudd_st_libst_la_SOURCES) $(cudd_util_libutil_la_SOURCES) \
-	$(dcmt_lib_libdcmt_la_SOURCES) \
+	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
+	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
 	$(src_libcompiled_distribution_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
@@ -509,8 +504,6 @@ SUBDIRS = glog gsl gtest
 
 # The main CUDD library.
 
-# CUDD library for extended double precision arithmetic.
-
 # CUDD library for multiway-branch tree manipulation.
 
 # CUDD library for symbol tables.
@@ -544,13 +537,13 @@ SUBDIRS = glog gsl gtest
 # Compiled model library.
 
 # Compiled property library.
-noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/epd/libepd.la \
-	cudd/mtr/libmtr.la cudd/st/libst.la cudd/util/libutil.la \
-	dcmt/lib/libdcmt.la src/libstrutil.la src/libstatistics.la \
-	src/libddutil.la src/librng.la src/libtyped-value.la \
-	src/libpointer-vector.la src/libexpression.la \
-	src/libcompiled-expression.la src/libcompiled-distribution.la \
-	src/libcompiled-model.la src/libcompiled-property.la
+noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
+	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
+	src/libstrutil.la src/libstatistics.la src/libddutil.la \
+	src/librng.la src/libtyped-value.la src/libpointer-vector.la \
+	src/libexpression.la src/libcompiled-expression.la \
+	src/libcompiled-distribution.la src/libcompiled-model.la \
+	src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -574,15 +567,12 @@ cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddZddPort.c cudd/cudd/cuddZddReord.c cudd/cudd/cuddZddSetop.c \
     cudd/cudd/cuddZddSymm.c cudd/cudd/cuddZddUtil.c
 
-cudd_cudd_libcudd_la_LIBADD = cudd/epd/libepd.la cudd/mtr/libmtr.la \
+cudd_cudd_libcudd_la_LIBADD = cudd/mtr/libmtr.la \
     cudd/st/libst.la cudd/util/libutil.la
 
-cudd_cudd_libcudd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/epd \
+cudd_cudd_libcudd_la_CPPFLAGS = $(CUDD_DEFINES) \
     -I$(srcdir)/cudd/mtr -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
 
-cudd_epd_libepd_la_SOURCES = cudd/epd/epd.c
-cudd_epd_libepd_la_LIBADD = cudd/util/libutil.la
-cudd_epd_libepd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/util
 cudd_mtr_libmtr_la_SOURCES = cudd/mtr/mtrBasic.c cudd/mtr/mtrGroup.c
 cudd_mtr_libmtr_la_LIBADD = cudd/st/libst.la cudd/util/libutil.la
 cudd_mtr_libmtr_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/st \
@@ -687,7 +677,7 @@ TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
 TESTS = $(check_PROGRAMS)
 EXTRA_DIST = cudd examples scripts
 CLEANFILES = core
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
     -I$(srcdir)/gsl -I$(srcdir)/gtest/include
 
@@ -771,11 +761,6 @@ cudd/cudd/$(am__dirstamp):
 	@: > cudd/cudd/$(am__dirstamp)
 cudd/cudd/libcudd.la: $(cudd_cudd_libcudd_la_OBJECTS) $(cudd_cudd_libcudd_la_DEPENDENCIES) $(EXTRA_cudd_cudd_libcudd_la_DEPENDENCIES) cudd/cudd/$(am__dirstamp)
 	$(LINK)  $(cudd_cudd_libcudd_la_OBJECTS) $(cudd_cudd_libcudd_la_LIBADD) $(LIBS)
-cudd/epd/$(am__dirstamp):
-	@$(MKDIR_P) cudd/epd
-	@: > cudd/epd/$(am__dirstamp)
-cudd/epd/libepd.la: $(cudd_epd_libepd_la_OBJECTS) $(cudd_epd_libepd_la_DEPENDENCIES) $(EXTRA_cudd_epd_libepd_la_DEPENDENCIES) cudd/epd/$(am__dirstamp)
-	$(LINK)  $(cudd_epd_libepd_la_OBJECTS) $(cudd_epd_libepd_la_LIBADD) $(LIBS)
 cudd/mtr/$(am__dirstamp):
 	@$(MKDIR_P) cudd/mtr
 	@: > cudd/mtr/$(am__dirstamp)
@@ -983,7 +968,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSetop.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddSymm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddZddUtil.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_epd_libepd_la-epd.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_mtr_libmtr_la-mtrGroup.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_st_libst_la-st.Plo@am__quote@
@@ -1481,13 +1465,6 @@ cudd_cudd_libcudd_la-cuddZddUtil.lo: cudd/cudd/cuddZddUtil.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_cudd_libcudd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_cudd_libcudd_la-cuddZddUtil.lo `test -f 'cudd/cudd/cuddZddUtil.c' || echo '$(srcdir)/'`cudd/cudd/cuddZddUtil.c
 
-cudd_epd_libepd_la-epd.lo: cudd/epd/epd.c
-@am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_epd_libepd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_epd_libepd_la-epd.lo -MD -MP -MF $(DEPDIR)/cudd_epd_libepd_la-epd.Tpo -c -o cudd_epd_libepd_la-epd.lo `test -f 'cudd/epd/epd.c' || echo '$(srcdir)/'`cudd/epd/epd.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_epd_libepd_la-epd.Tpo $(DEPDIR)/cudd_epd_libepd_la-epd.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cudd/epd/epd.c' object='cudd_epd_libepd_la-epd.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_epd_libepd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd_epd_libepd_la-epd.lo `test -f 'cudd/epd/epd.c' || echo '$(srcdir)/'`cudd/epd/epd.c
-
 cudd_mtr_libmtr_la-mtrBasic.lo: cudd/mtr/mtrBasic.c
 @am__fastdepCC_TRUE@	$(LIBTOOL)  --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_mtr_libmtr_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT cudd_mtr_libmtr_la-mtrBasic.lo -MD -MP -MF $(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Tpo -c -o cudd_mtr_libmtr_la-mtrBasic.lo `test -f 'cudd/mtr/mtrBasic.c' || echo '$(srcdir)/'`cudd/mtr/mtrBasic.c
 @am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Tpo $(DEPDIR)/cudd_mtr_libmtr_la-mtrBasic.Plo
@@ -1878,7 +1855,6 @@ mostlyclean-libtool:
 clean-libtool:
 	-rm -rf .libs _libs
 	-rm -rf cudd/cudd/.libs cudd/cudd/_libs
-	-rm -rf cudd/epd/.libs cudd/epd/_libs
 	-rm -rf cudd/mtr/.libs cudd/mtr/_libs
 	-rm -rf cudd/st/.libs cudd/st/_libs
 	-rm -rf cudd/util/.libs cudd/util/_libs
@@ -2344,7 +2320,6 @@ distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
 	-rm -f cudd/cudd/$(am__dirstamp)
-	-rm -f cudd/epd/$(am__dirstamp)
 	-rm -f cudd/mtr/$(am__dirstamp)
 	-rm -f cudd/st/$(am__dirstamp)
 	-rm -f cudd/util/$(am__dirstamp)
