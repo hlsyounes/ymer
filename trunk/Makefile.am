@@ -48,16 +48,10 @@ cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddZddIsop.c cudd/cudd/cuddZddLin.c cudd/cudd/cuddZddMisc.c \
     cudd/cudd/cuddZddPort.c cudd/cudd/cuddZddReord.c cudd/cudd/cuddZddSetop.c \
     cudd/cudd/cuddZddSymm.c cudd/cudd/cuddZddUtil.c
-cudd_cudd_libcudd_la_LIBADD = cudd/epd/libepd.la cudd/mtr/libmtr.la \
+cudd_cudd_libcudd_la_LIBADD = cudd/mtr/libmtr.la \
     cudd/st/libst.la cudd/util/libutil.la
-cudd_cudd_libcudd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/epd \
+cudd_cudd_libcudd_la_CPPFLAGS = $(CUDD_DEFINES) \
     -I$(srcdir)/cudd/mtr -I$(srcdir)/cudd/st -I$(srcdir)/cudd/util
-
-# CUDD library for extended double precision arithmetic.
-noinst_LTLIBRARIES += cudd/epd/libepd.la
-cudd_epd_libepd_la_SOURCES = cudd/epd/epd.c
-cudd_epd_libepd_la_LIBADD = cudd/util/libutil.la
-cudd_epd_libepd_la_CPPFLAGS = $(CUDD_DEFINES) -I$(srcdir)/cudd/util
 
 # CUDD library for multiway-branch tree manipulation.
 noinst_LTLIBRARIES += cudd/mtr/libmtr.la
@@ -235,7 +229,7 @@ EXTRA_DIST = cudd examples scripts
 
 CLEANFILES = core
 
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/epd -I$(srcdir)/cudd/mtr \
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
     -I$(srcdir)/gsl -I$(srcdir)/gtest/include
 AM_CXXFLAGS = -Wall -Werror

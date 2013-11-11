@@ -16,7 +16,6 @@
 		<li> Cudd_EstimateCofactorSimple()
 		<li> Cudd_SharingSize()
 		<li> Cudd_CountMinterm()
-		<li> Cudd_EpdCountMinterm()
 		<li> Cudd_CountPath()
 		<li> Cudd_CountPathsToNonZero()
 		<li> Cudd_Support()
@@ -59,14 +58,12 @@
 		<li> ddPrintMintermAux()
 		<li> ddDagInt()
 		<li> ddCountMintermAux()
-		<li> ddEpdCountMintermAux()
 		<li> ddCountPathAux()
 		<li> ddSupportStep()
 		<li> ddClearFlag()
 		<li> ddLeavesInt()
 		<li> ddPickArbitraryMinterms()
 		<li> ddPickRepresentativeCube()
-		<li> ddEpdFree()
 		</ul>]
 
   Author      [Fabio Somenzi]
@@ -172,7 +169,6 @@ static int cuddEstimateCofactor (DdManager *dd, st_table *table, DdNode * node, 
 static DdNode * cuddUniqueLookup (DdManager * unique, int  index, DdNode * T, DdNode * E);
 static int cuddEstimateCofactorSimple (DdNode * node, int i);
 static double ddCountMintermAux (DdNode *node, double max, DdHashTable *table);
-static int ddEpdCountMintermAux (DdNode *node, EpDouble *max, EpDouble *epd, st_table *table);
 static double ddCountPathAux (DdNode *node, st_table *table);
 static double ddCountPathsToNonZero (DdNode * N, st_table * table);
 static void ddSupportStep (DdNode *f, int *support);
@@ -180,7 +176,6 @@ static void ddClearFlag (DdNode *f);
 static int ddLeavesInt (DdNode *n);
 static int ddPickArbitraryMinterms (DdManager *dd, DdNode *node, int nvars, int nminterms, char **string);
 static int ddPickRepresentativeCube (DdManager *dd, DdNode *node, double *weight, char *string);
-static enum st_retval ddEpdFree (char * key, char * value, char * arg);
 
 /**AutomaticEnd***************************************************************/
 
@@ -633,56 +628,6 @@ Cudd_CountPath(
     return(i);
 
 } /* end of Cudd_CountPath */
-
-
-/**Function********************************************************************
-
-  Synopsis    [Counts the number of minterms of a DD with extended precision.]
-
-  Description [Counts the number of minterms of a DD with extended precision.
-  The function is assumed to depend on nvars variables. The minterm count is
-  represented as an EpDouble, to allow any number of variables.
-  Returns 0 if successful; CUDD_OUT_OF_MEM otherwise.]
-
-  SideEffects [None]
-
-  SeeAlso     [Cudd_PrintDebug Cudd_CountPath]
-
-******************************************************************************/
-int
-Cudd_EpdCountMinterm(
-  DdManager * manager,
-  DdNode * node,
-  int  nvars,
-  EpDouble * epd)
-{
-    EpDouble	max, tmp;
-    st_table	*table;
-    int		status;
-
-    background = manager->background;
-    zero = Cudd_Not(manager->one);
-
-    EpdPow2(nvars, &max);
-    table = st_init_table(EpdCmp, st_ptrhash);
-    if (table == NULL) {
-	EpdMakeZero(epd, 0);
-	return(CUDD_OUT_OF_MEM);
-    }
-    status = ddEpdCountMintermAux(Cudd_Regular(node),&max,epd,table);
-    st_foreach(table, ddEpdFree, NULL);
-    st_free_table(table);
-    if (status == CUDD_OUT_OF_MEM) {
-	EpdMakeZero(epd, 0);
-	return(CUDD_OUT_OF_MEM);
-    }
-    if (Cudd_IsComplement(node)) {
-	EpdSubtract3(&max, epd, &tmp);
-	EpdCopy(&tmp, epd);
-    }
-    return(0);
-
-} /* end of Cudd_EpdCountMinterm */
 
 
 /**Function********************************************************************
@@ -3549,80 +3494,6 @@ ddCountPathAux(
 
 /**Function********************************************************************
 
-  Synopsis    [Performs the recursive step of Cudd_EpdCountMinterm.]
-
-  Description [Performs the recursive step of Cudd_EpdCountMinterm.
-  It is based on the following identity. Let |f| be the
-  number of minterms of f. Then:
-  <xmp>
-    |f| = (|f0|+|f1|)/2
-  </xmp>
-  where f0 and f1 are the two cofactors of f.  Does not use the
-  identity |f'| = max - |f|, to minimize loss of accuracy due to
-  roundoff.  Returns the number of minterms of the function rooted at
-  node.]
-
-  SideEffects [None]
-
-******************************************************************************/
-static int
-ddEpdCountMintermAux(
-  DdNode * node,
-  EpDouble * max,
-  EpDouble * epd,
-  st_table * table)
-{
-    DdNode	*Nt, *Ne;
-    EpDouble	*min, minT, minE;
-    EpDouble	*res;
-    int		status;
-
-    /* node is assumed to be regular */
-    if (cuddIsConstant(node)) {
-	if (node == background || node == zero) {
-	    EpdMakeZero(epd, 0);
-	} else {
-	    EpdCopy(max, epd);
-	}
-	return(0);
-    }
-    if (node->ref != 1 && st_lookup(table, node, &res)) {
-	EpdCopy(res, epd);
-	return(0);
-    }
-
-    Nt = cuddT(node); Ne = cuddE(node);
-
-    status = ddEpdCountMintermAux(Nt,max,&minT,table);
-    if (status == CUDD_OUT_OF_MEM) return(CUDD_OUT_OF_MEM);
-    EpdMultiply(&minT, (double)0.5);
-    status = ddEpdCountMintermAux(Cudd_Regular(Ne),max,&minE,table);
-    if (status == CUDD_OUT_OF_MEM) return(CUDD_OUT_OF_MEM);
-    if (Cudd_IsComplement(Ne)) {
-	EpdSubtract3(max, &minE, epd);
-	EpdCopy(epd, &minE);
-    }
-    EpdMultiply(&minE, (double)0.5);
-    EpdAdd3(&minT, &minE, epd);
-
-    if (node->ref > 1) {
-	min = EpdAlloc();
-	if (!min)
-	    return(CUDD_OUT_OF_MEM);
-	EpdCopy(epd, min);
-	if (st_insert(table, (char *)node, (char *)min) == ST_OUT_OF_MEM) {
-	    EpdFree(min);
-	    return(CUDD_OUT_OF_MEM);
-	}
-    }
-
-    return(0);
-
-} /* end of ddEpdCountMintermAux */
-
-
-/**Function********************************************************************
-
   Synopsis    [Performs the recursive step of Cudd_CountPathsToNonZero.]
 
   Description [Performs the recursive step of Cudd_CountPathsToNonZero.
@@ -3901,29 +3772,3 @@ ddPickRepresentativeCube(
     return(1);
 
 } /* end of ddPickRepresentativeCube */
-
-
-/**Function********************************************************************
-
-  Synopsis [Frees the memory used to store the minterm counts recorded
-  in the visited table.]
-
-  Description [Frees the memory used to store the minterm counts
-  recorded in the visited table. Returns ST_CONTINUE.]
-
-  SideEffects [None]
-
-******************************************************************************/
-static enum st_retval
-ddEpdFree(
-  char * key,
-  char * value,
-  char * arg)
-{
-    EpDouble	*epd;
-
-    epd = (EpDouble *) value;
-    EpdFree(epd);
-    return(ST_CONTINUE);
-
-} /* end of ddEpdFree */
