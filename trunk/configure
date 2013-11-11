@@ -766,7 +766,7 @@ CPP
 CXXCPP
 YACC
 YFLAGS'
-ac_subdirs_all='glog gtest'
+ac_subdirs_all='glog gsl gtest'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -16319,7 +16319,7 @@ ac_config_files="$ac_config_files Makefile"
 
 
 
-subdirs="$subdirs glog gtest"
+subdirs="$subdirs glog gsl gtest"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
