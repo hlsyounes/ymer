@@ -1319,24 +1319,24 @@ int main(int argc, char* argv[]) {
                     << " seconds" << std::endl
                     << "Model checking time max: " << stats.time.max()
                     << " seconds" << std::endl
-		    << "Model checking time std.dev.: " << stats.time.stddev()
-                    << std::endl
+		    << "Model checking time std.dev.: "
+                    << stats.time.sample_stddev() << std::endl
 		    << "Sample size mean: " << stats.sample_size.mean()
                     << std::endl
                     << "Sample size min: " << stats.sample_size.min()
                     << std::endl
                     << "Sample size max: " << stats.sample_size.max()
                     << std::endl
-                    << "Sample size std.dev.: " << stats.sample_size.stddev()
-                    << std::endl
+                    << "Sample size std.dev.: "
+                    << stats.sample_size.sample_stddev() << std::endl
 		    << "Path length mean: " << stats.path_length.mean()
                     << std::endl
 		    << "Path length min: " << stats.path_length.min()
                     << std::endl
 		    << "Path length max: " << stats.path_length.max()
                     << std::endl
-                    << "Path length std.dev.: " << stats.path_length.stddev()
-                    << std::endl
+                    << "Path length std.dev.: "
+                    << stats.path_length.sample_stddev() << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl
 		    << "Average cached: " << cached_avg << std::endl;
@@ -1515,24 +1515,24 @@ int main(int argc, char* argv[]) {
                     << " seconds" << std::endl
                     << "Model checking time max: " << stats.time.max()
                     << " seconds" << std::endl
-		    << "Model checking time std.dev.: " << stats.time.stddev()
-                    << std::endl
+		    << "Model checking time std.dev.: "
+                    << stats.time.sample_stddev() << std::endl
 		    << "Sample size mean: " << stats.sample_size.mean()
                     << std::endl
                     << "Sample size min: " << stats.sample_size.min()
                     << std::endl
                     << "Sample size max: " << stats.sample_size.max()
                     << std::endl
-                    << "Sample size std.dev.: " << stats.sample_size.stddev()
-                    << std::endl
+                    << "Sample size std.dev.: "
+                    << stats.sample_size.sample_stddev() << std::endl
 		    << "Path length mean: " << stats.path_length.mean()
                     << std::endl
 		    << "Path length min: " << stats.path_length.min()
                     << std::endl
 		    << "Path length max: " << stats.path_length.max()
                     << std::endl
-                    << "Path length std.dev.: " << stats.path_length.stddev()
-                    << std::endl
+                    << "Path length std.dev.: "
+                    << stats.path_length.sample_stddev() << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl;
 	}

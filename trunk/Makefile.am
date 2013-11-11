@@ -99,7 +99,8 @@ src_libstrutil_la_SOURCES = src/strutil.h
 # Statistics library.
 noinst_LTLIBRARIES += src/libstatistics.la
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
-src_libstatistics_la_LIBADD = glog/libglog.la
+src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la \
+    gsl/cblas/libgslcblas.la
 
 # Decision diagram utility library.
 noinst_LTLIBRARIES += src/libddutil.la
