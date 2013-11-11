@@ -48,6 +48,10 @@ echo -n poll5_ssp98...
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp98.golden -
 expect_ok
 
+echo -n poll5_estimate...
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities src/testdata/poll5.sm <(echo 'P>0[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_estimate.golden -
+expect_ok
+
 echo -n poll5_hybrid...
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --estimate-probabilities --engine=hybrid src/testdata/poll5.sm <(echo 'P>0[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_hybrid.golden -
 expect_ok
@@ -58,6 +62,10 @@ expect_ok
 
 echo -n tandem7_sprt12...
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --const=c=7 src/testdata/tandem.sm <(echo 'P<0.12[ true U<=26 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_sprt12.golden -
+expect_ok
+
+echo -n tandem7_estimate...
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --delta=0.05 --const=c=7 src/testdata/tandem.sm <(echo 'P>0[ true U<=26 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandem7_estimate.golden -
 expect_ok
 
 echo -n tandem7_hybrid...
@@ -86,6 +94,10 @@ expect_ok
 
 echo -n robot4_mixed86...
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --engine=mixed --delta=0.05 --const=n=4 src/testdata/robot.sm <(echo 'P>=0.86[ P>=0.5[ true U<=9 c=1 ] U<=10 (x1=n & y1=n) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/robot4_mixed86.golden -
+expect_ok
+
+echo -n robot4_estimate...
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --engine=mixed --delta=0.05 --const=n=4 src/testdata/robot.sm <(echo 'P>=0.86[ P>=0.5[ true U<=9 c=1 ] U<=10 (x1=n & y1=n) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/robot4_estimate.golden -
 expect_ok
 
 echo -n robot4_hybrid...

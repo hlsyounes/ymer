@@ -20,6 +20,7 @@
 #include "statistics.h"
 
 #include <cmath>
+#include <limits>
 
 #include "gtest/gtest.h"
 
@@ -113,6 +114,7 @@ TEST(SingleSamplingPlanTest, All) {
 
 TEST(SampleTest, IntegerObservations) {
   Sample<int> s;
+  EXPECT_EQ(0, s.count());
 
   s.AddObservation(2);
   EXPECT_EQ(2, s.min());
@@ -120,23 +122,53 @@ TEST(SampleTest, IntegerObservations) {
   EXPECT_EQ(1, s.count());
   EXPECT_EQ(2, s.mean());
   EXPECT_EQ(0, s.variance());
-  EXPECT_EQ(0, s.stddev());
+  EXPECT_EQ(0, s.sample_variance());
+  EXPECT_EQ(0, s.sample_stddev());
 
   s.AddObservation(3);
   EXPECT_EQ(2, s.min());
   EXPECT_EQ(3, s.max());
   EXPECT_EQ(2, s.count());
   EXPECT_EQ(2.5, s.mean());
-  EXPECT_EQ(0.5, s.variance());
-  EXPECT_EQ(sqrt(0.5), s.stddev());
+  EXPECT_EQ(0.25, s.variance());
+  EXPECT_EQ(0.5, s.sample_variance());
+  EXPECT_EQ(sqrt(0.5), s.sample_stddev());
 
   s.AddObservation(1);
   EXPECT_EQ(1, s.min());
   EXPECT_EQ(3, s.max());
   EXPECT_EQ(3, s.count());
   EXPECT_EQ(2, s.mean());
-  EXPECT_EQ(1, s.variance());
-  EXPECT_EQ(1, s.stddev());
+  EXPECT_EQ(2.0 / 3.0, s.variance());
+  EXPECT_EQ(1, s.sample_variance());
+  EXPECT_EQ(1, s.sample_stddev());
+}
+
+TEST(SequentialEstimatorTest, IntegerObservations) {
+  SequentialEstimator<int> estimator(0.05, 0.01);
+  EXPECT_EQ(0.05, estimator.delta());
+  EXPECT_EQ(0.01, estimator.alpha());
+  EXPECT_EQ(0, estimator.count());
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), estimator.state());
+  EXPECT_EQ(0, estimator.bound());
+
+  estimator.AddObservation(2);
+  EXPECT_EQ(1, estimator.count());
+  EXPECT_EQ(2, estimator.value());
+  EXPECT_EQ(1, estimator.state());
+  EXPECT_EQ(0, estimator.bound());
+
+  estimator.AddObservation(3);
+  EXPECT_EQ(2, estimator.count());
+  EXPECT_EQ(2.5, estimator.value());
+  EXPECT_EQ(0.75, estimator.state());
+  EXPECT_LT(0, estimator.bound());
+
+  estimator.AddObservation(1);
+  EXPECT_EQ(3, estimator.count());
+  EXPECT_EQ(2, estimator.value());
+  EXPECT_EQ(1, estimator.state());
+  EXPECT_LT(0, estimator.bound());
 }
 
 }  // namespace

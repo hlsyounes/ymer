@@ -36,6 +36,7 @@
 #include "models.h"
 #include "states.h"
 #include "src/compiled-property.h"
+#include "src/statistics.h"
 
 #include "cudd.h"
 #include "glog/logging.h"
@@ -48,6 +49,18 @@ size_t StateFormula::formula_level_ = 0;
 static std::map<int, short> registered_clients;
 /* Next client id. */
 static short next_client_id = 1;
+
+namespace {
+
+void PrintProgress(int n) {
+  if (n % 1000 == 0) {
+    std::cout << ':';
+  } else if (n % 100 == 0) {
+    std::cout << '.';
+  }
+}
+
+}  // namespace
 
 class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
  private:
@@ -351,11 +364,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
         c++;
       }
       if (formula_level() == 1) {
-        if (i % 1000 == 0) {
-          std::cout << ':';
-        } else if (i % 100 == 0) {
-          std::cout << '.';
-        }
+        PrintProgress(i);
       }
       if (VLOG_IS_ON(2)) {
         LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
@@ -364,7 +373,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     formula_level_--;
     if (formula_level() == 0) {
-      std::cout << params.fixed_sample_size << " samples." << std::endl;
+      std::cout << params.fixed_sample_size << " observations." << std::endl;
       stats->sample_size.AddObservation(params.fixed_sample_size);
     }
     double p = double(c)/params.fixed_sample_size;
@@ -375,48 +384,39 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
   }
   if (algorithm == ESTIMATE) {
-    int c = 0, n = 0;
-    double es = delta*delta;
-    double a = 1.0 - 0.5*alpha;
-    double p, t, b;
     if (formula_level() == 0) {
       std::cout << "Sequential estimation";
     }
     formula_level_++;
-    while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
-      if (formula().sample(model, state,
-                           delta, alphap, betap, algorithm, params, stats)) {
-	c++;
-      }
-      n++;
-      p = double(c)/n;
+    SequentialEstimator<int> estimator(delta, alpha);
+    while (true) {
+      const bool x = formula().sample(
+          model, state, delta, alphap, betap, algorithm, params, stats);
+      estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
-        if (n % 1000 == 0) {
-          std::cout << ':';
-        } else if (n % 100 == 0) {
-          std::cout << '.';
-        }
+        PrintProgress(estimator.count());
       }
       if (VLOG_IS_ON(2)) {
         LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
-                  << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
-		  << p/(1 - delta);
+                  << estimator.count() << '\t' << estimator.value() << '\t'
+                  << estimator.state() << '\t' << estimator.bound();
       }
-      t = c*(1.0 - p);
-      b = gsl_cdf_tdist_Pinv(a, n - 1.0);
+      if (estimator.state() <= estimator.bound()) {
+        break;
+      }
     }
     formula_level_--;
     if (formula_level() == 0) {
-      std::cout << n << " samples." << std::endl;
-      std::cout << "Pr[" << formula() << "] = " << p << " ("
-                << p/(1 + delta) << ',' << p/(1 - delta)
-                << ")" << std::endl;
-      stats->sample_size.AddObservation(n);
+      std::cout << estimator.count() << " observations." << std::endl;
+      std::cout << "Pr[" << formula() << "] = " << estimator.value() << " ("
+                << std::max(0.0, estimator.value() - delta) << ','
+                << std::min(1.0, estimator.value() + delta) << ")" << std::endl;
+      stats->sample_size.AddObservation(estimator.count());
     }
     if (strict()) {
-      return p > theta;
+      return estimator.value() > theta;
     } else {
-      return p >= theta;
+      return estimator.value() >= theta;
     }
   }
 
@@ -636,11 +636,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     m++;
     if (formula_level() == 1) {
-      if (m % 1000 == 0) {
-        std::cout << ':';
-      } else if (m % 100 == 0) {
-        std::cout << '.';
-      }
+      PrintProgress(m);
     }
     if (VLOG_IS_ON(2)) {
       if (algorithm == SSP) {
@@ -654,7 +650,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   formula_level_--;
   if (formula_level() == 0) {
-    std::cout << m << " samples." << std::endl;
+    std::cout << m << " observations." << std::endl;
     stats->sample_size.AddObservation(m);
   }
   if (server_socket != -1) {
@@ -838,33 +834,25 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		 ? post().verify(dd_man, model, epsilon, false) : NULL);
 
   if (algorithm == ESTIMATE) {
-    int c = 0, n = 0;
-    double es = delta*delta;
-    double a = 1.0 - 0.5*alpha;
-    double p, t, b;
     std::cout << "Sequential estimation";
-    while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
-      if (sample(dd_man, model, state, epsilon, dd1, dd2, stats)) {
-	c++;
-      }
-      n++;
-      p = double(c)/n;
-      if (n % 1000 == 0) {
-        std::cout << ':';
-      } else if (n % 100 == 0) {
-        std::cout << '.';
-      }
+    SequentialEstimator<int> estimator(delta, alpha);
+    while (true) {
+      const bool x = sample(dd_man, model, state, epsilon, dd1, dd2, stats);
+      estimator.AddObservation(x ? 1 : 0);
+      PrintProgress(estimator.count());
       if (VLOG_IS_ON(2)) {
-	LOG(INFO) << n << '\t' << c << '\t' << p/(1 + delta) << '\t'
-		  << p/(1 - delta);
+	LOG(INFO) << estimator.count() << '\t' << estimator.value() << '\t'
+                  << estimator.state() << '\t' << estimator.bound();
       }
-      t = c*(1.0 - p);
-      b = gsl_cdf_tdist_Pinv(a, n - 1.0);
+      if (estimator.state() <= estimator.bound()) {
+        break;
+      }
     }
-    std::cout << n << " samples." << std::endl;
-    std::cout << "Pr[" << *this << "] = " << p << " ("
-	      << p/(1 + delta) << ',' << p/(1 - delta)
-	      << ")" << std::endl;
+    std::cout << estimator.count() << " observations." << std::endl;
+    std::cout << "Pr[" << *this << "] = " << estimator.value() << " ("
+	      << std::max(0.0, estimator.value() - delta) << ','
+              << std::min(1.0, estimator.value() + delta) << ")" << std::endl;
+    stats->sample_size.AddObservation(estimator.count());
     if (dd1 != NULL) {
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
     }
@@ -872,9 +860,9 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       Cudd_RecursiveDeref(dd_man.manager(), dd2);
     }
     if (strict) {
-      return p > theta;
+      return estimator.value() > theta;
     } else {
-      return p >= theta;
+      return estimator.value() >= theta;
     }
   }
 
@@ -927,11 +915,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       }
     }
     m++;
-    if (m % 1000 == 0) {
-      std::cout << ':';
-    } else if (m % 100 == 0) {
-      std::cout << '.';
-    }
+    PrintProgress(m);
     if (VLOG_IS_ON(2)) {
       if (algorithm == SSP) {
 	LOG(INFO) << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
@@ -940,7 +924,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       }
     }
   }
-  std::cout << m << " samples." << std::endl;
+  std::cout << m << " observations." << std::endl;
   stats->sample_size.AddObservation(m);
   if (dd1 != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), dd1);
