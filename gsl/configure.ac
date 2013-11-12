@@ -1,6 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT([gsl],[1.9])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(gsl_math.h)
 
 AM_INIT_AUTOMAKE([gnu no-dependencies])
@@ -364,5 +365,5 @@ if test "$ac_cv_c_ieee_denormals" != no ; then
 fi
 
 dnl
-AC_CONFIG_FILES([gsl-config gsl.pc gsl_version.h gsl.spec gsl/Makefile test/Makefile err/Makefile sys/Makefile utils/Makefile const/Makefile min/Makefile multimin/Makefile ieee-utils/Makefile fft/Makefile specfunc/Makefile dht/Makefile fit/Makefile multifit/Makefile bspline/Makefile statistics/Makefile sum/Makefile roots/Makefile multiroots/Makefile ntuple/Makefile poly/Makefile qrng/Makefile rng/Makefile randist/Makefile siman/Makefile integration/Makefile interpolation/Makefile doc/Makefile block/Makefile vector/Makefile matrix/Makefile histogram/Makefile monte/Makefile ode-initval/Makefile cblas/Makefile blas/Makefile linalg/Makefile eigen/Makefile permutation/Makefile combination/Makefile sort/Makefile complex/Makefile diff/Makefile deriv/Makefile cheb/Makefile cdf/Makefile wavelet/Makefile Makefile])
+AC_CONFIG_FILES([gsl-config gsl.pc gsl_version.h gsl.spec gsl/Makefile test/Makefile err/Makefile sys/Makefile utils/Makefile ieee-utils/Makefile specfunc/Makefile poly/Makefile rng/Makefile randist/Makefile block/Makefile histogram/Makefile complex/Makefile cdf/Makefile Makefile])
 AC_OUTPUT

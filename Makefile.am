@@ -77,9 +77,9 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 
 # Library for dynamic creation of Mersenne Twister generators.
 noinst_LTLIBRARIES += dcmt/lib/libdcmt.la
-dcmt_lib_libdcmt_la_SOURCES = dcmt/lib/dci.h dcmt/lib/check32.c \
-    dcmt/lib/prescr.c dcmt/lib/mt19937.c dcmt/lib/eqdeg.c dcmt/lib/seive.c \
-    dcmt/lib/genmtrand.c dcmt/lib/init.c
+dcmt_lib_libdcmt_la_SOURCES = dcmt/include/dc.h dcmt/lib/dci.h \
+    dcmt/lib/check32.c dcmt/lib/prescr.c dcmt/lib/mt19937.c dcmt/lib/mt19937.h \
+    dcmt/lib/eqdeg.c dcmt/lib/seive.c dcmt/lib/genmtrand.c dcmt/lib/init.c
 dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 
 #
@@ -93,8 +93,7 @@ src_libstrutil_la_SOURCES = src/strutil.h
 # Statistics library.
 noinst_LTLIBRARIES += src/libstatistics.la
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
-src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la \
-    gsl/cblas/libgslcblas.la
+src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
 
 # Decision diagram utility library.
 noinst_LTLIBRARIES += src/libddutil.la
@@ -154,7 +153,7 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 
 bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc mixed.cc comm.h parser.yy tokenizer.ll
-ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la gsl/cblas/libgslcblas.la \
+ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstrutil.la src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libcompiled-model.la \
     src/libcompiled-property.la
@@ -231,7 +230,7 @@ CLEANFILES = core
 
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
-    -I$(srcdir)/gsl -I$(srcdir)/gtest/include
+    -I$(builddir)/gsl -I$(srcdir)/gtest/include
 AM_CXXFLAGS = -Wall -Werror
 AM_YFLAGS = -d
 
