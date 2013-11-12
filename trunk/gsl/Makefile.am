@@ -2,9 +2,9 @@
 
 # AUTOMAKE_OPTIONS = readme-alpha
 
-SUBDIRS = gsl utils sys test err const complex cheb block vector matrix permutation combination sort ieee-utils cblas blas linalg eigen specfunc dht qrng rng randist fft poly fit multifit statistics siman sum integration interpolation histogram ode-initval roots multiroots min multimin monte ntuple diff deriv cdf wavelet bspline doc
+SUBDIRS = gsl utils sys test err complex block ieee-utils specfunc rng randist poly histogram cdf
 
-SUBLIBS = block/libgslblock.la blas/libgslblas.la bspline/libgslbspline.la complex/libgslcomplex.la cheb/libgslcheb.la dht/libgsldht.la diff/libgsldiff.la deriv/libgslderiv.la eigen/libgsleigen.la err/libgslerr.la fft/libgslfft.la fit/libgslfit.la histogram/libgslhistogram.la ieee-utils/libgslieeeutils.la integration/libgslintegration.la interpolation/libgslinterpolation.la linalg/libgsllinalg.la matrix/libgslmatrix.la min/libgslmin.la monte/libgslmonte.la multifit/libgslmultifit.la multimin/libgslmultimin.la multiroots/libgslmultiroots.la ntuple/libgslntuple.la ode-initval/libgslodeiv.la permutation/libgslpermutation.la combination/libgslcombination.la poly/libgslpoly.la qrng/libgslqrng.la randist/libgslrandist.la rng/libgslrng.la roots/libgslroots.la siman/libgslsiman.la sort/libgslsort.la specfunc/libgslspecfunc.la statistics/libgslstatistics.la sum/libgslsum.la sys/libgslsys.la test/libgsltest.la utils/libutils.la vector/libgslvector.la cdf/libgslcdf.la wavelet/libgslwavelet.la
+SUBLIBS = block/libgslblock.la complex/libgslcomplex.la err/libgslerr.la histogram/libgslhistogram.la ieee-utils/libgslieeeutils.la poly/libgslpoly.la randist/libgslrandist.la rng/libgslrng.la specfunc/libgslspecfunc.la sys/libgslsys.la test/libgsltest.la utils/libutils.la cdf/libgslcdf.la
 
 pkginclude_HEADERS = gsl_math.h gsl_pow_int.h gsl_nan.h gsl_machine.h gsl_mode.h gsl_precision.h gsl_types.h gsl_version.h
 
@@ -27,10 +27,10 @@ m4data_DATA = gsl.m4
 bin_PROGRAMS = gsl-randist gsl-histogram
 
 gsl_randist_SOURCES = gsl-randist.c
-gsl_randist_LDADD = libgsl.la cblas/libgslcblas.la
+gsl_randist_LDADD = libgsl.la
 
 gsl_histogram_SOURCES = gsl-histogram.c
-gsl_histogram_LDADD = libgsl.la cblas/libgslcblas.la
+gsl_histogram_LDADD = libgsl.la
 
 check_SCRIPTS = test_gsl_histogram.sh
 TESTS = test_gsl_histogram.sh
@@ -40,3 +40,5 @@ TESTS = test_gsl_histogram.sh
 #dummy_LDADD = $(SUBLIBS)
 #main_SOURCES = version.c env.c
 #main_LDADD = libgsl.la
+
+ACLOCAL_AMFLAGS = -I m4

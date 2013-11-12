@@ -2290,6 +2290,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+
 am__api_version='1.11'
 
 ac_aux_dir=
@@ -7711,6 +7712,10 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
+## CAVEAT EMPTOR:
+## There is no encapsulation within the following macros, do not change
+## the running order or otherwise move them around unless you know exactly
+## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -12099,7 +12104,7 @@ if test "$ac_cv_c_ieee_denormals" != no ; then
 
 fi
 
-ac_config_files="$ac_config_files gsl-config gsl.pc gsl_version.h gsl.spec gsl/Makefile test/Makefile err/Makefile sys/Makefile utils/Makefile const/Makefile min/Makefile multimin/Makefile ieee-utils/Makefile fft/Makefile specfunc/Makefile dht/Makefile fit/Makefile multifit/Makefile bspline/Makefile statistics/Makefile sum/Makefile roots/Makefile multiroots/Makefile ntuple/Makefile poly/Makefile qrng/Makefile rng/Makefile randist/Makefile siman/Makefile integration/Makefile interpolation/Makefile doc/Makefile block/Makefile vector/Makefile matrix/Makefile histogram/Makefile monte/Makefile ode-initval/Makefile cblas/Makefile blas/Makefile linalg/Makefile eigen/Makefile permutation/Makefile combination/Makefile sort/Makefile complex/Makefile diff/Makefile deriv/Makefile cheb/Makefile cdf/Makefile wavelet/Makefile Makefile"
+ac_config_files="$ac_config_files gsl-config gsl.pc gsl_version.h gsl.spec gsl/Makefile test/Makefile err/Makefile sys/Makefile utils/Makefile ieee-utils/Makefile specfunc/Makefile poly/Makefile rng/Makefile randist/Makefile block/Makefile histogram/Makefile complex/Makefile cdf/Makefile Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -13113,48 +13118,15 @@ do
     "err/Makefile") CONFIG_FILES="$CONFIG_FILES err/Makefile" ;;
     "sys/Makefile") CONFIG_FILES="$CONFIG_FILES sys/Makefile" ;;
     "utils/Makefile") CONFIG_FILES="$CONFIG_FILES utils/Makefile" ;;
-    "const/Makefile") CONFIG_FILES="$CONFIG_FILES const/Makefile" ;;
-    "min/Makefile") CONFIG_FILES="$CONFIG_FILES min/Makefile" ;;
-    "multimin/Makefile") CONFIG_FILES="$CONFIG_FILES multimin/Makefile" ;;
     "ieee-utils/Makefile") CONFIG_FILES="$CONFIG_FILES ieee-utils/Makefile" ;;
-    "fft/Makefile") CONFIG_FILES="$CONFIG_FILES fft/Makefile" ;;
     "specfunc/Makefile") CONFIG_FILES="$CONFIG_FILES specfunc/Makefile" ;;
-    "dht/Makefile") CONFIG_FILES="$CONFIG_FILES dht/Makefile" ;;
-    "fit/Makefile") CONFIG_FILES="$CONFIG_FILES fit/Makefile" ;;
-    "multifit/Makefile") CONFIG_FILES="$CONFIG_FILES multifit/Makefile" ;;
-    "bspline/Makefile") CONFIG_FILES="$CONFIG_FILES bspline/Makefile" ;;
-    "statistics/Makefile") CONFIG_FILES="$CONFIG_FILES statistics/Makefile" ;;
-    "sum/Makefile") CONFIG_FILES="$CONFIG_FILES sum/Makefile" ;;
-    "roots/Makefile") CONFIG_FILES="$CONFIG_FILES roots/Makefile" ;;
-    "multiroots/Makefile") CONFIG_FILES="$CONFIG_FILES multiroots/Makefile" ;;
-    "ntuple/Makefile") CONFIG_FILES="$CONFIG_FILES ntuple/Makefile" ;;
     "poly/Makefile") CONFIG_FILES="$CONFIG_FILES poly/Makefile" ;;
-    "qrng/Makefile") CONFIG_FILES="$CONFIG_FILES qrng/Makefile" ;;
     "rng/Makefile") CONFIG_FILES="$CONFIG_FILES rng/Makefile" ;;
     "randist/Makefile") CONFIG_FILES="$CONFIG_FILES randist/Makefile" ;;
-    "siman/Makefile") CONFIG_FILES="$CONFIG_FILES siman/Makefile" ;;
-    "integration/Makefile") CONFIG_FILES="$CONFIG_FILES integration/Makefile" ;;
-    "interpolation/Makefile") CONFIG_FILES="$CONFIG_FILES interpolation/Makefile" ;;
-    "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "block/Makefile") CONFIG_FILES="$CONFIG_FILES block/Makefile" ;;
-    "vector/Makefile") CONFIG_FILES="$CONFIG_FILES vector/Makefile" ;;
-    "matrix/Makefile") CONFIG_FILES="$CONFIG_FILES matrix/Makefile" ;;
     "histogram/Makefile") CONFIG_FILES="$CONFIG_FILES histogram/Makefile" ;;
-    "monte/Makefile") CONFIG_FILES="$CONFIG_FILES monte/Makefile" ;;
-    "ode-initval/Makefile") CONFIG_FILES="$CONFIG_FILES ode-initval/Makefile" ;;
-    "cblas/Makefile") CONFIG_FILES="$CONFIG_FILES cblas/Makefile" ;;
-    "blas/Makefile") CONFIG_FILES="$CONFIG_FILES blas/Makefile" ;;
-    "linalg/Makefile") CONFIG_FILES="$CONFIG_FILES linalg/Makefile" ;;
-    "eigen/Makefile") CONFIG_FILES="$CONFIG_FILES eigen/Makefile" ;;
-    "permutation/Makefile") CONFIG_FILES="$CONFIG_FILES permutation/Makefile" ;;
-    "combination/Makefile") CONFIG_FILES="$CONFIG_FILES combination/Makefile" ;;
-    "sort/Makefile") CONFIG_FILES="$CONFIG_FILES sort/Makefile" ;;
     "complex/Makefile") CONFIG_FILES="$CONFIG_FILES complex/Makefile" ;;
-    "diff/Makefile") CONFIG_FILES="$CONFIG_FILES diff/Makefile" ;;
-    "deriv/Makefile") CONFIG_FILES="$CONFIG_FILES deriv/Makefile" ;;
-    "cheb/Makefile") CONFIG_FILES="$CONFIG_FILES cheb/Makefile" ;;
     "cdf/Makefile") CONFIG_FILES="$CONFIG_FILES cdf/Makefile" ;;
-    "wavelet/Makefile") CONFIG_FILES="$CONFIG_FILES wavelet/Makefile" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

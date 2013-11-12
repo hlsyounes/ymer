@@ -51,7 +51,10 @@ DIST_COMMON = README $(am__configure_deps) $(noinst_HEADERS) \
 	THANKS TODO acconfig.h config.guess config.sub install-sh \
 	ltmain.sh mdate-sh missing mkinstalldirs
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -100,10 +103,10 @@ libgsl_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 PROGRAMS = $(bin_PROGRAMS)
 am_gsl_histogram_OBJECTS = gsl-histogram.$(OBJEXT)
 gsl_histogram_OBJECTS = $(am_gsl_histogram_OBJECTS)
-gsl_histogram_DEPENDENCIES = libgsl.la cblas/libgslcblas.la
+gsl_histogram_DEPENDENCIES = libgsl.la
 am_gsl_randist_OBJECTS = gsl-randist.$(OBJEXT)
 gsl_randist_OBJECTS = $(am_gsl_randist_OBJECTS)
-gsl_randist_DEPENDENCIES = libgsl.la cblas/libgslcblas.la
+gsl_randist_DEPENDENCIES = libgsl.la
 SCRIPTS = $(bin_SCRIPTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp =
@@ -317,8 +320,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = gsl utils sys test err const complex cheb block vector matrix permutation combination sort ieee-utils cblas blas linalg eigen specfunc dht qrng rng randist fft poly fit multifit statistics siman sum integration interpolation histogram ode-initval roots multiroots min multimin monte ntuple diff deriv cdf wavelet bspline doc
-SUBLIBS = block/libgslblock.la blas/libgslblas.la bspline/libgslbspline.la complex/libgslcomplex.la cheb/libgslcheb.la dht/libgsldht.la diff/libgsldiff.la deriv/libgslderiv.la eigen/libgsleigen.la err/libgslerr.la fft/libgslfft.la fit/libgslfit.la histogram/libgslhistogram.la ieee-utils/libgslieeeutils.la integration/libgslintegration.la interpolation/libgslinterpolation.la linalg/libgsllinalg.la matrix/libgslmatrix.la min/libgslmin.la monte/libgslmonte.la multifit/libgslmultifit.la multimin/libgslmultimin.la multiroots/libgslmultiroots.la ntuple/libgslntuple.la ode-initval/libgslodeiv.la permutation/libgslpermutation.la combination/libgslcombination.la poly/libgslpoly.la qrng/libgslqrng.la randist/libgslrandist.la rng/libgslrng.la roots/libgslroots.la siman/libgslsiman.la sort/libgslsort.la specfunc/libgslspecfunc.la statistics/libgslstatistics.la sum/libgslsum.la sys/libgslsys.la test/libgsltest.la utils/libutils.la vector/libgslvector.la cdf/libgslcdf.la wavelet/libgslwavelet.la
+SUBDIRS = gsl utils sys test err complex block ieee-utils specfunc rng randist poly histogram cdf
+SUBLIBS = block/libgslblock.la complex/libgslcomplex.la err/libgslerr.la histogram/libgslhistogram.la ieee-utils/libgslieeeutils.la poly/libgslpoly.la randist/libgslrandist.la rng/libgslrng.la specfunc/libgslspecfunc.la sys/libgslsys.la test/libgsltest.la utils/libutils.la cdf/libgslcdf.la
 pkginclude_HEADERS = gsl_math.h gsl_pow_int.h gsl_nan.h gsl_machine.h gsl_mode.h gsl_precision.h gsl_types.h gsl_version.h
 bin_SCRIPTS = gsl-config
 pkgconfigdir = $(libdir)/pkgconfig
@@ -332,11 +335,18 @@ noinst_HEADERS = templates_on.h templates_off.h
 m4datadir = $(datadir)/aclocal
 m4data_DATA = gsl.m4
 gsl_randist_SOURCES = gsl-randist.c
-gsl_randist_LDADD = libgsl.la cblas/libgslcblas.la
+gsl_randist_LDADD = libgsl.la
 gsl_histogram_SOURCES = gsl-histogram.c
-gsl_histogram_LDADD = libgsl.la cblas/libgslcblas.la
+gsl_histogram_LDADD = libgsl.la
 check_SCRIPTS = test_gsl_histogram.sh
 TESTS = test_gsl_histogram.sh
+
+#bin_PROGRAMS = main dummy
+#dummy_SOURCES = version.c
+#dummy_LDADD = $(SUBLIBS)
+#main_SOURCES = version.c env.c
+#main_LDADD = libgsl.la
+ACLOCAL_AMFLAGS = -I m4
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -1156,12 +1166,6 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-m4dataDATA uninstall-pkgconfigDATA \
 	uninstall-pkgincludeHEADERS
 
-
-#bin_PROGRAMS = main dummy
-#dummy_SOURCES = version.c
-#dummy_LDADD = $(SUBLIBS)
-#main_SOURCES = version.c env.c
-#main_LDADD = libgsl.la
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
