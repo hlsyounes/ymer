@@ -1029,6 +1029,9 @@ int main(int argc, char* argv[]) {
 	return 1;
       }
     }
+    if (params.nested_error > 0) {
+      CHECK_LT(params.nested_error, MaxNestedError(delta));
+    }
 
     /*
      * Read files.
@@ -1114,7 +1117,7 @@ int main(int argc, char* argv[]) {
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
 	const State init_state(&compiled_model, &evaluator, &sampler);
 	const PathFormula* pf = 0;
-	double alphap = alpha, betap = beta;
+	double nested_error = 0.0;
 	timeval timeout;
 	timeval* to = 0;
 	while (true) {
@@ -1132,7 +1135,8 @@ int main(int argc, char* argv[]) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
 	      msg.value = pf->sample(*global_model, init_state,
-				     delta, alphap, betap, algorithm, params,
+				     delta, nested_error, nested_error,
+                                     algorithm, params,
                                      &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
@@ -1161,21 +1165,16 @@ int main(int argc, char* argv[]) {
 		return 1;
 	      }
 	      if (pf != 0) {
-		alphap = alpha;
-		betap = beta;
 		if (pf->probabilistic()) {
-		  double p0, p1;
-		  while (true) {
-		    p0 = std::min(1.0, (theta + delta)*(1.0 - betap));
-		    p1 = std::max(0.0, 1.0 - ((1.0 - (theta - delta))
-					      *(1.0 - alphap)));
-		    if (p1 < p0) {
-		      break;
-		    } else {
-		      alphap *= 0.5;
-		      betap *= 0.5;
-		    }
-		  }
+                  // TODO(hlsyounes): nested_error and other model-checking
+                  // parameters should really come from the server.
+                  if (params.nested_error > 0) {
+                    // User-specified nested error.
+                    nested_error = params.nested_error;
+                  } else {
+                    // Simple heuristic for nested error.
+                    nested_error = 0.8 * MaxNestedError(delta);
+                  }
 		}
 	      }
 	      to = &timeout;

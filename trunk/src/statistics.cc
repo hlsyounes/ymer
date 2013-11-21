@@ -51,6 +51,10 @@ int binoinv(double y, int n, double p) {
   return x;
 }
 
+double MaxNestedError(double delta) {
+  return delta / (0.5 + delta);
+}
+
 SingleSamplingPlan::SingleSamplingPlan(int n, int c)
     : n_(n), c_(c) {
   CHECK_LE(0, c_);
