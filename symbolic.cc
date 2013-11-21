@@ -35,11 +35,11 @@
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Conjunction::verify(const DecisionDiagramManager& dd_man,
-                            const Model& model,
-			    double epsilon, bool estimate) const {
+                            const Model& model, bool estimate,
+                            const ModelCheckingParams& params) const {
   DdNode* sol = model.reachability_bdd(dd_man);
   for (const StateFormula* conjunct : conjuncts()) {
-    DdNode* ddf = conjunct->verify(dd_man, model, epsilon, estimate);
+    DdNode* ddf = conjunct->verify(dd_man, model, estimate, params);
     DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddf, sol);
     Cudd_Ref(dda);
     Cudd_RecursiveDeref(dd_man.manager(), ddf);
@@ -55,12 +55,12 @@ DdNode* Conjunction::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Disjunction::verify(const DecisionDiagramManager& dd_man,
-                            const Model& model,
-			    double epsilon, bool estimate) const {
+                            const Model& model, bool estimate,
+                            const ModelCheckingParams& params) const {
   DdNode* sol = Cudd_ReadLogicZero(dd_man.manager());
   Cudd_Ref(sol);
   for (const StateFormula* disjunct : disjuncts()) {
-    DdNode* ddf = disjunct->verify(dd_man, model, epsilon, estimate);
+    DdNode* ddf = disjunct->verify(dd_man, model, estimate, params);
     DdNode* ddo = Cudd_bddOr(dd_man.manager(), ddf, sol);
     Cudd_Ref(ddo);
     Cudd_RecursiveDeref(dd_man.manager(), ddf);
@@ -81,9 +81,9 @@ DdNode* Disjunction::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Negation::verify(const DecisionDiagramManager& dd_man,
-                         const Model& model,
-			 double epsilon, bool estimate) const {
-  DdNode* ddf = negand().verify(dd_man, model, epsilon, estimate);
+                         const Model& model, bool estimate,
+                         const ModelCheckingParams& params) const {
+  DdNode* ddf = negand().verify(dd_man, model, estimate, params);
   DdNode* sol = Cudd_Not(ddf);
   Cudd_Ref(sol);
   Cudd_RecursiveDeref(dd_man.manager(), ddf);
@@ -101,13 +101,13 @@ DdNode* Negation::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Implication::verify(const DecisionDiagramManager& dd_man,
-                            const Model& model,
-			    double epsilon, bool estimate) const {
-  DdNode* dda = antecedent().verify(dd_man, model, epsilon, estimate);
+                            const Model& model, bool estimate,
+                            const ModelCheckingParams& params) const {
+  DdNode* dda = antecedent().verify(dd_man, model, estimate, params);
   DdNode* ddn = Cudd_Not(dda);
   Cudd_Ref(ddn);
   Cudd_RecursiveDeref(dd_man.manager(), dda);
-  DdNode* ddc = consequent().verify(dd_man, model, epsilon, estimate);
+  DdNode* ddc = consequent().verify(dd_man, model, estimate, params);
   DdNode* ddi = Cudd_bddOr(dd_man.manager(), ddn, ddc);
   Cudd_Ref(ddi);
   Cudd_RecursiveDeref(dd_man.manager(), ddn);
@@ -126,11 +126,11 @@ DdNode* Implication::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Probabilistic::verify(const DecisionDiagramManager& dd_man,
-                              const Model& model,
-			      double epsilon, bool estimate) const {
+                              const Model& model, bool estimate,
+                              const ModelCheckingParams& params) const {
   formula_level_++;
-  DdNode* res = formula().verify(dd_man, model, threshold(), strict(),
-				 epsilon, estimate);
+  DdNode* res = formula().verify(dd_man, model, threshold(), strict(), estimate,
+                                 params);
   formula_level_--;
   return res;
 }
@@ -141,8 +141,8 @@ DdNode* Probabilistic::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the hybrid engine. */
 DdNode* Comparison::verify(const DecisionDiagramManager& dd_man,
-                           const Model& model,
-			   double epsilon, bool estimate) const {
+                           const Model& model, bool estimate,
+                           const ModelCheckingParams& params) const {
   BDD ddc = bdd(dd_man, model.variable_properties(), *this);
   DdNode* ddr = model.reachability_bdd(dd_man);
   DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddc.get(), ddr);
@@ -464,128 +464,10 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 }
 
 
-#if 0
-/* this function was written by joachim meyer-kayser (converted from java) */
-void compute_weights(int& left, int& right, double*& weights,
-		     double& total_weight, double lambda,
-		     double underflow, double overflow, double epsilon) {
-  int m = (int) lambda;
-
-  if (lambda < 25.0) {
-    left = 0;
-  }
-
-  if (lambda < 400.0) {
-    /* Find right using Corollary 1 with lambda=400. */
-    double a = 1.0025*exp(1.0/16.0)*M_SQRT2;
-    double startk = 1.0/(2.0*M_SQRT2*400.0);
-    double stopk = 20.0/(2.0*M_SQRT2);
-    double k;
-    for (k = startk; k <= stopk; k += 3.0) {
-      double d = 1.0/(1 - exp((-2.0/9.0)*(k*M_SQRT2*20.0 + 1.5)));
-      double f = a*d*exp(-0.5*k*k)/(k*sqrt(2.0*M_PI));
-      if (f <= epsilon/2.0) {
-	break;
-      }
-    }
-    if (k > stopk) {
-      k = stopk;
-    }
-    right = (int) ceil(m + k*M_SQRT2*20.0 + 1.5);
-  }
-
-  if (lambda >= 400.0) {
-    /* Find right using Corollary 1 using actual lambda. */
-    double sqrtl  = sqrt(lambda);
-    double a = (1.0 + 1.0/lambda)*exp(1.0/16.0)*M_SQRT2;
-    double startk = 1.0/(2.0*M_SQRT2*lambda);
-    double stopk = sqrtl/(2*M_SQRT2);
-    double k;
-    for (k = startk; k <= stopk; k += 3.0) {
-      double d = 1.0/(1.0 - exp((-2.0/9.0)*(k*M_SQRT2*sqrtl + 1.5)));
-      double f = a*d*exp(-0.5*k*k)/(k*sqrt(2.0*M_PI));
-      if (f <= epsilon/2.0) {
-	break;
-      }
-    }
-    if (k > stopk) {
-      k = stopk;
-    }
-    right = (int) ceil(m + k*M_SQRT2*sqrtl + 1.5);
-  }
-
-  if (lambda >= 25.0) {
-    /* Find left using Corollary 2 using actual lambda. */
-    double sqrtl  = sqrt(lambda);
-    double b = (1.0 + 1.0/lambda)*exp(0.125/lambda);
-    double startk = 1.0/(M_SQRT2*sqrtl);
-    double stopk =  (m - 1.5)/(M_SQRT2*sqrtl);
-    double k;
-    for (k = startk; k <= stopk; k += 3.0) {
-      if (b*exp(-0.5*k*k)/(k*sqrt(2.0*M_PI)) <= epsilon/2.0) {
-	break;
-      }
-    }
-    if (k > stopk) {
-      k = stopk;
-    }
-    left = (int) floor(m - k*sqrtl - 1.5);
-  }
-
-  if (left < 0) {
-    left = 0;
-  }
-
-  double q = overflow/(1e10*(right - left));
-  weights = new double[right - left + 1];
-  weights[m - left] = q;
-
-  /* down */
-  for (int j = m; j > left; j--) {
-    weights[j - 1 - left] = (j/lambda)*weights[j - left];
-  }
-
-  /* up */
-  if (lambda < 400) {
-    if (right > 600) {
-      throw std::overflow_error("overflow: right truncation point > 600");
-    }
-    for (int j = m; j < right; ) {
-      q = lambda/(j+1);
-      if (weights[j - left] > underflow/q) {
-	weights[j + 1 - left] = q*weights[j - left];
-	j++;
-      } else {
-	right = j;
-      }
-    }
-  } else {
-    for (int j = m; j < right; j++) {
-      weights[j + 1 - left] = (lambda/(j + 1))*weights[j - left];
-    }
-  }
-
-  int l = left;
-  int r = right;
-  total_weight = 0.0;
-  while (l < r) {
-    if (weights[l - left] <= weights[r - left]) {
-      total_weight += weights[l - left];
-      l++;
-    } else {
-      total_weight += weights[r - left];
-      r--;
-    }
-  }
-  total_weight += weights[l - left];
-}
-#endif
-
-
 /* Verifies this path formula using the hybrid engine. */
 DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const TypedValue& p, bool strict, double epsilon,
-		      bool estimate) const {
+		      const TypedValue& p, bool strict, bool estimate,
+                      const ModelCheckingParams& params) const {
   /*
    * Detect trivial cases.
    */
@@ -602,7 +484,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   /*
    * Verify postcondition formula.
    */
-  DdNode* dd2 = post().verify(dd_man, model, epsilon, false);
+  DdNode* dd2 = post().verify(dd_man, model, false, params);
   if (max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
     return dd2;
@@ -611,7 +493,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   /*
    * Verify precondition formula.
    */
-  DdNode* dd1 = pre().verify(dd_man, model, epsilon, false);
+  DdNode* dd1 = pre().verify(dd_man, model, false, params);
 
   if (min_time() > 0) {
     // TODO
@@ -726,7 +608,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   std::cout << "Uniformization: " << max_diag << "*" << time << " = "
             << (max_diag*time) << std::endl;
   fox_glynn_weighter(left, right, weights, weight_sum,
-		     1.01*max_diag*time, epsilon);
+		     1.01*max_diag*time, params.epsilon);
   std::cout << "Fox-Glynn: left = " << left << ", right = " << right
             << std::endl;
 
@@ -756,7 +638,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     if (!estimate) {
       done = true;
       double sqnorm = 0.0;
-      double sqbound = epsilon*epsilon/64.0;
+      double sqbound = params.epsilon*params.epsilon/64.0;
       for (size_t i = 0; i < nstates; i++) {
 	double diff = soln2[i] - soln[i];
 	sqnorm += diff*diff;
@@ -808,7 +690,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       if (!estimate) {
 	done = true;
 	double sqnorm = 0.0;
-	double sqbound = epsilon*epsilon/64.0;
+	double sqbound = params.epsilon*params.epsilon/64.0;
 	for (size_t i = 0; i < nstates; i++) {
 	  double diff = soln2[i] - soln[i];
 	  sqnorm += diff*diff;
@@ -851,7 +733,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 	sum[i] += weights[iters - left]/weight_sum*soln[i];
       }
       double slack = tail_bound(iters, 1.01*max_diag*time,
-				left, right, epsilon);
+				left, right, params.epsilon);
       if (VLOG_IS_ON(2) && init >= 0) {
 	LOG(INFO) << iters
 		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"

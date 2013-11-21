@@ -879,17 +879,11 @@ int main(int argc, char* argv[]) {
   double alpha = 1e-2;
   /* Set default beta. */
   double beta = 1e-2;
-  /* Set default delta. */
-  double delta = 1e-2;
-  /* Set default epsilon. */
-  double epsilon = 1e-6;
   /* Verification without estimation by default. */
   bool estimate = false;
   /* Set default engine. */
   enum { SAMPLING_ENGINE, HYBRID_ENGINE, MIXED_ENGINE } engine =
 							  SAMPLING_ENGINE;
-  /* Sampling algorithm. */
-  SamplingAlgorithm algorithm = SPRT;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */
@@ -939,18 +933,18 @@ int main(int argc, char* argv[]) {
         }
         break;
       case 'D':
-	delta = atof(optarg);
-	if (delta < 1e-10) {
+	params.delta = atof(optarg);
+	if (params.delta < 1e-10) {
 	  throw std::invalid_argument("delta < 1e-10");
-	} else if (delta > 0.5) {
+	} else if (params.delta > 0.5) {
 	  throw std::invalid_argument("delta > 0.5");
 	}
 	break;
       case 'E':
-	epsilon = atof(optarg);
-	if (epsilon < 1e-10) {
+	params.epsilon = atof(optarg);
+	if (params.epsilon < 1e-10) {
 	  throw std::invalid_argument("epsilon < 1e-10");
-	} else if (epsilon > 1.0) {
+	} else if (params.epsilon > 1.0) {
 	  throw std::invalid_argument("epsilon > 1.0");
 	}
 	break;
@@ -984,7 +978,7 @@ int main(int argc, char* argv[]) {
 	}
 	break;
       case 'N':
-	algorithm = FIXED;
+	params.algorithm = FIXED;
         params.fixed_sample_size = atoi(optarg);
 	break;
       case 'n':
@@ -992,7 +986,7 @@ int main(int argc, char* argv[]) {
 	break;
       case 'p':
 	estimate = true;
-	algorithm = ESTIMATE;
+	params.algorithm = ESTIMATE;
 	break;
       case 'P':
 	port = atoi(optarg);
@@ -1002,9 +996,9 @@ int main(int argc, char* argv[]) {
 	break;
       case 's':
 	if (strcasecmp(optarg, "ssp") == 0) {
-	  algorithm = SSP;
+	  params.algorithm = SSP;
 	} else if (strcasecmp(optarg, "sprt") == 0) {
-	  algorithm = SPRT;
+	  params.algorithm = SPRT;
 	} else {
 	  throw std::invalid_argument("unsupported sampling algorithm `"
 				      + std::string(optarg) + "'");
@@ -1030,7 +1024,7 @@ int main(int argc, char* argv[]) {
       }
     }
     if (params.nested_error > 0) {
-      CHECK_LT(params.nested_error, MaxNestedError(delta));
+      CHECK_LT(params.nested_error, MaxNestedError(params.delta));
     }
 
     /*
@@ -1134,10 +1128,8 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = pf->sample(*global_model, init_state,
-				     delta, nested_error, nested_error,
-                                     algorithm, params,
-                                     &stats);
+	      msg.value = pf->sample(*global_model, init_state, nested_error,
+                                     nested_error, params, &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1173,7 +1165,7 @@ int main(int argc, char* argv[]) {
                     nested_error = params.nested_error;
                   } else {
                     // Simple heuristic for nested error.
-                    nested_error = 0.8 * MaxNestedError(delta);
+                    nested_error = 0.8 * MaxNestedError(params.delta);
                   }
 		}
 	      }
@@ -1218,7 +1210,7 @@ int main(int argc, char* argv[]) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
       std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
-		<< ", delta=" << delta << ", seed=" << seed << std::endl;
+		<< ", delta=" << params.delta << ", seed=" << seed << std::endl;
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -1268,9 +1260,8 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-	  bool sol = (*fi)->verify(*global_model, init_state,
-				   delta, alpha, beta, algorithm, params,
-                                   &stats);
+	  bool sol = (*fi)->verify(*global_model, init_state, alpha, beta,
+                                   params, &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1342,7 +1333,7 @@ int main(int argc, char* argv[]) {
 	}
       }
     } else if (engine == HYBRID_ENGINE) {
-      std::cout << "Hybrid engine: epsilon=" << epsilon << std::endl;
+      std::cout << "Hybrid engine: epsilon=" << params.epsilon << std::endl;
       DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
@@ -1389,8 +1380,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  DdNode* ddf = (*fi)->verify(dd_man, *global_model, epsilon,
-				      estimate);
+	  DdNode* ddf = (*fi)->verify(dd_man, *global_model, estimate, params);
 	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddf, init);
 	  Cudd_Ref(sol);
 	  Cudd_RecursiveDeref(dd_man.manager(), ddf);
@@ -1424,7 +1414,7 @@ int main(int argc, char* argv[]) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
       std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
-		<< ", delta=" << delta << ", epsilon=" << epsilon
+		<< ", delta=" << params.delta << ", epsilon=" << params.epsilon
 		<< ", seed=" << seed << std::endl;
       DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
@@ -1478,9 +1468,8 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  bool sol = (*fi)->verify(dd_man, *global_model, init_state,
-				   delta, alpha, beta, algorithm, epsilon,
-                                   &stats);
+	  bool sol = (*fi)->verify(dd_man, *global_model, init_state, alpha,
+                                   beta, params, &stats);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);

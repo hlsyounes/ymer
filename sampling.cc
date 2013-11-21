@@ -83,6 +83,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledLogicalOperationProperty(
     const CompiledLogicalOperationProperty& property) {
   bool short_circuit_result =
       (property.op() == CompiledLogicalOperationProperty::Operator::OR);
+  // TODO(hlsyounes): for AND use alpha/n; for OR use beta/n.
   for (const CompiledProperty& operand : property.operands()) {
     operand.Accept(this);
     if (result_ == short_circuit_result) {
@@ -93,13 +94,12 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledLogicalOperationProperty(
 
 /* Verifies this state formula using the statistical engine. */
 bool Conjunction::verify(const Model& model, const State& state,
-			 double delta, double alpha, double beta,
-			 SamplingAlgorithm algorithm,
+			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
+  const double alpha_n = alpha / conjuncts().size();
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm, params,
-                       stats)) {
+    if (!(*fi)->verify(model, state, alpha_n, beta, params, stats)) {
       return false;
     }
   }
@@ -122,13 +122,12 @@ size_t Conjunction::clear_cache() const {
 
 /* Verifies this state formula using the statistical engine. */
 bool Disjunction::verify(const Model& model, const State& state,
-			 double delta, double alpha, double beta,
-			 SamplingAlgorithm algorithm,
+			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
+  const double beta_n = beta / disjuncts().size();
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(model, state, delta, alpha, beta, algorithm, params,
-                      stats)) {
+    if ((*fi)->verify(model, state, alpha, beta_n, params, stats)) {
       return true;
     }
   }
@@ -151,12 +150,10 @@ size_t Disjunction::clear_cache() const {
 
 /* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,
-		      double delta, double alpha, double beta,
-		      SamplingAlgorithm algorithm,
+		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const {
-  return !negand().verify(model, state, delta, beta, alpha, algorithm, params,
-                          stats);
+  return !negand().verify(model, state, beta, alpha, params, stats);
 }
 
 
@@ -171,16 +168,14 @@ size_t Negation::clear_cache() const {
 
 /* Verifies this state formula using the statistical engine. */
 bool Implication::verify(const Model& model, const State& state,
-			 double delta, double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-                      const ModelCheckingParams& params,
+			 double alpha, double beta,
+                         const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  if (!antecedent().verify(model, state,
-                           delta, beta, alpha, algorithm, params, stats)) {
+  const double beta_n = beta / 2;
+  if (!antecedent().verify(model, state, beta_n, alpha, params, stats)) {
     return true;
   } else {
-    return consequent().verify(model, state,
-                               delta, alpha, beta, algorithm, params, stats);
+    return consequent().verify(model, state, alpha, beta_n, params, stats);
   }
 }
 
@@ -201,8 +196,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
 
 /* Verifies this state formula using the statistical engine. */
 bool Probabilistic::verify(const Model& model, const State& state,
-			   double delta, double alpha, double beta,
-			   SamplingAlgorithm algorithm,
+			   double alpha, double beta,
                            const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
   double p0, p1;
@@ -214,24 +208,24 @@ bool Probabilistic::verify(const Model& model, const State& state,
       nested_error = params.nested_error;
     } else {
       // Simple heuristic for nested error.
-      nested_error = 0.8 * MaxNestedError(delta);
+      nested_error = 0.8 * MaxNestedError(params.delta);
     }
     if (formula_level() == 0) {
       VLOG(1) << "Nested error: " << nested_error;
-      VLOG(1) << "Maximum symmetric nested error: " << MaxNestedError(delta);
+      VLOG(1) << "Maximum symmetric nested error: "
+              << MaxNestedError(params.delta);
     }
   }
-  p0 = std::min(1.0, (theta + delta)*(1.0 - nested_error));
-  p1 = std::max(0.0, 1.0 - (1.0 - (theta - delta))*(1.0 - nested_error));
-  if (algorithm == FIXED) {
+  p0 = std::min(1.0, (theta + params.delta)*(1.0 - nested_error));
+  p1 = std::max(0.0, 1.0 - (1.0 - (theta - params.delta))*(1.0 - nested_error));
+  if (params.algorithm == FIXED) {
     int c = 0;
     if (formula_level() == 0) {
       std::cout << "Fixed-size sampling";
     }
     formula_level_++;
     for (int i = 1; i <= params.fixed_sample_size; ++i) {
-      if (formula().sample(model, state,
-                           delta, nested_error, nested_error, algorithm, params,
+      if (formula().sample(model, state, nested_error, nested_error, params,
                            stats)) {
         c++;
       }
@@ -255,15 +249,14 @@ bool Probabilistic::verify(const Model& model, const State& state,
       return p >= theta;
     }
   }
-  if (algorithm == ESTIMATE) {
+  if (params.algorithm == ESTIMATE) {
     if (formula_level() == 0) {
       std::cout << "Sequential estimation";
     }
     formula_level_++;
-    SequentialEstimator<int> estimator(delta, alpha);
+    SequentialEstimator<int> estimator(params.delta, alpha);
     while (true) {
-      const bool x = formula().sample(model, state, delta,
-                                      nested_error, nested_error, algorithm,
+      const bool x = formula().sample(model, state, nested_error, nested_error,
                                       params, stats);
       estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
@@ -282,8 +275,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
     if (formula_level() == 0) {
       std::cout << estimator.count() << " observations." << std::endl;
       std::cout << "Pr[" << formula() << "] = " << estimator.value() << " ("
-                << std::max(0.0, estimator.value() - delta) << ','
-                << std::min(1.0, estimator.value() + delta) << ")" << std::endl;
+                << std::max(0.0, estimator.value() - params.delta) << ','
+                << std::min(1.0, estimator.value() + params.delta) << ")"
+                << std::endl;
       stats->sample_size.AddObservation(estimator.count());
     }
     if (strict()) {
@@ -295,7 +289,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 
   int n = 0, c = 0;
   double logA, logB = 0;
-  if (algorithm == SSP) {
+  if (params.algorithm == SSP) {
     const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
     n = ssp.n();
     c = ssp.c();
@@ -313,7 +307,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   if (formula_level() == 0) {
     std::cout << "Acceptance sampling";
-    if (algorithm == SSP) {
+    if (params.algorithm == SSP) {
       std::cout << " <" << n << ',' << c << ">";
     }
   }
@@ -364,8 +358,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
       registered_clients.erase(*ci);
     }
   }
-  while ((algorithm == SSP && d <= c && d + n - m > c)
-	 || (algorithm == SPRT && logB < d && d < logA)) {
+  while ((params.algorithm == SSP && d <= c && d + n - m > c)
+	 || (params.algorithm == SPRT && logB < d && d < logA)) {
     bool s = false, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
       short client_id = schedule.front();
@@ -479,15 +473,15 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(model, state, delta, nested_error, nested_error,
-                           algorithm, params, stats);
+      s = formula().sample(model, state, nested_error, nested_error, params,
+                           stats);
       have_sample = true;
     }
     if (!have_sample) {
       continue;
     }
     if (s) {
-      if (algorithm == SSP) {
+      if (params.algorithm == SSP) {
 	d += 1.0;
       } else { /* algorithm == SPRT */
 	if (p1 > 0.0) {
@@ -497,7 +491,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
 	}
       }
     } else {
-      if (algorithm == SSP) {
+      if (params.algorithm == SSP) {
 	/* do nothing */
       } else { /* algorithm == SPRT */
 	if (p0 < 1.0) {
@@ -512,7 +506,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       PrintProgress(m);
     }
     if (VLOG_IS_ON(2)) {
-      if (algorithm == SSP) {
+      if (params.algorithm == SSP) {
 	LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
                   << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
       } else { /* algorithm == SPRT */
@@ -548,7 +542,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
   if (params.memoization) {
     cache_[state.values()] = { m, d };
   }
-  if (algorithm == SSP) {
+  if (params.algorithm == SSP) {
     return d > c;
   } else { /* algorithm == SPRT */
     return d <= logB;
@@ -574,8 +568,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
 
 /* Verifies this state formula using the statistical engine. */
 bool Comparison::verify(const Model& model, const State& state,
-			double delta, double alpha, double beta,
-			SamplingAlgorithm algorithm,
+			double alpha, double beta,
                         const ModelCheckingParams& params,
                         ModelCheckingStats* stats) const {
   return holds(state.values());
@@ -593,8 +586,7 @@ size_t Comparison::clear_cache() const {
 
 /* Generates a sample for this path formula. */
 bool Until::sample(const Model& model, const State& state,
-		   double delta, double alpha, double beta,
-		   SamplingAlgorithm algorithm,
+		   double alpha, double beta,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double t = 0.0;
@@ -610,23 +602,19 @@ bool Until::sample(const Model& model, const State& state,
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
-      if (post().verify(model, curr_state,
-                        delta, alpha, beta, algorithm, params, stats)) {
+      if (post().verify(model, curr_state, alpha, beta, params, stats)) {
 	result = true;
 	done = true;
-      } else if (!pre().verify(model, curr_state,
-			       delta, alpha, beta, algorithm, params, stats)) {
+      } else if (!pre().verify(model, curr_state, alpha, beta, params, stats)) {
 	result = false;
 	done = true;
       }
     } else {
-      if (!pre().verify(model, curr_state,
-                        delta, alpha, beta, algorithm, params, stats)) {
+      if (!pre().verify(model, curr_state, alpha, beta, params, stats)) {
 	result = false;
 	done = true;
       } else if (t_min < next_t
-		 && post().verify(model, curr_state,
-				  delta, alpha, beta, algorithm, params,
+		 && post().verify(model, curr_state, alpha, beta, params,
                                   stats)) {
 	t = t_min;
 	result = true;
@@ -665,16 +653,15 @@ bool Until::sample(const Model& model, const State& state,
 /* Verifies this path formula using the mixed engine. */
 bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
-		   double delta, double alpha, double beta,
-		   SamplingAlgorithm algorithm,
-		   double epsilon,
+		   double alpha, double beta,
+                   const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double theta = p.value<double>();
-  double p0 = std::min(1.0, theta + delta);
-  double p1 = std::max(0.0, theta - delta);
+  double p0 = std::min(1.0, theta + params.delta);
+  double p1 = std::max(0.0, theta - params.delta);
 
   DdNode* dd1 = (pre().probabilistic()
-		 ? pre().verify(dd_man, model, epsilon, false) : NULL);
+		 ? pre().verify(dd_man, model, false, params) : NULL);
   if (dd1 != NULL) {
     DdNode* ddr = model.reachability_bdd(dd_man);
     if (dd1 == ddr) {
@@ -685,13 +672,13 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     Cudd_RecursiveDeref(dd_man.manager(), ddr);
   }
   DdNode* dd2 = (post().probabilistic()
-		 ? post().verify(dd_man, model, epsilon, false) : NULL);
+		 ? post().verify(dd_man, model, false, params) : NULL);
 
-  if (algorithm == ESTIMATE) {
+  if (params.algorithm == ESTIMATE) {
     std::cout << "Sequential estimation";
-    SequentialEstimator<int> estimator(delta, alpha);
+    SequentialEstimator<int> estimator(params.delta, alpha);
     while (true) {
-      const bool x = sample(dd_man, model, state, epsilon, dd1, dd2, stats);
+      const bool x = sample(dd_man, model, state, dd1, dd2, stats);
       estimator.AddObservation(x ? 1 : 0);
       PrintProgress(estimator.count());
       if (VLOG_IS_ON(2)) {
@@ -704,8 +691,9 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     }
     std::cout << estimator.count() << " observations." << std::endl;
     std::cout << "Pr[" << *this << "] = " << estimator.value() << " ("
-	      << std::max(0.0, estimator.value() - delta) << ','
-              << std::min(1.0, estimator.value() + delta) << ")" << std::endl;
+	      << std::max(0.0, estimator.value() - params.delta) << ','
+              << std::min(1.0, estimator.value() + params.delta) << ")"
+              << std::endl;
     stats->sample_size.AddObservation(estimator.count());
     if (dd1 != NULL) {
       Cudd_RecursiveDeref(dd_man.manager(), dd1);
@@ -722,7 +710,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 
   int n = 0, c = 0;
   double logA, logB = 0;
-  if (algorithm == SSP) {
+  if (params.algorithm == SSP) {
     const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
     n = ssp.n();
     c = ssp.c();
@@ -739,16 +727,16 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     }
   }
   std::cout << "Acceptance sampling";
-  if (algorithm == SSP) {
+  if (params.algorithm == SSP) {
     std::cout << " <" << n << ',' << c << ">";
   }
   int m = 0;
   double d = 0.0;
-  while ((algorithm == SSP && d <= c && d + n - m > c)
-	 || (algorithm == SPRT && logB < d && d < logA)) {
-    bool s = sample(dd_man, model, state, epsilon, dd1, dd2, stats);
+  while ((params.algorithm == SSP && d <= c && d + n - m > c)
+	 || (params.algorithm == SPRT && logB < d && d < logA)) {
+    bool s = sample(dd_man, model, state, dd1, dd2, stats);
     if (s) {
-      if (algorithm == SSP) {
+      if (params.algorithm == SSP) {
 	d += 1.0;
       } else { /* algorithm == SPRT */
 	if (p1 > 0.0) {
@@ -758,7 +746,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 	}
       }
     } else {
-      if (algorithm == SSP) {
+      if (params.algorithm == SSP) {
 	/* do nothing */
       } else { /* algorithm == SPRT */
 	if (p0 < 1.0) {
@@ -771,7 +759,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     m++;
     PrintProgress(m);
     if (VLOG_IS_ON(2)) {
-      if (algorithm == SSP) {
+      if (params.algorithm == SSP) {
 	LOG(INFO) << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
       } else { /* algorithm == SPRT */
 	LOG(INFO) << m << '\t' << d << '\t' << logB << '\t' << logA;
@@ -786,7 +774,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   if (dd2 != NULL) {
     Cudd_RecursiveDeref(dd_man.manager(), dd2);
   }
-  if (algorithm == SSP) {
+  if (params.algorithm == SSP) {
     return d > c;
   } else { /* algorithm == SPRT */
     return d <= logB;
