@@ -53,6 +53,7 @@ void CompiledPropertyMixedVerifier::DoVisitCompiledLogicalOperationProperty(
     const CompiledLogicalOperationProperty& property) {
   bool short_circuit_result =
       (property.op() == CompiledLogicalOperationProperty::Operator::OR);
+  // TODO(hlsyounes): for AND use alpha/n; for OR use beta/n.
   for (const CompiledProperty& operand : property.operands()) {
     operand.Accept(this);
     if (result_ == short_circuit_result) {
@@ -63,15 +64,13 @@ void CompiledPropertyMixedVerifier::DoVisitCompiledLogicalOperationProperty(
 
 /* Verifies this state formula using the mixed engine. */
 bool Conjunction::verify(const DecisionDiagramManager& dd_man,
-                         const Model& model,
-			 const State& state, double delta,
+                         const Model& model, const State& state,
 			 double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-			 double epsilon,
+                         const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
+  const double alpha_n = alpha / conjuncts().size();
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(dd_man, model, state,
-		       delta, alpha, beta, algorithm, epsilon, stats)) {
+    if (!(*fi)->verify(dd_man, model, state, alpha_n, beta, params, stats)) {
       return false;
     }
   }
@@ -84,15 +83,13 @@ bool Conjunction::verify(const DecisionDiagramManager& dd_man,
 
 /* Verifies this state formula using the mixed engine. */
 bool Disjunction::verify(const DecisionDiagramManager& dd_man,
-                         const Model& model,
-			 const State& state, double delta,
+                         const Model& model, const State& state,
 			 double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-			 double epsilon,
+                         const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
+  const double beta_n = beta / disjuncts().size();
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(dd_man, model, state,
-		      delta, alpha, beta, algorithm, epsilon, stats)) {
+    if ((*fi)->verify(dd_man, model, state, alpha, beta_n, params, stats)) {
       return true;
     }
   }
@@ -104,13 +101,12 @@ bool Disjunction::verify(const DecisionDiagramManager& dd_man,
 /* Negation */
 
 /* Verifies this state formula using the mixed engine. */
-bool Negation::verify(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, double delta,
-		      double alpha, double beta, SamplingAlgorithm algorithm,
-		      double epsilon,
+bool Negation::verify(const DecisionDiagramManager& dd_man,
+                      const Model& model, const State& state,
+                      double alpha, double beta,
+                      const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const {
-  return !negand().verify(dd_man, model, state,
-			  delta, beta, alpha, algorithm, epsilon, stats);
+  return !negand().verify(dd_man, model, state, beta, alpha, params, stats);
 }
 
 
@@ -119,18 +115,17 @@ bool Negation::verify(const DecisionDiagramManager& dd_man, const Model& model,
 
 /* Verifies this state formula using the mixed engine. */
 bool Implication::verify(const DecisionDiagramManager& dd_man,
-                         const Model& model,
-			 const State& state, double delta,
+                         const Model& model, const State& state,
 			 double alpha, double beta,
-			 SamplingAlgorithm algorithm,
-			 double epsilon,
+                         const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  if (!antecedent().verify(dd_man, model, state,
-			   delta, beta, alpha, algorithm, epsilon, stats)) {
+  const double beta_n = beta / 2;
+  if (!antecedent().verify(dd_man, model, state, beta_n, alpha, params,
+                           stats)) {
     return true;
   } else {
-    return consequent().verify(dd_man, model, state,
-			       delta, alpha, beta, algorithm, epsilon, stats);
+    return consequent().verify(dd_man, model, state, alpha, beta_n, params,
+                               stats);
   }
 }
 
@@ -145,15 +140,13 @@ void CompiledPropertyMixedVerifier::DoVisitCompiledProbabilisticProperty(
 
 /* Verifies this state formula using the mixed engine. */
 bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
-                           const Model& model,
-			   const State& state, double delta,
+                           const Model& model, const State& state,
 			   double alpha, double beta,
-			   SamplingAlgorithm algorithm,
-			   double epsilon,
+                           const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
   formula_level_++;
   bool res = formula().verify(dd_man, model, state, threshold(), strict(),
-			      delta, alpha, beta, algorithm, epsilon, stats);
+			      alpha, beta, params, stats);
   formula_level_--;
   return res;
 }
@@ -169,10 +162,9 @@ void CompiledPropertyMixedVerifier::DoVisitCompiledExpressionProperty(
 
 /* Verifies this state formula using the mixed engine. */
 bool Comparison::verify(const DecisionDiagramManager& dd_man,
-                        const Model& model,
-			const State& state, double delta,
-			double alpha, double beta, SamplingAlgorithm algorithm,
-			double epsilon,
+                        const Model& model, const State& state,
+			double alpha, double beta,
+                        const ModelCheckingParams& params,
                         ModelCheckingStats* stats) const {
   return holds(state.values());
 }
@@ -183,8 +175,7 @@ bool Comparison::verify(const DecisionDiagramManager& dd_man,
 
 /* Generates a sample for this path formula. */
 bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
-                   const State& state,
-		   double epsilon, DdNode* dd1, DdNode* dd2,
+                   const State& state, DdNode* dd1, DdNode* dd2,
                    ModelCheckingStats* stats) const {
   double t = 0.0;
   size_t path_length = 1;
