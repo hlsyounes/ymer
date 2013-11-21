@@ -79,18 +79,6 @@ class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
 /* ====================================================================== */
 /* Conjunction */
 
-/* Estimated effort for verifying this state formula using the
-   statistical engine. */
-double Conjunction::effort(double q, double delta, double alpha, double beta,
-			   double alphap, double betap,
-			   SamplingAlgorithm algorithm) const {
-  double h = 0.0;
-  for (const StateFormula* conjunct : conjuncts()) {
-    h += conjunct->effort(q, delta, alpha, beta, alphap, betap, algorithm);
-  }
-  return h;
-}
-
 void CompiledPropertySamplingVerifier::DoVisitCompiledLogicalOperationProperty(
     const CompiledLogicalOperationProperty& property) {
   bool short_circuit_result =
@@ -132,19 +120,6 @@ size_t Conjunction::clear_cache() const {
 /* ====================================================================== */
 /* Disjunction */
 
-/* Estimated effort for verifying this state formula using the
-   statistical engine. */
-double Disjunction::effort(double q, double delta, double alpha, double beta,
-			   double alphap, double betap,
-			   SamplingAlgorithm algorithm) const {
-  double h = 0.0;
-  for (const StateFormula* disjunct : disjuncts()) {
-    h += disjunct->effort(q, delta, alpha, beta, alphap, betap, algorithm);
-  }
-  return h;
-}
-
-
 /* Verifies this state formula using the statistical engine. */
 bool Disjunction::verify(const Model& model, const State& state,
 			 double delta, double alpha, double beta,
@@ -174,15 +149,6 @@ size_t Disjunction::clear_cache() const {
 /* ====================================================================== */
 /* Negation */
 
-/* Estimated effort for verifying this state formula using the
-   statistical engine. */
-double Negation::effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const {
-  return negand().effort(q, delta, alpha, beta, alphap, betap, algorithm);
-}
-
-
 /* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
@@ -202,17 +168,6 @@ size_t Negation::clear_cache() const {
 
 /* ====================================================================== */
 /* Implication */
-
-/* Estimated effort for verifying this state formula using the
-   statistical engine. */
-double Implication::effort(double q, double delta, double alpha, double beta,
-			   double alphap, double betap,
-			   SamplingAlgorithm algorithm) const {
-  return (antecedent().effort(q, delta, alpha, beta, alphap, betap, algorithm)
-	  + consequent().effort(q,
-				delta, alpha, beta, alphap, betap, algorithm));
-}
-
 
 /* Verifies this state formula using the statistical engine. */
 bool Implication::verify(const Model& model, const State& state,
@@ -239,59 +194,6 @@ size_t Implication::clear_cache() const {
 /* ====================================================================== */
 /* Probabilistic */
 
-/* Estimated effort for verifying this state formula using the
-   statistical engine. */
-double Probabilistic::effort(double q, double delta,
-			     double alpha, double beta,
-			     double alphap, double betap,
-			     SamplingAlgorithm algorithm) const {
-  double p0, p1;
-  double theta = threshold().value<double>();
-  double nested_effort;
-  if (formula().probabilistic()) {
-    double r = 0.5*(sqrt(5) - 1.0);
-    double a = 0.0;
-    double b = 2.0*delta/(1.0 + 2.0*delta);
-    double x1 = a + (1.0 - r)*(b - a);
-    double x2 = a + r*(b - a);
-    double f1 = formula().effort(q, delta, alphap, betap, x1, x1, algorithm);
-    double f2 = formula().effort(q, delta, alphap, betap, x2, x2, algorithm);
-    do {
-      if (f2 > f1) {
-	b = x2;
-	x2 = x1;
-	f2 = f1;
-	x1 = a + (1.0 - r)*(b - a);
-	f1 = formula().effort(q, delta, alphap, betap, x1, x1, algorithm);
-      } else {
-	a = x1;
-	x1 = x2;
-	f1 = f2;
-	x2 = b - (1.0 - r)*(b - a);
-	f2 = formula().effort(q, delta, alphap, betap, x2, x2, algorithm);
-      }
-    } while ((b - a)/(b + a) > 1e-3);
-    nested_effort = 0.5*(f1 + f2);
-    p0 = std::min(1.0, (theta + delta)*(1.0 - alphap));
-    p1 = std::max(0.0, 1.0 - (1.0 - (theta - delta))*(1.0 - betap));
-  } else {
-    p0 = std::min(1.0, theta + delta);
-    p1 = std::max(0.0, theta - delta);
-    nested_effort = formula().effort(q, delta, alphap, betap, 0, 0, algorithm);
-  }
-  double n;
-  if (algorithm == SSP) {
-    double x = (gsl_cdf_ugaussian_Pinv(alpha)*sqrt(p0*(1.0 - p0))
-		+ gsl_cdf_ugaussian_Pinv(beta)*sqrt(p1*(1.0 - p1)));
-    double y = p0 - p1;
-    n = x*x/y/y;
-  } else {
-    n = -(log(beta/(1.0 - alpha))*log((1.0 - beta)/alpha)
-	  /log(p1/p0)/log((1.0 - p0)/(1.0 - p1)));
-  }
-  return n*nested_effort;
-}
-
 void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
     const CompiledProbabilisticProperty& property) {
   // TODO(hlsyounes): implement.
@@ -305,53 +207,22 @@ bool Probabilistic::verify(const Model& model, const State& state,
                            ModelCheckingStats* stats) const {
   double p0, p1;
   double theta = threshold().value<double>();
-  double alphap;
-  double betap;
+  double nested_error = 0.0;
   if (formula().probabilistic()) {
-    double q = 0.0;
-    for (const Command* command : model.commands()) {
-      std::vector<double> m;
-      command->delay().moments(m, 1);
-      q = std::max(q, 1.0/m[0]);
-    }
-    double r = 0.5*(sqrt(5) - 1.0);
-    double a = 0.0;
-    double b = 2.0*delta/(1.0 + 2.0*delta);
-    if (params.nested_error > a && params.nested_error < b) {
-      a = b = params.nested_error;
+    if (params.nested_error > 0) {
+      // User-specified nested error.
+      nested_error = params.nested_error;
     } else {
-      double x1 = a + (1.0 - r)*(b - a);
-      double x2 = a + r*(b - a);
-      double f1 = effort(q, delta, alpha, beta, x1, x1, algorithm);
-      double f2 = effort(q, delta, alpha, beta, x2, x2, algorithm);
-      do {
-	if (f2 > f1) {
-	  b = x2;
-	  x2 = x1;
-	  f2 = f1;
-	  x1 = a + (1.0 - r)*(b - a);
-	  f1 = effort(q, delta, alpha, beta, x1, x1, algorithm);
-	} else {
-	  a = x1;
-	  x1 = x2;
-	  f1 = f2;
-	  x2 = b - (1.0 - r)*(b - a);
-	  f2 = effort(q, delta, alpha, beta, x2, x2, algorithm);
-	}
-      } while ((b - a)/(b + a) > 1e-3);
+      // Simple heuristic for nested error.
+      nested_error = 0.8 * MaxNestedError(delta);
     }
-    alphap = betap = 0.5*(a + b);
     if (formula_level() == 0) {
-      VLOG(1) << "Nested error: " << alphap << ", " << betap;
-      VLOG(1) << "Maximum symmetric nested error: "
-              << 2.0*delta/(1.0 + 2.0*delta);
+      VLOG(1) << "Nested error: " << nested_error;
+      VLOG(1) << "Maximum symmetric nested error: " << MaxNestedError(delta);
     }
-  } else {
-    alphap = 0.0;
-    betap = 0.0;
   }
-  p0 = std::min(1.0, (theta + delta)*(1.0 - alphap));
-  p1 = std::max(0.0, 1.0 - (1.0 - (theta - delta))*(1.0 - betap));
+  p0 = std::min(1.0, (theta + delta)*(1.0 - nested_error));
+  p1 = std::max(0.0, 1.0 - (1.0 - (theta - delta))*(1.0 - nested_error));
   if (algorithm == FIXED) {
     int c = 0;
     if (formula_level() == 0) {
@@ -360,7 +231,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
     formula_level_++;
     for (int i = 1; i <= params.fixed_sample_size; ++i) {
       if (formula().sample(model, state,
-                           delta, alphap, betap, algorithm, params, stats)) {
+                           delta, nested_error, nested_error, algorithm, params,
+                           stats)) {
         c++;
       }
       if (formula_level() == 1) {
@@ -390,8 +262,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
     formula_level_++;
     SequentialEstimator<int> estimator(delta, alpha);
     while (true) {
-      const bool x = formula().sample(
-          model, state, delta, alphap, betap, algorithm, params, stats);
+      const bool x = formula().sample(model, state, delta,
+                                      nested_error, nested_error, algorithm,
+                                      params, stats);
       estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
         PrintProgress(estimator.count());
@@ -606,8 +479,8 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(model, state,
-                           delta, alphap, betap, algorithm, params, stats);
+      s = formula().sample(model, state, delta, nested_error, nested_error,
+                           algorithm, params, stats);
       have_sample = true;
     }
     if (!have_sample) {
@@ -694,14 +567,6 @@ size_t Probabilistic::clear_cache() const {
 /* ====================================================================== */
 /* Comparison */
 
-/* Estimated effort for verifying this state formula using the
-   statistical engine. */
-double Comparison::effort(double q, double delta, double alpha, double beta,
-			  double alphap, double betap,
-			  SamplingAlgorithm algorithm) const {
-  return 1.0;
-}
-
 void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
   result_ = evaluator_->EvaluateIntExpression(property.expr(), *state_);
@@ -725,17 +590,6 @@ size_t Comparison::clear_cache() const {
 
 /* ====================================================================== */
 /* Until */
-
-/* Estimated effort for generating a sample for this path formula. */
-double Until::effort(double q, double delta, double alpha, double beta,
-		     double alphap, double betap,
-		     SamplingAlgorithm algorithm) const {
-  double a = max_time().value<double>();
-  double b = (max_time() - min_time()).value<double>();
-  return q*(a*pre().effort(q, delta, alpha, beta, alphap, betap, algorithm)
-	    + b*post().effort(q, delta, alpha, beta, alphap, betap, algorithm));
-}
-
 
 /* Generates a sample for this path formula. */
 bool Until::sample(const Model& model, const State& state,

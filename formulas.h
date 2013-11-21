@@ -86,12 +86,6 @@ class StateFormula {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const = 0;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const = 0;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
@@ -177,11 +171,6 @@ class PathFormula {
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
-  /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const = 0;
-
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
@@ -255,12 +244,6 @@ class Conjunction : public StateFormula {
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
 
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
-
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
 		      double delta, double alpha, double beta,
@@ -315,12 +298,6 @@ class Disjunction : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -377,12 +354,6 @@ class Negation : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -442,12 +413,6 @@ class Implication : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -513,12 +478,6 @@ class Probabilistic : public StateFormula {
 
   /* Tests if this state formula holds in the given state. */
   virtual bool holds(const std::vector<int>& state) const;
-
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -586,12 +545,6 @@ class Comparison : public StateFormula {
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Estimated effort for verifying this state formula using the
-     statistical engine. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
@@ -774,11 +727,6 @@ class Until : public PathFormula {
 
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Estimated effort for generating a sample for this path formula. */
-  virtual double effort(double q, double delta, double alpha, double beta,
-			double alphap, double betap,
-			SamplingAlgorithm algorithm) const;
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,

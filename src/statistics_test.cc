@@ -90,6 +90,11 @@ TEST(BinoInvTest, All) {
   EXPECT_EQ(4, binoinv(1, 4, 0.75));
 }
 
+TEST(MaxNestedErrorTest, All) {
+  EXPECT_EQ(0.2/0.7, MaxNestedError(0.2));
+  EXPECT_EQ(0.1/0.6, MaxNestedError(0.1));
+}
+
 TEST(SingleSamplingPlanTest, All) {
   const auto ssp1 = SingleSamplingPlan::Create(1, 0, 0.01, 0.02);
   EXPECT_EQ(1, ssp1.n());

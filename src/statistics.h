@@ -34,6 +34,10 @@ double lchoose(double x, double y);
 // Returns the inverse of the binomial cumulative distribution function.
 int binoinv(double y, int n, double p);
 
+// Returns the maximum allowed nested error given an indifference region of
+// width 2*delta.
+double MaxNestedError(double delta);
+
 // A single sampling plan.
 class SingleSamplingPlan {
  public:
