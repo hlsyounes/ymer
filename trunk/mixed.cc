@@ -42,6 +42,7 @@ class CompiledPropertyMixedVerifier : public CompiledPropertyVisitor {
       const CompiledExpressionProperty& property);
 
   bool result_;
+  ModelCheckingParams params_;
   CompiledExpressionEvaluator* evaluator_;
   const std::vector<int>* state_;
 };
@@ -51,24 +52,26 @@ class CompiledPropertyMixedVerifier : public CompiledPropertyVisitor {
 
 void CompiledPropertyMixedVerifier::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
-  // TODO(hlsyounes): use alpha = alpha/n.
+  double alpha = params_.alpha / property.operands().size();
+  std::swap(params_.alpha, alpha);
   for (const CompiledProperty& operand : property.operands()) {
     operand.Accept(this);
     if (result_ == false) {
-      return;
+      break;
     }
   }
+  std::swap(params_.alpha, alpha);
 }
 
 /* Verifies this state formula using the mixed engine. */
 bool Conjunction::verify(const DecisionDiagramManager& dd_man,
                          const Model& model, const State& state,
-			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  const double alpha_n = alpha / conjuncts().size();
+  ModelCheckingParams nested_params = params;
+  nested_params.alpha = params.alpha / conjuncts().size();
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(dd_man, model, state, alpha_n, beta, params, stats)) {
+    if (!(*fi)->verify(dd_man, model, state, nested_params, stats)) {
       return false;
     }
   }
@@ -82,12 +85,12 @@ bool Conjunction::verify(const DecisionDiagramManager& dd_man,
 /* Verifies this state formula using the mixed engine. */
 bool Disjunction::verify(const DecisionDiagramManager& dd_man,
                          const Model& model, const State& state,
-			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  const double beta_n = beta / disjuncts().size();
+  ModelCheckingParams nested_params = params;
+  nested_params.beta = params.beta / disjuncts().size();
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(dd_man, model, state, alpha, beta_n, params, stats)) {
+    if ((*fi)->verify(dd_man, model, state, nested_params, stats)) {
       return true;
     }
   }
@@ -100,18 +103,20 @@ bool Disjunction::verify(const DecisionDiagramManager& dd_man,
 
 void CompiledPropertyMixedVerifier::DoVisitCompiledNotProperty(
     const CompiledNotProperty& property) {
-  // TODO(hlsyounes): swap alpha and beta.
+  std::swap(params_.alpha, params_.beta);
   property.operand().Accept(this);
   result_ = !result_;
+  std::swap(params_.alpha, params_.beta);
 }
 
 /* Verifies this state formula using the mixed engine. */
 bool Negation::verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-                      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const {
-  return !negand().verify(dd_man, model, state, beta, alpha, params, stats);
+  ModelCheckingParams nested_params = params;
+  std::swap(nested_params.alpha, nested_params.beta);
+  return !negand().verify(dd_man, model, state, nested_params, stats);
 }
 
 
@@ -121,16 +126,16 @@ bool Negation::verify(const DecisionDiagramManager& dd_man,
 /* Verifies this state formula using the mixed engine. */
 bool Implication::verify(const DecisionDiagramManager& dd_man,
                          const Model& model, const State& state,
-			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  const double beta_n = beta / 2;
-  if (!antecedent().verify(dd_man, model, state, beta_n, alpha, params,
-                           stats)) {
+  ModelCheckingParams nested_params = params;
+  nested_params.beta = params.beta / 2;
+  std::swap(nested_params.alpha, nested_params.beta);
+  if (!antecedent().verify(dd_man, model, state, nested_params, stats)) {
     return true;
   } else {
-    return consequent().verify(dd_man, model, state, alpha, beta_n, params,
-                               stats);
+    std::swap(nested_params.alpha, nested_params.beta);
+    return consequent().verify(dd_man, model, state, nested_params, stats);
   }
 }
 
@@ -146,12 +151,11 @@ void CompiledPropertyMixedVerifier::DoVisitCompiledProbabilisticProperty(
 /* Verifies this state formula using the mixed engine. */
 bool Probabilistic::verify(const DecisionDiagramManager& dd_man,
                            const Model& model, const State& state,
-			   double alpha, double beta,
                            const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
   formula_level_++;
   bool res = formula().verify(dd_man, model, state, threshold(), strict(),
-			      alpha, beta, params, stats);
+			      params, stats);
   formula_level_--;
   return res;
 }
@@ -168,7 +172,6 @@ void CompiledPropertyMixedVerifier::DoVisitCompiledExpressionProperty(
 /* Verifies this state formula using the mixed engine. */
 bool Comparison::verify(const DecisionDiagramManager& dd_man,
                         const Model& model, const State& state,
-			double alpha, double beta,
                         const ModelCheckingParams& params,
                         ModelCheckingStats* stats) const {
   return holds(state.values());

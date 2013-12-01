@@ -26,7 +26,9 @@
 #include "glog/logging.h"
 
 ModelCheckingParams::ModelCheckingParams()
-    : delta(1e-2),
+    : alpha(1e-2),
+      beta(1e-2),
+      delta(1e-2),
       epsilon(1e-6),
       algorithm(SPRT),
       fixed_sample_size(0),

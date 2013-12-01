@@ -196,7 +196,7 @@ void ExpressionPrinter::DoVisitVariable(const Variable& expr) {
 
 void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
   std::set<Computation::Operator> need_parentheses;
-  swap(need_parentheses_, need_parentheses);
+  std::swap(need_parentheses_, need_parentheses);
   const bool outer = need_parentheses.find(expr.op()) != need_parentheses.end();
   if (outer) {
     *os_ << '(';
@@ -233,7 +233,7 @@ void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
   if (outer) {
     *os_ << ')';
   }
-  swap(need_parentheses_, need_parentheses);
+  std::swap(need_parentheses_, need_parentheses);
 }
 
 }  // namespace

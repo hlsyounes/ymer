@@ -72,6 +72,7 @@ class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
       const CompiledExpressionProperty& property);
 
   bool result_;
+  ModelCheckingParams params_;
   CompiledExpressionEvaluator* evaluator_;
   const std::vector<int>* state_;
 };
@@ -81,23 +82,25 @@ class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
 
 void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
-  // TODO(hlsyounes): use alpha = alpha/n.
+  double alpha = params_.alpha / property.operands().size();
+  std::swap(params_.alpha, alpha);
   for (const CompiledProperty& operand : property.operands()) {
     operand.Accept(this);
     if (result_ == false) {
-      return;
+      break;
     }
   }
+  std::swap(params_.alpha, alpha);
 }
 
 /* Verifies this state formula using the statistical engine. */
 bool Conjunction::verify(const Model& model, const State& state,
-			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  const double alpha_n = alpha / conjuncts().size();
+  ModelCheckingParams nested_params = params;
+  nested_params.alpha = params.alpha / conjuncts().size();
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(model, state, alpha_n, beta, params, stats)) {
+    if (!(*fi)->verify(model, state, nested_params, stats)) {
       return false;
     }
   }
@@ -120,12 +123,12 @@ size_t Conjunction::clear_cache() const {
 
 /* Verifies this state formula using the statistical engine. */
 bool Disjunction::verify(const Model& model, const State& state,
-			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  const double beta_n = beta / disjuncts().size();
+  ModelCheckingParams nested_params = params;
+  nested_params.beta = params.beta / disjuncts().size();
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(model, state, alpha, beta_n, params, stats)) {
+    if ((*fi)->verify(model, state, nested_params, stats)) {
       return true;
     }
   }
@@ -148,17 +151,19 @@ size_t Disjunction::clear_cache() const {
 
 void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
     const CompiledNotProperty& property) {
-  // TODO(hlsyounes): swap alpha and beta.
+  std::swap(params_.alpha, params_.beta);
   property.operand().Accept(this);
   result_ = !result_;
+  std::swap(params_.alpha, params_.beta);
 }
 
 /* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const {
-  return !negand().verify(model, state, beta, alpha, params, stats);
+  ModelCheckingParams nested_params = params;
+  std::swap(nested_params.alpha, nested_params.beta);
+  return !negand().verify(model, state, nested_params, stats);
 }
 
 
@@ -173,14 +178,16 @@ size_t Negation::clear_cache() const {
 
 /* Verifies this state formula using the statistical engine. */
 bool Implication::verify(const Model& model, const State& state,
-			 double alpha, double beta,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
-  const double beta_n = beta / 2;
-  if (!antecedent().verify(model, state, beta_n, alpha, params, stats)) {
+  ModelCheckingParams nested_params = params;
+  nested_params.beta = params.beta / 2;
+  std::swap(nested_params.alpha, nested_params.beta);
+  if (!antecedent().verify(model, state, nested_params, stats)) {
     return true;
   } else {
-    return consequent().verify(model, state, alpha, beta_n, params, stats);
+    std::swap(nested_params.alpha, nested_params.beta);
+    return consequent().verify(model, state, nested_params, stats);
   }
 }
 
@@ -201,7 +208,6 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
 
 /* Verifies this state formula using the statistical engine. */
 bool Probabilistic::verify(const Model& model, const State& state,
-			   double alpha, double beta,
                            const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
   double p0, p1;
@@ -223,6 +229,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
   }
   p0 = std::min(1.0, (theta + params.delta)*(1.0 - nested_error));
   p1 = std::max(0.0, 1.0 - (1.0 - (theta - params.delta))*(1.0 - nested_error));
+  ModelCheckingParams nested_params = params;
+  nested_params.alpha = nested_error;
+  nested_params.beta = nested_error;
   if (params.algorithm == FIXED) {
     int c = 0;
     if (formula_level() == 0) {
@@ -230,8 +239,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
     }
     formula_level_++;
     for (int i = 1; i <= params.fixed_sample_size; ++i) {
-      if (formula().sample(model, state, nested_error, nested_error, params,
-                           stats)) {
+      if (formula().sample(model, state, nested_params, stats)) {
         c++;
       }
       if (formula_level() == 1) {
@@ -259,10 +267,9 @@ bool Probabilistic::verify(const Model& model, const State& state,
       std::cout << "Sequential estimation";
     }
     formula_level_++;
-    SequentialEstimator<int> estimator(params.delta, alpha);
+    SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
-      const bool x = formula().sample(model, state, nested_error, nested_error,
-                                      params, stats);
+      const bool x = formula().sample(model, state, nested_params, stats);
       estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
         PrintProgress(estimator.count());
@@ -295,19 +302,20 @@ bool Probabilistic::verify(const Model& model, const State& state,
   int n = 0, c = 0;
   double logA, logB = 0;
   if (params.algorithm == SSP) {
-    const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
+    const auto ssp =
+        SingleSamplingPlan::Create(p0, p1, params.alpha, params.beta);
     n = ssp.n();
     c = ssp.c();
   } else { /* algorithm == SPRT */
-    logA = -log(alpha);
+    logA = -log(params.alpha);
     /* If p1 is 0, then a beta of 0 can always be guaranteed. */
     if (p1 > 0.0) {
-      logA += log(1.0 - beta);
+      logA += log(1.0 - params.beta);
     }
-    logB = log(beta);
+    logB = log(params.beta);
     /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
     if (p0 < 1.0) {
-      logB -= log(1.0 - alpha);
+      logB -= log(1.0 - params.alpha);
     }
   }
   if (formula_level() == 0) {
@@ -478,8 +486,7 @@ bool Probabilistic::verify(const Model& model, const State& state,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(model, state, nested_error, nested_error, params,
-                           stats);
+      s = formula().sample(model, state, nested_params, stats);
       have_sample = true;
     }
     if (!have_sample) {
@@ -573,7 +580,6 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
 
 /* Verifies this state formula using the statistical engine. */
 bool Comparison::verify(const Model& model, const State& state,
-			double alpha, double beta,
                         const ModelCheckingParams& params,
                         ModelCheckingStats* stats) const {
   return holds(state.values());
@@ -591,7 +597,6 @@ size_t Comparison::clear_cache() const {
 
 /* Generates a sample for this path formula. */
 bool Until::sample(const Model& model, const State& state,
-		   double alpha, double beta,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double t = 0.0;
@@ -607,20 +612,19 @@ bool Until::sample(const Model& model, const State& state,
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
-      if (post().verify(model, curr_state, alpha, beta, params, stats)) {
+      if (post().verify(model, curr_state, params, stats)) {
 	result = true;
 	done = true;
-      } else if (!pre().verify(model, curr_state, alpha, beta, params, stats)) {
+      } else if (!pre().verify(model, curr_state, params, stats)) {
 	result = false;
 	done = true;
       }
     } else {
-      if (!pre().verify(model, curr_state, alpha, beta, params, stats)) {
+      if (!pre().verify(model, curr_state, params, stats)) {
 	result = false;
 	done = true;
       } else if (t_min < next_t
-		 && post().verify(model, curr_state, alpha, beta, params,
-                                  stats)) {
+		 && post().verify(model, curr_state, params, stats)) {
 	t = t_min;
 	result = true;
 	done = true;
@@ -658,7 +662,6 @@ bool Until::sample(const Model& model, const State& state,
 /* Verifies this path formula using the mixed engine. */
 bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
-		   double alpha, double beta,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double theta = p.value<double>();
@@ -681,7 +684,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 
   if (params.algorithm == ESTIMATE) {
     std::cout << "Sequential estimation";
-    SequentialEstimator<int> estimator(params.delta, alpha);
+    SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
       const bool x = sample(dd_man, model, state, dd1, dd2, stats);
       estimator.AddObservation(x ? 1 : 0);
@@ -716,19 +719,20 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   int n = 0, c = 0;
   double logA, logB = 0;
   if (params.algorithm == SSP) {
-    const auto ssp = SingleSamplingPlan::Create(p0, p1, alpha, beta);
+    const auto ssp =
+        SingleSamplingPlan::Create(p0, p1, params.alpha, params.beta);
     n = ssp.n();
     c = ssp.c();
   } else { /* algorithm == SPRT */
-    logA = -log(alpha);
+    logA = -log(params.alpha);
     /* If p1 is 0, then a beta of 0 can always be guaranteed. */
     if (p1 > 0.0) {
-      logA += log(1.0 - beta);
+      logA += log(1.0 - params.beta);
     }
-    logB = log(beta);
+    logB = log(params.beta);
     /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
     if (p0 < 1.0) {
-      logB -= log(1.0 - alpha);
+      logB -= log(1.0 - params.alpha);
     }
   }
   std::cout << "Acceptance sampling";
