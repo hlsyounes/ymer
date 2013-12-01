@@ -41,6 +41,8 @@ enum SamplingAlgorithm { ESTIMATE, SSP, SPRT, FIXED };
 struct ModelCheckingParams {
   ModelCheckingParams();
 
+  double alpha;
+  double beta;
   double delta;
   double epsilon;
   SamplingAlgorithm algorithm;
@@ -91,14 +93,12 @@ class StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
@@ -175,7 +175,6 @@ class PathFormula {
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
@@ -187,7 +186,6 @@ class PathFormula {
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
@@ -245,14 +243,12 @@ class Conjunction : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -299,14 +295,12 @@ class Disjunction : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -354,14 +348,12 @@ class Negation : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -412,14 +404,12 @@ class Implication : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -476,14 +466,12 @@ class Probabilistic : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -542,14 +530,12 @@ class Comparison : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man,
                       const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -723,7 +709,6 @@ class Until : public PathFormula {
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const Model& model, const State& state,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -735,7 +720,6 @@ class Until : public PathFormula {
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
-		      double alpha, double beta,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 

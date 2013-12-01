@@ -850,10 +850,6 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   ModelCheckingParams params;
-  /* Set default alpha. */
-  double alpha = 1e-2;
-  /* Set default beta. */
-  double beta = 1e-2;
   /* Verification without estimation by default. */
   bool estimate = false;
   /* Set default engine. */
@@ -887,18 +883,18 @@ int main(int argc, char* argv[]) {
       }
       switch (c) {
       case 'A':
-	alpha = atof(optarg);
-	if (alpha < 1e-10) {
+	params.alpha = atof(optarg);
+	if (params.alpha < 1e-10) {
 	  throw std::invalid_argument("alpha < 1e-10");
-	} else if (alpha >= 0.5) {
+	} else if (params.alpha >= 0.5) {
 	  throw std::invalid_argument("alpha >= 0.5");
 	}
 	break;
       case 'B':
-	beta = atof(optarg);
-	if (beta < 1e-10) {
+	params.beta = atof(optarg);
+	if (params.beta < 1e-10) {
 	  throw std::invalid_argument("beta < 1e-10");
-	} else if (beta >= 0.5) {
+	} else if (params.beta >= 0.5) {
 	  throw std::invalid_argument("beta >= 0.5");
 	}
 	break;
@@ -1086,7 +1082,7 @@ int main(int argc, char* argv[]) {
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
 	const State init_state(&compiled_model, &evaluator, &sampler);
 	const PathFormula* pf = 0;
-	double nested_error = 0.0;
+        ModelCheckingParams nested_params = params;
 	timeval timeout;
 	timeval* to = 0;
 	while (true) {
@@ -1103,8 +1099,8 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = pf->sample(*global_model, init_state, nested_error,
-                                     nested_error, params, &stats);
+	      msg.value = pf->sample(*global_model, init_state, nested_params,
+                                     &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1132,6 +1128,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	      }
 	      if (pf != 0) {
+                double nested_error;
 		if (pf->probabilistic()) {
                   // TODO(hlsyounes): nested_error and other model-checking
                   // parameters should really come from the server.
@@ -1142,7 +1139,11 @@ int main(int argc, char* argv[]) {
                     // Simple heuristic for nested error.
                     nested_error = 0.8 * MaxNestedError(params.delta);
                   }
-		}
+		} else {
+                  nested_error = 0.0;
+                }
+                nested_params.alpha = nested_error;
+                nested_params.beta = nested_error;
 	      }
 	      to = &timeout;
 	      VLOG(1) << "Sampling started for property " << smsg.value;
@@ -1184,8 +1185,9 @@ int main(int argc, char* argv[]) {
     if (engine == SAMPLING_ENGINE) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
-      std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
-		<< ", delta=" << params.delta << ", seed=" << seed << std::endl;
+      std::cout << "Sampling engine: alpha=" << params.alpha
+                << ", beta=" << params.beta << ", delta=" << params.delta
+                << ", seed=" << seed << std::endl;
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -1235,8 +1237,7 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-	  bool sol = (*fi)->verify(*global_model, init_state, alpha, beta,
-                                   params, &stats);
+	  bool sol = (*fi)->verify(*global_model, init_state, params, &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1388,9 +1389,10 @@ int main(int argc, char* argv[]) {
     } else if (engine == MIXED_ENGINE) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
-      std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
-		<< ", delta=" << params.delta << ", epsilon=" << params.epsilon
-		<< ", seed=" << seed << std::endl;
+      std::cout << "Mixed engine: alpha=" << params.alpha
+                << ", beta=" << params.beta << ", delta=" << params.delta
+                << ", epsilon=" << params.epsilon << ", seed=" << seed
+                << std::endl;
       DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
@@ -1443,8 +1445,8 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  bool sol = (*fi)->verify(dd_man, *global_model, init_state, alpha,
-                                   beta, params, &stats);
+	  bool sol = (*fi)->verify(dd_man, *global_model, init_state, params,
+                                   &stats);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
