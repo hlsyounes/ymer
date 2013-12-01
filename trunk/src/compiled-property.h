@@ -76,51 +76,53 @@ class CompiledPathProperty {
 // Output operator for compiled path properties.
 std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 
-// A compiled logical operation property.
-class CompiledLogicalOperationProperty : public CompiledProperty {
+// A compiled AND property.
+class CompiledAndProperty : public CompiledProperty {
  public:
-  enum class Operator {
-    AND, OR
-  };
+  virtual ~CompiledAndProperty();
 
-  virtual ~CompiledLogicalOperationProperty();
-
-  static std::unique_ptr<const CompiledProperty> MakeAnd(
-      PointerVector<const CompiledProperty>&& conjuncts);
-  static std::unique_ptr<const CompiledProperty> MakeOr(
-      PointerVector<const CompiledProperty>&& disjuncts);
-
-  Operator op() const { return op_; }
+  static std::unique_ptr<const CompiledProperty> Make(
+      PointerVector<const CompiledProperty>&& operands);
 
   const PointerVector<const CompiledProperty>& operands() const {
     return operands_;
   }
 
  private:
-  CompiledLogicalOperationProperty(
-      Operator op, PointerVector<const CompiledProperty>&& operands);
+  CompiledAndProperty(PointerVector<const CompiledProperty>&& operands);
 
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
-  Operator op_;
   PointerVector<const CompiledProperty> operands_;
+};
+
+// A compiled NOT property.
+class CompiledNotProperty : public CompiledProperty {
+ public:
+  virtual ~CompiledNotProperty();
+
+  static std::unique_ptr<const CompiledProperty> Make(
+      std::unique_ptr<const CompiledProperty>&& operand);
+
+  const CompiledProperty& operand() const { return *operand_; }
+
+ private:
+  CompiledNotProperty(std::unique_ptr<const CompiledProperty>&& operand);
+
+  virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
+
+  std::unique_ptr<const CompiledProperty> operand_;
 };
 
 // A compiled probabilistic property.
 class CompiledProbabilisticProperty : public CompiledProperty {
  public:
   enum class Operator {
-    LESS, LESS_EQUAL, GREATER_EQUAL, GREATER
+    GREATER_EQUAL, GREATER
   };
 
   virtual ~CompiledProbabilisticProperty();
 
-  static std::unique_ptr<const CompiledProperty> MakeLess(
-      double threshold,
-      std::unique_ptr<const CompiledPathProperty>&& path_property);
-  static std::unique_ptr<const CompiledProperty> MakeLessEqual(
-      double threshold,
-      std::unique_ptr<const CompiledPathProperty>&& path_property);
   static std::unique_ptr<const CompiledProperty> MakeGreaterEqual(
       double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
@@ -198,8 +200,8 @@ class CompiledUntilProperty : public CompiledPathProperty {
 // Abstract base class for compiled property visitors.
 class CompiledPropertyVisitor {
  public:
-  void VisitCompiledLogicalOperationProperty(
-      const CompiledLogicalOperationProperty& property);
+  void VisitCompiledAndProperty(const CompiledAndProperty& property);
+  void VisitCompiledNotProperty(const CompiledNotProperty& property);
   void VisitCompiledProbabilisticProperty(
       const CompiledProbabilisticProperty& property);
   void VisitCompiledExpressionProperty(
@@ -212,8 +214,10 @@ class CompiledPropertyVisitor {
   ~CompiledPropertyVisitor();
 
  private:
-  virtual void DoVisitCompiledLogicalOperationProperty(
-      const CompiledLogicalOperationProperty& property) = 0;
+  virtual void DoVisitCompiledAndProperty(
+      const CompiledAndProperty& property) = 0;
+  virtual void DoVisitCompiledNotProperty(
+      const CompiledNotProperty& property) = 0;
   virtual void DoVisitCompiledProbabilisticProperty(
       const CompiledProbabilisticProperty& property) = 0;
   virtual void DoVisitCompiledExpressionProperty(

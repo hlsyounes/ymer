@@ -711,7 +711,6 @@ class PropertyCompiler : public StateFormulaVisitor {
   virtual void DoVisitComparison(const Comparison& formula);
 
   std::unique_ptr<const CompiledProperty> property_;
-  bool negate_;
   const std::map<std::string, int>* variables_by_name_;
   std::vector<std::string>* errors_;
 };
@@ -754,7 +753,7 @@ std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
 PropertyCompiler::PropertyCompiler(
     const std::map<std::string, int>* variables_by_name,
     std::vector<std::string>* errors)
-    : negate_(false), variables_by_name_(variables_by_name), errors_(errors) {
+    : variables_by_name_(variables_by_name), errors_(errors) {
   CHECK(variables_by_name);
   CHECK(errors);
 }
@@ -767,11 +766,7 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
     operand.Accept(this);
     operands.push_back(std::move(property_));
   }
-  if (negate_) {
-    property_ = CompiledLogicalOperationProperty::MakeOr(std::move(operands));
-  } else {
-    property_ = CompiledLogicalOperationProperty::MakeAnd(std::move(operands));
-  }
+  property_ = CompiledAndProperty::Make(std::move(operands));
 }
 
 void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
@@ -780,46 +775,31 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
   for (size_t i = 0; i < n; ++i) {
     const StateFormula& operand = *formula.disjuncts()[i];
     operand.Accept(this);
-    operands.push_back(std::move(property_));
+    operands.push_back(CompiledNotProperty::Make(std::move(property_)));
   }
-  if (negate_) {
-    property_ = CompiledLogicalOperationProperty::MakeAnd(std::move(operands));
-  } else {
-    property_ = CompiledLogicalOperationProperty::MakeOr(std::move(operands));
-  }
+  property_ =
+      CompiledNotProperty::Make(CompiledAndProperty::Make(std::move(operands)));
 }
 
 void PropertyCompiler::DoVisitNegation(const Negation& formula) {
-  negate_ = !negate_;
   formula.negand().Accept(this);
-  negate_ = !negate_;
+  property_ = CompiledNotProperty::Make(std::move(property_));
 }
 
 void PropertyCompiler::DoVisitImplication(const Implication& formula) {
   PointerVector<const CompiledProperty> operands;
-  negate_ = !negate_;
   formula.antecedent().Accept(this);
-  negate_ = !negate_;
   operands.push_back(std::move(property_));
   formula.consequent().Accept(this);
-  operands.push_back(std::move(property_));
-  if (negate_) {
-    property_ = CompiledLogicalOperationProperty::MakeAnd(std::move(operands));
-  } else {
-    property_ = CompiledLogicalOperationProperty::MakeOr(std::move(operands));
-  }
+  operands.push_back(CompiledNotProperty::Make(std::move(property_)));
+  property_ =
+      CompiledNotProperty::Make(CompiledAndProperty::Make(std::move(operands)));
 }
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
   std::unique_ptr<const CompiledPathProperty> path_property =
       CompilePathProperty(formula.formula(), *variables_by_name_, errors_);
-  if (negate_ && !formula.strict()) {
-    property_ = CompiledProbabilisticProperty::MakeLess(
-        formula.threshold().value<double>(), std::move(path_property));
-  } else if (negate_ && formula.strict()) {
-    property_ = CompiledProbabilisticProperty::MakeLessEqual(
-        formula.threshold().value<double>(), std::move(path_property));
-  } else if (!negate_ && !formula.strict()) {
+  if (!formula.strict()) {
     property_ = CompiledProbabilisticProperty::MakeGreaterEqual(
         formula.threshold().value<double>(), std::move(path_property));
   } else {
@@ -831,11 +811,6 @@ void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
 void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
   CompiledExpression compiled_expr =
       CompileExpression(formula, *variables_by_name_, errors_);
-  if (negate_) {
-    std::vector<Operation> operations = compiled_expr.operations();
-    operations.push_back(Operation::MakeNOT(0));
-    compiled_expr = CompiledExpression(operations);
-  }
   property_ = CompiledExpressionProperty::Make(compiled_expr);
 }
 
