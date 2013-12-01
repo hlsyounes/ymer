@@ -64,8 +64,8 @@ void PrintProgress(int n) {
 
 class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
  private:
-  virtual void DoVisitCompiledLogicalOperationProperty(
-      const CompiledLogicalOperationProperty& property);
+  virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
+  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
   virtual void DoVisitCompiledProbabilisticProperty(
       const CompiledProbabilisticProperty& property);
   virtual void DoVisitCompiledExpressionProperty(
@@ -79,14 +79,12 @@ class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
 /* ====================================================================== */
 /* Conjunction */
 
-void CompiledPropertySamplingVerifier::DoVisitCompiledLogicalOperationProperty(
-    const CompiledLogicalOperationProperty& property) {
-  bool short_circuit_result =
-      (property.op() == CompiledLogicalOperationProperty::Operator::OR);
-  // TODO(hlsyounes): for AND use alpha/n; for OR use beta/n.
+void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
+    const CompiledAndProperty& property) {
+  // TODO(hlsyounes): use alpha = alpha/n.
   for (const CompiledProperty& operand : property.operands()) {
     operand.Accept(this);
-    if (result_ == short_circuit_result) {
+    if (result_ == false) {
       return;
     }
   }
@@ -147,6 +145,13 @@ size_t Disjunction::clear_cache() const {
 
 /* ====================================================================== */
 /* Negation */
+
+void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  // TODO(hlsyounes): swap alpha and beta.
+  property.operand().Accept(this);
+  result_ = !result_;
+}
 
 /* Verifies this state formula using the statistical engine. */
 bool Negation::verify(const Model& model, const State& state,

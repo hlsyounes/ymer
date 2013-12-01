@@ -40,8 +40,8 @@ class CompiledPropertyPrinter : public CompiledPropertyVisitor {
   explicit CompiledPropertyPrinter(std::ostream* os);
 
  private:
-  virtual void DoVisitCompiledLogicalOperationProperty(
-      const CompiledLogicalOperationProperty& property);
+  virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
+  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
   virtual void DoVisitCompiledProbabilisticProperty(
       const CompiledProbabilisticProperty& property);
   virtual void DoVisitCompiledExpressionProperty(
@@ -54,34 +54,25 @@ CompiledPropertyPrinter::CompiledPropertyPrinter(std::ostream* os)
     : os_(os) {
 }
 
-void CompiledPropertyPrinter::DoVisitCompiledLogicalOperationProperty(
-    const CompiledLogicalOperationProperty& property) {
-  switch (property.op()) {
-    case CompiledLogicalOperationProperty::Operator::AND:
-      *os_ << "AND";
-      break;
-    case CompiledLogicalOperationProperty::Operator::OR:
-      *os_ << "OR";
-      break;
-  }
+void CompiledPropertyPrinter::DoVisitCompiledAndProperty(
+    const CompiledAndProperty& property) {
   size_t n = property.operands().size();
-  *os_ << " of " << n << " operands";
+  *os_ << "AND of " << n << " operands";
   for (size_t i = 0; i < n; ++i) {
     *os_ << std::endl << "operand " << i << ":"
          << std::endl << property.operands()[i];
   }
 }
 
+void CompiledPropertyPrinter::DoVisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  *os_ << "NOT of:" << std::endl << property.operand();
+}
+
 void CompiledPropertyPrinter::DoVisitCompiledProbabilisticProperty(
     const CompiledProbabilisticProperty& property) {
   *os_ << "P ";
   switch (property.op()) {
-    case CompiledProbabilisticProperty::Operator::LESS:
-      *os_ << "<";
-      break;
-    case CompiledProbabilisticProperty::Operator::LESS_EQUAL:
-      *os_ << "<=";
-      break;
     case CompiledProbabilisticProperty::Operator::GREATER_EQUAL:
       *os_ << ">=";
       break;
@@ -89,8 +80,7 @@ void CompiledPropertyPrinter::DoVisitCompiledProbabilisticProperty(
       *os_ << ">";
       break;
   }
-  *os_ << " " << property.threshold()
-       << std::endl << property.path_property();
+  *os_ << " " << property.threshold() << std::endl << property.path_property();
 }
 
 void CompiledPropertyPrinter::DoVisitCompiledExpressionProperty(
@@ -148,32 +138,38 @@ std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p) {
   return os;
 }
 
-CompiledLogicalOperationProperty::CompiledLogicalOperationProperty(
-    Operator op, PointerVector<const CompiledProperty>&& operands)
-    : op_(op), operands_(std::move(operands)) {
+CompiledAndProperty::CompiledAndProperty(
+    PointerVector<const CompiledProperty>&& operands)
+    : operands_(std::move(operands)) {
 }
 
-CompiledLogicalOperationProperty::~CompiledLogicalOperationProperty() = default;
+CompiledAndProperty::~CompiledAndProperty() = default;
 
-std::unique_ptr<const CompiledProperty>
-CompiledLogicalOperationProperty::MakeAnd(
-    PointerVector<const CompiledProperty>&& conjuncts) {
+std::unique_ptr<const CompiledProperty> CompiledAndProperty::Make(
+    PointerVector<const CompiledProperty>&& operands) {
   return std::unique_ptr<const CompiledProperty>(
-      new CompiledLogicalOperationProperty(Operator::AND,
-                                           std::move(conjuncts)));
+      new CompiledAndProperty(std::move(operands)));
 }
 
-std::unique_ptr<const CompiledProperty>
-CompiledLogicalOperationProperty::MakeOr(
-    PointerVector<const CompiledProperty>&& disjuncts) {
+void CompiledAndProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
+  visitor->VisitCompiledAndProperty(*this);
+}
+
+CompiledNotProperty::CompiledNotProperty(
+    std::unique_ptr<const CompiledProperty>&& operand)
+    : operand_(std::move(operand)) {
+}
+
+CompiledNotProperty::~CompiledNotProperty() = default;
+
+std::unique_ptr<const CompiledProperty> CompiledNotProperty::Make(
+    std::unique_ptr<const CompiledProperty>&& operand) {
   return std::unique_ptr<const CompiledProperty>(
-      new CompiledLogicalOperationProperty(Operator::OR,
-                                           std::move(disjuncts)));
+      new CompiledNotProperty(std::move(operand)));
 }
 
-void CompiledLogicalOperationProperty::DoAccept(
-    CompiledPropertyVisitor* visitor) const {
-  visitor->VisitCompiledLogicalOperationProperty(*this);
+void CompiledNotProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
+  visitor->VisitCompiledNotProperty(*this);
 }
 
 CompiledProbabilisticProperty::CompiledProbabilisticProperty(
@@ -183,23 +179,6 @@ CompiledProbabilisticProperty::CompiledProbabilisticProperty(
 }
 
 CompiledProbabilisticProperty::~CompiledProbabilisticProperty() = default;
-
-std::unique_ptr<const CompiledProperty> CompiledProbabilisticProperty::MakeLess(
-    double threshold,
-    std::unique_ptr<const CompiledPathProperty>&& path_property) {
-  return std::unique_ptr<const CompiledProperty>(
-      new CompiledProbabilisticProperty(Operator::LESS, threshold,
-                                        std::move(path_property)));
-}
-
-std::unique_ptr<const CompiledProperty>
-CompiledProbabilisticProperty::MakeLessEqual(
-    double threshold,
-    std::unique_ptr<const CompiledPathProperty>&& path_property) {
-  return std::unique_ptr<const CompiledProperty>(
-      new CompiledProbabilisticProperty(Operator::LESS_EQUAL, threshold,
-                                        std::move(path_property)));
-}
 
 std::unique_ptr<const CompiledProperty>
 CompiledProbabilisticProperty::MakeGreaterEqual(
@@ -275,9 +254,14 @@ CompiledPropertyVisitor& CompiledPropertyVisitor::operator=(
 
 CompiledPropertyVisitor::~CompiledPropertyVisitor() = default;
 
-void CompiledPropertyVisitor::VisitCompiledLogicalOperationProperty(
-    const CompiledLogicalOperationProperty& property) {
-  DoVisitCompiledLogicalOperationProperty(property);
+void CompiledPropertyVisitor::VisitCompiledAndProperty(
+    const CompiledAndProperty& property) {
+  DoVisitCompiledAndProperty(property);
+}
+
+void CompiledPropertyVisitor::VisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  DoVisitCompiledNotProperty(property);
 }
 
 void CompiledPropertyVisitor::VisitCompiledProbabilisticProperty(
