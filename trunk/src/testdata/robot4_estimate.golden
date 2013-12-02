@@ -14,6 +14,6 @@ Adding sparse bits...9 levels, 1 bits.
 Uniformization: 3.1*9 = 27.9
 Fox-Glynn: left = 0, right = 167
 Computing probabilities 34 iterations.
-Sequential estimation....402 observations.
-Pr[P>=0.5 [ true U[0,9] c=1 ] U[0,10] x1=4 & y1=4] = 0.820896 (0.770896,0.870896)
+Sequential estimation....461 observations.
+Pr[P>=0.5 [ true U[0,9] c=1 ] U[0,10] x1=4 & y1=4] = 0.78308 (0.73308,0.83308)
 Property is false in the initial state.
