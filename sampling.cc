@@ -253,7 +253,8 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
     }
     formula_level_++;
     for (int i = 1; i <= params.fixed_sample_size; ++i) {
-      if (formula().sample(manager, model, state, nested_params, stats)) {
+      if (formula().sample(manager, model, state, nullptr, nullptr,
+                           nested_params, stats)) {
         c++;
       }
       if (formula_level() == 1) {
@@ -284,7 +285,8 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
     SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
       const bool x =
-          formula().sample(manager, model, state, nested_params, stats);
+          formula().sample(manager, model, state, nullptr, nullptr,
+                           nested_params, stats);
       estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
         PrintProgress(estimator.count());
@@ -501,7 +503,8 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(manager, model, state, nested_params, stats);
+      s = formula().sample(manager, model, state, nullptr, nullptr,
+                           nested_params, stats);
       have_sample = true;
     }
     if (!have_sample) {
@@ -611,9 +614,30 @@ size_t Comparison::clear_cache() const {
 /* ====================================================================== */
 /* Until */
 
+namespace {
+
+bool Verify(const StateFormula& formula,
+            const DecisionDiagramManager* manager, DdNode* ddf,
+            const Model& model, const State& state,
+            const ModelCheckingParams& params, ModelCheckingStats* stats) {
+  if (manager != nullptr) {
+    BDD state_bdd = model.state_bdd(*manager, state.values());
+    DdNode* sol = Cudd_bddAnd(manager->manager(), ddf, state_bdd.get());
+    Cudd_Ref(sol);
+    const bool result = (sol != manager->GetConstant(false).get());
+    Cudd_RecursiveDeref(manager->manager(), sol);
+    return result;
+  } else {
+    return formula.verify(manager, model, state, params, stats);
+  }
+}
+
+}  // namespace
+
 /* Generates a sample for this path formula. */
 bool Until::sample(const DecisionDiagramManager* manager,
                    const Model& model, const State& state,
+                   DdNode* dd1, DdNode* dd2,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double t = 0.0;
@@ -629,23 +653,25 @@ bool Until::sample(const DecisionDiagramManager* manager,
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
-      if (post().verify(manager, model, curr_state, params, stats)) {
-	result = true;
-	done = true;
-      } else if (!pre().verify(manager, model, curr_state, params, stats)) {
-	result = false;
-	done = true;
+      if (Verify(post(), manager, dd2, model, curr_state, params, stats)) {
+        result = true;
+        done = true;
+      } else if (!Verify(pre(), manager, dd1, model, curr_state, params,
+                         stats)) {
+        result = false;
+        done = true;
       }
     } else {
-      if (!pre().verify(manager, model, curr_state, params, stats)) {
-	result = false;
-	done = true;
+      if (!Verify(pre(), manager, dd1, model, curr_state, params, stats)) {
+        result = false;
+        done = true;
       } else if (t_min < next_t
-		 && post().verify(manager, model, curr_state, params, stats)) {
-	t = t_min;
-	result = true;
-	done = true;
-	output = true;
+                 && Verify(post(), manager, dd2, model, curr_state, params,
+                           stats)) {
+        t = t_min;
+        result = true;
+        done = true;
+        output = true;
       }
     }
     if (!done) {
@@ -675,65 +701,6 @@ bool Until::sample(const DecisionDiagramManager* manager,
   return result;
 }
 
-/* Generates a sample for this path formula. */
-bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
-                   const State& state, DdNode* dd1, DdNode* dd2,
-                   ModelCheckingStats* stats) const {
-  double t = 0.0;
-  size_t path_length = 1;
-  State curr_state = state;
-  bool result = false;
-  double t_max = max_time().value<double>();
-  while (true) {
-    if (t <= t_max) {
-      DdNode* dds = model.state_bdd(dd_man, curr_state.values()).release();
-      DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
-      Cudd_Ref(sol);
-      if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
-        result = true;
-        Cudd_RecursiveDeref(dd_man.manager(), dds);
-        Cudd_RecursiveDeref(dd_man.manager(), sol);
-        break;
-      }
-      Cudd_RecursiveDeref(dd_man.manager(), sol);
-      sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
-      Cudd_Ref(sol);
-      if (sol == Cudd_ReadLogicZero(dd_man.manager())) {
-        result = false;
-        Cudd_RecursiveDeref(dd_man.manager(), dds);
-        Cudd_RecursiveDeref(dd_man.manager(), sol);
-        break;
-      }
-      Cudd_RecursiveDeref(dd_man.manager(), dds);
-      Cudd_RecursiveDeref(dd_man.manager(), sol);
-    } else {
-      result = false;
-      break;
-    }
-    if (VLOG_IS_ON(3)) {
-      LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
-    }
-    State next_state = curr_state.Next();
-    t += next_state.time() - curr_state.time();
-    if (t <= t_max) {
-      path_length++;
-    }
-    curr_state = std::move(next_state);
-  }
-  if (VLOG_IS_ON(3)) {
-    LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
-    if (result) {
-      LOG(INFO) << ">>positive sample";
-    } else {
-      LOG(INFO) << ">>negative sample";
-    }
-  }
-  if (StateFormula::formula_level() == 1) {
-    stats->path_length.AddObservation(path_length);
-  }
-  return result;
-}
-
 /* Verifies this path formula using the mixed engine. */
 bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
@@ -750,7 +717,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     std::cout << "Sequential estimation";
     SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
-      const bool x = sample(dd_man, model, state, dd1, dd2, stats);
+      const bool x = sample(&dd_man, model, state, dd1, dd2, params, stats);
       estimator.AddObservation(x ? 1 : 0);
       PrintProgress(estimator.count());
       if (VLOG_IS_ON(2)) {
@@ -803,7 +770,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   double d = 0.0;
   while ((params.algorithm == SSP && d <= c && d + n - m > c)
 	 || (params.algorithm == SPRT && logB < d && d < logA)) {
-    bool s = sample(dd_man, model, state, dd1, dd2, stats);
+    bool s = sample(&dd_man, model, state, dd1, dd2, params, stats);
     if (s) {
       if (params.algorithm == SSP) {
 	d += 1.0;

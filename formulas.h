@@ -171,12 +171,8 @@ class PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
+                      DdNode* dd1, DdNode* dd2,
                       const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const = 0;
-
-  /* Generates a sample for this path formula. */
-  virtual bool sample(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DdNode* dd1, DdNode* dd2,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this path formula using the mixed engine. */
@@ -676,12 +672,8 @@ class Until : public PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
+                      DdNode* dd1, DdNode* dd2,
                       const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Generates a sample for this path formula. */
-  virtual bool sample(const DecisionDiagramManager& dd_man, const Model& model,
-		      const State& state, DdNode* dd1, DdNode* dd2,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this path formula using the mixed engine. */
