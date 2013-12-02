@@ -1099,8 +1099,8 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = pf->sample(*global_model, init_state, nested_params,
-                                     &stats);
+	      msg.value = pf->sample(
+                  nullptr, *global_model, init_state, nested_params, &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1237,7 +1237,8 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-	  bool sol = (*fi)->verify(*global_model, init_state, params, &stats);
+	  bool sol =
+              (*fi)->verify(nullptr, *global_model, init_state, params, &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1445,8 +1446,8 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  bool sol = (*fi)->verify(dd_man, *global_model, init_state, params,
-                                   &stats);
+	  bool sol =
+              (*fi)->verify(&dd_man, *global_model, init_state, params, &stats);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);

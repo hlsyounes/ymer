@@ -92,12 +92,7 @@ class StateFormula {
   virtual bool holds(const std::vector<int>& state) const = 0;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const = 0;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
@@ -174,7 +169,8 @@ class PathFormula {
   virtual bool probabilistic() const = 0;
 
   /* Generates a sample for this path formula. */
-  virtual bool sample(const Model& model, const State& state,
+  virtual bool sample(const DecisionDiagramManager* manager,
+                      const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
@@ -242,12 +238,7 @@ class Conjunction : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
@@ -294,12 +285,7 @@ class Disjunction : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
@@ -347,12 +333,7 @@ class Negation : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
@@ -403,12 +384,7 @@ class Implication : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
@@ -465,12 +441,7 @@ class Probabilistic : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
@@ -529,12 +500,7 @@ class Comparison : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this state formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man,
+  virtual bool verify(const DecisionDiagramManager* manager,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
@@ -708,7 +674,8 @@ class Until : public PathFormula {
   virtual bool probabilistic() const;
 
   /* Generates a sample for this path formula. */
-  virtual bool sample(const Model& model, const State& state,
+  virtual bool sample(const DecisionDiagramManager* manager,
+                      const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
