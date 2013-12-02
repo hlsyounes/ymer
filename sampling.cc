@@ -668,19 +668,8 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   double p0 = std::min(1.0, theta + params.delta);
   double p1 = std::max(0.0, theta - params.delta);
 
-  DdNode* dd1 = (pre().probabilistic()
-		 ? pre().verify(dd_man, model, false, params) : NULL);
-  if (dd1 != NULL) {
-    DdNode* ddr = model.reachability_bdd(dd_man);
-    if (dd1 == ddr) {
-      Cudd_RecursiveDeref(dd_man.manager(), dd1);
-      dd1 = Cudd_ReadOne(dd_man.manager());
-      Cudd_Ref(dd1);
-    }
-    Cudd_RecursiveDeref(dd_man.manager(), ddr);
-  }
-  DdNode* dd2 = (post().probabilistic()
-		 ? post().verify(dd_man, model, false, params) : NULL);
+  DdNode* dd1 = pre().verify(dd_man, model, false, params);
+  DdNode* dd2 = post().verify(dd_man, model, false, params);
 
   if (params.algorithm == ESTIMATE) {
     std::cout << "Sequential estimation";
@@ -703,12 +692,8 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
               << std::min(1.0, estimator.value() + params.delta) << ")"
               << std::endl;
     stats->sample_size.AddObservation(estimator.count());
-    if (dd1 != NULL) {
-      Cudd_RecursiveDeref(dd_man.manager(), dd1);
-    }
-    if (dd2 != NULL) {
-      Cudd_RecursiveDeref(dd_man.manager(), dd2);
-    }
+    Cudd_RecursiveDeref(dd_man.manager(), dd1);
+    Cudd_RecursiveDeref(dd_man.manager(), dd2);
     if (strict) {
       return estimator.value() > theta;
     } else {
@@ -777,12 +762,8 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   }
   std::cout << m << " observations." << std::endl;
   stats->sample_size.AddObservation(m);
-  if (dd1 != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  }
-  if (dd2 != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  }
+  Cudd_RecursiveDeref(dd_man.manager(), dd1);
+  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   if (params.algorithm == SSP) {
     return d > c;
   } else { /* algorithm == SPRT */

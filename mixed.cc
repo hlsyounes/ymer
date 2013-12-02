@@ -192,47 +192,26 @@ bool Until::sample(const DecisionDiagramManager& dd_man, const Model& model,
   double t_max = max_time().value<double>();
   while (true) {
     if (t <= t_max) {
-      DdNode* dds = NULL;
-      if (dd2 != NULL) {
-	dds = model.state_bdd(dd_man, curr_state.values()).release();
-	DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
-	Cudd_Ref(sol);
-	if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
-	  result = true;
-	  Cudd_RecursiveDeref(dd_man.manager(), dds);
-	  Cudd_RecursiveDeref(dd_man.manager(), sol);
-	  break;
-	}
-	Cudd_RecursiveDeref(dd_man.manager(), sol);
-      } else if (post().holds(curr_state.values())) {
-	result = true;
-	break;
+      DdNode* dds = model.state_bdd(dd_man, curr_state.values()).release();
+      DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd2, dds);
+      Cudd_Ref(sol);
+      if (sol != Cudd_ReadLogicZero(dd_man.manager())) {
+        result = true;
+        Cudd_RecursiveDeref(dd_man.manager(), dds);
+        Cudd_RecursiveDeref(dd_man.manager(), sol);
+        break;
       }
-      if (dd1 != NULL) {
-	if (dd1 == Cudd_ReadLogicZero(dd_man.manager())) {
-	  result = false;
-	  break;
-	} else if (dd1 != Cudd_ReadOne(dd_man.manager())) {
-	  if (dds == NULL) {
-	    dds = model.state_bdd(dd_man, curr_state.values()).release();
-	  }
-	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
-	  Cudd_Ref(sol);
-	  if (sol == Cudd_ReadLogicZero(dd_man.manager())) {
-	    result = false;
-	    Cudd_RecursiveDeref(dd_man.manager(), dds);
-	    Cudd_RecursiveDeref(dd_man.manager(), sol);
-	    break;
-	  }
-	  Cudd_RecursiveDeref(dd_man.manager(), sol);
-	}
-      } else if (!pre().holds(curr_state.values())) {
-	result = false;
-	break;
+      Cudd_RecursiveDeref(dd_man.manager(), sol);
+      sol = Cudd_bddAnd(dd_man.manager(), dd1, dds);
+      Cudd_Ref(sol);
+      if (sol == Cudd_ReadLogicZero(dd_man.manager())) {
+        result = false;
+        Cudd_RecursiveDeref(dd_man.manager(), dds);
+        Cudd_RecursiveDeref(dd_man.manager(), sol);
+        break;
       }
-      if (dds != NULL) {
-	Cudd_RecursiveDeref(dd_man.manager(), dds);
-      }
+      Cudd_RecursiveDeref(dd_man.manager(), dds);
+      Cudd_RecursiveDeref(dd_man.manager(), sol);
     } else {
       result = false;
       break;
