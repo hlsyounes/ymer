@@ -463,7 +463,7 @@ private:
   /* The path formula. */
   const PathFormula* formula_;
   /* Cached acceptance sampling results. */
-  mutable std::map<std::vector<int>, std::pair<size_t, double> > cache_;
+  mutable std::map<std::vector<int>, Sample<int>> cache_;
 };
 
 

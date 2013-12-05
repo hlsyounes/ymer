@@ -3,5 +3,5 @@ Variables: 7
 Events:    20
 
 Model checking !P>=0.96 [ true U[0,10] s=1 & a=0 ] ...
-Acceptance sampling <2057,1976>.........:.........:2038 observations.
+Acceptance sampling.........:.........:2038 observations.
 Property is false in the initial state.
