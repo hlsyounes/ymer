@@ -246,37 +246,6 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
   ModelCheckingParams nested_params = params;
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
-  if (params.algorithm == FIXED) {
-    int c = 0;
-    if (formula_level() == 0) {
-      std::cout << "Fixed-size sampling";
-    }
-    formula_level_++;
-    for (int i = 1; i <= params.fixed_sample_size; ++i) {
-      if (formula().sample(manager, model, state, nullptr, nullptr,
-                           nested_params, stats)) {
-        c++;
-      }
-      if (formula_level() == 1) {
-        PrintProgress(i);
-      }
-      if (VLOG_IS_ON(2)) {
-        LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
-                  << i << '\t' << c;
-      }
-    }
-    formula_level_--;
-    if (formula_level() == 0) {
-      std::cout << params.fixed_sample_size << " observations." << std::endl;
-      stats->sample_size.AddObservation(params.fixed_sample_size);
-    }
-    double p = double(c)/params.fixed_sample_size;
-    if (strict()) {
-      return p > theta;
-    } else {
-      return p >= theta;
-    }
-  }
   if (params.algorithm == ESTIMATE) {
     if (formula_level() == 0) {
       std::cout << "Sequential estimation";
@@ -316,38 +285,23 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
     }
   }
 
-  int n = 0, c = 0;
-  double logA, logB = 0;
-  if (params.algorithm == SSP) {
-    const auto ssp =
-        SingleSamplingPlan::Create(p0, p1, params.alpha, params.beta);
-    n = ssp.n();
-    c = ssp.c();
+  std::unique_ptr<BernoulliTester> tester;
+  if (params.algorithm == FIXED) {
+    tester.reset(
+        new FixedBernoulliTester(theta, theta, params.fixed_sample_size));
+  } else if (params.algorithm == SSP) {
+    tester.reset(
+        new SingleSamplingBernoulliTester(p0, p1, params.alpha, params.beta));
   } else { /* algorithm == SPRT */
-    logA = -log(params.alpha);
-    /* If p1 is 0, then a beta of 0 can always be guaranteed. */
-    if (p1 > 0.0) {
-      logA += log(1.0 - params.beta);
-    }
-    logB = log(params.beta);
-    /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
-    if (p0 < 1.0) {
-      logB -= log(1.0 - params.alpha);
-    }
+    tester.reset(new SprtBernoulliTester(p0, p1, params.alpha, params.beta));
   }
   if (formula_level() == 0) {
     std::cout << "Acceptance sampling";
-    if (params.algorithm == SSP) {
-      std::cout << " <" << n << ',' << c << ">";
-    }
   }
-  int m = 0;
-  double d = 0.0;
   if (params.memoization) {
     auto ci = cache_.find(state.values());
     if (ci != cache_.end()) {
-      m = ci->second.first;
-      d = ci->second.second;
+      tester->SetSample(ci->second);
     }
   }
   formula_level_++;
@@ -388,8 +342,7 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
       registered_clients.erase(*ci);
     }
   }
-  while ((params.algorithm == SSP && d <= c && d + n - m > c)
-	 || (params.algorithm == SPRT && logB < d && d < logA)) {
+  while (!tester->done()) {
     bool s = false, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
       short client_id = schedule.front();
@@ -510,45 +463,19 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
     if (!have_sample) {
       continue;
     }
-    if (s) {
-      if (params.algorithm == SSP) {
-	d += 1.0;
-      } else { /* algorithm == SPRT */
-	if (p1 > 0.0) {
-	  d += log(p1) - log(p0);
-	} else {
-	  d = -std::numeric_limits<double>::infinity();
-	}
-      }
-    } else {
-      if (params.algorithm == SSP) {
-	/* do nothing */
-      } else { /* algorithm == SPRT */
-	if (p0 < 1.0) {
-	  d += log(1.0 - p1) - log(1.0 - p0);
-	} else {
-	  d = std::numeric_limits<double>::infinity();
-	}
-      }
-    }
-    m++;
+    tester->AddObservation(s);
     if (formula_level() == 1) {
-      PrintProgress(m);
+      PrintProgress(tester->sample().count());
     }
     if (VLOG_IS_ON(2)) {
-      if (params.algorithm == SSP) {
-	LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
-                  << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
-      } else { /* algorithm == SPRT */
-	LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
-                  << m << '\t' << d << '\t' << logB << '\t' << logA;
-      }
+      LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+                << tester->StateToString();
     }
   }
   formula_level_--;
   if (formula_level() == 0) {
-    std::cout << m << " observations." << std::endl;
-    stats->sample_size.AddObservation(m);
+    std::cout << tester->sample().count() << " observations." << std::endl;
+    stats->sample_size.AddObservation(tester->sample().count());
   }
   if (server_socket != -1) {
     if (VLOG_IS_ON(1)) {
@@ -570,13 +497,9 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
     }
   }
   if (params.memoization) {
-    cache_[state.values()] = { m, d };
+    cache_[state.values()] = tester->sample();
   }
-  if (params.algorithm == SSP) {
-    return d > c;
-  } else { /* algorithm == SPRT */
-    return d <= logB;
-  }
+  return tester->accept();
 }
 
 

@@ -115,6 +115,10 @@ TEST(SingleSamplingPlanTest, All) {
   const auto ssp5 = SingleSamplingPlan::Create(1, 0.99999, 0.1, 1e-10);
   EXPECT_EQ(2302574, ssp5.n());
   EXPECT_EQ(2302573, ssp5.c());
+
+  const auto ssp6 = SingleSamplingPlan::Create(0.25, 0, 0.02, 0.01);
+  EXPECT_EQ(14, ssp6.n());
+  EXPECT_EQ(0, ssp6.c());
 }
 
 TEST(SampleTest, IntegerObservations) {
@@ -124,6 +128,7 @@ TEST(SampleTest, IntegerObservations) {
   s.AddObservation(2);
   EXPECT_EQ(2, s.min());
   EXPECT_EQ(2, s.max());
+  EXPECT_EQ(2, s.sum());
   EXPECT_EQ(1, s.count());
   EXPECT_EQ(2, s.mean());
   EXPECT_EQ(0, s.variance());
@@ -133,6 +138,7 @@ TEST(SampleTest, IntegerObservations) {
   s.AddObservation(3);
   EXPECT_EQ(2, s.min());
   EXPECT_EQ(3, s.max());
+  EXPECT_EQ(5, s.sum());
   EXPECT_EQ(2, s.count());
   EXPECT_EQ(2.5, s.mean());
   EXPECT_EQ(0.25, s.variance());
@@ -142,6 +148,7 @@ TEST(SampleTest, IntegerObservations) {
   s.AddObservation(1);
   EXPECT_EQ(1, s.min());
   EXPECT_EQ(3, s.max());
+  EXPECT_EQ(6, s.sum());
   EXPECT_EQ(3, s.count());
   EXPECT_EQ(2, s.mean());
   EXPECT_EQ(2.0 / 3.0, s.variance());
@@ -174,6 +181,203 @@ TEST(SequentialEstimatorTest, IntegerObservations) {
   EXPECT_EQ(2, estimator.value());
   EXPECT_EQ(1, estimator.state());
   EXPECT_LT(0, estimator.bound());
+}
+
+TEST(FixedBernoulliTesterTest, AcceptsThenRejects) {
+  FixedBernoulliTester tester(0.6, 0.4, 3);
+  EXPECT_EQ(0.6, tester.theta0());
+  EXPECT_EQ(0.4, tester.theta1());
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(false);
+  sample.AddObservation(true);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+}
+
+TEST(FixedBernoulliTesterTest, RejectsThenAccepts) {
+  FixedBernoulliTester tester(0.75, 0.75, 3);
+  EXPECT_EQ(0.75, tester.theta0());
+  EXPECT_EQ(0.75, tester.theta1());
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(true);
+  sample.AddObservation(true);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+}
+
+TEST(SingleSamplingBernoulliTesterTest, AcceptsThenRejects) {
+  SingleSamplingBernoulliTester tester(0.5, 0.3, 0.2, 0.1);
+  EXPECT_EQ(0.5, tester.theta0());
+  EXPECT_EQ(0.3, tester.theta1());
+  for (int i = 0; i < 13; ++i) {
+    EXPECT_FALSE(tester.done());
+    tester.AddObservation(true);
+  }
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(true);
+  for (int i = 0; i < 17; ++i) {
+    sample.AddObservation(false);
+  }
+  sample.AddObservation(true);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+}
+
+TEST(SingleSamplingBernoulliTesterTest, RejectsThenAccepts) {
+  SingleSamplingBernoulliTester tester(0.5, 0.3, 0.2, 0.1);
+  EXPECT_EQ(0.5, tester.theta0());
+  EXPECT_EQ(0.3, tester.theta1());
+  for (int i = 0; i < 18; ++i) {
+    EXPECT_FALSE(tester.done());
+    tester.AddObservation(false);
+  }
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(false);
+  for (int i = 0; i < 12; ++i) {
+    sample.AddObservation(true);
+  }
+  sample.AddObservation(false);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+}
+
+TEST(SprtBernoulliTesterTest, AcceptsThenRejects) {
+  SprtBernoulliTester tester(0.5, 0.3, 0.2, 0.1);
+  EXPECT_EQ(0.5, tester.theta0());
+  EXPECT_EQ(0.3, tester.theta1());
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(false);
+  sample.AddObservation(false);
+  sample.AddObservation(false);
+  sample.AddObservation(false);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+}
+
+TEST(SprtBernoulliTesterTest, RejectsThenAccepts) {
+  SprtBernoulliTester tester(0.5, 0.3, 0.2, 0.1);
+  EXPECT_EQ(0.5, tester.theta0());
+  EXPECT_EQ(0.3, tester.theta1());
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(true);
+  sample.AddObservation(false);
+  sample.AddObservation(true);
+  sample.AddObservation(true);
+  sample.AddObservation(false);
+  sample.AddObservation(true);
+  sample.AddObservation(true);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+}
+
+TEST(SprtBernoulliTesterTest, AcceptsThenRejectsWithMaxTheta0) {
+  SprtBernoulliTester tester(1, 0.75, 0.01, 0.02);
+  for (int i = 0; i < 14; ++i) {
+    EXPECT_FALSE(tester.done());
+    tester.AddObservation(true);
+  }
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(true);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(false);
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+}
+
+TEST(SprtBernoulliTesterTest, RejectsThenAcceptsWithMinTheta1) {
+  SprtBernoulliTester tester(0.25, 0, 0.02, 0.01);
+  for (int i = 0; i < 14; ++i) {
+    EXPECT_FALSE(tester.done());
+    tester.AddObservation(false);
+  }
+  EXPECT_TRUE(tester.done());
+  EXPECT_FALSE(tester.accept());
+
+  Sample<int> sample;
+  sample.AddObservation(false);
+  tester.SetSample(sample);
+  EXPECT_FALSE(tester.done());
+  tester.AddObservation(true);
+  EXPECT_TRUE(tester.done());
+  EXPECT_TRUE(tester.accept());
 }
 
 }  // namespace

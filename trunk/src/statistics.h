@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <string>
 
 #include "gsl/gsl_cdf.h"
 
@@ -41,7 +42,7 @@ double MaxNestedError(double delta);
 // A single sampling plan.
 class SingleSamplingPlan {
  public:
-  static SingleSamplingPlan Create(double p0, double p1,
+  static SingleSamplingPlan Create(double theta0, double theta1,
                                    double alpha, double beta);
 
   int n() const { return n_; }
@@ -64,6 +65,7 @@ class Sample {
 
   T min() const { return min_; }
   T max() const { return max_; }
+  T sum() const { return sum_; }
   int count() const { return count_; }
   double mean() const { return mean_; }
   double variance() const { return (count_ > 1) ? m2_ / count_ : 0.0; }
@@ -75,6 +77,7 @@ class Sample {
  private:
   T min_;
   T max_;
+  T sum_;
   int count_;
   double mean_;
   double m2_;
@@ -110,9 +113,102 @@ class SequentialEstimator {
   double bound_;
 };
 
+// An abstract sequential hypothesis tester for Bernoulli trials.  Tests the the
+// hypothesis H0: p > theta0 against the hypothesis H1: p < theta1.  Continue to
+// add observations until done() is true.  At that point, accept H0 if accept()
+// is true, and accept H1 if accept() is false.  While done() is false, accept()
+// has no meaning.
+//
+// NOTE: all implementations require that theta0 >= theta1, but some also
+// require that theta0 != theta1.
+class BernoulliTester {
+ public:
+  virtual ~BernoulliTester();
+
+  void AddObservation(bool x);
+  void SetSample(const Sample<int>& sample);
+
+  double theta0() const { return theta0_; }
+  double theta1() const { return theta1_; }
+  bool done() const { return done_; }
+  bool accept() const { return accept_; }
+  const Sample<int> sample() const { return sample_; }
+
+  std::string StateToString() const;
+
+ protected:
+  BernoulliTester(double theta0, double theta1);
+
+  bool done_;
+  bool accept_;
+
+ private:
+  virtual void UpdateState() = 0;
+  virtual std::string StateToStringImpl() const = 0;
+
+  const double theta0_;
+  const double theta1_;
+  Sample<int> sample_;
+};
+
+// A simple BernoulliTester that stops when a fixed sample size has been
+// reached.  Accepts H0 if mean() > 0.5 * (theta0 + theta1).
+//
+// This implementation provides no error guarantees.  Error guarantees will
+// depend on the provided sample size.  Allows theta0 == theta1.
+class FixedBernoulliTester : public BernoulliTester {
+ public:
+  FixedBernoulliTester(double theta0, double theta1, int sample_size);
+
+  virtual ~FixedBernoulliTester();
+
+ private:
+  virtual void UpdateState();
+  virtual std::string StateToStringImpl() const;
+
+  const int sample_size_;
+};
+
+// A BernoulliTester based on a single sampling plan with a sequential stopping
+// rule.
+//
+// Respects error bounds alpha and beta.  Does not allow theta0 == theta1.
+class SingleSamplingBernoulliTester : public BernoulliTester {
+ public:
+  SingleSamplingBernoulliTester(double theta0, double theta1,
+                                double alpha, double beta);
+
+  virtual ~SingleSamplingBernoulliTester();
+
+ private:
+  virtual void UpdateState();
+  virtual std::string StateToStringImpl() const;
+
+  const SingleSamplingPlan ssp_;
+};
+
+// A BernoulliTester based on Wald's Sequential Probability Ratio Test.
+//
+// Respects error bounds alpha and beta.  Does not allow theta0 = theta1.
+class SprtBernoulliTester : public BernoulliTester {
+ public:
+  SprtBernoulliTester(double theta0, double theta1, double alpha, double beta);
+
+  virtual ~SprtBernoulliTester();
+
+ private:
+  virtual void UpdateState();
+  virtual std::string StateToStringImpl() const;
+
+  const double positive_coefficient_;
+  const double negative_coefficient_;
+  const double accept_threshold_;
+  const double reject_threshold_;
+};
+
 template <typename T>
 Sample<T>::Sample()
-    : count_(0), mean_(0.0), m2_(0.0) {
+    : sum_(0), count_(0), mean_(0.0), m2_(0.0) {
 }
 
 template <typename T>
@@ -120,6 +216,7 @@ void Sample<T>::AddObservation(T x) {
   ++count_;
   min_ = (count_ > 1) ? std::min(min_, x) : x;
   max_ = (count_ > 1) ? std::max(max_, x) : x;
+  sum_ += x;
   const double delta = x - mean_;
   mean_ += delta / count_;
   m2_ += delta * (x - mean_);
