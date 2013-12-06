@@ -117,9 +117,7 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
     col_to_row[2*i] = 2*i;
     col_to_row[2*i + 1] = 2*i;
   }
-  DdNode* row_cube =
-      Cudd_bddComputeCube(dd_man.manager(), row_variables.get(), NULL, nvars);
-  Cudd_Ref(row_cube);
+  BDD row_cube = dd_man.GetCube(row_variables);
   /*
    * Fixpoint computation of reachability.
    */
@@ -140,7 +138,7 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
     DdNode* dda = Cudd_bddAnd(dd_man.manager(), trans.get(), solr);
     Cudd_Ref(dda);
     Cudd_RecursiveDeref(dd_man.manager(), solr);
-    DdNode* dde = Cudd_bddExistAbstract(dd_man.manager(), dda, row_cube);
+    DdNode* dde = Cudd_bddExistAbstract(dd_man.manager(), dda, row_cube.get());
     Cudd_Ref(dde);
     Cudd_RecursiveDeref(dd_man.manager(), dda);
     DdNode* ddo = Cudd_bddOr(dd_man.manager(), solc, dde);
@@ -156,7 +154,6 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
     Cudd_Ref(solr);
   }
   Cudd_RecursiveDeref(dd_man.manager(), solc);
-  Cudd_RecursiveDeref(dd_man.manager(), row_cube);
   delete row_to_col;
   delete col_to_row;
   std::cout << ' ' << iters << " iterations." << std::endl;

@@ -214,6 +214,9 @@ class DecisionDiagramManager {
   // end (exclusive).
   VariableArray<BDD> GetBddVariableArray(int start, int incr, int end) const;
 
+  // Returns the positive unate cube of the given variables.
+  BDD GetCube(const VariableArray<BDD>& variables) const;
+
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdManager* manager() const { return manager_; }
 

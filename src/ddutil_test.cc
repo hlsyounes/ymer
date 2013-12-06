@@ -482,6 +482,30 @@ TEST(DecisionDiagramTest, GreaterNonConstants) {
   EXPECT_FALSE(dd2.ValueInState(sv(false, false)));
 }
 
+TEST(DecisionDiagramTest, ComputesCubes) {
+  const DecisionDiagramManager manager(2);
+  const BDD dd1 = manager.GetCube(VariableArray<BDD>());
+  EXPECT_TRUE(dd1.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd1.ValueInState(sv(true, false)));
+  EXPECT_TRUE(dd1.ValueInState(sv(false, true)));
+  EXPECT_TRUE(dd1.ValueInState(sv(false, false)));
+  const BDD dd2 = manager.GetCube(manager.GetBddVariableArray(0, 1, 1));
+  EXPECT_TRUE(dd2.ValueInState(sv(true, true)));
+  EXPECT_TRUE(dd2.ValueInState(sv(true, false)));
+  EXPECT_FALSE(dd2.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd2.ValueInState(sv(false, false)));
+  const BDD dd3 = manager.GetCube(manager.GetBddVariableArray(1, 1, 2));
+  EXPECT_TRUE(dd3.ValueInState(sv(true, true)));
+  EXPECT_FALSE(dd3.ValueInState(sv(true, false)));
+  EXPECT_TRUE(dd3.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd3.ValueInState(sv(false, false)));
+  const BDD dd4 = manager.GetCube(manager.GetBddVariableArray(0, 1, 2));
+  EXPECT_TRUE(dd4.ValueInState(sv(true, true)));
+  EXPECT_FALSE(dd4.ValueInState(sv(true, false)));
+  EXPECT_FALSE(dd4.ValueInState(sv(false, true)));
+  EXPECT_FALSE(dd4.ValueInState(sv(false, false)));
+}
+
 TEST(Log2Test, All) {
   EXPECT_EQ(0, Log2(1));
   EXPECT_EQ(1, Log2(2));
