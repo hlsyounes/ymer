@@ -921,7 +921,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     Cudd_Ref(ddT);
     rate_mtbdd_ = ddT;
     /* Build ODD. */
-    odd_ = build_odd(dd_man, reach_add, row_variables_.get(), nvars);
+    odd_ = build_odd(dd_man, reach_add, row_variables_);
     Cudd_RecursiveDeref(dd_man.manager(), reach_add);
   }
 }

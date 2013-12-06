@@ -540,8 +540,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   Cudd_RecursiveDeref(dd_man.manager(), ddm);
   const VariableArray<BDD>& rvars = model.row_variables();
   const VariableArray<BDD>& cvars = model.column_variables();
-  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars.get(), cvars.get(),
-                                     rvars.size(), odd);
+  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars, cvars, odd);
   std::cout << hddm->num_nodes << " nodes." << std::endl;
 
   /*
