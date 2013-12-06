@@ -22,10 +22,13 @@
 #ifndef DDUTIL_H_
 #define DDUTIL_H_
 
+#include <memory>
 #include <vector>
 
 class DdManager;
 class DdNode;
+
+template <typename DD> class VariableArray;
 
 // Abstract wrapper class for DdNode, with automatic referencing and
 // dereferencing.
@@ -56,6 +59,8 @@ class DecisionDiagram {
   DdManager* manager_;
   // The decision-diagram node.
   DdNode* node_;
+
+  template <typename DD> friend class VariableArray;
 };
 
 class ADD;
@@ -144,6 +149,28 @@ class ADD : public DecisionDiagram {
 // Returns the ADD for dd1 ? dd2 : dd3.
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3);
 
+// Wrapper class for variable arrays.
+template <typename DD>
+class VariableArray {
+ public:
+  VariableArray();
+
+  size_t size() const { return size_; }
+
+  // TODO(hlsyounes): remove once all code is using wrapper classes.
+  DdNode** get() const { return variables_.get(); }
+
+ private:
+  VariableArray(std::vector<DD> variables);
+
+  DdNode** data() const { return variables_.get(); }
+
+  std::unique_ptr<DdNode*[]> variables_;
+  size_t size_;
+
+  friend class DecisionDiagramManager;
+};
+
 // Wrapper class for DdManager.
 class DecisionDiagramManager {
  public:
@@ -183,6 +210,10 @@ class DecisionDiagramManager {
   // Returns the ADD for the ith variable.
   ADD GetAddVariable(int i) const;
 
+  // Returns an array of every incr BDD variables between start (inclusive) and
+  // end (exclusive).
+  VariableArray<BDD> GetBddVariableArray(int start, int incr, int end) const;
+
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdManager* manager() const { return manager_; }
 
@@ -192,5 +223,19 @@ class DecisionDiagramManager {
 
 // Returns the base-2 logarithm of the given integer.
 int Log2(int n);
+
+template <typename DD>
+VariableArray<DD>::VariableArray()
+    : size_(0) {
+}
+
+template <typename DD>
+VariableArray<DD>::VariableArray(std::vector<DD> variables)
+    : size_(variables.size()) {
+  variables_.reset(new DdNode*[size_]);
+  for (size_t i = 0; i < size_; ++i) {
+    variables_[i] = variables[i].node();
+  }
+}
 
 #endif  // DDUTIL_H_

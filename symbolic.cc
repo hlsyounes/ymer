@@ -158,24 +158,24 @@ DdNode* Comparison::verify(const DecisionDiagramManager& dd_man,
 /* Recursive component of mtbdd_to_double_vector. */
 static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
                                        DdNode* dd,
-				       DdNode** vars, int num_vars, int level,
+                                       const VariableArray<BDD>& vars,
+                                       size_t level,
 				       ODDNode* odd, long o, double* res) {
   if (dd != Cudd_ReadZero(ddman.manager())) {
     DdNode* e;
     DdNode* t;
-    if (level == num_vars) {
+    if (level == vars.size()) {
       res[o] = Cudd_V(dd);
       return;
-    } else if (dd->index > vars[level]->index) {
+    } else if (dd->index > vars.get()[level]->index) {
       e = t = dd;
     } else {
       e = Cudd_E(dd);
       t = Cudd_T(dd);
     }
-    mtbdd_to_double_vector_rec(ddman, e, vars, num_vars, level + 1,
-			       odd->e, o, res);
-    mtbdd_to_double_vector_rec(ddman, t, vars, num_vars, level + 1,
-			       odd->t, o+odd->eoff, res);
+    mtbdd_to_double_vector_rec(ddman, e, vars, level + 1, odd->e, o, res);
+    mtbdd_to_double_vector_rec(ddman, t, vars, level + 1, odd->t, o+odd->eoff,
+                               res);
   }
 }
 
@@ -183,7 +183,7 @@ static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
 /* Converts an MTBDD to a double vector. */
 static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
                                       DdNode* dd,
-				      DdNode** vars, int num_vars,
+				      const VariableArray<BDD>& vars,
 				      ODDNode* odd) {
   /* Determine size. */
   size_t n = odd->eoff + odd->toff;
@@ -192,7 +192,7 @@ static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
   for (size_t i = 0; i < n; i++) {
     res[i] = 0.0;
   }
-  mtbdd_to_double_vector_rec(ddman, dd, vars, num_vars, 0, odd, 0, res);
+  mtbdd_to_double_vector_rec(ddman, dd, vars, 0, odd, 0, res);
 
   return res;
 }
@@ -202,9 +202,9 @@ static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
 static DdNode* double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
                                         double* vec,
 					bool strict, double bound,
-					DdNode** vars, int num_vars,
-					int level, ODDNode* odd, long o) {
-  if (level == num_vars) {
+					const VariableArray<BDD>& vars,
+					size_t level, ODDNode* odd, long o) {
+  if (level == vars.size()) {
     DdNode* dd = (((strict && vec[o] > bound) || (!strict && vec[o] >= bound))
 		  ? Cudd_ReadOne(ddman.manager())
                   : Cudd_ReadLogicZero(ddman.manager()));
@@ -214,15 +214,15 @@ static DdNode* double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
     DdNode* e;
     DdNode* t;
     if (odd->eoff > 0) {
-      e = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
-				   level + 1, odd->e, o);
+      e = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, level + 1,
+                                   odd->e, o);
     } else {
       e = Cudd_ReadLogicZero(ddman.manager());
       Cudd_Ref(e);
     }
     if (odd->toff > 0) {
-      t = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
-				   level + 1, odd->t, o+odd->eoff);
+      t = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, level + 1,
+                                   odd->t, o+odd->eoff);
     } else {
       t = Cudd_ReadLogicZero(ddman.manager());
       Cudd_Ref(t);
@@ -231,10 +231,10 @@ static DdNode* double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
       Cudd_RecursiveDeref(ddman.manager(), t);
       return e;
     } else {
-      Cudd_Ref(vars[level]);
-      DdNode* dd = Cudd_bddIte(ddman.manager(), vars[level], t, e);
+      Cudd_Ref(vars.get()[level]);
+      DdNode* dd = Cudd_bddIte(ddman.manager(), vars.get()[level], t, e);
       Cudd_Ref(dd);
-      Cudd_RecursiveDeref(ddman.manager(), vars[level]);
+      Cudd_RecursiveDeref(ddman.manager(), vars.get()[level]);
       Cudd_RecursiveDeref(ddman.manager(), t);
       Cudd_RecursiveDeref(ddman.manager(), e);
       return dd;
@@ -247,10 +247,9 @@ static DdNode* double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
 static DdNode* double_vector_to_bdd(const DecisionDiagramManager& ddman,
                                     double* vec,
 				    bool strict, double bound,
-				    DdNode** vars, int num_vars,
+				    const VariableArray<BDD>& vars,
 				    ODDNode* odd) {
-  return double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
-				  0, odd, 0);
+  return double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, 0, odd, 0);
 }
 
 
@@ -539,10 +538,10 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   Cudd_Ref(ddR);
   Cudd_RecursiveDeref(dd_man.manager(), ddT);
   Cudd_RecursiveDeref(dd_man.manager(), ddm);
-  DdNode** rvars = model.row_variables(dd_man);
-  DdNode** cvars = model.column_variables(dd_man);
-  int nvars = dd_man.GetNumVariables() / 2;
-  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars, cvars, nvars, odd);
+  const VariableArray<BDD>& rvars = model.row_variables();
+  const VariableArray<BDD>& cvars = model.column_variables();
+  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars.get(), cvars.get(),
+                                     rvars.size(), odd);
   std::cout << hddm->num_nodes << " nodes." << std::endl;
 
   /*
@@ -583,7 +582,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   DdNode* yes = Cudd_BddToAdd(dd_man.manager(), dd2);
   Cudd_Ref(yes);
   Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  double* soln = mtbdd_to_double_vector(dd_man, yes, rvars, nvars, odd);
+  double* soln = mtbdd_to_double_vector(dd_man, yes, rvars, odd);
   Cudd_RecursiveDeref(dd_man.manager(), yes);
   double* soln2 = new double[nstates];
   double* sum;
@@ -793,8 +792,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
       Cudd_Ref(sol);
     }
   } else {
-    sol = double_vector_to_bdd(dd_man, sum, strict, threshold,
-                               rvars, nvars, odd);
+    sol = double_vector_to_bdd(dd_man, sum, strict, threshold, rvars, odd);
   }
   delete sum;
   return sol;

@@ -103,7 +103,7 @@ void match_first_moment(ECParameters& params, const Distribution& dist) {
    matrix. */
 DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
                          DdNode* init, const ADD& rates,
-                         DdNode** row_variables) {
+                         const VariableArray<BDD>& row_variables) {
   std::cout << "Computing reachable states";
   /*
    * Precompute variable permutations and cubes.
@@ -118,7 +118,7 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
     col_to_row[2*i + 1] = 2*i;
   }
   DdNode* row_cube =
-      Cudd_bddComputeCube(dd_man.manager(), row_variables, NULL, nvars);
+      Cudd_bddComputeCube(dd_man.manager(), row_variables.get(), NULL, nvars);
   Cudd_Ref(row_cube);
   /*
    * Fixpoint computation of reachability.
@@ -266,8 +266,7 @@ BDD variable_updates(const DecisionDiagramManager& manager,
 /* Constructs a model. */
 Model::Model()
     : current_module_(kNoModule), rate_mtbdd_(NULL), reach_bdd_(NULL),
-      odd_(NULL), init_bdd_(NULL), init_index_(-1), row_variables_(NULL),
-      column_variables_(NULL) {
+      odd_(NULL), init_bdd_(NULL), init_index_(-1) {
 }
 
 
@@ -909,18 +908,8 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
      * Collect row and column variables.
      */
     nvars = dd_man.GetNumVariables()/2;
-    if (row_variables_ != NULL) {
-      /* Row and column variables have been computed before, but
-	 without phase variables.  Clear and recompute the arrays. */
-      delete row_variables_;
-      delete column_variables_;
-    }
-    row_variables_ = new DdNode*[nvars];
-    column_variables_ = new DdNode*[nvars];
-    for (size_t i = 0; i < nvars; i++) {
-      row_variables_[i] = Cudd_bddIthVar(dd_man.manager(), 2*i);
-      column_variables_[i] = Cudd_bddIthVar(dd_man.manager(), 2*i + 1);
-    }
+    row_variables_ = dd_man.GetBddVariableArray(0, 2, 2 * nvars);
+    column_variables_ = dd_man.GetBddVariableArray(1, 2, 2 * nvars);
     /*
      * Reachability analysis.
      */
@@ -932,7 +921,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     Cudd_Ref(ddT);
     rate_mtbdd_ = ddT;
     /* Build ODD. */
-    odd_ = build_odd(dd_man, reach_add, row_variables_, nvars);
+    odd_ = build_odd(dd_man, reach_add, row_variables_.get(), nvars);
     Cudd_RecursiveDeref(dd_man.manager(), reach_add);
   }
 }
@@ -1030,23 +1019,6 @@ BDD Model::state_bdd(const DecisionDiagramManager& dd_man,
   return dds;
 }
 
-/* Returns the row variables for this model. */
-DdNode** Model::row_variables(const DecisionDiagramManager& dd_man) const {
-  if (row_variables_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  return row_variables_;
-}
-
-
-/* Returns the column variables for this model. */
-DdNode** Model::column_variables(const DecisionDiagramManager& dd_man) const {
-  if (column_variables_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  return column_variables_;
-}
-
 
 /* Returns the number of states for this model. */
 double Model::num_states(const DecisionDiagramManager& dd_man) const {
@@ -1085,14 +1057,8 @@ void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
     init_bdd_ = NULL;
   }
   init_index_ = -1;
-  if (row_variables_ != NULL) {
-    delete row_variables_;
-    row_variables_ = NULL;
-  }
-  if (column_variables_ != NULL) {
-    delete column_variables_;
-    column_variables_ = NULL;
-  }
+  row_variables_ = VariableArray<BDD>();
+  column_variables_ = VariableArray<BDD>();
 }
 
 

@@ -289,6 +289,15 @@ ADD DecisionDiagramManager::GetAddVariable(int i) const {
   return ADD(manager_, Cudd_addIthVar(manager_, i));
 }
 
+VariableArray<BDD> DecisionDiagramManager::GetBddVariableArray(
+    int start, int incr, int end) const {
+  std::vector<BDD> variables;
+  for (int i = start; i < end; i += incr) {
+    variables.push_back(GetBddVariable(i));
+  }
+  return VariableArray<BDD>(variables);
+}
+
 int Log2(int n) {
   CHECK_GT(n, 0);
   int m = 0;

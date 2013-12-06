@@ -132,10 +132,12 @@ class Model {
                 const std::vector<int>& state) const;
 
   /* Returns the row variables for this model. */
-  DdNode** row_variables(const DecisionDiagramManager& dd_man) const;
+  const VariableArray<BDD>& row_variables() const { return row_variables_; }
 
   /* Returns the column variables for this model. */
-  DdNode** column_variables(const DecisionDiagramManager& dd_man) const;
+  const VariableArray<BDD>& column_variables() const {
+    return column_variables_;
+  };
 
   /* Returns the number of states for this model. */
   double num_states(const DecisionDiagramManager& dd_man) const;
@@ -169,9 +171,9 @@ private:
   /* Cached index associated with the initial state. */
   mutable int init_index_;
   /* Cached row variables. */
-  mutable DdNode** row_variables_;
+  mutable VariableArray<BDD> row_variables_;
   /* Cached column variables. */
-  mutable DdNode** column_variables_;
+  mutable VariableArray<BDD> column_variables_;
 };
 
 /* Output operator for models. */
