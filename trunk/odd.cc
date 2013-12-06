@@ -31,20 +31,20 @@
 static int num_odd_nodes = 0;
 
 // local prototypes
-static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables);
+static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, size_t level, const VariableArray<BDD> &vars, ODDNode **tables);
 static long add_offsets(const DecisionDiagramManager &ddman, ODDNode *dd, int level, int num_vars);
 
 //------------------------------------------------------------------------------
 
-ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **vars, int num_vars)
+ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, const VariableArray<BDD> &vars)
 {
-  int i;
+  size_t i;
   ODDNode **tables;
   ODDNode *res;
 
   // build tables to store odd nodes
-  tables = new ODDNode*[num_vars+1];
-  for (i = 0; i < num_vars+1; i++) {
+  tables = new ODDNode*[vars.size()+1];
+  for (i = 0; i < vars.size()+1; i++) {
     tables[i] = NULL;
   }
 	
@@ -52,10 +52,10 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **var
   num_odd_nodes = 0;
 	
   // call recursive bit
-  res = build_odd_rec(ddman, dd, 0, vars, num_vars, tables);
+  res = build_odd_rec(ddman, dd, 0, vars, tables);
 	
   // add offsets to odd
-  add_offsets(ddman, res, 0, num_vars);
+  add_offsets(ddman, res, 0, vars.size());
 
   // free memory
   delete tables;
@@ -65,7 +65,7 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, DdNode **var
 
 //------------------------------------------------------------------------------
 
-static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables)
+static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, size_t level, const VariableArray<BDD> &vars, ODDNode **tables)
 {
   ODDNode *ptr;
 	
@@ -90,17 +90,17 @@ static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, i
     // can we assume this?
     //	if (dd == Cudd_ReadZero(ddman)) return;
 
-    if (level == num_vars) {
+    if (level == vars.size()) {
       ptr->e = NULL;
       ptr->t = NULL;
     }
-    else if (vars[level]->index < dd->index) {
-      ptr->e = build_odd_rec(ddman, dd, level+1, vars, num_vars, tables);
+    else if (vars.get()[level]->index < dd->index) {
+      ptr->e = build_odd_rec(ddman, dd, level+1, vars, tables);
       ptr->t = ptr->e;
     }
     else {
-      ptr->e = build_odd_rec(ddman, Cudd_E(dd), level+1, vars, num_vars, tables);
-      ptr->t = build_odd_rec(ddman, Cudd_T(dd), level+1, vars, num_vars, tables);
+      ptr->e = build_odd_rec(ddman, Cudd_E(dd), level+1, vars, tables);
+      ptr->t = build_odd_rec(ddman, Cudd_T(dd), level+1, vars, tables);
     }
     ptr->eoff = -1;
     ptr->toff = -1;
