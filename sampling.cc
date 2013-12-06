@@ -666,74 +666,30 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
     }
   }
 
-  int n = 0, c = 0;
-  double logA, logB = 0;
-  if (params.algorithm == SSP) {
-    const auto ssp =
-        SingleSamplingPlan::Create(p0, p1, params.alpha, params.beta);
-    n = ssp.n();
-    c = ssp.c();
+  std::unique_ptr<BernoulliTester> tester;
+  if (params.algorithm == FIXED) {
+    tester.reset(
+        new FixedBernoulliTester(theta, theta, params.fixed_sample_size));
+  } else if (params.algorithm == SSP) {
+    tester.reset(
+        new SingleSamplingBernoulliTester(p0, p1, params.alpha, params.beta));
   } else { /* algorithm == SPRT */
-    logA = -log(params.alpha);
-    /* If p1 is 0, then a beta of 0 can always be guaranteed. */
-    if (p1 > 0.0) {
-      logA += log(1.0 - params.beta);
-    }
-    logB = log(params.beta);
-    /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
-    if (p0 < 1.0) {
-      logB -= log(1.0 - params.alpha);
-    }
+    tester.reset(new SprtBernoulliTester(p0, p1, params.alpha, params.beta));
   }
   std::cout << "Acceptance sampling";
-  if (params.algorithm == SSP) {
-    std::cout << " <" << n << ',' << c << ">";
-  }
-  int m = 0;
-  double d = 0.0;
-  while ((params.algorithm == SSP && d <= c && d + n - m > c)
-	 || (params.algorithm == SPRT && logB < d && d < logA)) {
+  while (!tester->done()) {
     bool s = sample(&dd_man, model, state, dd1, dd2, params, stats);
-    if (s) {
-      if (params.algorithm == SSP) {
-	d += 1.0;
-      } else { /* algorithm == SPRT */
-	if (p1 > 0.0) {
-	  d += log(p1) - log(p0);
-	} else {
-	  d = -std::numeric_limits<double>::infinity();
-	}
-      }
-    } else {
-      if (params.algorithm == SSP) {
-	/* do nothing */
-      } else { /* algorithm == SPRT */
-	if (p0 < 1.0) {
-	  d += log(1.0 - p1) - log(1.0 - p0);
-	} else {
-	  d = std::numeric_limits<double>::infinity();
-	}
-      }
-    }
-    m++;
-    PrintProgress(m);
+    tester->AddObservation(s);
+    PrintProgress(tester->sample().count());
     if (VLOG_IS_ON(2)) {
-      if (params.algorithm == SSP) {
-	LOG(INFO) << m << '\t' << d << '\t' << (c + m - n) << '\t' << c;
-      } else { /* algorithm == SPRT */
-	LOG(INFO) << m << '\t' << d << '\t' << logB << '\t' << logA;
-      }
+      LOG(INFO) << tester->StateToString();
     }
   }
-  std::cout << m << " observations." << std::endl;
-  stats->sample_size.AddObservation(m);
+  std::cout << tester->sample().count() << " observations." << std::endl;
+  stats->sample_size.AddObservation(tester->sample().count());
   Cudd_RecursiveDeref(dd_man.manager(), dd1);
   Cudd_RecursiveDeref(dd_man.manager(), dd2);
-  if (params.algorithm == SSP) {
-    return d > c;
-  } else { /* algorithm == SPRT */
-    return d <= logB;
-  }
+  return tester->accept();
 }
 
 /* Clears the cache of any probabilistic operator. */
