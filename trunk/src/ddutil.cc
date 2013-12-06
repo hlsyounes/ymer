@@ -96,7 +96,7 @@ void DecisionDiagram::Ref() {
 void DecisionDiagram::Deref() {
   if (node_) {
     Cudd_RecursiveDeref(manager_, node_);
-    node_ = NULL;
+    node_ = nullptr;
   }
 }
 
@@ -106,7 +106,7 @@ bool DecisionDiagram::IsConstant() const {
 
 DdNode* DecisionDiagram::release() {
   DdNode* const node = node_;
-  node_ = NULL;
+  node_ = nullptr;
   return node;
 }
 
@@ -296,6 +296,11 @@ VariableArray<BDD> DecisionDiagramManager::GetBddVariableArray(
     variables.push_back(GetBddVariable(i));
   }
   return VariableArray<BDD>(variables);
+}
+
+BDD DecisionDiagramManager::GetCube(const VariableArray<BDD>& variables) const {
+  return BDD(manager_, Cudd_bddComputeCube(manager_, variables.data(), nullptr,
+                                           variables.size()));
 }
 
 int Log2(int n) {
