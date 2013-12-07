@@ -101,16 +101,16 @@ void match_first_moment(ECParameters& params, const Distribution& dist) {
 
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
-DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
-                         const BDD& init, const ADD& rates,
-                         const VariableArray<BDD>& row_variables) {
+BDD reachability_bdd(const DecisionDiagramManager& dd_man,
+                     const BDD& init, const ADD& rates,
+                     const VariableArray<BDD>& row_variables) {
   std::cout << "Computing reachable states";
   /*
    * Precompute variable permutations and cubes.
    */
   size_t nvars = dd_man.GetNumVariables()/2;
-  int* row_to_col = new int[2*nvars];
-  int* col_to_row = new int[2*nvars];
+  std::vector<int> row_to_col(2*nvars);
+  std::vector<int> col_to_row(2*nvars);
   for (size_t i = 0; i < nvars; i++) {
     row_to_col[2*i] = 2*i + 1;
     row_to_col[2*i + 1] = 2*i + 1;
@@ -122,10 +122,8 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
    * Fixpoint computation of reachability.
    */
   BDD trans = rates.StrictThreshold(0);
-  DdNode* solr = init.get();
-  Cudd_Ref(solr);
-  DdNode* solc = Cudd_bddPermute(dd_man.manager(), solr, row_to_col);
-  Cudd_Ref(solc);
+  BDD solr = init;
+  BDD solc = solr.Permutation(row_to_col);
   bool done = false;
   size_t iters = 0;
   while (!done) {
@@ -135,27 +133,14 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
     } else if (iters % 100 == 0) {
       std::cout << '.';
     }
-    DdNode* dda = Cudd_bddAnd(dd_man.manager(), trans.get(), solr);
-    Cudd_Ref(dda);
-    Cudd_RecursiveDeref(dd_man.manager(), solr);
-    DdNode* dde = Cudd_bddExistAbstract(dd_man.manager(), dda, row_cube.get());
-    Cudd_Ref(dde);
-    Cudd_RecursiveDeref(dd_man.manager(), dda);
-    DdNode* ddo = Cudd_bddOr(dd_man.manager(), solc, dde);
-    if (ddo == solc) {
+    BDD next_solc = solc || (trans && solr).ExistAbstract(row_cube);
+    if (next_solc.get() == solc.get()) {
       done = true;
     } else {
-      Cudd_Ref(ddo);
-      Cudd_RecursiveDeref(dd_man.manager(), solc);
-      solc = ddo;
+      solc = next_solc;
     }
-    Cudd_RecursiveDeref(dd_man.manager(), dde);
-    solr = Cudd_bddPermute(dd_man.manager(), solc, col_to_row);
-    Cudd_Ref(solr);
+    solr = solc.Permutation(col_to_row);
   }
-  Cudd_RecursiveDeref(dd_man.manager(), solc);
-  delete row_to_col;
-  delete col_to_row;
   std::cout << ' ' << iters << " iterations." << std::endl;
   return solr;
 }
@@ -902,17 +887,14 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     /*
      * Reachability analysis.
      */
-    reach_bdd_ = ::reachability_bdd(dd_man, init_bdd, ddR, row_variables_);
-    DdNode* reach_add = Cudd_BddToAdd(dd_man.manager(), reach_bdd_);
-    Cudd_Ref(reach_add);
-    DdNode* ddT =
-        Cudd_addApply(dd_man.manager(), Cudd_addTimes, reach_add, ddR.get());
-    Cudd_Ref(ddT);
-    rate_mtbdd_ = ddT;
+    BDD reach_bdd = ::reachability_bdd(dd_man, init_bdd, ddR, row_variables_);
+    ADD reach_add = ADD(reach_bdd);
+    ADD ddT = reach_add * ddR;
+    rate_mtbdd_ = ddT.release();
+    reach_bdd_ = reach_bdd.release();
     /* Build ODD. */
     odd_ = build_odd(dd_man, reach_add, row_variables_);
     init_bdd_ = init_bdd.release();
-    Cudd_RecursiveDeref(dd_man.manager(), reach_add);
   }
 }
 

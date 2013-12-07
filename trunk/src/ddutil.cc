@@ -124,6 +124,15 @@ bool BDD::ValueInState(const std::vector<bool>& state) const {
   return ValueInStateImpl<bool>(node(), state);
 }
 
+BDD BDD::Permutation(const std::vector<int>& permutation) const {
+  CHECK_EQ(ManagerSize(manager()), permutation.size());
+  return BDD(manager(), Cudd_bddPermute(manager(), node(), permutation.data()));
+}
+
+BDD BDD::ExistAbstract(const BDD& cube) const {
+  return BDD(manager(), Cudd_bddExistAbstract(manager(), node(), cube.node()));
+}
+
 BDD BDD::operator!() const {
   return BDD(manager(), Cudd_Not(node()));
 }
