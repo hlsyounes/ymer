@@ -56,8 +56,8 @@ void Expression::destructive_deref(const Expression* e) {
   }
 }
 
-VariableProperties::VariableProperties(int low_bit, int high_bit)
-    : low_bit_(low_bit), high_bit_(high_bit) {
+VariableProperties::VariableProperties(int min_value, int low_bit, int high_bit)
+    : min_value_(min_value), low_bit_(low_bit), high_bit_(high_bit) {
   CHECK_LE(low_bit, high_bit);
 }
 
@@ -111,7 +111,7 @@ void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
   CHECK(i != variable_properties_->end());
   const VariableProperties& p = i->second;
   mtbdd_ = CompileVariable(
-      *manager_, expr.low(), p.low_bit(), p.high_bit(), primed_);
+      *manager_, p.min_value(), p.low_bit(), p.high_bit(), primed_);
 }
 
 void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
@@ -359,8 +359,7 @@ void Variable::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitVariable(*this);
 }
 
-void Variable::SetVariableProperties(int low, int index) {
-  low_ = low;
+void Variable::SetVariableProperties(int index) {
   index_ = index;
 }
 

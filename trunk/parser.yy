@@ -1004,7 +1004,7 @@ static const Variable* declare_variable(const std::string* ident,
     int s = ((start != NULL)
              ? EvaluateConstantExpression(*start, constant_values).value<int>()
              : low);
-    v->SetVariableProperties(low, model->variables().size());
+    v->SetVariableProperties(model->variables().size());
     variable_lows.insert(std::make_pair(v, range.l));
     Expression::ref(range.l);
     variable_highs.insert(std::make_pair(v, range.h));
