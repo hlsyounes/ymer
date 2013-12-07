@@ -36,7 +36,7 @@ static long add_offsets(const DecisionDiagramManager &ddman, ODDNode *dd, int le
 
 //------------------------------------------------------------------------------
 
-ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, const VariableArray<BDD> &vars)
+ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd, const VariableArray<BDD> &vars)
 {
   size_t i;
   ODDNode **tables;
@@ -52,7 +52,7 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, DdNode *dd, const Variab
   num_odd_nodes = 0;
 	
   // call recursive bit
-  res = build_odd_rec(ddman, dd, 0, vars, tables);
+  res = build_odd_rec(ddman, dd.get(), 0, vars, tables);
 	
   // add offsets to odd
   add_offsets(ddman, res, 0, vars.size());

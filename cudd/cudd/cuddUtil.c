@@ -2136,7 +2136,7 @@ Cudd_NextPrime(
 DdNode *
 Cudd_bddComputeCube(
   DdManager * dd,
-  DdNode ** vars,
+  DdNode * const * vars,
   int * phase,
   int  n)
 {

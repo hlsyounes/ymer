@@ -22,7 +22,6 @@
 #ifndef DDUTIL_H_
 #define DDUTIL_H_
 
-#include <memory>
 #include <vector>
 
 class DdManager;
@@ -73,6 +72,13 @@ class BDD : public DecisionDiagram {
 
   // Returns the value of this BDD for the given variable assignment.
   bool ValueInState(const std::vector<bool>& state) const;
+
+  // Returns a permutation of this BDD.
+  BDD Permutation(const std::vector<int>& permutation) const;
+
+  // Returns the BDD that existentially abstracts all the variables in cube from
+  // this BDD.
+  BDD ExistAbstract(const BDD& cube) const;
 
   // Logical operators for BDDs.
   BDD operator!() const;
@@ -155,18 +161,17 @@ class VariableArray {
  public:
   VariableArray();
 
-  size_t size() const { return size_; }
+  std::vector<DdNode*>::size_type size() const { return variables_.size(); }
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
-  DdNode** get() const { return variables_.get(); }
+  DdNode* const * get() const { return variables_.data(); }
 
  private:
   VariableArray(std::vector<DD> variables);
 
-  DdNode** data() const { return variables_.get(); }
+  DdNode* const * data() const { return variables_.data(); }
 
-  std::unique_ptr<DdNode*[]> variables_;
-  size_t size_;
+  std::vector<DdNode*> variables_;
 
   friend class DecisionDiagramManager;
 };
@@ -228,16 +233,13 @@ class DecisionDiagramManager {
 int Log2(int n);
 
 template <typename DD>
-VariableArray<DD>::VariableArray()
-    : size_(0) {
-}
+VariableArray<DD>::VariableArray() = default;
 
 template <typename DD>
-VariableArray<DD>::VariableArray(std::vector<DD> variables)
-    : size_(variables.size()) {
-  variables_.reset(new DdNode*[size_]);
-  for (size_t i = 0; i < size_; ++i) {
-    variables_[i] = variables[i].node();
+VariableArray<DD>::VariableArray(std::vector<DD> variables) {
+  variables_.reserve(variables.size());
+  for (const DD& dd : variables) {
+    variables_.push_back(dd.node());
   }
 }
 

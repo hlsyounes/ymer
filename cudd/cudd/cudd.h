@@ -857,7 +857,7 @@ extern DdNode * Cudd_bddCompose (DdManager *dd, DdNode *f, DdNode *g, int v);
 extern DdNode * Cudd_addCompose (DdManager *dd, DdNode *f, DdNode *g, int v);
 extern DdNode * Cudd_addPermute (DdManager *manager, DdNode *node, int *permut);
 extern DdNode * Cudd_addSwapVariables (DdManager *dd, DdNode *f, DdNode **x, DdNode **y, int n);
-extern DdNode * Cudd_bddPermute (DdManager *manager, DdNode *node, int *permut);
+extern DdNode * Cudd_bddPermute (DdManager *manager, DdNode *node, const int *permut);
 extern DdNode * Cudd_bddVarMap (DdManager *manager, DdNode *f);
 extern int Cudd_SetVarMap (DdManager *manager, DdNode **x, DdNode **y, int n);
 extern DdNode * Cudd_bddSwapVariables (DdManager *dd, DdNode *f, DdNode **x, DdNode **y, int n);
@@ -979,7 +979,7 @@ extern DdGen * Cudd_FirstCube (DdManager *dd, DdNode *f, int **cube, CUDD_VALUE_
 extern int Cudd_NextCube (DdGen *gen, int **cube, CUDD_VALUE_TYPE *value);
 extern DdGen * Cudd_FirstPrime(DdManager *dd, DdNode *l, DdNode *u, int **cube);
 extern int Cudd_NextPrime(DdGen *gen, int **cube);
-extern DdNode * Cudd_bddComputeCube (DdManager *dd, DdNode **vars, int *phase, int n);
+extern DdNode * Cudd_bddComputeCube (DdManager *dd, DdNode * const *vars, int *phase, int n);
 extern DdNode * Cudd_addComputeCube (DdManager *dd, DdNode **vars, int *phase, int n);
 extern DdNode * Cudd_CubeArrayToBdd (DdManager *dd, int *array);
 extern int Cudd_BddToCubeArray (DdManager *dd, DdNode *cube, int *array);

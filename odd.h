@@ -35,7 +35,7 @@ struct ODDNode {
 };
 
 ODDNode *build_odd(const DecisionDiagramManager &ddman,
-                   DdNode *dd, const VariableArray<BDD> &vars);
+                   const ADD &dd, const VariableArray<BDD> &vars);
 int get_num_odd_nodes();
 void free_odd(ODDNode *odd);
 

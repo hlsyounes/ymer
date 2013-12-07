@@ -127,7 +127,7 @@ static int addGeneralVectorComposeHits;
 /*---------------------------------------------------------------------------*/
 
 static DdNode * cuddAddPermuteRecur (DdManager *manager, DdHashTable *table, DdNode *node, int *permut);
-static DdNode * cuddBddPermuteRecur (DdManager *manager, DdHashTable *table, DdNode *node, int *permut);
+static DdNode * cuddBddPermuteRecur (DdManager *manager, DdHashTable *table, DdNode *node, const int *permut);
 static DdNode * cuddBddVarMapRecur (DdManager *manager, DdNode *f);
 static DdNode * cuddAddVectorComposeRecur (DdManager *dd, DdHashTable *table, DdNode *f, DdNode **vector, int deepest);
 static DdNode * cuddAddNonSimComposeRecur (DdManager *dd, DdNode *f, DdNode **vector, DdNode *key, DdNode *cube, int lastsub);
@@ -328,7 +328,7 @@ DdNode *
 Cudd_bddPermute(
   DdManager * manager,
   DdNode * node,
-  int * permut)
+  const int * permut)
 {
     DdHashTable		*table;
     DdNode		*res;
@@ -1147,7 +1147,7 @@ cuddBddPermuteRecur(
   DdManager * manager /* DD manager */,
   DdHashTable * table /* computed table */,
   DdNode * node /* BDD to be reordered */,
-  int * permut /* permutation array */)
+  const int * permut /* permutation array */)
 {
     DdNode	*N,*T,*E;
     DdNode	*res;
