@@ -102,8 +102,7 @@ void match_first_moment(ECParameters& params, const Distribution& dist) {
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
 BDD reachability_bdd(const DecisionDiagramManager& dd_man,
-                     const BDD& init, const ADD& rates,
-                     const VariableArray<BDD>& row_variables) {
+                     const BDD& init, const ADD& rates) {
   std::cout << "Computing reachable states";
   /*
    * Precompute variable permutations and cubes.
@@ -117,7 +116,8 @@ BDD reachability_bdd(const DecisionDiagramManager& dd_man,
     col_to_row[2*i] = 2*i;
     col_to_row[2*i + 1] = 2*i;
   }
-  BDD row_cube = dd_man.GetCube(row_variables);
+  BDD row_cube = dd_man.GetCube(dd_man.GetBddVariableArray(0, 2, 2 * nvars));
+
   /*
    * Fixpoint computation of reachability.
    */
@@ -159,6 +159,7 @@ BDD variable_identities(
     const DecisionDiagramManager& dd_man,
     const BDD& dd_start,
     const Model& model,
+    const std::map<std::string, VariableProperties>& variable_properties,
     const std::set<int>& variables,
     const std::set<std::string>& excluded) {
   BDD ddu = dd_start;
@@ -166,8 +167,8 @@ BDD variable_identities(
        i != variables.rend(); i++) {
     const ParsedVariable& v = model.variables()[*i];
     if (excluded.find(v.name()) == excluded.end()) {
-      auto j = model.variable_properties().find(v.name());
-      CHECK(j != model.variable_properties().end());
+      auto j = variable_properties.find(v.name());
+      CHECK(j != variable_properties.end());
       const VariableProperties& p = j->second;
       ddu = identity_bdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
           && ddu;
@@ -203,27 +204,29 @@ BDD command_bdd(
 
 // Returns a BDD representing the conjunction of dd_start with the BDDs for
 // updates of all variables for the given model not explicitly mentioned.
-BDD variable_updates(const DecisionDiagramManager& manager,
-                     const BDD& dd_start,
-                     const Model& model,
-                     const std::set<const Module*>& touched_modules,
-                     const std::set<std::string>& updated_variables,
-                     int command_index,
-                     const std::map<int, PHData>& ph_commands) {
+BDD variable_updates(
+    const DecisionDiagramManager& manager,
+    const BDD& dd_start,
+    const Model& model,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const std::set<const Module*>& touched_modules,
+    const std::set<std::string>& updated_variables,
+    int command_index,
+    const std::map<int, PHData>& ph_commands) {
   BDD ddu = dd_start;
   // Conjunction with identity BDD for untouched module variables.
   for (int i = model.modules().size() - 1; i >= 0; --i) {
     const Module* module = model.modules()[i];
     if (touched_modules.find(module) != touched_modules.end()) {
-      ddu = variable_identities(
-          manager, ddu, model, model.module_variables(i), updated_variables);
+      ddu = variable_identities(manager, ddu, model, variable_properties,
+                                model.module_variables(i), updated_variables);
     } else {
       for (std::set<int>::const_reverse_iterator vi =
                model.module_variables(i).rbegin();
            vi != model.module_variables(i).rend(); ++vi) {
         const ParsedVariable& v = model.variables()[*vi];
-        auto i = model.variable_properties().find(v.name());
-        CHECK(i != model.variable_properties().end());
+        auto i = variable_properties.find(v.name());
+        CHECK(i != variable_properties.end());
         const VariableProperties& p = i->second;
         ddu = identity_bdd(manager, v.max_value(), p.low_bit(), p.high_bit())
             && ddu;
@@ -231,8 +234,8 @@ BDD variable_updates(const DecisionDiagramManager& manager,
     }
   }
   // Conjunction with identity BDD for untouched global variables.
-  ddu = variable_identities(
-      manager, ddu, model, model.global_variables(), updated_variables);
+  ddu = variable_identities(manager, ddu, model, variable_properties,
+                            model.global_variables(), updated_variables);
   // Conjunction with update rules for phase variables.
   for (std::map<int, PHData>::const_reverse_iterator ci = ph_commands.rbegin();
        ci != ph_commands.rend(); ci++) {
@@ -247,8 +250,7 @@ BDD variable_updates(const DecisionDiagramManager& manager,
 
 /* Constructs a model. */
 Model::Model()
-    : current_module_(kNoModule), rate_mtbdd_(NULL), reach_bdd_(NULL),
-      odd_(NULL), init_bdd_(NULL), init_index_(-1) {
+    : current_module_(kNoModule) {
 }
 
 
@@ -509,16 +511,6 @@ void Model::compile() {
       delete command;
     }
   }
-  variable_properties_.clear();
-  int low_bit = 0;
-  for (std::vector<ParsedVariable>::const_iterator i = variables().begin();
-       i != variables().end(); ++i) {
-    const ParsedVariable& v = *i;
-    int high_bit = low_bit + Log2(v.max_value() - v.min_value());
-    variable_properties_.insert(std::make_pair(
-        v.name(), VariableProperties(low_bit, high_bit)));
-    low_bit = high_bit + 1;
-  }
   commands_.clear();
   command_modules_.clear();
   /*
@@ -590,451 +582,6 @@ void Model::compile() {
   }
 }
 
-
-/* Caches DDs for for this model. */
-void Model::cache_dds(const DecisionDiagramManager& dd_man,
-                      size_t moments) const {
-  if (rate_mtbdd_ == NULL) {
-    std::cout << "Building model...";
-    /*
-     * Precomute DDs for variables and modules.
-     */
-    /* BDD for initial state. */
-    BDD init_bdd = dd_man.GetConstant(true);
-    for (std::vector<ParsedVariable>::const_reverse_iterator i =
-             variables().rbegin();
-	 i != variables().rend(); ++i) {
-      const ParsedVariable& v = *i;
-      auto j = variable_properties().find(v.name());
-      CHECK(j != variable_properties().end());
-      const VariableProperties& p = j->second;
-      BDD dds = variable_mtbdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
-          .Interval(v.init_value(), v.init_value());
-      init_bdd = dds && init_bdd;
-    }
-    /*
-     * Generate phase-type distributions for commands with
-     * non-exponential delay.
-     */
-    size_t nvars = dd_man.GetNumVariables()/2;
-    std::map<int, PHData> ph_commands;
-    for (int i = commands().size() - 1; i >= 0; i--) {
-      const Command& command = *commands_[i];
-      const Distribution& dist = command.delay();
-      if (typeid(dist) != typeid(Exponential)) {
-        PHData data(dd_man);
-	switch (moments) {
-	case 1:
-	  match_first_moment(data.params, dist);
-	  break;
-	case 2:
-	  dist.acph2(data.params2);
-	  data.params.n = 0;
-	  break;
-	case 3:
-	default:
-	  dist.acph(data.params);
-	  break;
-	}
-	int high = ph_phases(data) - 1;
-	if (high > 0) {
-          data.low_bit = nvars;
-          data.high_bit = data.low_bit + Log2(high);
-	  nvars = data.high_bit + 1;
-	  for (int b = data.low_bit; b <= data.high_bit; ++b) {
-	    Cudd_bddNewVar(dd_man.manager());
-	    Cudd_bddNewVar(dd_man.manager());
-	  }
-	  ADD ddv = variable_mtbdd(dd_man, 0, data.low_bit, data.high_bit);
-	  init_bdd = ddv.Interval(0, 0) && init_bdd;
-	  ADD ddvp =
-              variable_primed_mtbdd(dd_man, 0, data.low_bit, data.high_bit);
-	  BDD ddid = identity_bdd(dd_man, 0, data.low_bit, data.high_bit);
-	  /*
-	   * Constructs BDD representing phase update:
-	   *
-	   *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
-	   */
-          data.update_bdd =
-              (bdd(dd_man, variable_properties(), command.guard())
-               || ddv.Interval(0, 0)) &&
-              (primed_bdd(dd_man, variable_properties(), command.guard())
-               || ddvp.Interval(0, 0)) &&
-              (!primed_bdd(dd_man, variable_properties(), command.guard())
-               || ddid);
-	}
-        ph_commands.insert(std::make_pair(i, data));
-      }
-    }
-    /*
-     * Compute rate matrix for all commands.
-     */
-    ADD ddR = dd_man.GetConstant(0);
-    for (int i = commands().size() - 1; i >= 0; i--) {
-      const Command& command = *commands_[i];
-      if (VLOG_IS_ON(2)) {
-	LOG(INFO) << "processing " << command;
-      }
-      /* BDD for guard. */
-      BDD ddg = bdd(dd_man, variable_properties(), command.guard());
-      /* BDD for command. */
-      std::set<std::string> updated_variables;
-      BDD ddc = command_bdd(dd_man, variable_properties(), command,
-                            &updated_variables);
-      const Exponential* exp_delay =
-	dynamic_cast<const Exponential*>(&command.delay());
-      PHData* ph_data =
-          (exp_delay != NULL) ? NULL : &ph_commands.find(i)->second;
-      if (ph_data != NULL && ph_data->params.n == 0) {
-	if (VLOG_IS_ON(2)) {
-	  LOG(INFO) << "n=" << ph_data->params2.n
-		    << " p=" << ph_data->params2.p
-		    << " r1=" << ph_data->params2.r1
-		    << " r2=" << ph_data->params2.r2;
-	}
-	/*
-	 * Event 1: phi & s=0 => s'=1
-	 */
-	ADD ddv = variable_mtbdd(
-            dd_man, 0, ph_data->low_bit, ph_data->high_bit);
-	BDD dds = ddv.Interval(0, 0);
-	ADD ddvp = variable_primed_mtbdd(
-            dd_man, 0, ph_data->low_bit, ph_data->high_bit);
-	BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
-	ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
-	ADD ddr = dd_man.GetConstant(ph_data->params2.p*ph_data->params2.r1);
-	ADD ddq = ADD(ddu) * ddr;
-	if (VLOG_IS_ON(2)) {
-	  Cudd_PrintDebug(dd_man.manager(),
-                          ddq.get(), dd_man.GetNumVariables(), 2);
-	}
-	ddR = ddq +  ddR;
-	/*
-	 * Event 2: phi & s=0 => s'=0 & effects
-	 */
-	BDD ddp = ddvp.Interval(0, 0);
-	ddu = ddc && dds && ddp;
-	ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
-			       updated_variables, i, ph_commands);
-	ddr = dd_man.GetConstant(
-            (1.0 - ph_data->params2.p) * ph_data->params2.r1);
-	ddq = ADD(ddu) * ddr;
-	if (VLOG_IS_ON(2)) {
-	  Cudd_PrintDebug(dd_man.manager(),
-                          ddq.get(), dd_man.GetNumVariables(), 2);
-	}
-	ddR = ddq + ddR;
-	/*
-	 * Event 3: phi & s=n-1 => s'=0 & effects
-	 */
-	dds = ddv.Interval(ph_data->params2.n - 1, ph_data->params2.n - 1);
-	ddu = ddc && dds && ddp;
-	ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
-			       updated_variables, i, ph_commands);
-	ddr = dd_man.GetConstant(ph_data->params2.r2);
-	ddq = ADD(ddu) * ddr;
-	if (VLOG_IS_ON(2)) {
-	  Cudd_PrintDebug(dd_man.manager(),
-                          ddq.get(), dd_man.GetNumVariables(), 2);
-	}
-	ddR = ddq + ddR;
-	if (ph_data->params2.n > 2) {
-	  /*
-	   * Event 4: phi & s>=1 & s<=n-2 => s'=s+1
-	   */
-	  dds = ddv.Interval(1, ph_data->params2.n - 2);
-	  ddu = dds && ddvp == ddv + dd_man.GetConstant(1) && ddg;
-	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
-	  ddr = dd_man.GetConstant(ph_data->params2.r1);
-	  ddq = ADD(ddu) * ddr;
-	  if (VLOG_IS_ON(2)) {
-	    Cudd_PrintDebug(dd_man.manager(),
-                            ddq.get(), dd_man.GetNumVariables(), 2);
-	  }
-	  ddR = ddq + ddR;
-	}
-      } else {
-	if (ph_data != NULL && VLOG_IS_ON(2)) {
-	  LOG(INFO) << "n=" << ph_data->params.n;
-	  if (ph_data->params.n > 2) {
-	    LOG(INFO) << "re=" << ph_data->params.re;
-	  }
-	  LOG(INFO) << "pc=" << ph_data->params.pc
-		    << "rc1=" << ph_data->params.rc1;
-	  if (ph_data->params.pc > 0.0) {
-	    LOG(INFO) << "rc2=" << ph_data->params.rc2;
-	  }
-	}
-	if (ph_data != NULL && ph_data->params.n > 2) {
-	  /*
-	   * Event for phase transition in Erlang part of phase-type
-	   * distribution:
-	   *
-	   *   phi & s<n-2 => s'=s+1
-	   */
-	  ADD ddv = variable_mtbdd(
-              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
-	  BDD dds = ddv.Interval(0, ph_data->params.n - 3);
-	  ADD ddvp = variable_primed_mtbdd(
-              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
-	  ADD ddp = ddv + dd_man.GetConstant(1);
-	  BDD ddu = dds && ddvp == ddp && ddg;
-	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
-	  ADD ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.re);
-	  if (VLOG_IS_ON(2)) {
-	    Cudd_PrintDebug(dd_man.manager(),
-                            ddq.get(), dd_man.GetNumVariables(), 2);
-	  }
-	  ddR = ddq + ddR;
-	}
-	if (ph_data != NULL && ph_data->params.pc > 0.0) {
-	  /*
-	   * Event 1 for phase transition in Coxian part of phase-type
-	   * distribution:
-	   *
-	   *   phi & s=n-2 => s'=n-1
-	   */
-	  ADD ddv = variable_mtbdd(
-              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
-	  BDD dds = ddv.Interval(ph_data->params.n - 2, ph_data->params.n - 2);
-	  ADD ddvp = variable_primed_mtbdd(
-              dd_man, 0, ph_data->low_bit, ph_data->high_bit);
-	  BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
-	  ddu = dds && ddu && ddg;
-	  ddu = variable_updates(dd_man, ddu, *this, {}, {}, i, ph_commands);
-	  ADD ddr = dd_man.GetConstant(ph_data->params.pc*ph_data->params.rc1);
-	  ADD ddq = ADD(ddu) * ddr;
-	  if (VLOG_IS_ON(2)) {
-	    Cudd_PrintDebug(dd_man.manager(),
-                            ddq.get(), dd_man.GetNumVariables(), 2);
-	  }
-	  ddR = ddq + ddR;
-	  /*
-	   * Event 2 for phase transition in Coxian part of phase-type
-	   * distribution:
-	   *
-	   *   phi & s=n-2 => s'=0 & effects
-	   */
-	  BDD ddp = ddvp.Interval(0, 0);
-	  ddu = ddc && dds && ddp;
-	  ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
-				 updated_variables, i, ph_commands);
-	  ddr = dd_man.GetConstant(
-              (1.0 - ph_data->params.pc)*ph_data->params.rc1);
-	  ddq = ADD(ddu) * ddr;
-	  if (VLOG_IS_ON(2)) {
-	    Cudd_PrintDebug(dd_man.manager(),
-                            ddq.get(), dd_man.GetNumVariables(), 2);
-	  }
-	  ddR = ddq + ddR;
-	  /*
-	   * Event 3 for phase transition in Coxian part of phase-type
-	   * distribution:
-	   *
-	   *   phi & s=n-1 => s'=0 & effects
-	   */
-	  dds = ddv.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
-	  ddu = ddc && dds && ddp;
-	  ddu = variable_updates(dd_man, ddu, *this, command_modules_[i],
-				 updated_variables, i, ph_commands);
-	  ddq = ADD(ddu) * dd_man.GetConstant(ph_data->params.rc2);
-	  if (VLOG_IS_ON(2)) {
-	    Cudd_PrintDebug(dd_man.manager(),
-                            ddq.get(), dd_man.GetNumVariables(), 2);
-	  }
-	  ddR = ddq + ddR;
-	} else {
-	  /*
-	   * Event for exponential (or 1-phase Coxian) distribution.
-	   */
-	  BDD dda = dd_man.GetConstant(false);
-	  if (ph_data != NULL && ph_data->low_bit >= 0) {
-	    /* Coxian: s=n-2 => s'=0 */
-	    BDD dds = variable_mtbdd(
-                dd_man, 0, ph_data->low_bit, ph_data->high_bit)
-                .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
-	    BDD ddp = variable_primed_mtbdd(
-                dd_man, 0, ph_data->low_bit, ph_data->high_bit)
-                .Interval(0, 0);
-	    dda = dds && ddp;
-	    dda = variable_updates(dd_man, dda, *this, command_modules_[i],
-				   updated_variables, i, ph_commands);
-	  } else {
-	    dda = dd_man.GetConstant(true);
-	    dda = variable_updates(dd_man, dda, *this, command_modules_[i],
-				   updated_variables, i, ph_commands);
-	  }
-	  BDD ddu = ddc && dda;
-	  ADD ddr = (exp_delay != NULL)
-              ? mtbdd(dd_man, variable_properties(), exp_delay->rate())
-              : dd_man.GetConstant(ph_data->params.rc1);
-	  ADD ddq = ADD(ddu) * ddr;
-	  if (VLOG_IS_ON(2)) {
-	    Cudd_PrintDebug(dd_man.manager(),
-                            ddq.get(), dd_man.GetNumVariables(), 2);
-	  }
-	  ddR = ddq + ddR;
-	}
-      }
-    }
-    std::cout << dd_man.GetNumVariables() << " variables." << std::endl;
-    /*
-     * Collect row and column variables.
-     */
-    nvars = dd_man.GetNumVariables()/2;
-    row_variables_ = dd_man.GetBddVariableArray(0, 2, 2 * nvars);
-    column_variables_ = dd_man.GetBddVariableArray(1, 2, 2 * nvars);
-    /*
-     * Reachability analysis.
-     */
-    BDD reach_bdd = ::reachability_bdd(dd_man, init_bdd, ddR, row_variables_);
-    ADD reach_add = ADD(reach_bdd);
-    ADD ddT = reach_add * ddR;
-    rate_mtbdd_ = ddT.release();
-    reach_bdd_ = reach_bdd.release();
-    /* Build ODD. */
-    odd_ = build_odd(dd_man, reach_add, row_variables_);
-    init_bdd_ = init_bdd.release();
-  }
-}
-
-
-/* Returns an MTBDD representing the rate matrix for this model. */
-DdNode* Model::rate_mtbdd() const {
-  if (rate_mtbdd_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  Cudd_Ref(rate_mtbdd_);
-  return rate_mtbdd_;
-}
-
-
-/* Returns a reachability BDD for this model. */
-DdNode* Model::reachability_bdd() const {
-  if (reach_bdd_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  Cudd_Ref(reach_bdd_);
-  return reach_bdd_;
-}
-
-
-/* Returns an ODD for this model. */
-ODDNode* Model::odd() const {
-  if (odd_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  return odd_;
-}
-
-
-/* Returns a BDD representing the initial state for this model. */
-DdNode* Model::init_bdd() const {
-  if (init_bdd_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  Cudd_Ref(init_bdd_);
-  return init_bdd_;
-}
-
-
-/* Returns the index associated with the initial state for this model. */
-int Model::init_index(const DecisionDiagramManager& dd_man) const {
-  if (init_index_ == -1) {
-    if (init_bdd_ == NULL) {
-      throw std::logic_error("must cache DDs before use");
-    }
-    DdNode* init_add_ = Cudd_BddToAdd(dd_man.manager(), init_bdd_);
-    Cudd_Ref(init_add_);
-    DdNode* d = init_add_;
-    ODDNode* o = odd_;
-    init_index_ = 0;
-    size_t nvars = dd_man.GetNumVariables()/2;
-    for (size_t i = 1; i <= nvars; i++) {
-      bool bit;
-      if (i == nvars) {
-	bit = (Cudd_T(d) == Cudd_ReadOne(dd_man.manager()));
-      } else {
-	DdNode* t = Cudd_T(d);
-	if (Cudd_IsConstant(t)) {
-	  bit = false;
-	  d = Cudd_E(d);
-	} else {
-	  bit = true;
-	  d = t;
-	}
-      }
-      if (bit) {
-	init_index_ += o->eoff;
-	o = o->t;
-      } else {
-	o = o->e;
-      }
-    }
-    Cudd_RecursiveDeref(dd_man.manager(), init_add_);
-  }
-  return init_index_;
-}
-
-BDD Model::state_bdd(const DecisionDiagramManager& dd_man,
-                     const std::vector<int>& state) const {
-  BDD dds = dd_man.GetConstant(true);
-  for (int i = variables_.size() - 1; i >= 0; --i) {
-    const ParsedVariable& v = variables_[i];
-    auto j = variable_properties().find(v.name());
-    CHECK(j != variable_properties().end());
-    const VariableProperties& p = j->second;
-    const int value = state.at(i);
-    dds = variable_mtbdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
-        .Interval(value, value) && dds;
-  }
-  return dds;
-}
-
-
-/* Returns the number of states for this model. */
-double Model::num_states(const DecisionDiagramManager& dd_man) const {
-  if (reach_bdd_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  return Cudd_CountMinterm(dd_man.manager(),
-                           reach_bdd_, dd_man.GetNumVariables()/2);
-}
-
-
-/* Returns the number of transitions for this model. */
-double Model::num_transitions(const DecisionDiagramManager& dd_man) const {
-  if (rate_mtbdd_ == NULL) {
-    throw std::logic_error("must cache DDs before use");
-  }
-  return Cudd_CountMinterm(dd_man.manager(),
-                           rate_mtbdd_, dd_man.GetNumVariables());
-}
-
-
-/* Releases all DDs cached for this model. */
-void Model::uncache_dds(const DecisionDiagramManager& dd_man) const {
-  if (rate_mtbdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), rate_mtbdd_);
-    rate_mtbdd_ = NULL;
-  }
-  if (reach_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), reach_bdd_);
-    reach_bdd_ = NULL;
-  }
-  free_odd(odd_);
-  odd_ = NULL;
-  if (init_bdd_ != NULL) {
-    Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
-    init_bdd_ = NULL;
-  }
-  init_index_ = -1;
-  row_variables_ = VariableArray<BDD>();
-  column_variables_ = VariableArray<BDD>();
-}
-
-
-/* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m) {
   os << "stochastic";
   std::set<int>::const_iterator vi =
@@ -1077,4 +624,369 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
     os << std::endl << std::endl << "endmodule";
   }
   return os;
+}
+
+DecisionDiagramModel::DecisionDiagramModel(
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const ADD& rate_matrix, const BDD& reachable_states,
+    const BDD& initial_state, int initial_state_index, ODDNode* odd)
+    : variable_properties_(variable_properties),
+      rate_matrix_(rate_matrix), reachable_states_(reachable_states),
+      initial_state_(initial_state), initial_state_index_(initial_state_index),
+      odd_(odd) {
+}
+
+DecisionDiagramModel::~DecisionDiagramModel() {
+  free_odd(odd_);
+}
+
+namespace {
+
+int GetInitIndex(const DecisionDiagramManager& dd_man,
+                 const BDD& initial_state, ODDNode* odd) {
+  int init_index = 0;
+  ADD init_add(initial_state);
+  DdNode* d = init_add.get();
+  ODDNode* o = odd;
+  size_t nvars = dd_man.GetNumVariables() / 2;
+  for (size_t i = 1; i <= nvars; i++) {
+    bool bit;
+    if (i == nvars) {
+      bit = (Cudd_T(d) == Cudd_ReadOne(dd_man.manager()));
+    } else {
+      DdNode* t = Cudd_T(d);
+      if (Cudd_IsConstant(t)) {
+        bit = false;
+        d = Cudd_E(d);
+      } else {
+        bit = true;
+        d = t;
+      }
+    }
+    if (bit) {
+      init_index += o->eoff;
+      o = o->t;
+    } else {
+      o = o->e;
+    }
+  }
+  return init_index;
+}
+
+}  // namespace
+
+DecisionDiagramModel DecisionDiagramModel::Create(
+    const DecisionDiagramManager& manager, size_t moments, const Model& model) {
+  std::cout << "Building model...";
+  /*
+   * Precomute DDs for variables and modules.
+   */
+  std::map<std::string, VariableProperties> variable_properties;
+  int low_bit = 0;
+  for (auto i = model.variables().begin(); i != model.variables().end(); ++i) {
+    const ParsedVariable& v = *i;
+    int high_bit = low_bit + Log2(v.max_value() - v.min_value());
+    variable_properties.insert(std::make_pair(
+        v.name(), VariableProperties(low_bit, high_bit)));
+    low_bit = high_bit + 1;
+  }
+  /* BDD for initial state. */
+  BDD init_bdd = manager.GetConstant(true);
+  for (auto i = model.variables().rbegin();
+       i != model.variables().rend(); ++i) {
+    const ParsedVariable& v = *i;
+    auto j = variable_properties.find(v.name());
+    CHECK(j != variable_properties.end());
+    const VariableProperties& p = j->second;
+    BDD dds = variable_mtbdd(manager, v.min_value(), p.low_bit(), p.high_bit())
+        .Interval(v.init_value(), v.init_value());
+    init_bdd = dds && init_bdd;
+  }
+  /*
+   * Generate phase-type distributions for commands with
+   * non-exponential delay.
+   */
+  size_t nvars = manager.GetNumVariables()/2;
+  std::map<int, PHData> ph_commands;
+  for (int i = model.commands().size() - 1; i >= 0; i--) {
+    const Command& command = *model.commands()[i];
+    const Distribution& dist = command.delay();
+    if (typeid(dist) != typeid(Exponential)) {
+      PHData data(manager);
+      switch (moments) {
+	case 1:
+	  match_first_moment(data.params, dist);
+	  break;
+	case 2:
+	  dist.acph2(data.params2);
+	  data.params.n = 0;
+	  break;
+	case 3:
+	default:
+	  dist.acph(data.params);
+	  break;
+      }
+      int high = ph_phases(data) - 1;
+      if (high > 0) {
+        data.low_bit = nvars;
+        data.high_bit = data.low_bit + Log2(high);
+        nvars = data.high_bit + 1;
+        for (int b = data.low_bit; b <= data.high_bit; ++b) {
+          Cudd_bddNewVar(manager.manager());
+          Cudd_bddNewVar(manager.manager());
+        }
+        ADD ddv = variable_mtbdd(manager, 0, data.low_bit, data.high_bit);
+        init_bdd = ddv.Interval(0, 0) && init_bdd;
+        ADD ddvp =
+            variable_primed_mtbdd(manager, 0, data.low_bit, data.high_bit);
+        BDD ddid = identity_bdd(manager, 0, data.low_bit, data.high_bit);
+        /*
+         * Constructs BDD representing phase update:
+         *
+         *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
+         */
+        data.update_bdd =
+            (bdd(manager, variable_properties, command.guard())
+             || ddv.Interval(0, 0)) &&
+            (primed_bdd(manager, variable_properties, command.guard())
+             || ddvp.Interval(0, 0)) &&
+            (!primed_bdd(manager, variable_properties, command.guard())
+             || ddid);
+      }
+      ph_commands.insert(std::make_pair(i, data));
+    }
+  }
+  /*
+   * Compute rate matrix for all commands.
+   */
+  ADD ddR = manager.GetConstant(0);
+  for (int i = model.commands().size() - 1; i >= 0; i--) {
+    const Command& command = *model.commands()[i];
+    if (VLOG_IS_ON(2)) {
+      LOG(INFO) << "processing " << command;
+    }
+    /* BDD for guard. */
+    BDD ddg = bdd(manager, variable_properties, command.guard());
+    /* BDD for command. */
+    std::set<std::string> updated_variables;
+    BDD ddc = command_bdd(manager, variable_properties, command,
+                          &updated_variables);
+    const Exponential* exp_delay =
+	dynamic_cast<const Exponential*>(&command.delay());
+    PHData* ph_data =
+        (exp_delay != NULL) ? NULL : &ph_commands.find(i)->second;
+    if (ph_data != NULL && ph_data->params.n == 0) {
+      if (VLOG_IS_ON(2)) {
+        LOG(INFO) << "n=" << ph_data->params2.n
+                  << " p=" << ph_data->params2.p
+                  << " r1=" << ph_data->params2.r1
+                  << " r2=" << ph_data->params2.r2;
+      }
+      /*
+       * Event 1: phi & s=0 => s'=1
+       */
+      ADD ddv = variable_mtbdd(
+          manager, 0, ph_data->low_bit, ph_data->high_bit);
+      BDD dds = ddv.Interval(0, 0);
+      ADD ddvp = variable_primed_mtbdd(
+          manager, 0, ph_data->low_bit, ph_data->high_bit);
+      BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
+      ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
+                             i, ph_commands);
+      ADD ddr = manager.GetConstant(ph_data->params2.p*ph_data->params2.r1);
+      ADD ddq = ADD(ddu) * ddr;
+      if (VLOG_IS_ON(2)) {
+        Cudd_PrintDebug(manager.manager(),
+                        ddq.get(), manager.GetNumVariables(), 2);
+      }
+      ddR = ddq +  ddR;
+      /*
+       * Event 2: phi & s=0 => s'=0 & effects
+       */
+      BDD ddp = ddvp.Interval(0, 0);
+      ddu = ddc && dds && ddp;
+      ddu = variable_updates(manager, ddu, model, variable_properties,
+                             model.command_modules()[i], updated_variables, i,
+                             ph_commands);
+      ddr = manager.GetConstant(
+          (1.0 - ph_data->params2.p) * ph_data->params2.r1);
+      ddq = ADD(ddu) * ddr;
+      if (VLOG_IS_ON(2)) {
+        Cudd_PrintDebug(manager.manager(),
+                        ddq.get(), manager.GetNumVariables(), 2);
+      }
+      ddR = ddq + ddR;
+      /*
+       * Event 3: phi & s=n-1 => s'=0 & effects
+       */
+      dds = ddv.Interval(ph_data->params2.n - 1, ph_data->params2.n - 1);
+      ddu = ddc && dds && ddp;
+      ddu = variable_updates(manager, ddu, model, variable_properties,
+                             model.command_modules()[i], updated_variables, i,
+                             ph_commands);
+      ddr = manager.GetConstant(ph_data->params2.r2);
+      ddq = ADD(ddu) * ddr;
+      if (VLOG_IS_ON(2)) {
+        Cudd_PrintDebug(manager.manager(),
+                        ddq.get(), manager.GetNumVariables(), 2);
+      }
+      ddR = ddq + ddR;
+      if (ph_data->params2.n > 2) {
+        /*
+         * Event 4: phi & s>=1 & s<=n-2 => s'=s+1
+         */
+        dds = ddv.Interval(1, ph_data->params2.n - 2);
+        ddu = dds && ddvp == ddv + manager.GetConstant(1) && ddg;
+        ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
+                               i, ph_commands);
+        ddr = manager.GetConstant(ph_data->params2.r1);
+        ddq = ADD(ddu) * ddr;
+        if (VLOG_IS_ON(2)) {
+          Cudd_PrintDebug(manager.manager(),
+                          ddq.get(), manager.GetNumVariables(), 2);
+        }
+        ddR = ddq + ddR;
+      }
+    } else {
+      if (ph_data != NULL && VLOG_IS_ON(2)) {
+        LOG(INFO) << "n=" << ph_data->params.n;
+        if (ph_data->params.n > 2) {
+          LOG(INFO) << "re=" << ph_data->params.re;
+        }
+        LOG(INFO) << "pc=" << ph_data->params.pc
+                  << "rc1=" << ph_data->params.rc1;
+        if (ph_data->params.pc > 0.0) {
+          LOG(INFO) << "rc2=" << ph_data->params.rc2;
+        }
+      }
+      if (ph_data != NULL && ph_data->params.n > 2) {
+        /*
+         * Event for phase transition in Erlang part of phase-type
+         * distribution:
+         *
+         *   phi & s<n-2 => s'=s+1
+         */
+        ADD ddv = variable_mtbdd(
+            manager, 0, ph_data->low_bit, ph_data->high_bit);
+        BDD dds = ddv.Interval(0, ph_data->params.n - 3);
+        ADD ddvp = variable_primed_mtbdd(
+            manager, 0, ph_data->low_bit, ph_data->high_bit);
+        ADD ddp = ddv + manager.GetConstant(1);
+        BDD ddu = dds && ddvp == ddp && ddg;
+        ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
+                               i, ph_commands);
+        ADD ddq = ADD(ddu) * manager.GetConstant(ph_data->params.re);
+        if (VLOG_IS_ON(2)) {
+          Cudd_PrintDebug(manager.manager(),
+                          ddq.get(), manager.GetNumVariables(), 2);
+        }
+        ddR = ddq + ddR;
+      }
+      if (ph_data != NULL && ph_data->params.pc > 0.0) {
+        /*
+         * Event 1 for phase transition in Coxian part of phase-type
+         * distribution:
+         *
+         *   phi & s=n-2 => s'=n-1
+         */
+        ADD ddv = variable_mtbdd(
+            manager, 0, ph_data->low_bit, ph_data->high_bit);
+        BDD dds = ddv.Interval(ph_data->params.n - 2, ph_data->params.n - 2);
+        ADD ddvp = variable_primed_mtbdd(
+            manager, 0, ph_data->low_bit, ph_data->high_bit);
+        BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
+        ddu = dds && ddu && ddg;
+        ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
+                               i, ph_commands);
+        ADD ddr = manager.GetConstant(ph_data->params.pc*ph_data->params.rc1);
+        ADD ddq = ADD(ddu) * ddr;
+        if (VLOG_IS_ON(2)) {
+          Cudd_PrintDebug(manager.manager(),
+                          ddq.get(), manager.GetNumVariables(), 2);
+        }
+        ddR = ddq + ddR;
+        /*
+         * Event 2 for phase transition in Coxian part of phase-type
+         * distribution:
+         *
+         *   phi & s=n-2 => s'=0 & effects
+         */
+        BDD ddp = ddvp.Interval(0, 0);
+        ddu = ddc && dds && ddp;
+        ddu = variable_updates(manager, ddu, model, variable_properties,
+                               model.command_modules()[i], updated_variables, i,
+                               ph_commands);
+        ddr = manager.GetConstant(
+            (1.0 - ph_data->params.pc)*ph_data->params.rc1);
+        ddq = ADD(ddu) * ddr;
+        if (VLOG_IS_ON(2)) {
+          Cudd_PrintDebug(manager.manager(),
+                          ddq.get(), manager.GetNumVariables(), 2);
+        }
+        ddR = ddq + ddR;
+        /*
+         * Event 3 for phase transition in Coxian part of phase-type
+         * distribution:
+         *
+         *   phi & s=n-1 => s'=0 & effects
+         */
+        dds = ddv.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
+        ddu = ddc && dds && ddp;
+        ddu = variable_updates(manager, ddu, model, variable_properties,
+                               model.command_modules()[i], updated_variables, i,
+                               ph_commands);
+        ddq = ADD(ddu) * manager.GetConstant(ph_data->params.rc2);
+        if (VLOG_IS_ON(2)) {
+          Cudd_PrintDebug(manager.manager(),
+                          ddq.get(), manager.GetNumVariables(), 2);
+        }
+        ddR = ddq + ddR;
+      } else {
+        /*
+         * Event for exponential (or 1-phase Coxian) distribution.
+         */
+        BDD dda = manager.GetConstant(false);
+        if (ph_data != NULL && ph_data->low_bit >= 0) {
+          /* Coxian: s=n-2 => s'=0 */
+          BDD dds = variable_mtbdd(
+              manager, 0, ph_data->low_bit, ph_data->high_bit)
+              .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
+          BDD ddp = variable_primed_mtbdd(
+              manager, 0, ph_data->low_bit, ph_data->high_bit)
+              .Interval(0, 0);
+          dda = dds && ddp;
+          dda = variable_updates(manager, dda, model, variable_properties,
+                                 model.command_modules()[i], updated_variables,
+                                 i, ph_commands);
+        } else {
+          dda = manager.GetConstant(true);
+          dda = variable_updates(manager, dda, model, variable_properties,
+                                 model.command_modules()[i], updated_variables,
+                                 i, ph_commands);
+        }
+        BDD ddu = ddc && dda;
+        ADD ddr = (exp_delay != NULL)
+            ? mtbdd(manager, variable_properties, exp_delay->rate())
+            : manager.GetConstant(ph_data->params.rc1);
+        ADD ddq = ADD(ddu) * ddr;
+        if (VLOG_IS_ON(2)) {
+          Cudd_PrintDebug(manager.manager(),
+                          ddq.get(), manager.GetNumVariables(), 2);
+        }
+        ddR = ddq + ddR;
+      }
+    }
+  }
+  std::cout << manager.GetNumVariables() << " variables." << std::endl;
+  /*
+   * Reachability analysis.
+   */
+  BDD reach_bdd = reachability_bdd(manager, init_bdd, ddR);
+  ADD reach_add = ADD(reach_bdd);
+  ADD rate_matrix = reach_add * ddR;
+  /* Build ODD. */
+  ODDNode* odd = build_odd(manager, reach_add);
+  int init_index = GetInitIndex(manager, init_bdd, odd);
+  return DecisionDiagramModel(variable_properties, rate_matrix, reach_bdd,
+                              init_bdd, init_index, odd);
 }
