@@ -1335,13 +1335,13 @@ int main(int argc, char* argv[]) {
                 << std::endl
                 << "Transitions: " << global_model->num_transitions(dd_man)
                 << std::endl;
-      DdNode* ddR = global_model->rate_mtbdd(dd_man);
+      DdNode* ddR = global_model->rate_mtbdd();
       std::cout << "Rate matrix";
       Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
       Cudd_RecursiveDeref(dd_man.manager(), ddR);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
-      DdNode* init = global_model->init_bdd(dd_man);
+      DdNode* init = global_model->init_bdd();
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
@@ -1425,7 +1425,7 @@ int main(int argc, char* argv[]) {
                 << std::endl
                 << "Transitions: " << global_model->num_transitions(dd_man)
                 << std::endl;
-      DdNode* ddR = global_model->rate_mtbdd(dd_man);
+      DdNode* ddR = global_model->rate_mtbdd();
       std::cout << "Rate matrix";
       Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
       Cudd_RecursiveDeref(dd_man.manager(), ddR);

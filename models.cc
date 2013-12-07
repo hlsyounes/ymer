@@ -102,7 +102,7 @@ void match_first_moment(ECParameters& params, const Distribution& dist) {
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
 DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
-                         DdNode* init, const ADD& rates,
+                         const BDD& init, const ADD& rates,
                          const VariableArray<BDD>& row_variables) {
   std::cout << "Computing reachable states";
   /*
@@ -122,7 +122,7 @@ DdNode* reachability_bdd(const DecisionDiagramManager& dd_man,
    * Fixpoint computation of reachability.
    */
   BDD trans = rates.StrictThreshold(0);
-  DdNode* solr = init;
+  DdNode* solr = init.get();
   Cudd_Ref(solr);
   DdNode* solc = Cudd_bddPermute(dd_man.manager(), solr, row_to_col);
   Cudd_Ref(solc);
@@ -615,8 +615,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
      * Precomute DDs for variables and modules.
      */
     /* BDD for initial state. */
-    init_bdd_ = Cudd_ReadOne(dd_man.manager());
-    Cudd_Ref(init_bdd_);
+    BDD init_bdd = dd_man.GetConstant(true);
     for (std::vector<ParsedVariable>::const_reverse_iterator i =
              variables().rbegin();
 	 i != variables().rend(); ++i) {
@@ -626,10 +625,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
       const VariableProperties& p = j->second;
       BDD dds = variable_mtbdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
           .Interval(v.init_value(), v.init_value());
-      DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
-      Cudd_Ref(dda);
-      Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
-      init_bdd_ = dda;
+      init_bdd = dds && init_bdd;
     }
     /*
      * Generate phase-type distributions for commands with
@@ -665,11 +661,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
 	    Cudd_bddNewVar(dd_man.manager());
 	  }
 	  ADD ddv = variable_mtbdd(dd_man, 0, data.low_bit, data.high_bit);
-	  BDD dds = ddv.Interval(0, 0);
-	  DdNode* dda = Cudd_bddAnd(dd_man.manager(), dds.get(), init_bdd_);
-	  Cudd_Ref(dda);
-	  Cudd_RecursiveDeref(dd_man.manager(), init_bdd_);
-	  init_bdd_ = dda;
+	  init_bdd = ddv.Interval(0, 0) && init_bdd;
 	  ADD ddvp =
               variable_primed_mtbdd(dd_man, 0, data.low_bit, data.high_bit);
 	  BDD ddid = identity_bdd(dd_man, 0, data.low_bit, data.high_bit);
@@ -910,7 +902,7 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     /*
      * Reachability analysis.
      */
-    reach_bdd_ = ::reachability_bdd(dd_man, init_bdd_, ddR, row_variables_);
+    reach_bdd_ = ::reachability_bdd(dd_man, init_bdd, ddR, row_variables_);
     DdNode* reach_add = Cudd_BddToAdd(dd_man.manager(), reach_bdd_);
     Cudd_Ref(reach_add);
     DdNode* ddT =
@@ -919,13 +911,14 @@ void Model::cache_dds(const DecisionDiagramManager& dd_man,
     rate_mtbdd_ = ddT;
     /* Build ODD. */
     odd_ = build_odd(dd_man, reach_add, row_variables_);
+    init_bdd_ = init_bdd.release();
     Cudd_RecursiveDeref(dd_man.manager(), reach_add);
   }
 }
 
 
 /* Returns an MTBDD representing the rate matrix for this model. */
-DdNode* Model::rate_mtbdd(const DecisionDiagramManager& dd_man) const {
+DdNode* Model::rate_mtbdd() const {
   if (rate_mtbdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -935,7 +928,7 @@ DdNode* Model::rate_mtbdd(const DecisionDiagramManager& dd_man) const {
 
 
 /* Returns a reachability BDD for this model. */
-DdNode* Model::reachability_bdd(const DecisionDiagramManager& dd_man) const {
+DdNode* Model::reachability_bdd() const {
   if (reach_bdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -945,7 +938,7 @@ DdNode* Model::reachability_bdd(const DecisionDiagramManager& dd_man) const {
 
 
 /* Returns an ODD for this model. */
-ODDNode* Model::odd(const DecisionDiagramManager& dd_man) const {
+ODDNode* Model::odd() const {
   if (odd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
@@ -954,7 +947,7 @@ ODDNode* Model::odd(const DecisionDiagramManager& dd_man) const {
 
 
 /* Returns a BDD representing the initial state for this model. */
-DdNode* Model::init_bdd(const DecisionDiagramManager& dd_man) const {
+DdNode* Model::init_bdd() const {
   if (init_bdd_ == NULL) {
     throw std::logic_error("must cache DDs before use");
   }
