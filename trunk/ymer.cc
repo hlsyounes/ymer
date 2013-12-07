@@ -1100,7 +1100,7 @@ int main(int argc, char* argv[]) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
 	      msg.value = pf->sample(nullptr, *global_model, init_state,
-                                     nullptr, nullptr, nested_params, &stats);
+                                     nested_params, &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {

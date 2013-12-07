@@ -456,18 +456,26 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Build HDD for matrix.
    */
-  std::cout << "Building hybrid MTBDD matrix...";
+  if (StateFormula::formula_level() == 1) {
+    std::cout << "Building hybrid MTBDD matrix...";
+  }
   ADD ddR = dd_model.rate_matrix() * ADD(maybe);
   HDDMatrix* hddm = build_hdd_matrix(dd_model.manager(), ddR, odd);
-  std::cout << hddm->num_nodes << " nodes." << std::endl;
+  if (StateFormula::formula_level() == 1) {
+    std::cout << hddm->num_nodes << " nodes." << std::endl;
+  }
 
   /*
    * Add sparse bits.
    */
-  std::cout << "Adding sparse bits...";
+  if (StateFormula::formula_level() == 1) {
+    std::cout << "Adding sparse bits...";
+  }
   add_sparse_bits(hddm);
-  std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
-            << std::endl;
+  if (StateFormula::formula_level() == 1) {
+    std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
+              << std::endl;
+  }
 
   /* Get vector of diagonals. */
   double* diags = hdd_negative_row_sums(hddm, nstates);
@@ -508,25 +516,33 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   int left, right;
   double* weights;
   double weight_sum;
-  std::cout << "Uniformization: " << max_diag << "*" << time << " = "
-            << (max_diag*time) << std::endl;
+  if (StateFormula::formula_level() == 1) {
+    std::cout << "Uniformization: " << max_diag << "*" << time << " = "
+              << (max_diag*time) << std::endl;
+  }
   fox_glynn_weighter(left, right, weights, weight_sum,
 		     1.01*max_diag*time, params.epsilon);
-  std::cout << "Fox-Glynn: left = " << left << ", right = " << right
-            << std::endl;
+  if (StateFormula::formula_level() == 1) {
+    std::cout << "Fox-Glynn: left = " << left << ", right = " << right
+              << std::endl;
+  }
 
   /*
    * Iterations before left bound to update vector.
    */
-  std::cout << "Computing probabilities";
+  if (StateFormula::formula_level() == 1) {
+    std::cout << "Computing probabilities";
+  }
   int iters;
   bool done = false;
   bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
-    if (iters % 1000 == 0) {
-      std::cout << ':';
-    } else if (iters % 100 == 0) {
-      std::cout << '.';
+    if (StateFormula::formula_level() == 1) {
+      if (iters % 1000 == 0) {
+        std::cout << ':';
+      } else if (iters % 100 == 0) {
+        std::cout << '.';
+      }
     }
     /*
      * Matrix vector multiplication.
@@ -574,10 +590,12 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
    * Accumulate weights.
    */
   for (; iters <= right && !done; iters++) {
-    if (iters % 1000 == 0) {
-      std::cout << ':';
-    } else if (iters % 100 == 0) {
-      std::cout << '.';
+    if (StateFormula::formula_level() == 1) {
+      if (iters % 1000 == 0) {
+        std::cout << ':';
+      } else if (iters % 100 == 0) {
+        std::cout << '.';
+      }
     }
     if (iters > 0) {
       /*
@@ -668,13 +686,15 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   if (iters > right) {
     iters = right;
   }
-  std::cout << ' ' << iters << " iterations." << std::endl;
+  if (StateFormula::formula_level() == 1) {
+    std::cout << ' ' << iters << " iterations." << std::endl;
+  }
   if (estimate) {
     std::cout.precision(10);
     std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
     std::cout.precision(6);
   }
-  if (steady) {
+  if (steady && StateFormula::formula_level() == 1) {
     std::cout << "Steady state detected." << std::endl;
   }
   /*
