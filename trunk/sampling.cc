@@ -95,15 +95,14 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
 }
 
 /* Verifies this state formula using the statistical engine. */
-bool Conjunction::verify(const DecisionDiagramManager* manager,
-                         const DecisionDiagramModel* dd_model,
+bool Conjunction::verify(const DecisionDiagramModel* dd_model,
                          const Model& model, const State& state,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
   ModelCheckingParams nested_params = params;
   nested_params.alpha = params.alpha / conjuncts().size();
   for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(manager, dd_model, model, state, nested_params, stats)) {
+    if (!(*fi)->verify(dd_model, model, state, nested_params, stats)) {
       return false;
     }
   }
@@ -125,15 +124,14 @@ size_t Conjunction::clear_cache() const {
 /* Disjunction */
 
 /* Verifies this state formula using the statistical engine. */
-bool Disjunction::verify(const DecisionDiagramManager* manager,
-                         const DecisionDiagramModel* dd_model,
+bool Disjunction::verify(const DecisionDiagramModel* dd_model,
                          const Model& model, const State& state,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
   ModelCheckingParams nested_params = params;
   nested_params.beta = params.beta / disjuncts().size();
   for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(manager, dd_model, model, state, nested_params, stats)) {
+    if ((*fi)->verify(dd_model, model, state, nested_params, stats)) {
       return true;
     }
   }
@@ -163,15 +161,13 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
 }
 
 /* Verifies this state formula using the statistical engine. */
-bool Negation::verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+bool Negation::verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const {
   ModelCheckingParams nested_params = params;
   std::swap(nested_params.alpha, nested_params.beta);
-  return !negand().verify(manager, dd_model, model, state, nested_params,
-                          stats);
+  return !negand().verify(dd_model, model, state, nested_params, stats);
 }
 
 
@@ -185,21 +181,18 @@ size_t Negation::clear_cache() const {
 /* Implication */
 
 /* Verifies this state formula using the statistical engine. */
-bool Implication::verify(const DecisionDiagramManager* manager,
-                         const DecisionDiagramModel* dd_model,
+bool Implication::verify(const DecisionDiagramModel* dd_model,
                          const Model& model, const State& state,
                          const ModelCheckingParams& params,
                          ModelCheckingStats* stats) const {
   ModelCheckingParams nested_params = params;
   nested_params.beta = params.beta / 2;
   std::swap(nested_params.alpha, nested_params.beta);
-  if (!antecedent().verify(manager, dd_model, model, state, nested_params,
-                           stats)) {
+  if (!antecedent().verify(dd_model, model, state, nested_params, stats)) {
     return true;
   } else {
     std::swap(nested_params.alpha, nested_params.beta);
-    return consequent().verify(manager, dd_model, model, state, nested_params,
-                               stats);
+    return consequent().verify(dd_model, model, state, nested_params, stats);
   }
 }
 
@@ -219,16 +212,15 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
 }
 
 /* Verifies this state formula using the statistical engine. */
-bool Probabilistic::verify(const DecisionDiagramManager* manager,
-                           const DecisionDiagramModel* dd_model,
+bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
                            const Model& model, const State& state,
                            const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
-  if (manager != nullptr) {
+  if (dd_model != nullptr) {
     // Mixed engine.
     formula_level_++;
-    bool res = formula().verify(*manager, model, *dd_model, state, threshold(),
-                                strict(), params, stats);
+    bool res = formula().verify(*dd_model, model, state, threshold(), strict(),
+                                params, stats);
     formula_level_--;
     return res;
   }
@@ -262,7 +254,7 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
     SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
       const bool x =
-          formula().sample(manager, dd_model, model, state, nullptr, nullptr,
+          formula().sample(dd_model, model, state, nullptr, nullptr,
                            nested_params, stats);
       estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
@@ -464,7 +456,7 @@ bool Probabilistic::verify(const DecisionDiagramManager* manager,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(manager, dd_model, model, state, nullptr, nullptr,
+      s = formula().sample(dd_model, model, state, nullptr, nullptr,
                            nested_params, stats);
       have_sample = true;
     }
@@ -528,8 +520,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
 }
 
 /* Verifies this state formula using the statistical engine. */
-bool Comparison::verify(const DecisionDiagramManager* manager,
-                        const DecisionDiagramModel* dd_model,
+bool Comparison::verify(const DecisionDiagramModel* dd_model,
                         const Model& model, const State& state,
                         const ModelCheckingParams& params,
                         ModelCheckingStats* stats) const {
@@ -548,48 +539,40 @@ size_t Comparison::clear_cache() const {
 
 namespace {
 
-BDD StateBdd(
-    const DecisionDiagramManager& dd_man,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Model& model, const std::vector<int>& state) {
-  BDD dds = dd_man.GetConstant(true);
+BDD StateBdd(const DecisionDiagramModel& dd_model, const Model& model,
+             const std::vector<int>& state) {
+  BDD dds = dd_model.manager().GetConstant(true);
   for (int i = model.variables().size() - 1; i >= 0; --i) {
     const ParsedVariable& v = model.variables()[i];
-    auto j = variable_properties.find(v.name());
-    CHECK(j != variable_properties.end());
+    auto j = dd_model.variable_properties().find(v.name());
+    CHECK(j != dd_model.variable_properties().end());
     const VariableProperties& p = j->second;
     const int value = state.at(i);
-    dds = variable_mtbdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
+    dds = variable_mtbdd(dd_model.manager(), v.min_value(), p.low_bit(),
+                         p.high_bit())
         .Interval(value, value) && dds;
   }
   return dds;
 }
 
 bool Verify(const StateFormula& formula,
-            const DecisionDiagramManager* manager,
-            const DecisionDiagramModel* dd_model, DdNode* ddf,
+            const DecisionDiagramModel* dd_model, const BDD* ddf,
             const Model& model, const State& state,
             const ModelCheckingParams& params, ModelCheckingStats* stats) {
-  if (manager != nullptr) {
-    BDD state_bdd = StateBdd(
-        *manager, dd_model->variable_properties(), model, state.values());
-    DdNode* sol = Cudd_bddAnd(manager->manager(), ddf, state_bdd.get());
-    Cudd_Ref(sol);
-    const bool result = (sol != manager->GetConstant(false).get());
-    Cudd_RecursiveDeref(manager->manager(), sol);
-    return result;
+  if (dd_model != nullptr) {
+    BDD sol = *ddf && StateBdd(*dd_model, model, state.values());
+    return sol.get() != dd_model->manager().GetConstant(false).get();
   } else {
-    return formula.verify(nullptr, nullptr, model, state, params, stats);
+    return formula.verify(nullptr, model, state, params, stats);
   }
 }
 
 }  // namespace
 
 /* Generates a sample for this path formula. */
-bool Until::sample(const DecisionDiagramManager* manager,
-                   const DecisionDiagramModel* dd_model,
+bool Until::sample(const DecisionDiagramModel* dd_model,
                    const Model& model, const State& state,
-                   DdNode* dd1, DdNode* dd2,
+                   const BDD* dd1, const BDD* dd2,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
   double t = 0.0;
@@ -605,23 +588,21 @@ bool Until::sample(const DecisionDiagramManager* manager,
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
     if (t_min <= t) {
-      if (Verify(post(), manager, dd_model, dd2, model, curr_state, params,
-                 stats)) {
+      if (Verify(post(), dd_model, dd2, model, curr_state, params, stats)) {
         result = true;
         done = true;
-      } else if (!Verify(pre(), manager, dd_model, dd1, model, curr_state,
-                         params, stats)) {
+      } else if (!Verify(pre(), dd_model, dd1, model, curr_state, params,
+                         stats)) {
         result = false;
         done = true;
       }
     } else {
-      if (!Verify(pre(), manager, dd_model, dd1, model, curr_state, params,
-                  stats)) {
+      if (!Verify(pre(), dd_model, dd1, model, curr_state, params, stats)) {
         result = false;
         done = true;
       } else if (t_min < next_t
-                 && Verify(post(), manager, dd_model, dd2, model, curr_state,
-                           params, stats)) {
+                 && Verify(post(), dd_model, dd2, model, curr_state, params,
+                           stats)) {
         t = t_min;
         result = true;
         done = true;
@@ -656,8 +637,7 @@ bool Until::sample(const DecisionDiagramManager* manager,
 }
 
 /* Verifies this path formula using the mixed engine. */
-bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
-                   const DecisionDiagramModel& dd_model,
+bool Until::verify(const DecisionDiagramModel& dd_model, const Model& model,
 		   const State& state, const TypedValue& p, bool strict,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
@@ -665,15 +645,14 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   double p0 = std::min(1.0, theta + params.delta);
   double p1 = std::max(0.0, theta - params.delta);
 
-  DdNode* dd1 = pre().verify(dd_man, dd_model, false, params).release();
-  DdNode* dd2 = post().verify(dd_man, dd_model, false, params).release();
+  BDD dd1 = pre().verify(dd_model, false, params);
+  BDD dd2 = post().verify(dd_model, false, params);
 
   if (params.algorithm == ESTIMATE) {
     std::cout << "Sequential estimation";
     SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
-      const bool x = sample(&dd_man, &dd_model, model, state, dd1, dd2, params,
-                            stats);
+      const bool x = sample(&dd_model, model, state, &dd1, &dd2, params, stats);
       estimator.AddObservation(x ? 1 : 0);
       PrintProgress(estimator.count());
       if (VLOG_IS_ON(2)) {
@@ -690,8 +669,6 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
               << std::min(1.0, estimator.value() + params.delta) << ")"
               << std::endl;
     stats->sample_size.AddObservation(estimator.count());
-    Cudd_RecursiveDeref(dd_man.manager(), dd1);
-    Cudd_RecursiveDeref(dd_man.manager(), dd2);
     if (strict) {
       return estimator.value() > theta;
     } else {
@@ -711,7 +688,7 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   }
   std::cout << "Acceptance sampling";
   while (!tester->done()) {
-    bool s = sample(&dd_man, &dd_model, model, state, dd1, dd2, params, stats);
+    bool s = sample(&dd_model, model, state, &dd1, &dd2, params, stats);
     tester->AddObservation(s);
     PrintProgress(tester->sample().count());
     if (VLOG_IS_ON(2)) {
@@ -720,8 +697,6 @@ bool Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   }
   std::cout << tester->sample().count() << " observations." << std::endl;
   stats->sample_size.AddObservation(tester->sample().count());
-  Cudd_RecursiveDeref(dd_man.manager(), dd1);
-  Cudd_RecursiveDeref(dd_man.manager(), dd2);
   return tester->accept();
 }
 

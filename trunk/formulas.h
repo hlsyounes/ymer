@@ -92,15 +92,13 @@ class StateFormula {
   virtual bool holds(const std::vector<int>& state) const = 0;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const = 0;
 
@@ -171,23 +169,20 @@ class PathFormula {
   virtual bool probabilistic() const = 0;
 
   /* Generates a sample for this path formula. */
-  virtual bool sample(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool sample(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
-                      DdNode* dd1, DdNode* dd2,
+                      const BDD* dd1, const BDD* dd2,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this path formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-                      const DecisionDiagramModel& dd_model,
+  virtual bool verify(const DecisionDiagramModel& dd_mmodel, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this path formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      const TypedValue& p, bool strict, bool estimate,
                      const ModelCheckingParams& params) const = 0;
 
@@ -238,15 +233,13 @@ class Conjunction : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const;
 
@@ -287,15 +280,13 @@ class Disjunction : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const;
 
@@ -337,15 +328,13 @@ class Negation : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const;
 
@@ -390,15 +379,13 @@ class Implication : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const;
 
@@ -449,15 +436,13 @@ class Probabilistic : public StateFormula {
   virtual bool holds(const std::vector<int>& state) const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const;
 
@@ -510,15 +495,13 @@ class Comparison : public StateFormula {
   virtual bool probabilistic() const;
 
   /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool verify(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const;
 
@@ -686,25 +669,22 @@ class Until : public PathFormula {
   virtual bool probabilistic() const;
 
   /* Generates a sample for this path formula. */
-  virtual bool sample(const DecisionDiagramManager* manager,
-                      const DecisionDiagramModel* dd_model,
+  virtual bool sample(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
-                      DdNode* dd1, DdNode* dd2,
+                      const BDD* dd1, const BDD* dd2,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this path formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
-                      const DecisionDiagramModel& dd_model,
+  virtual bool verify(const DecisionDiagramModel& dd_model, const Model& model,
 		      const State& state, const TypedValue& p, bool strict,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this path formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramManager& dd_man,
-                         const DecisionDiagramModel& dd_model,
-			 const TypedValue& p, bool strict, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramModel& dd_model,
+                     const TypedValue& p, bool strict, bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;

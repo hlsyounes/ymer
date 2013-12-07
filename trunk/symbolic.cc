@@ -34,13 +34,12 @@
 /* Conjunction */
 
 /* Verifies this state formula using the hybrid engine. */
-BDD Conjunction::verify(const DecisionDiagramManager& dd_man,
-                        const DecisionDiagramModel& dd_model,
+BDD Conjunction::verify(const DecisionDiagramModel& dd_model,
                         bool estimate,
                         const ModelCheckingParams& params) const {
   BDD sol = dd_model.reachable_states();
   for (const StateFormula* conjunct : conjuncts()) {
-    sol = conjunct->verify(dd_man, dd_model, estimate, params) && sol;
+    sol = conjunct->verify(dd_model, estimate, params) && sol;
   }
   return sol;
 }
@@ -50,13 +49,12 @@ BDD Conjunction::verify(const DecisionDiagramManager& dd_man,
 /* Disjunction */
 
 /* Verifies this state formula using the hybrid engine. */
-BDD Disjunction::verify(const DecisionDiagramManager& dd_man,
-                        const DecisionDiagramModel& dd_model,
+BDD Disjunction::verify(const DecisionDiagramModel& dd_model,
                         bool estimate,
                         const ModelCheckingParams& params) const {
-  BDD sol = dd_man.GetConstant(false);
+  BDD sol = dd_model.manager().GetConstant(false);
   for (const StateFormula* disjunct : disjuncts()) {
-    sol = disjunct->verify(dd_man, dd_model, estimate, params) || sol;
+    sol = disjunct->verify(dd_model, estimate, params) || sol;
   }
   return dd_model.reachable_states() && sol;
 }
@@ -66,11 +64,10 @@ BDD Disjunction::verify(const DecisionDiagramManager& dd_man,
 /* Negation */
 
 /* Verifies this state formula using the hybrid engine. */
-BDD Negation::verify(const DecisionDiagramManager& dd_man,
-                     const DecisionDiagramModel& dd_model,
+BDD Negation::verify(const DecisionDiagramModel& dd_model,
                      bool estimate,
                      const ModelCheckingParams& params) const {
-  BDD sol = !negand().verify(dd_man, dd_model, estimate, params);
+  BDD sol = !negand().verify(dd_model, estimate, params);
   return dd_model.reachable_states() && sol;
 }
 
@@ -79,12 +76,11 @@ BDD Negation::verify(const DecisionDiagramManager& dd_man,
 /* Implication */
 
 /* Verifies this state formula using the hybrid engine. */
-BDD Implication::verify(const DecisionDiagramManager& dd_man,
-                        const DecisionDiagramModel& dd_model,
+BDD Implication::verify(const DecisionDiagramModel& dd_model,
                         bool estimate,
                         const ModelCheckingParams& params) const {
-  BDD sol = !antecedent().verify(dd_man, dd_model, estimate, params)
-      || consequent().verify(dd_man, dd_model, estimate, params);
+  BDD sol = !antecedent().verify(dd_model, estimate, params)
+      || consequent().verify(dd_model, estimate, params);
   return dd_model.reachable_states() && sol;
 }
 
@@ -93,13 +89,11 @@ BDD Implication::verify(const DecisionDiagramManager& dd_man,
 /* Probabilistic */
 
 /* Verifies this state formula using the hybrid engine. */
-BDD Probabilistic::verify(const DecisionDiagramManager& dd_man,
-                          const DecisionDiagramModel& dd_model,
+BDD Probabilistic::verify(const DecisionDiagramModel& dd_model,
                           bool estimate,
                           const ModelCheckingParams& params) const {
   formula_level_++;
-  BDD res = formula().verify(dd_man, dd_model, threshold(), strict(), estimate,
-                             params);
+  BDD res = formula().verify(dd_model, threshold(), strict(), estimate, params);
   formula_level_--;
   return res;
 }
@@ -109,11 +103,10 @@ BDD Probabilistic::verify(const DecisionDiagramManager& dd_man,
 /* Comparison */
 
 /* Verifies this state formula using the hybrid engine. */
-BDD Comparison::verify(const DecisionDiagramManager& dd_man,
-                       const DecisionDiagramModel& dd_model,
+BDD Comparison::verify(const DecisionDiagramModel& dd_model,
                        bool estimate,
                        const ModelCheckingParams& params) const {
-  BDD ddc = bdd(dd_man, dd_model.variable_properties(), *this);
+  BDD ddc = bdd(dd_model.manager(), dd_model.variable_properties(), *this);
   return ddc && dd_model.reachable_states();
 }
 
@@ -406,8 +399,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 
 
 /* Verifies this path formula using the hybrid engine. */
-BDD Until::verify(const DecisionDiagramManager& dd_man,
-                  const DecisionDiagramModel& dd_model,
+BDD Until::verify(const DecisionDiagramModel& dd_model,
                   const TypedValue& p, bool strict, bool estimate,
                   const ModelCheckingParams& params) const {
   /*
@@ -418,13 +410,13 @@ BDD Until::verify(const DecisionDiagramManager& dd_man,
     return dd_model.reachable_states();
   } else if (p == 1 && strict) {
     /* Not satisfied by any states. */
-    return dd_man.GetConstant(false);
+    return dd_model.manager().GetConstant(false);
   }
 
   /*
    * Verify postcondition formula.
    */
-  BDD dd2 = post().verify(dd_man, dd_model, false, params);
+  BDD dd2 = post().verify(dd_model, false, params);
   if (max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
     return dd2;
@@ -433,7 +425,7 @@ BDD Until::verify(const DecisionDiagramManager& dd_man,
   /*
    * Verify precondition formula.
    */
-  BDD dd1 = pre().verify(dd_man, dd_model, false, params);
+  BDD dd1 = pre().verify(dd_model, false, params);
 
   if (min_time() > 0) {
     // TODO
@@ -444,7 +436,7 @@ BDD Until::verify(const DecisionDiagramManager& dd_man,
    * Compute BDD representing non-absorbing states in transformed model.
    */
   BDD maybe = dd1 && !dd2;
-  if (maybe.get() == dd_man.GetConstant(false).get()) {
+  if (maybe.get() == dd_model.manager().GetConstant(false).get()) {
     /* All states are absorbing so solution is simply dd2. */
     return dd2;
   }
@@ -466,7 +458,7 @@ BDD Until::verify(const DecisionDiagramManager& dd_man,
    */
   std::cout << "Building hybrid MTBDD matrix...";
   ADD ddR = dd_model.rate_matrix() * ADD(maybe);
-  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, odd);
+  HDDMatrix* hddm = build_hdd_matrix(dd_model.manager(), ddR, odd);
   std::cout << hddm->num_nodes << " nodes." << std::endl;
 
   /*
@@ -504,7 +496,7 @@ BDD Until::verify(const DecisionDiagramManager& dd_man,
   /*
    * Create solution/iteration vectors.
    */
-  double* soln = mtbdd_to_double_vector(dd_man, ADD(dd2), odd);
+  double* soln = mtbdd_to_double_vector(dd_model.manager(), ADD(dd2), odd);
   double* soln2 = new double[nstates];
   int init = ((StateFormula::formula_level() == 1)
 	      ? dd_model.initial_state_index() : -1);
@@ -698,9 +690,10 @@ BDD Until::verify(const DecisionDiagramManager& dd_man,
     if ((strict && sum[0] > threshold) || (!strict && sum[0] >= threshold)) {
       return dd_model.initial_state();
     } else {
-      return dd_man.GetConstant(false);
+      return dd_model.manager().GetConstant(false);
     }
   } else {
-    return double_vector_to_bdd(dd_man, sum, strict, threshold, odd);
+    return double_vector_to_bdd(dd_model.manager(), sum, strict, threshold,
+                                odd);
   }
 }

@@ -627,10 +627,11 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
 }
 
 DecisionDiagramModel::DecisionDiagramModel(
+    const DecisionDiagramManager* manager,
     const std::map<std::string, VariableProperties>& variable_properties,
     const ADD& rate_matrix, const BDD& reachable_states,
     const BDD& initial_state, int initial_state_index, ODDNode* odd)
-    : variable_properties_(variable_properties),
+    : manager_(manager), variable_properties_(variable_properties),
       rate_matrix_(rate_matrix), reachable_states_(reachable_states),
       initial_state_(initial_state), initial_state_index_(initial_state_index),
       odd_(odd) {
@@ -676,7 +677,8 @@ int GetInitIndex(const DecisionDiagramManager& dd_man,
 }  // namespace
 
 DecisionDiagramModel DecisionDiagramModel::Create(
-    const DecisionDiagramManager& manager, size_t moments, const Model& model) {
+    const DecisionDiagramManager* manager, size_t moments, const Model& model) {
+  CHECK(manager);
   std::cout << "Building model...";
   /*
    * Precomute DDs for variables and modules.
@@ -691,14 +693,14 @@ DecisionDiagramModel DecisionDiagramModel::Create(
     low_bit = high_bit + 1;
   }
   /* BDD for initial state. */
-  BDD init_bdd = manager.GetConstant(true);
+  BDD init_bdd = manager->GetConstant(true);
   for (auto i = model.variables().rbegin();
        i != model.variables().rend(); ++i) {
     const ParsedVariable& v = *i;
     auto j = variable_properties.find(v.name());
     CHECK(j != variable_properties.end());
     const VariableProperties& p = j->second;
-    BDD dds = variable_mtbdd(manager, v.min_value(), p.low_bit(), p.high_bit())
+    BDD dds = variable_mtbdd(*manager, v.min_value(), p.low_bit(), p.high_bit())
         .Interval(v.init_value(), v.init_value());
     init_bdd = dds && init_bdd;
   }
@@ -706,13 +708,13 @@ DecisionDiagramModel DecisionDiagramModel::Create(
    * Generate phase-type distributions for commands with
    * non-exponential delay.
    */
-  size_t nvars = manager.GetNumVariables()/2;
+  size_t nvars = manager->GetNumVariables()/2;
   std::map<int, PHData> ph_commands;
   for (int i = model.commands().size() - 1; i >= 0; i--) {
     const Command& command = *model.commands()[i];
     const Distribution& dist = command.delay();
     if (typeid(dist) != typeid(Exponential)) {
-      PHData data(manager);
+      PHData data(*manager);
       switch (moments) {
 	case 1:
 	  match_first_moment(data.params, dist);
@@ -732,25 +734,25 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         data.high_bit = data.low_bit + Log2(high);
         nvars = data.high_bit + 1;
         for (int b = data.low_bit; b <= data.high_bit; ++b) {
-          Cudd_bddNewVar(manager.manager());
-          Cudd_bddNewVar(manager.manager());
+          Cudd_bddNewVar(manager->manager());
+          Cudd_bddNewVar(manager->manager());
         }
-        ADD ddv = variable_mtbdd(manager, 0, data.low_bit, data.high_bit);
+        ADD ddv = variable_mtbdd(*manager, 0, data.low_bit, data.high_bit);
         init_bdd = ddv.Interval(0, 0) && init_bdd;
         ADD ddvp =
-            variable_primed_mtbdd(manager, 0, data.low_bit, data.high_bit);
-        BDD ddid = identity_bdd(manager, 0, data.low_bit, data.high_bit);
+            variable_primed_mtbdd(*manager, 0, data.low_bit, data.high_bit);
+        BDD ddid = identity_bdd(*manager, 0, data.low_bit, data.high_bit);
         /*
          * Constructs BDD representing phase update:
          *
          *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
          */
         data.update_bdd =
-            (bdd(manager, variable_properties, command.guard())
+            (bdd(*manager, variable_properties, command.guard())
              || ddv.Interval(0, 0)) &&
-            (primed_bdd(manager, variable_properties, command.guard())
+            (primed_bdd(*manager, variable_properties, command.guard())
              || ddvp.Interval(0, 0)) &&
-            (!primed_bdd(manager, variable_properties, command.guard())
+            (!primed_bdd(*manager, variable_properties, command.guard())
              || ddid);
       }
       ph_commands.insert(std::make_pair(i, data));
@@ -759,17 +761,17 @@ DecisionDiagramModel DecisionDiagramModel::Create(
   /*
    * Compute rate matrix for all commands.
    */
-  ADD ddR = manager.GetConstant(0);
+  ADD ddR = manager->GetConstant(0);
   for (int i = model.commands().size() - 1; i >= 0; i--) {
     const Command& command = *model.commands()[i];
     if (VLOG_IS_ON(2)) {
       LOG(INFO) << "processing " << command;
     }
     /* BDD for guard. */
-    BDD ddg = bdd(manager, variable_properties, command.guard());
+    BDD ddg = bdd(*manager, variable_properties, command.guard());
     /* BDD for command. */
     std::set<std::string> updated_variables;
-    BDD ddc = command_bdd(manager, variable_properties, command,
+    BDD ddc = command_bdd(*manager, variable_properties, command,
                           &updated_variables);
     const Exponential* exp_delay =
 	dynamic_cast<const Exponential*>(&command.delay());
@@ -786,18 +788,18 @@ DecisionDiagramModel DecisionDiagramModel::Create(
        * Event 1: phi & s=0 => s'=1
        */
       ADD ddv = variable_mtbdd(
-          manager, 0, ph_data->low_bit, ph_data->high_bit);
+          *manager, 0, ph_data->low_bit, ph_data->high_bit);
       BDD dds = ddv.Interval(0, 0);
       ADD ddvp = variable_primed_mtbdd(
-          manager, 0, ph_data->low_bit, ph_data->high_bit);
+          *manager, 0, ph_data->low_bit, ph_data->high_bit);
       BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
-      ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
+      ddu = variable_updates(*manager, ddu, model, variable_properties, {}, {},
                              i, ph_commands);
-      ADD ddr = manager.GetConstant(ph_data->params2.p*ph_data->params2.r1);
+      ADD ddr = manager->GetConstant(ph_data->params2.p*ph_data->params2.r1);
       ADD ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
-        Cudd_PrintDebug(manager.manager(),
-                        ddq.get(), manager.GetNumVariables(), 2);
+        Cudd_PrintDebug(manager->manager(),
+                        ddq.get(), manager->GetNumVariables(), 2);
       }
       ddR = ddq +  ddR;
       /*
@@ -805,15 +807,15 @@ DecisionDiagramModel DecisionDiagramModel::Create(
        */
       BDD ddp = ddvp.Interval(0, 0);
       ddu = ddc && dds && ddp;
-      ddu = variable_updates(manager, ddu, model, variable_properties,
+      ddu = variable_updates(*manager, ddu, model, variable_properties,
                              model.command_modules()[i], updated_variables, i,
                              ph_commands);
-      ddr = manager.GetConstant(
+      ddr = manager->GetConstant(
           (1.0 - ph_data->params2.p) * ph_data->params2.r1);
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
-        Cudd_PrintDebug(manager.manager(),
-                        ddq.get(), manager.GetNumVariables(), 2);
+        Cudd_PrintDebug(manager->manager(),
+                        ddq.get(), manager->GetNumVariables(), 2);
       }
       ddR = ddq + ddR;
       /*
@@ -821,14 +823,14 @@ DecisionDiagramModel DecisionDiagramModel::Create(
        */
       dds = ddv.Interval(ph_data->params2.n - 1, ph_data->params2.n - 1);
       ddu = ddc && dds && ddp;
-      ddu = variable_updates(manager, ddu, model, variable_properties,
+      ddu = variable_updates(*manager, ddu, model, variable_properties,
                              model.command_modules()[i], updated_variables, i,
                              ph_commands);
-      ddr = manager.GetConstant(ph_data->params2.r2);
+      ddr = manager->GetConstant(ph_data->params2.r2);
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
-        Cudd_PrintDebug(manager.manager(),
-                        ddq.get(), manager.GetNumVariables(), 2);
+        Cudd_PrintDebug(manager->manager(),
+                        ddq.get(), manager->GetNumVariables(), 2);
       }
       ddR = ddq + ddR;
       if (ph_data->params2.n > 2) {
@@ -836,14 +838,14 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          * Event 4: phi & s>=1 & s<=n-2 => s'=s+1
          */
         dds = ddv.Interval(1, ph_data->params2.n - 2);
-        ddu = dds && ddvp == ddv + manager.GetConstant(1) && ddg;
-        ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
-                               i, ph_commands);
-        ddr = manager.GetConstant(ph_data->params2.r1);
+        ddu = dds && ddvp == ddv + manager->GetConstant(1) && ddg;
+        ddu = variable_updates(*manager, ddu, model, variable_properties, {},
+                               {}, i, ph_commands);
+        ddr = manager->GetConstant(ph_data->params2.r1);
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager.manager(),
-                          ddq.get(), manager.GetNumVariables(), 2);
+          Cudd_PrintDebug(manager->manager(),
+                          ddq.get(), manager->GetNumVariables(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -867,18 +869,18 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          *   phi & s<n-2 => s'=s+1
          */
         ADD ddv = variable_mtbdd(
-            manager, 0, ph_data->low_bit, ph_data->high_bit);
+            *manager, 0, ph_data->low_bit, ph_data->high_bit);
         BDD dds = ddv.Interval(0, ph_data->params.n - 3);
         ADD ddvp = variable_primed_mtbdd(
-            manager, 0, ph_data->low_bit, ph_data->high_bit);
-        ADD ddp = ddv + manager.GetConstant(1);
+            *manager, 0, ph_data->low_bit, ph_data->high_bit);
+        ADD ddp = ddv + manager->GetConstant(1);
         BDD ddu = dds && ddvp == ddp && ddg;
-        ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
-                               i, ph_commands);
-        ADD ddq = ADD(ddu) * manager.GetConstant(ph_data->params.re);
+        ddu = variable_updates(*manager, ddu, model, variable_properties, {},
+                               {}, i, ph_commands);
+        ADD ddq = ADD(ddu) * manager->GetConstant(ph_data->params.re);
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager.manager(),
-                          ddq.get(), manager.GetNumVariables(), 2);
+          Cudd_PrintDebug(manager->manager(),
+                          ddq.get(), manager->GetNumVariables(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -890,19 +892,19 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          *   phi & s=n-2 => s'=n-1
          */
         ADD ddv = variable_mtbdd(
-            manager, 0, ph_data->low_bit, ph_data->high_bit);
+            *manager, 0, ph_data->low_bit, ph_data->high_bit);
         BDD dds = ddv.Interval(ph_data->params.n - 2, ph_data->params.n - 2);
         ADD ddvp = variable_primed_mtbdd(
-            manager, 0, ph_data->low_bit, ph_data->high_bit);
+            *manager, 0, ph_data->low_bit, ph_data->high_bit);
         BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
         ddu = dds && ddu && ddg;
-        ddu = variable_updates(manager, ddu, model, variable_properties, {}, {},
-                               i, ph_commands);
-        ADD ddr = manager.GetConstant(ph_data->params.pc*ph_data->params.rc1);
+        ddu = variable_updates(*manager, ddu, model, variable_properties, {},
+                               {}, i, ph_commands);
+        ADD ddr = manager->GetConstant(ph_data->params.pc*ph_data->params.rc1);
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager.manager(),
-                          ddq.get(), manager.GetNumVariables(), 2);
+          Cudd_PrintDebug(manager->manager(),
+                          ddq.get(), manager->GetNumVariables(), 2);
         }
         ddR = ddq + ddR;
         /*
@@ -913,15 +915,15 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          */
         BDD ddp = ddvp.Interval(0, 0);
         ddu = ddc && dds && ddp;
-        ddu = variable_updates(manager, ddu, model, variable_properties,
+        ddu = variable_updates(*manager, ddu, model, variable_properties,
                                model.command_modules()[i], updated_variables, i,
                                ph_commands);
-        ddr = manager.GetConstant(
+        ddr = manager->GetConstant(
             (1.0 - ph_data->params.pc)*ph_data->params.rc1);
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager.manager(),
-                          ddq.get(), manager.GetNumVariables(), 2);
+          Cudd_PrintDebug(manager->manager(),
+                          ddq.get(), manager->GetNumVariables(), 2);
         }
         ddR = ddq + ddR;
         /*
@@ -932,61 +934,61 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          */
         dds = ddv.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
         ddu = ddc && dds && ddp;
-        ddu = variable_updates(manager, ddu, model, variable_properties,
+        ddu = variable_updates(*manager, ddu, model, variable_properties,
                                model.command_modules()[i], updated_variables, i,
                                ph_commands);
-        ddq = ADD(ddu) * manager.GetConstant(ph_data->params.rc2);
+        ddq = ADD(ddu) * manager->GetConstant(ph_data->params.rc2);
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager.manager(),
-                          ddq.get(), manager.GetNumVariables(), 2);
+          Cudd_PrintDebug(manager->manager(),
+                          ddq.get(), manager->GetNumVariables(), 2);
         }
         ddR = ddq + ddR;
       } else {
         /*
          * Event for exponential (or 1-phase Coxian) distribution.
          */
-        BDD dda = manager.GetConstant(false);
+        BDD dda = manager->GetConstant(false);
         if (ph_data != NULL && ph_data->low_bit >= 0) {
           /* Coxian: s=n-2 => s'=0 */
           BDD dds = variable_mtbdd(
-              manager, 0, ph_data->low_bit, ph_data->high_bit)
+              *manager, 0, ph_data->low_bit, ph_data->high_bit)
               .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
           BDD ddp = variable_primed_mtbdd(
-              manager, 0, ph_data->low_bit, ph_data->high_bit)
+              *manager, 0, ph_data->low_bit, ph_data->high_bit)
               .Interval(0, 0);
           dda = dds && ddp;
-          dda = variable_updates(manager, dda, model, variable_properties,
+          dda = variable_updates(*manager, dda, model, variable_properties,
                                  model.command_modules()[i], updated_variables,
                                  i, ph_commands);
         } else {
-          dda = manager.GetConstant(true);
-          dda = variable_updates(manager, dda, model, variable_properties,
+          dda = manager->GetConstant(true);
+          dda = variable_updates(*manager, dda, model, variable_properties,
                                  model.command_modules()[i], updated_variables,
                                  i, ph_commands);
         }
         BDD ddu = ddc && dda;
         ADD ddr = (exp_delay != NULL)
-            ? mtbdd(manager, variable_properties, exp_delay->rate())
-            : manager.GetConstant(ph_data->params.rc1);
+            ? mtbdd(*manager, variable_properties, exp_delay->rate())
+            : manager->GetConstant(ph_data->params.rc1);
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager.manager(),
-                          ddq.get(), manager.GetNumVariables(), 2);
+          Cudd_PrintDebug(manager->manager(),
+                          ddq.get(), manager->GetNumVariables(), 2);
         }
         ddR = ddq + ddR;
       }
     }
   }
-  std::cout << manager.GetNumVariables() << " variables." << std::endl;
+  std::cout << manager->GetNumVariables() << " variables." << std::endl;
   /*
    * Reachability analysis.
    */
-  BDD reach_bdd = reachability_bdd(manager, init_bdd, ddR);
+  BDD reach_bdd = reachability_bdd(*manager, init_bdd, ddR);
   ADD reach_add = ADD(reach_bdd);
   ADD rate_matrix = reach_add * ddR;
   /* Build ODD. */
-  ODDNode* odd = build_odd(manager, reach_add);
-  int init_index = GetInitIndex(manager, init_bdd, odd);
-  return DecisionDiagramModel(variable_properties, rate_matrix, reach_bdd,
-                              init_bdd, init_index, odd);
+  ODDNode* odd = build_odd(*manager, reach_add);
+  int init_index = GetInitIndex(*manager, init_bdd, odd);
+  return DecisionDiagramModel(manager, variable_properties, rate_matrix,
+                              reach_bdd, init_bdd, init_index, odd);
 }
