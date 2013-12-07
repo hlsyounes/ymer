@@ -27,6 +27,8 @@
 
 #include <deque>
 #include <map>
+#include <memory>
+#include <utility>
 
 #include "models.h"
 #include "src/ddutil.h"
@@ -171,13 +173,6 @@ class PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
-                      const BDD* dd1, const BDD* dd2,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const = 0;
-
-  /* Verifies this path formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramModel& dd_mmodel, const Model& model,
-		      const State& state, const TypedValue& p, bool strict,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
@@ -671,13 +666,6 @@ class Until : public PathFormula {
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
-                      const BDD* dd1, const BDD* dd2,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
-  /* Verifies this path formula using the mixed engine. */
-  virtual bool verify(const DecisionDiagramModel& dd_model, const Model& model,
-		      const State& state, const TypedValue& p, bool strict,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
@@ -703,6 +691,8 @@ private:
   TypedValue min_time_;
   /* The upper time bound. */
   TypedValue max_time_;
+
+  mutable std::unique_ptr<const std::pair<BDD, BDD>> cached_dds_;
 };
 
 // Abstract base class for state formula visitors.

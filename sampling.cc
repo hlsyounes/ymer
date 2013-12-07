@@ -216,18 +216,8 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
                            const Model& model, const State& state,
                            const ModelCheckingParams& params,
                            ModelCheckingStats* stats) const {
-  if (dd_model != nullptr) {
-    // Mixed engine.
-    formula_level_++;
-    bool res = formula().verify(*dd_model, model, state, threshold(), strict(),
-                                params, stats);
-    formula_level_--;
-    return res;
-  }
-  double p0, p1;
-  double theta = threshold().value<double>();
   double nested_error = 0.0;
-  if (formula().probabilistic()) {
+  if (dd_model == nullptr && formula().probabilistic()) {
     if (params.nested_error > 0) {
       // User-specified nested error.
       nested_error = params.nested_error;
@@ -241,8 +231,11 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
               << MaxNestedError(params.delta);
     }
   }
-  p0 = std::min(1.0, (theta + params.delta)*(1.0 - nested_error));
-  p1 = std::max(0.0, 1.0 - (1.0 - (theta - params.delta))*(1.0 - nested_error));
+  const double theta = threshold().value<double>();
+  const double theta0 =
+      std::min(1.0, (theta + params.delta)*(1.0 - nested_error));
+  const double theta1 =
+      std::max(0.0, 1.0 - (1.0 - (theta - params.delta))*(1.0 - nested_error));
   ModelCheckingParams nested_params = params;
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
@@ -254,8 +247,7 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
     SequentialEstimator<int> estimator(params.delta, params.alpha);
     while (true) {
       const bool x =
-          formula().sample(dd_model, model, state, nullptr, nullptr,
-                           nested_params, stats);
+          formula().sample(dd_model, model, state, nested_params, stats);
       estimator.AddObservation(x ? 1 : 0);
       if (formula_level() == 1) {
         PrintProgress(estimator.count());
@@ -287,13 +279,14 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
 
   std::unique_ptr<BernoulliTester> tester;
   if (params.algorithm == FIXED) {
-    tester.reset(
-        new FixedBernoulliTester(theta, theta, params.fixed_sample_size));
+    tester.reset(new FixedBernoulliTester(theta, theta,
+                                          params.fixed_sample_size));
   } else if (params.algorithm == SSP) {
-    tester.reset(
-        new SingleSamplingBernoulliTester(p0, p1, params.alpha, params.beta));
+    tester.reset(new SingleSamplingBernoulliTester(theta0, theta1,
+                                                   params.alpha, params.beta));
   } else { /* algorithm == SPRT */
-    tester.reset(new SprtBernoulliTester(p0, p1, params.alpha, params.beta));
+    tester.reset(new SprtBernoulliTester(theta0, theta1,
+                                         params.alpha, params.beta));
   }
   if (formula_level() == 0) {
     std::cout << "Acceptance sampling";
@@ -456,8 +449,7 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
       }
     } else {
       /* Local mode. */
-      s = formula().sample(dd_model, model, state, nullptr, nullptr,
-                           nested_params, stats);
+      s = formula().sample(dd_model, model, state, nested_params, stats);
       have_sample = true;
     }
     if (!have_sample) {
@@ -572,9 +564,20 @@ bool Verify(const StateFormula& formula,
 /* Generates a sample for this path formula. */
 bool Until::sample(const DecisionDiagramModel* dd_model,
                    const Model& model, const State& state,
-                   const BDD* dd1, const BDD* dd2,
                    const ModelCheckingParams& params,
                    ModelCheckingStats* stats) const {
+  const BDD* dd1 = nullptr;
+  const BDD* dd2 = nullptr;
+  if (dd_model != nullptr) {
+    // Mixed engine.
+    if (cached_dds_ == nullptr) {
+      BDD dd1 = pre().verify(*dd_model, false, params);
+      BDD dd2 = post().verify(*dd_model, false, params);
+      cached_dds_.reset(new std::pair<BDD, BDD>(dd1, dd2));
+    }
+    dd1 = &cached_dds_->first;
+    dd2 = &cached_dds_->second;
+  }
   double t = 0.0;
   State curr_state = state;
   const double t_min = min_time().value<double>();
@@ -636,71 +639,8 @@ bool Until::sample(const DecisionDiagramModel* dd_model,
   return result;
 }
 
-/* Verifies this path formula using the mixed engine. */
-bool Until::verify(const DecisionDiagramModel& dd_model, const Model& model,
-		   const State& state, const TypedValue& p, bool strict,
-                   const ModelCheckingParams& params,
-                   ModelCheckingStats* stats) const {
-  double theta = p.value<double>();
-  double p0 = std::min(1.0, theta + params.delta);
-  double p1 = std::max(0.0, theta - params.delta);
-
-  BDD dd1 = pre().verify(dd_model, false, params);
-  BDD dd2 = post().verify(dd_model, false, params);
-
-  if (params.algorithm == ESTIMATE) {
-    std::cout << "Sequential estimation";
-    SequentialEstimator<int> estimator(params.delta, params.alpha);
-    while (true) {
-      const bool x = sample(&dd_model, model, state, &dd1, &dd2, params, stats);
-      estimator.AddObservation(x ? 1 : 0);
-      PrintProgress(estimator.count());
-      if (VLOG_IS_ON(2)) {
-	LOG(INFO) << estimator.count() << '\t' << estimator.value() << '\t'
-                  << estimator.state() << '\t' << estimator.bound();
-      }
-      if (estimator.state() <= estimator.bound()) {
-        break;
-      }
-    }
-    std::cout << estimator.count() << " observations." << std::endl;
-    std::cout << "Pr[" << *this << "] = " << estimator.value() << " ("
-	      << std::max(0.0, estimator.value() - params.delta) << ','
-              << std::min(1.0, estimator.value() + params.delta) << ")"
-              << std::endl;
-    stats->sample_size.AddObservation(estimator.count());
-    if (strict) {
-      return estimator.value() > theta;
-    } else {
-      return estimator.value() >= theta;
-    }
-  }
-
-  std::unique_ptr<BernoulliTester> tester;
-  if (params.algorithm == FIXED) {
-    tester.reset(
-        new FixedBernoulliTester(theta, theta, params.fixed_sample_size));
-  } else if (params.algorithm == SSP) {
-    tester.reset(
-        new SingleSamplingBernoulliTester(p0, p1, params.alpha, params.beta));
-  } else { /* algorithm == SPRT */
-    tester.reset(new SprtBernoulliTester(p0, p1, params.alpha, params.beta));
-  }
-  std::cout << "Acceptance sampling";
-  while (!tester->done()) {
-    bool s = sample(&dd_model, model, state, &dd1, &dd2, params, stats);
-    tester->AddObservation(s);
-    PrintProgress(tester->sample().count());
-    if (VLOG_IS_ON(2)) {
-      LOG(INFO) << tester->StateToString();
-    }
-  }
-  std::cout << tester->sample().count() << " observations." << std::endl;
-  stats->sample_size.AddObservation(tester->sample().count());
-  return tester->accept();
-}
-
 /* Clears the cache of any probabilistic operator. */
 size_t Until::clear_cache() const {
+  cached_dds_.reset();
   return pre().clear_cache() + post().clear_cache();
 }
