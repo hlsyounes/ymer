@@ -130,8 +130,10 @@ class DecisionDiagramModel {
  public:
   ~DecisionDiagramModel();
 
-  static DecisionDiagramModel Create(const DecisionDiagramManager& manager,
+  static DecisionDiagramModel Create(const DecisionDiagramManager* manager,
                                      size_t moments, const Model& model);
+
+  const DecisionDiagramManager& manager() const { return *manager_; }
 
   const std::map<std::string, VariableProperties>& variable_properties() const {
     return variable_properties_;
@@ -145,10 +147,12 @@ class DecisionDiagramModel {
 
  private:
   DecisionDiagramModel(
+      const DecisionDiagramManager* manager,
       const std::map<std::string, VariableProperties>& variable_properties,
       const ADD& rate_matrix, const BDD& reachable_states,
       const BDD& initial_state, int initial_state_index, ODDNode* odd);
 
+  const DecisionDiagramManager* manager_;
   std::map<std::string, VariableProperties> variable_properties_;
   ADD rate_matrix_;
   BDD reachable_states_;

@@ -1099,9 +1099,8 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = pf->sample(nullptr, nullptr, *global_model,
-                                     init_state, nullptr, nullptr,
-                                     nested_params, &stats);
+	      msg.value = pf->sample(nullptr, *global_model, init_state,
+                                     nullptr, nullptr, nested_params, &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1239,8 +1238,7 @@ int main(int argc, char* argv[]) {
 #endif
 	  }
 	  bool sol =
-              (*fi)->verify(nullptr, nullptr, *global_model, init_state, params,
-                            &stats);
+              (*fi)->verify(nullptr, *global_model, init_state, params, &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1324,7 +1322,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          dd_man, moments, *global_model);
+          &dd_man, moments, *global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1361,7 +1359,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = (*fi)->verify(dd_man, dd_model, estimate, params);
+	  BDD ddf = (*fi)->verify(dd_model, estimate, params);
 	  BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
@@ -1404,7 +1402,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_PROF, &stimer);
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          dd_man, moments, *global_model);
+          &dd_man, moments, *global_model);
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
@@ -1448,9 +1446,8 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  bool sol =
-              (*fi)->verify(&dd_man, &dd_model, *global_model, init_state,
-                            params, &stats);
+	  bool sol = (*fi)->verify(&dd_model, *global_model, init_state, params,
+                                   &stats);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
