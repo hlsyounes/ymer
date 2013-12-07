@@ -1099,8 +1099,9 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = pf->sample(nullptr, *global_model, init_state,
-                                     nullptr, nullptr, nested_params, &stats);
+	      msg.value = pf->sample(nullptr, nullptr, *global_model,
+                                     init_state, nullptr, nullptr,
+                                     nested_params, &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1238,7 +1239,8 @@ int main(int argc, char* argv[]) {
 #endif
 	  }
 	  bool sol =
-              (*fi)->verify(nullptr, *global_model, init_state, params, &stats);
+              (*fi)->verify(nullptr, nullptr, *global_model, init_state, params,
+                            &stats);
 	  total_cached += (*fi)->clear_cache();
 	  double t;
 	  if (server_socket != -1) {
@@ -1321,7 +1323,8 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
-      global_model->cache_dds(dd_man, moments);
+      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
+          dd_man, moments, *global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1331,17 +1334,18 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      std::cout << "States:      " << global_model->num_states(dd_man)
+      std::cout << "States:      "
+                << dd_model.reachable_states().MintermCount(
+                    dd_man.GetNumVariables() / 2)
                 << std::endl
-                << "Transitions: " << global_model->num_transitions(dd_man)
+                << "Transitions: "
+                << dd_model.rate_matrix().MintermCount(dd_man.GetNumVariables())
                 << std::endl;
-      DdNode* ddR = global_model->rate_mtbdd();
       std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
-      Cudd_RecursiveDeref(dd_man.manager(), ddR);
+      Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
+                      dd_man.GetNumVariables(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
-      DdNode* init = global_model->init_bdd();
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
@@ -1357,10 +1361,8 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  DdNode* ddf = (*fi)->verify(dd_man, *global_model, estimate, params);
-	  DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddf, init);
-	  Cudd_Ref(sol);
-	  Cudd_RecursiveDeref(dd_man.manager(), ddf);
+	  BDD ddf = (*fi)->verify(dd_man, dd_model, estimate, params);
+	  BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1370,8 +1372,7 @@ int main(int argc, char* argv[]) {
 	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
 	  double t = std::max(0.0, sec + usec*1e-6);
 	  total_time += t;
-	  accepted = (sol != Cudd_ReadLogicZero(dd_man.manager()));
-	  Cudd_RecursiveDeref(dd_man.manager(), sol);
+	  accepted = (sol.get() != dd_man.GetConstant(false).get());
 	  if (t > 1.0) {
 	    total_time *= trials;
 	    break;
@@ -1385,8 +1386,6 @@ int main(int argc, char* argv[]) {
 	  std::cout << "Property is false in the initial state." << std::endl;
 	}
       }
-      Cudd_RecursiveDeref(dd_man.manager(), init);
-      global_model->uncache_dds(dd_man);
     } else if (engine == MIXED_ENGINE) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
@@ -1404,7 +1403,8 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      global_model->cache_dds(dd_man, moments);
+      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
+          dd_man, moments, *global_model);
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
@@ -1421,14 +1421,16 @@ int main(int argc, char* argv[]) {
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << global_model->commands().size()
                 << std::endl;
-      std::cout << "States:      " << global_model->num_states(dd_man)
+      std::cout << "States:      "
+                << dd_model.reachable_states().MintermCount(
+                    dd_man.GetNumVariables() / 2)
                 << std::endl
-                << "Transitions: " << global_model->num_transitions(dd_man)
+                << "Transitions: "
+                << dd_model.rate_matrix().MintermCount(dd_man.GetNumVariables())
                 << std::endl;
-      DdNode* ddR = global_model->rate_mtbdd();
       std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_man.manager(), ddR, dd_man.GetNumVariables(), 1);
-      Cudd_RecursiveDeref(dd_man.manager(), ddR);
+      Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
+                      dd_man.GetNumVariables(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
@@ -1447,7 +1449,8 @@ int main(int argc, char* argv[]) {
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
 	  bool sol =
-              (*fi)->verify(&dd_man, *global_model, init_state, params, &stats);
+              (*fi)->verify(&dd_man, &dd_model, *global_model, init_state,
+                            params, &stats);
 	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
@@ -1503,7 +1506,6 @@ int main(int argc, char* argv[]) {
 		    << " rejected" << std::endl;
 	}
       }
-      global_model->uncache_dds(dd_man);
     }
     delete global_model;
     for (const StateFormula* f : properties) {

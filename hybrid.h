@@ -119,7 +119,7 @@ struct HDDMatrices {
 
 // function prototypes
 
-HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, DdNode *matrix, const VariableArray<BDD> &rvars, const VariableArray<BDD> &cvars, ODDNode *odd);
+HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, ODDNode *odd);
 void add_sparse_bits(HDDMatrix *hddm);
 double *hdd_negative_row_sums(HDDMatrix *hddm, int n);
 void free_hdd_matrix(HDDMatrix *hddm);

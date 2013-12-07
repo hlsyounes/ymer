@@ -104,6 +104,10 @@ bool DecisionDiagram::IsConstant() const {
   return Cudd_IsConstant(node_);
 }
 
+double DecisionDiagram::MintermCount(int num_variables) const {
+  return Cudd_CountMinterm(manager_, node_, num_variables);
+}
+
 DdNode* DecisionDiagram::release() {
   DdNode* const node = node_;
   node_ = nullptr;
@@ -172,6 +176,11 @@ BDD BDD::operator>(const BDD& dd) const {
 BDD BDD::Apply(Op op, const BDD& dd1, const BDD& dd2) {
   DdManager* const manager = dd1.manager();
   return BDD(manager, op(manager, dd1.node(), dd2.node()));
+}
+
+BDD Ite(const BDD& dd1, const BDD& dd2, const BDD& dd3) {
+  DdManager* const manager = dd1.manager();
+  return BDD(manager, Cudd_bddIte(manager, dd1.node(), dd2.node(), dd3.node()));
 }
 
 ADD::ADD(DdManager* manager, DdNode* node)
@@ -248,7 +257,7 @@ ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {
 
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3) {
   DdManager* const manager = dd1.manager();
-  const BDD cond(manager, Cudd_BddToAdd(manager, dd1.node()));
+  const ADD cond(dd1);
   return ADD(manager,
              Cudd_addIte(manager, cond.node(), dd2.node(), dd3.node()));
 }

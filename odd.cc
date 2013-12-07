@@ -31,20 +31,21 @@
 static int num_odd_nodes = 0;
 
 // local prototypes
-static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, size_t level, const VariableArray<BDD> &vars, ODDNode **tables);
+static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode **tables);
 static long add_offsets(const DecisionDiagramManager &ddman, ODDNode *dd, int level, int num_vars);
 
 //------------------------------------------------------------------------------
 
-ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd, const VariableArray<BDD> &vars)
+ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd)
 {
-  size_t i;
+  int i;
   ODDNode **tables;
   ODDNode *res;
 
   // build tables to store odd nodes
-  tables = new ODDNode*[vars.size()+1];
-  for (i = 0; i < vars.size()+1; i++) {
+  int nvars = ddman.GetNumVariables() / 2;
+  tables = new ODDNode*[nvars+1];
+  for (i = 0; i < nvars+1; i++) {
     tables[i] = NULL;
   }
 	
@@ -52,10 +53,10 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd, const Var
   num_odd_nodes = 0;
 	
   // call recursive bit
-  res = build_odd_rec(ddman, dd.get(), 0, vars, tables);
+  res = build_odd_rec(ddman, dd.get(), 0, tables);
 	
   // add offsets to odd
-  add_offsets(ddman, res, 0, vars.size());
+  add_offsets(ddman, res, 0, nvars);
 
   // free memory
   delete tables;
@@ -65,7 +66,7 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd, const Var
 
 //------------------------------------------------------------------------------
 
-static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, size_t level, const VariableArray<BDD> &vars, ODDNode **tables)
+static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode **tables)
 {
   ODDNode *ptr;
 	
@@ -90,17 +91,17 @@ static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, s
     // can we assume this?
     //	if (dd == Cudd_ReadZero(ddman)) return;
 
-    if (level == vars.size()) {
+    if (level == ddman.GetNumVariables() / 2) {
       ptr->e = NULL;
       ptr->t = NULL;
     }
-    else if (vars.get()[level]->index < dd->index) {
-      ptr->e = build_odd_rec(ddman, dd, level+1, vars, tables);
+    else if (ddman.GetBddVariable(2 * level).get()->index < dd->index) {
+      ptr->e = build_odd_rec(ddman, dd, level+1, tables);
       ptr->t = ptr->e;
     }
     else {
-      ptr->e = build_odd_rec(ddman, Cudd_E(dd), level+1, vars, tables);
-      ptr->t = build_odd_rec(ddman, Cudd_T(dd), level+1, vars, tables);
+      ptr->e = build_odd_rec(ddman, Cudd_E(dd), level+1, tables);
+      ptr->t = build_odd_rec(ddman, Cudd_T(dd), level+1, tables);
     }
     ptr->eoff = -1;
     ptr->toff = -1;

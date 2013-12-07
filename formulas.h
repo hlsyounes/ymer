@@ -28,11 +28,11 @@
 #include <deque>
 #include <map>
 
+#include "models.h"
 #include "src/ddutil.h"
 #include "src/expression.h"
 #include "src/statistics.h"
 
-struct Model;
 struct State;
 
 /* Sampling algorithm. */
@@ -93,14 +93,16 @@ class StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const = 0;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const = 0;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const = 0;
@@ -170,6 +172,7 @@ class PathFormula {
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       DdNode* dd1, DdNode* dd2,
                       const ModelCheckingParams& params,
@@ -177,15 +180,16 @@ class PathFormula {
 
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
+                      const DecisionDiagramModel& dd_model,
 		      const State& state, const TypedValue& p, bool strict,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const = 0;
 
   /* Verifies this path formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model,
-			 const TypedValue& p, bool strict, bool estimate,
-                         const ModelCheckingParams& params) const = 0;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     const TypedValue& p, bool strict, bool estimate,
+                     const ModelCheckingParams& params) const = 0;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const = 0;
@@ -235,14 +239,16 @@ class Conjunction : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
@@ -282,14 +288,16 @@ class Disjunction : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
@@ -330,14 +338,16 @@ class Negation : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
@@ -381,14 +391,16 @@ class Implication : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
@@ -438,14 +450,16 @@ class Probabilistic : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
@@ -497,14 +511,16 @@ class Comparison : public StateFormula {
 
   /* Verifies this state formula using the statistical engine. */
   virtual bool verify(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this state formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model, bool estimate,
-                         const ModelCheckingParams& params) const;
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                     const DecisionDiagramModel& dd_model,
+                     bool estimate,
+                     const ModelCheckingParams& params) const;
 
   /* Clears the cache of any probabilistic operator. */
   virtual size_t clear_cache() const;
@@ -671,6 +687,7 @@ class Until : public PathFormula {
 
   /* Generates a sample for this path formula. */
   virtual bool sample(const DecisionDiagramManager* manager,
+                      const DecisionDiagramModel* dd_model,
                       const Model& model, const State& state,
                       DdNode* dd1, DdNode* dd2,
                       const ModelCheckingParams& params,
@@ -678,13 +695,14 @@ class Until : public PathFormula {
 
   /* Verifies this path formula using the mixed engine. */
   virtual bool verify(const DecisionDiagramManager& dd_man, const Model& model,
+                      const DecisionDiagramModel& dd_model,
 		      const State& state, const TypedValue& p, bool strict,
                       const ModelCheckingParams& params,
                       ModelCheckingStats* stats) const;
 
   /* Verifies this path formula using the hybrid engine. */
-  virtual DdNode* verify(const DecisionDiagramManager& dd_man,
-                         const Model& model,
+  virtual BDD verify(const DecisionDiagramManager& dd_man,
+                         const DecisionDiagramModel& dd_model,
 			 const TypedValue& p, bool strict, bool estimate,
                          const ModelCheckingParams& params) const;
 

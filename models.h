@@ -96,10 +96,6 @@ class Model {
     return module_variables_[i];
   }
 
-  const std::map<std::string, VariableProperties>& variable_properties() const {
-    return variable_properties_;
-  }
-
   /* Returns the name of the variable with index i. */
   const std::string& variable_name(int i) const { return variables_[i].name(); }
 
@@ -109,44 +105,9 @@ class Model {
   /* Returns all commands for this model. */
   const std::vector<const Command*>& commands() const { return commands_; }
 
-  /* Caches DDs for this model. */
-  void cache_dds(const DecisionDiagramManager& dd_man, size_t moments) const;
-
-  /* Returns an MTBDD representing the rate matrix for this model. */
-  DdNode* rate_mtbdd() const;
-
-  /* Returns a reachability BDD for this model. */
-  DdNode* reachability_bdd() const;
-
-  /* Returns an ODD for this model. */
-  ODDNode* odd() const;
-
-  /* Returns a BDD representing the initial state for this model. */
-  DdNode* init_bdd() const;
-
-  /* Returns the index associated with the initial state for this model. */
-  int init_index(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns a BDD representing the given state. */
-  BDD state_bdd(const DecisionDiagramManager& dd_man,
-                const std::vector<int>& state) const;
-
-  /* Returns the row variables for this model. */
-  const VariableArray<BDD>& row_variables() const { return row_variables_; }
-
-  /* Returns the column variables for this model. */
-  const VariableArray<BDD>& column_variables() const {
-    return column_variables_;
-  };
-
-  /* Returns the number of states for this model. */
-  double num_states(const DecisionDiagramManager& dd_man) const;
-
-  /* Returns the number of transitions for this model. */
-  double num_transitions(const DecisionDiagramManager& dd_man) const;
-
-  /* Releases all DDs cached for this model. */
-  void uncache_dds(const DecisionDiagramManager& dd_man) const;
+  const std::vector<std::set<const Module*>>& command_modules() const {
+    return command_modules_;
+  }
 
 private:
   std::vector<ParsedVariable> variables_;
@@ -159,24 +120,41 @@ private:
   std::vector<const Command*> commands_;
   /* Modules that the above commands are associated with. */
   std::vector<std::set<const Module*>> command_modules_;
-  /* Cached MTBDD representing rate matrix. */
-  mutable DdNode* rate_mtbdd_;
-  std::map<std::string, VariableProperties> variable_properties_;
-  /* Cached reachability BDD. */
-  mutable DdNode* reach_bdd_;
-  /* Cached ODD. */
-  mutable ODDNode* odd_;
-  /* Cached BDD representing the initial state. */
-  mutable DdNode* init_bdd_;
-  /* Cached index associated with the initial state. */
-  mutable int init_index_;
-  /* Cached row variables. */
-  mutable VariableArray<BDD> row_variables_;
-  /* Cached column variables. */
-  mutable VariableArray<BDD> column_variables_;
 };
 
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m);
+
+// A model compiled into decision diagrams.
+class DecisionDiagramModel {
+ public:
+  ~DecisionDiagramModel();
+
+  static DecisionDiagramModel Create(const DecisionDiagramManager& manager,
+                                     size_t moments, const Model& model);
+
+  const std::map<std::string, VariableProperties>& variable_properties() const {
+    return variable_properties_;
+  }
+
+  const ADD& rate_matrix() const { return rate_matrix_; }
+  const BDD& reachable_states() const { return reachable_states_; }
+  const BDD& initial_state() const { return initial_state_; }
+  int initial_state_index() const { return initial_state_index_; }
+  ODDNode* odd() const { return odd_; }
+
+ private:
+  DecisionDiagramModel(
+      const std::map<std::string, VariableProperties>& variable_properties,
+      const ADD& rate_matrix, const BDD& reachable_states,
+      const BDD& initial_state, int initial_state_index, ODDNode* odd);
+
+  std::map<std::string, VariableProperties> variable_properties_;
+  ADD rate_matrix_;
+  BDD reachable_states_;
+  BDD initial_state_;
+  int initial_state_index_;
+  ODDNode* odd_;
+};
 
 #endif  // MODELS_H_

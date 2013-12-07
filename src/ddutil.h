@@ -36,6 +36,10 @@ class DecisionDiagram {
   // Returns true if this decision diagram is a constant.
   bool IsConstant() const;
 
+  // Returns the minterm count for this decision diagram assuming the given
+  // number of variables.
+  double MintermCount(int num_variables) const;
+
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdNode* release();
   DdNode* get() const { return node(); }
@@ -104,8 +108,12 @@ class BDD : public DecisionDiagram {
 
   friend class DecisionDiagramManager;
   friend class ADD;
+  friend BDD Ite(const BDD&, const BDD&, const BDD&);
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
 };
+
+// Returns the BDD for dd1 ? dd2 : dd3.
+BDD Ite(const BDD& dd1, const BDD& dd2, const BDD& dd3);
 
 // Wrapper class for ADDs, with automatic referencing and dereferencing.
 class ADD : public DecisionDiagram {
@@ -162,9 +170,6 @@ class VariableArray {
   VariableArray();
 
   std::vector<DdNode*>::size_type size() const { return variables_.size(); }
-
-  // TODO(hlsyounes): remove once all code is using wrapper classes.
-  DdNode* const * get() const { return variables_.data(); }
 
  private:
   VariableArray(std::vector<DD> variables);
