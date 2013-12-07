@@ -687,7 +687,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
     const ParsedVariable& v = *i;
     int high_bit = low_bit + Log2(v.max_value() - v.min_value());
     variable_properties.insert(std::make_pair(
-        v.name(), VariableProperties(low_bit, high_bit)));
+        v.name(), VariableProperties(v.min_value(), low_bit, high_bit)));
     low_bit = high_bit + 1;
   }
   /* BDD for initial state. */

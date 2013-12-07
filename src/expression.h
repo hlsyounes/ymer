@@ -78,13 +78,16 @@ private:
 
 class VariableProperties {
  public:
-  VariableProperties(int low_bit, int high_bit);
+  VariableProperties(int min_value, int low_bit, int high_bit);
+
+  int min_value() const { return min_value_; }
 
   int low_bit() const { return low_bit_; }
 
   int high_bit() const { return high_bit_; }
 
  private:
+  int min_value_;
   int low_bit_;
   int high_bit_;
 };
@@ -224,13 +227,10 @@ class Variable : public Expression {
 
   virtual ~Variable();
 
-  void SetVariableProperties(int low, int index);
+  void SetVariableProperties(int index);
 
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
-
-  // Returns the lower bound for this variable.
-  int low() const { return low_; }
 
   // Returns the index of this variable.
   int index() const { return index_; }
@@ -243,8 +243,6 @@ private:
 
   // The name of this identifier.
   std::string name_;
-  // The lower bound for this variable.
-  int low_;
   // The index of this variable.
   int index_;
 };
