@@ -428,7 +428,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   BDD dd1 = pre().verify(dd_model, false, params);
 
   if (min_time() > 0) {
-    // TODO
+    // TODO(hlsyounes): implement support for interval time bounds.
     throw std::invalid_argument("interval time bounds not supported");
   }
 
