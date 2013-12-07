@@ -113,16 +113,16 @@ class Model {
   void cache_dds(const DecisionDiagramManager& dd_man, size_t moments) const;
 
   /* Returns an MTBDD representing the rate matrix for this model. */
-  DdNode* rate_mtbdd(const DecisionDiagramManager& dd_man) const;
+  DdNode* rate_mtbdd() const;
 
   /* Returns a reachability BDD for this model. */
-  DdNode* reachability_bdd(const DecisionDiagramManager& dd_man) const;
+  DdNode* reachability_bdd() const;
 
   /* Returns an ODD for this model. */
-  ODDNode* odd(const DecisionDiagramManager& dd_man) const;
+  ODDNode* odd() const;
 
   /* Returns a BDD representing the initial state for this model. */
-  DdNode* init_bdd(const DecisionDiagramManager& dd_man) const;
+  DdNode* init_bdd() const;
 
   /* Returns the index associated with the initial state for this model. */
   int init_index(const DecisionDiagramManager& dd_man) const;

@@ -37,7 +37,7 @@
 DdNode* Conjunction::verify(const DecisionDiagramManager& dd_man,
                             const Model& model, bool estimate,
                             const ModelCheckingParams& params) const {
-  DdNode* sol = model.reachability_bdd(dd_man);
+  DdNode* sol = model.reachability_bdd();
   for (const StateFormula* conjunct : conjuncts()) {
     DdNode* ddf = conjunct->verify(dd_man, model, estimate, params);
     DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddf, sol);
@@ -67,7 +67,7 @@ DdNode* Disjunction::verify(const DecisionDiagramManager& dd_man,
     Cudd_RecursiveDeref(dd_man.manager(), sol);
     sol = ddo;
   }
-  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* ddr = model.reachability_bdd();
   DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddr, sol);
   Cudd_Ref(dda);
   Cudd_RecursiveDeref(dd_man.manager(), ddr);
@@ -87,7 +87,7 @@ DdNode* Negation::verify(const DecisionDiagramManager& dd_man,
   DdNode* sol = Cudd_Not(ddf);
   Cudd_Ref(sol);
   Cudd_RecursiveDeref(dd_man.manager(), ddf);
-  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* ddr = model.reachability_bdd();
   DdNode* dda = Cudd_bddAnd(dd_man.manager(), ddr, sol);
   Cudd_Ref(dda);
   Cudd_RecursiveDeref(dd_man.manager(), ddr);
@@ -112,7 +112,7 @@ DdNode* Implication::verify(const DecisionDiagramManager& dd_man,
   Cudd_Ref(ddi);
   Cudd_RecursiveDeref(dd_man.manager(), ddn);
   Cudd_RecursiveDeref(dd_man.manager(), ddc);
-  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* ddr = model.reachability_bdd();
   DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddr, ddi);
   Cudd_Ref(sol);
   Cudd_RecursiveDeref(dd_man.manager(), ddr);
@@ -144,7 +144,7 @@ DdNode* Comparison::verify(const DecisionDiagramManager& dd_man,
                            const Model& model, bool estimate,
                            const ModelCheckingParams& params) const {
   BDD ddc = bdd(dd_man, model.variable_properties(), *this);
-  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* ddr = model.reachability_bdd();
   DdNode* sol = Cudd_bddAnd(dd_man.manager(), ddc.get(), ddr);
   Cudd_Ref(sol);
   Cudd_RecursiveDeref(dd_man.manager(), ddr);
@@ -472,7 +472,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
    */
   if (p == 0 && !strict) {
     /* Satisfied by all reachable states. */
-    return model.reachability_bdd(dd_man);
+    return model.reachability_bdd();
   } else if (p == 1 && strict) {
     /* Not satisfied by any states. */
     DdNode* sol = Cudd_ReadLogicZero(dd_man.manager());
@@ -522,7 +522,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   /* Time limit. */
   double time = max_time().value<double>();
   /* ODD for model. */
-  ODDNode* odd = model.odd(dd_man);
+  ODDNode* odd = model.odd();
   /* Number of states. */
   size_t nstates = odd->eoff + odd->toff;
 
@@ -533,7 +533,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   DdNode* ddm = Cudd_BddToAdd(dd_man.manager(), maybe);
   Cudd_Ref(ddm);
   Cudd_RecursiveDeref(dd_man.manager(), maybe);
-  DdNode* ddT = model.rate_mtbdd(dd_man);
+  DdNode* ddT = model.rate_mtbdd();
   DdNode* ddR = Cudd_addApply(dd_man.manager(), Cudd_addTimes, ddT, ddm);
   Cudd_Ref(ddR);
   Cudd_RecursiveDeref(dd_man.manager(), ddT);
@@ -785,7 +785,7 @@ DdNode* Until::verify(const DecisionDiagramManager& dd_man, const Model& model,
   DdNode* sol;
   if (init >= 0) {
     if ((strict && sum[0] > threshold) || (!strict && sum[0] >= threshold)) {
-      sol = model.init_bdd(dd_man);
+      sol = model.init_bdd();
     } else {
       sol = Cudd_ReadLogicZero(dd_man.manager());
       Cudd_Ref(sol);
