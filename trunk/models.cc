@@ -668,6 +668,11 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
   return os;
 }
 
+VariableProperties::VariableProperties(int min_value, int low_bit, int high_bit)
+    : min_value_(min_value), low_bit_(low_bit), high_bit_(high_bit) {
+  CHECK_LE(low_bit, high_bit);
+}
+
 DecisionDiagramModel::DecisionDiagramModel(
     const DecisionDiagramManager* manager,
     const std::map<std::string, VariableProperties>& variable_properties,
@@ -1033,4 +1038,227 @@ DecisionDiagramModel DecisionDiagramModel::Create(
   int init_index = GetInitIndex(*manager, init_bdd, odd);
   return DecisionDiagramModel(manager, variable_properties, rate_matrix,
                               reach_bdd, init_bdd, init_index, odd);
+}
+
+namespace {
+
+ADD CompileVariable(const DecisionDiagramManager& manager,
+                    int low, int low_bit, int high_bit, bool primed) {
+  ADD result = manager.GetConstant(0);
+  const int offset = primed ? 1 : 0;
+  for (int i = high_bit; i >= low_bit; --i) {
+    result = result + (manager.GetAddVariable(2*i + offset) *
+                       manager.GetConstant(1 << (high_bit - i)));
+  }
+  return result + manager.GetConstant(low);
+}
+
+class ExpressionCompiler : public ExpressionVisitor {
+ public:
+  ExpressionCompiler(
+      const DecisionDiagramManager* manager,
+      const std::map<std::string, VariableProperties>* variable_properties,
+      bool primed);
+
+  ADD mtbdd() const { return mtbdd_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  const DecisionDiagramManager* manager_;
+  const std::map<std::string, VariableProperties>* variable_properties_;
+  bool primed_;
+  ADD mtbdd_;
+};
+
+ExpressionCompiler::ExpressionCompiler(
+    const DecisionDiagramManager* manager,
+    const std::map<std::string, VariableProperties>* variable_properties,
+    bool primed)
+    : manager_(manager), variable_properties_(variable_properties),
+      primed_(primed), mtbdd_(manager->GetConstant(0)) {
+}
+
+void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
+  mtbdd_ = manager_->GetConstant(expr.value().value<double>());
+}
+
+void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
+  auto i = variable_properties_->find(expr.name());
+  CHECK(i != variable_properties_->end());
+  const VariableProperties& p = i->second;
+  mtbdd_ = CompileVariable(
+      *manager_, p.min_value(), p.low_bit(), p.high_bit(), primed_);
+}
+
+void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  ADD operand1 = mtbdd_;
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      mtbdd_ = operand1 + mtbdd_;
+      break;
+    case Computation::MINUS:
+      mtbdd_ = operand1 - mtbdd_;
+      break;
+    case Computation::MULTIPLY:
+      mtbdd_ = operand1 * mtbdd_;
+      break;
+    case Computation::DIVIDE:
+      mtbdd_ = operand1 / mtbdd_;
+      break;
+  }
+}
+
+}  // namespace
+
+ADD mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e) {
+  ExpressionCompiler compiler(
+      &manager, &variable_properties, false /* primed */);
+  e.Accept(&compiler);
+  return compiler.mtbdd();
+}
+
+ADD primed_mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e) {
+  ExpressionCompiler compiler(
+      &manager, &variable_properties, true /* primed */);
+  e.Accept(&compiler);
+  return compiler.mtbdd();
+}
+
+ADD variable_mtbdd(const DecisionDiagramManager& manager,
+                   int low, int low_bit, int high_bit) {
+  return CompileVariable(manager, low, low_bit, high_bit, false /* primed */);
+}
+
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
+                          int low, int low_bit, int high_bit) {
+  return CompileVariable(manager, low, low_bit, high_bit, true /* primed */);
+}
+
+namespace {
+
+class StateFormulaCompiler : public StateFormulaVisitor {
+ public:
+  StateFormulaCompiler(
+      const DecisionDiagramManager* manager,
+      const std::map<std::string, VariableProperties>* variable_properties,
+      bool primed);
+
+  BDD bdd() const { return bdd_; }
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+
+  const DecisionDiagramManager* manager_;
+  const std::map<std::string, VariableProperties>* variable_properties_;
+  bool primed_;
+  BDD bdd_;
+};
+
+StateFormulaCompiler::StateFormulaCompiler(
+    const DecisionDiagramManager* manager,
+    const std::map<std::string, VariableProperties>* variable_properties,
+    bool primed)
+    : manager_(manager), variable_properties_(variable_properties),
+      primed_(primed), bdd_(manager->GetConstant(false)) {
+}
+
+void StateFormulaCompiler::DoVisitConjunction(const Conjunction& formula) {
+  BDD result = manager_->GetConstant(true);
+  for (const StateFormula* conjunct : formula.conjuncts()) {
+    conjunct->Accept(this);
+    result = bdd_ && result;
+  }
+  bdd_ = result;
+}
+
+void StateFormulaCompiler::DoVisitDisjunction(const Disjunction& formula) {
+  BDD result = manager_->GetConstant(false);
+  for (const StateFormula* disjunct : formula.disjuncts()) {
+    disjunct->Accept(this);
+    result = bdd_ || result;
+  }
+  bdd_ = result;
+}
+
+void StateFormulaCompiler::DoVisitNegation(const Negation& formula) {
+  formula.negand().Accept(this);
+  bdd_ = !bdd_;
+}
+
+void StateFormulaCompiler::DoVisitImplication(const Implication& formula) {
+  formula.antecedent().Accept(this);
+  BDD antecedent = bdd_;
+  formula.consequent().Accept(this);
+  bdd_ = !antecedent || bdd_;
+}
+
+void StateFormulaCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
+  LOG(FATAL) << "not implemented";
+}
+
+void StateFormulaCompiler::DoVisitComparison(const Comparison& formula) {
+  ADD expr1 = primed_
+      ? primed_mtbdd(*manager_, *variable_properties_, formula.expr1())
+      : mtbdd(*manager_, *variable_properties_, formula.expr1());
+  ADD expr2 = primed_
+      ? primed_mtbdd(*manager_, *variable_properties_, formula.expr2())
+      : mtbdd(*manager_, *variable_properties_, formula.expr2());
+  switch (formula.op()) {
+    case Comparison::LESS:
+      bdd_ = expr1 < expr2;
+      break;
+    case Comparison::LESS_EQUAL:
+      bdd_ = expr1 <= expr2;
+      break;
+    case Comparison::GREATER_EQUAL:
+      bdd_ = expr1 >= expr2;
+      break;
+    case Comparison::GREATER:
+      bdd_ = expr1 > expr2;
+      break;
+    case Comparison::EQUAL:
+      bdd_ = expr1 == expr2;
+      break;
+    case Comparison::NOT_EQUAL:
+      bdd_ = expr1 != expr2;
+      break;
+  }
+}
+
+}  // namespace
+
+BDD bdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f) {
+  StateFormulaCompiler compiler(&manager, &variable_properties,
+                                false /* primed */);
+  f.Accept(&compiler);
+  return compiler.bdd();
+}
+
+BDD primed_bdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f) {
+  StateFormulaCompiler compiler(&manager, &variable_properties,
+                                true /* primed */);
+  f.Accept(&compiler);
+  return compiler.bdd();
 }
