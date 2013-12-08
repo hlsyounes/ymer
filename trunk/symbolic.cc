@@ -35,11 +35,12 @@
 
 /* Verifies this state formula using the hybrid engine. */
 BDD Conjunction::verify(const DecisionDiagramModel& dd_model,
-                        bool estimate,
+                        bool estimate, bool top_level_formula,
                         const ModelCheckingParams& params) const {
   BDD sol = dd_model.reachable_states();
   for (const StateFormula* conjunct : conjuncts()) {
-    sol = conjunct->verify(dd_model, estimate, params) && sol;
+    sol = conjunct->verify(dd_model, estimate, top_level_formula, params)
+        && sol;
   }
   return sol;
 }
@@ -50,11 +51,12 @@ BDD Conjunction::verify(const DecisionDiagramModel& dd_model,
 
 /* Verifies this state formula using the hybrid engine. */
 BDD Disjunction::verify(const DecisionDiagramModel& dd_model,
-                        bool estimate,
+                        bool estimate, bool top_level_formula,
                         const ModelCheckingParams& params) const {
   BDD sol = dd_model.manager().GetConstant(false);
   for (const StateFormula* disjunct : disjuncts()) {
-    sol = disjunct->verify(dd_model, estimate, params) || sol;
+    sol = disjunct->verify(dd_model, estimate, top_level_formula, params)
+        || sol;
   }
   return dd_model.reachable_states() && sol;
 }
@@ -65,9 +67,9 @@ BDD Disjunction::verify(const DecisionDiagramModel& dd_model,
 
 /* Verifies this state formula using the hybrid engine. */
 BDD Negation::verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const {
-  BDD sol = !negand().verify(dd_model, estimate, params);
+  BDD sol = !negand().verify(dd_model, estimate, top_level_formula, params);
   return dd_model.reachable_states() && sol;
 }
 
@@ -77,10 +79,10 @@ BDD Negation::verify(const DecisionDiagramModel& dd_model,
 
 /* Verifies this state formula using the hybrid engine. */
 BDD Implication::verify(const DecisionDiagramModel& dd_model,
-                        bool estimate,
+                        bool estimate, bool top_level_formula,
                         const ModelCheckingParams& params) const {
-  BDD sol = !antecedent().verify(dd_model, estimate, params)
-      || consequent().verify(dd_model, estimate, params);
+  BDD sol = !antecedent().verify(dd_model, estimate, top_level_formula, params)
+      || consequent().verify(dd_model, estimate, top_level_formula, params);
   return dd_model.reachable_states() && sol;
 }
 
@@ -90,11 +92,10 @@ BDD Implication::verify(const DecisionDiagramModel& dd_model,
 
 /* Verifies this state formula using the hybrid engine. */
 BDD Probabilistic::verify(const DecisionDiagramModel& dd_model,
-                          bool estimate,
+                          bool estimate, bool top_level_formula,
                           const ModelCheckingParams& params) const {
-  formula_level_++;
-  BDD res = formula().verify(dd_model, threshold(), strict(), estimate, params);
-  formula_level_--;
+  BDD res = formula().verify(dd_model, threshold(), strict(), estimate,
+                             top_level_formula, params);
   return res;
 }
 
@@ -104,7 +105,7 @@ BDD Probabilistic::verify(const DecisionDiagramModel& dd_model,
 
 /* Verifies this state formula using the hybrid engine. */
 BDD Comparison::verify(const DecisionDiagramModel& dd_model,
-                       bool estimate,
+                       bool estimate, bool top_level_formula,
                        const ModelCheckingParams& params) const {
   BDD ddc = bdd(dd_model.manager(), dd_model.variable_properties(), *this);
   return ddc && dd_model.reachable_states();
@@ -401,6 +402,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 /* Verifies this path formula using the hybrid engine. */
 BDD Until::verify(const DecisionDiagramModel& dd_model,
                   const TypedValue& p, bool strict, bool estimate,
+                  bool top_level_formula,
                   const ModelCheckingParams& params) const {
   /*
    * Detect trivial cases.
@@ -416,7 +418,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Verify postcondition formula.
    */
-  BDD dd2 = post().verify(dd_model, false, params);
+  BDD dd2 = post().verify(dd_model, false, false, params);
   if (max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
     return dd2;
@@ -425,7 +427,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Verify precondition formula.
    */
-  BDD dd1 = pre().verify(dd_model, false, params);
+  BDD dd1 = pre().verify(dd_model, false, false, params);
 
   if (min_time() > 0) {
     // TODO(hlsyounes): implement support for interval time bounds.
@@ -456,23 +458,23 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Build HDD for matrix.
    */
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << "Building hybrid MTBDD matrix...";
   }
   ADD ddR = dd_model.rate_matrix() * ADD(maybe);
   HDDMatrix* hddm = build_hdd_matrix(dd_model.manager(), ddR, odd);
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << hddm->num_nodes << " nodes." << std::endl;
   }
 
   /*
    * Add sparse bits.
    */
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << "Adding sparse bits...";
   }
   add_sparse_bits(hddm);
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
               << std::endl;
   }
@@ -506,8 +508,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
    */
   double* soln = mtbdd_to_double_vector(dd_model.manager(), ADD(dd2), odd);
   double* soln2 = new double[nstates];
-  int init = ((StateFormula::formula_level() == 1)
-	      ? dd_model.initial_state_index() : -1);
+  int init = top_level_formula ? dd_model.initial_state_index() : -1;
   std::vector<double> sum((init >= 0) ? 1 : nstates, 0);
 
   /*
@@ -516,13 +517,13 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   int left, right;
   double* weights;
   double weight_sum;
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << "Uniformization: " << max_diag << "*" << time << " = "
               << (max_diag*time) << std::endl;
   }
   fox_glynn_weighter(left, right, weights, weight_sum,
 		     1.01*max_diag*time, params.epsilon);
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << "Fox-Glynn: left = " << left << ", right = " << right
               << std::endl;
   }
@@ -530,14 +531,14 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Iterations before left bound to update vector.
    */
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << "Computing probabilities";
   }
   int iters;
   bool done = false;
   bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
-    if (StateFormula::formula_level() == 1) {
+    if (top_level_formula) {
       if (iters % 1000 == 0) {
         std::cout << ':';
       } else if (iters % 100 == 0) {
@@ -590,7 +591,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
    * Accumulate weights.
    */
   for (; iters <= right && !done; iters++) {
-    if (StateFormula::formula_level() == 1) {
+    if (top_level_formula) {
       if (iters % 1000 == 0) {
         std::cout << ':';
       } else if (iters % 100 == 0) {
@@ -686,7 +687,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   if (iters > right) {
     iters = right;
   }
-  if (StateFormula::formula_level() == 1) {
+  if (top_level_formula) {
     std::cout << ' ' << iters << " iterations." << std::endl;
   }
   if (estimate) {
@@ -694,7 +695,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
     std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
     std::cout.precision(6);
   }
-  if (steady && StateFormula::formula_level() == 1) {
+  if (steady && top_level_formula) {
     std::cout << "Steady state detected." << std::endl;
   }
   /*

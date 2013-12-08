@@ -57,6 +57,7 @@ struct ModelCheckingParams {
 struct ModelCheckingStats {
   Sample<double> time;
   Sample<int> sample_size;
+  Sample<int> sample_cache_size;
   Sample<size_t> path_length;
 };
 
@@ -79,9 +80,6 @@ class StateFormulaVisitor;
 //
 class StateFormula {
  public:
-  /* Returns the current formula level. */
-  static size_t formula_level() { return formula_level_; }
-
   /* Deletes this state formula. */
   virtual ~StateFormula() {}
 
@@ -90,27 +88,12 @@ class StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const = 0;
-
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const = 0;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const = 0;
 
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const = 0;
-
 protected:
-  /* Nesting level of formula just being verified. */
-  static size_t formula_level_;
-
   /* Constructs a state formula. */
   StateFormula() {}
 
@@ -170,19 +153,11 @@ class PathFormula {
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
-  /* Generates a sample for this path formula. */
-  virtual bool sample(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const = 0;
-
   /* Verifies this path formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
                      const TypedValue& p, bool strict, bool estimate,
+                     bool top_level_formula,
                      const ModelCheckingParams& params) const = 0;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const = 0;
 
 protected:
   /* Constructs a path formula. */
@@ -224,22 +199,10 @@ class Conjunction : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -271,22 +234,10 @@ class Disjunction : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -319,22 +270,10 @@ class Negation : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -370,22 +309,10 @@ class Implication : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -427,22 +354,10 @@ class Probabilistic : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -456,8 +371,6 @@ private:
   bool strict_;
   /* The path formula. */
   const PathFormula* formula_;
-  /* Cached acceptance sampling results. */
-  mutable std::map<std::vector<int>, Sample<int>> cache_;
 };
 
 
@@ -489,19 +402,10 @@ class Comparison : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Verifies this state formula using the statistical engine. */
-  virtual bool verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this state formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate,
+                     bool estimate, bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 protected:
   /* Constructs a comparison. */
@@ -529,9 +433,6 @@ struct LessThan : public Comparison {
   /* Constructs a less-than comparison. */
   LessThan(const Expression& expr1, const Expression& expr2);
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -547,9 +448,6 @@ protected:
 struct LessThanOrEqual : public Comparison {
   /* Constructs a less-than-or-equal comparison. */
   LessThanOrEqual(const Expression& expr1, const Expression& expr2);
-
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -567,9 +465,6 @@ struct GreaterThanOrEqual : public Comparison {
   /* Constructs a greater-than-or-equal comparison. */
   GreaterThanOrEqual(const Expression& expr1, const Expression& expr2);
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -585,9 +480,6 @@ protected:
 struct GreaterThan : public Comparison {
   /* Constructs a greater-than comparison. */
   GreaterThan(const Expression& expr1, const Expression& expr2);
-
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -605,9 +497,6 @@ struct Equality : public Comparison {
   /* Constructs an equality comparison. */
   Equality(const Expression& expr1, const Expression& expr2);
 
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
-
 protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
@@ -623,9 +512,6 @@ protected:
 struct Inequality : public Comparison {
   /* Constructs an inequality comparison. */
   Inequality(const Expression& expr1, const Expression& expr2);
-
-  /* Tests if this state formula holds in the given state. */
-  virtual bool holds(const std::vector<int>& state) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -663,19 +549,11 @@ class Until : public PathFormula {
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Generates a sample for this path formula. */
-  virtual bool sample(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const;
-
   /* Verifies this path formula using the hybrid engine. */
   virtual BDD verify(const DecisionDiagramModel& dd_model,
                      const TypedValue& p, bool strict, bool estimate,
+                     bool top_level_formula,
                      const ModelCheckingParams& params) const;
-
-  /* Clears the cache of any probabilistic operator. */
-  virtual size_t clear_cache() const;
 
 private:
   virtual void DoAccept(PathFormulaVisitor* visitor) const;
@@ -691,8 +569,6 @@ private:
   TypedValue min_time_;
   /* The upper time bound. */
   TypedValue max_time_;
-
-  mutable std::unique_ptr<const std::pair<BDD, BDD>> cached_dds_;
 };
 
 // Abstract base class for state formula visitors.
@@ -734,5 +610,21 @@ class PathFormulaVisitor {
  private:
   virtual void DoVisitUntil(const Until& formula) = 0;
 };
+
+class CompiledExpressionEvaluator;
+class CompiledPathProperty;
+class CompiledProperty;
+
+bool Verify(const CompiledProperty& property,
+            const Model& model, const DecisionDiagramModel* dd_model,
+            const ModelCheckingParams& params,
+            CompiledExpressionEvaluator* evaluator, const State& state,
+            ModelCheckingStats* stats);
+
+bool GetObservation(const CompiledPathProperty& property,
+                    const Model& model, const DecisionDiagramModel* dd_model,
+                    const ModelCheckingParams& params,
+                    CompiledExpressionEvaluator* evaluator, const State& state,
+                    ModelCheckingStats* stats);
 
 #endif /* FORMULAS_H */
