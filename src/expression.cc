@@ -23,7 +23,6 @@
 #include <ostream>
 #include <set>
 #include <string>
-#include <vector>
 
 #include "glog/logging.h"
 
@@ -310,19 +309,11 @@ Addition::Addition(const Expression& term1, const Expression& term2)
 Addition::~Addition() {
 }
 
-TypedValue Addition::value(const std::vector<int>& state) const {
-  return operand1().value(state) + operand2().value(state);
-}
-
 Subtraction::Subtraction(const Expression& term1, const Expression& term2)
     : Computation(MINUS, term1, term2) {
 }
 
 Subtraction::~Subtraction() {
-}
-
-TypedValue Subtraction::value(const std::vector<int>& state) const {
-  return operand1().value(state) - operand2().value(state);
 }
 
 Multiplication::Multiplication(const Expression& factor1,
@@ -333,10 +324,6 @@ Multiplication::Multiplication(const Expression& factor1,
 Multiplication::~Multiplication() {
 }
 
-TypedValue Multiplication::value(const std::vector<int>& state) const {
-  return operand1().value(state) * operand2().value(state);
-}
-
 Division::Division(const Expression& factor1, const Expression& factor2)
     : Computation(DIVIDE, factor1, factor2) {
 }
@@ -344,12 +331,8 @@ Division::Division(const Expression& factor1, const Expression& factor2)
 Division::~Division() {
 }
 
-TypedValue Division::value(const std::vector<int>& state) const {
-  return operand1().value(state) / operand2().value(state);
-}
-
 Variable::Variable(const std::string& name)
-    : name_(name), index_(-1) {
+    : name_(name) {
 }
 
 Variable::~Variable() {
@@ -357,14 +340,6 @@ Variable::~Variable() {
 
 void Variable::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitVariable(*this);
-}
-
-void Variable::SetVariableProperties(int index) {
-  index_ = index;
-}
-
-TypedValue Variable::value(const std::vector<int>& state) const {
-  return state.at(index());
 }
 
 Literal::Literal(const TypedValue& value)
@@ -376,10 +351,6 @@ Literal::~Literal() {
 
 void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
-}
-
-TypedValue Literal::value(const std::vector<int>& state) const {
-  return value();
 }
 
 ExpressionVisitor::ExpressionVisitor() {

@@ -26,7 +26,6 @@
 #include <map>
 #include <ostream>
 #include <string>
-#include <vector>
 
 #include "ddutil.h"
 #include "typed-value.h"
@@ -61,9 +60,6 @@ class Expression {
   static void destructive_deref(const Expression* e);
 
   void Accept(ExpressionVisitor* visitor) const;
-
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const = 0;
 
 protected:
   // Constructs an expression.
@@ -160,9 +156,6 @@ class Addition : public Computation {
  public:
   virtual ~Addition();
 
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const;
-
 private:
   // Constructs an addition.
   Addition(const Expression& term1, const Expression& term2);
@@ -175,9 +168,6 @@ private:
 class Subtraction : public Computation {
  public:
   virtual ~Subtraction();
-
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a subtraction.
@@ -192,9 +182,6 @@ class Multiplication : public Computation {
  public:
   virtual ~Multiplication();
 
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const;
-
 private:
   // Constructs a multiplication.
   Multiplication(const Expression& factor1, const Expression& factor2);
@@ -207,9 +194,6 @@ private:
 class Division : public Computation {
  public:
   virtual ~Division();
-
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   // Constructs a division.
@@ -227,24 +211,14 @@ class Variable : public Expression {
 
   virtual ~Variable();
 
-  void SetVariableProperties(int index);
-
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
-
-  // Returns the index of this variable.
-  int index() const { return index_; }
-
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
   // The name of this identifier.
   std::string name_;
-  // The index of this variable.
-  int index_;
 };
 
 // A literal expression.
@@ -257,9 +231,6 @@ class Literal : public Expression {
 
   // Returns the value of this literal.
   const TypedValue& value() const { return value_; }
-
-  // Returns the value of this expression.
-  virtual TypedValue value(const std::vector<int>& state) const;
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
