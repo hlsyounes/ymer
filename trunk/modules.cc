@@ -28,17 +28,9 @@
 /* Update */
 
 /* Constructs a variable update. */
-Update::Update(const Variable& variable, const Expression& expr)
-  : variable_(&variable), expr_(&expr) {
-  Expression::ref(variable_);
-  Expression::ref(expr_);
-}
-
-
-/* Deletes this variable update. */
-Update::~Update() {
-  Expression::destructive_deref(variable_);
-  Expression::destructive_deref(expr_);
+Update::Update(const std::string& variable,
+               std::unique_ptr<const Expression>&& expr)
+    : variable_(variable), expr_(std::move(expr)) {
 }
 
 
@@ -98,10 +90,6 @@ Module::Module() {
 
 /* Deletes this module. */
 Module::~Module() {
-  for (std::vector<const Variable*>::const_iterator vi = variables_.begin();
-       vi != variables_.end(); vi++) {
-    Expression::destructive_deref(*vi);
-  }
   for (const Command* command : commands()) {
     delete command;
   }
@@ -109,9 +97,8 @@ Module::~Module() {
 
 
 /* Adds a variable to this module. */
-void Module::add_variable(const Variable& variable) {
-  variables_.push_back(&variable);
-  Expression::ref(&variable);
+void Module::add_variable(const std::string& variable) {
+  variables_.push_back(variable);
 }
 
 
@@ -127,20 +114,18 @@ class ExpressionConstantSubstituter : public ExpressionVisitor {
   explicit ExpressionConstantSubstituter(
       const std::map<std::string, TypedValue>* constant_values);
 
-  ~ExpressionConstantSubstituter();
-
-  const Expression* release_expr();
+  std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
   virtual void DoVisitComputation(const Computation& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
-  const Expression* expr_;
+  std::unique_ptr<const Expression> expr_;
 };
 
-const Expression* SubstituteConstants(
+std::unique_ptr<const Expression> SubstituteConstants(
     const Expression& expr,
     const std::map<std::string, TypedValue>& constant_values) {
   ExpressionConstantSubstituter substituter(&constant_values);
@@ -237,7 +222,7 @@ const Update* SubstituteConstants(
     const Update& update,
     const std::map<std::string, TypedValue>& constant_values) {
   return new Update(update.variable(),
-                    *SubstituteConstants(update.expr(), constant_values));
+                    SubstituteConstants(update.expr(), constant_values));
 }
 
 const Command* SubstituteConstants(
@@ -256,41 +241,29 @@ const Command* SubstituteConstants(
 
 ExpressionConstantSubstituter::ExpressionConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), expr_(NULL) {
-}
-
-ExpressionConstantSubstituter::~ExpressionConstantSubstituter() {
-  Expression::ref(expr_);
-  Expression::destructive_deref(expr_);
-}
-
-const Expression* ExpressionConstantSubstituter::release_expr() {
-  const Expression* expr = expr_;
-  expr_ = NULL;
-  return expr;
+    : constant_values_(constant_values) {
 }
 
 void ExpressionConstantSubstituter::DoVisitLiteral(const Literal& expr) {
-  expr_ = new Literal(expr.value());
+  expr_.reset(new Literal(expr.value()));
 }
 
-void ExpressionConstantSubstituter::DoVisitVariable(const Variable& expr) {
+void ExpressionConstantSubstituter::DoVisitIdentifier(const Identifier& expr) {
   std::map<std::string, TypedValue>::const_iterator i =
       constant_values_->find(expr.name());
   if (i == constant_values_->end()) {
-    // TODO(hlsyounes): Make copy once Variable* does not represent identity.
-    expr_ = &expr;
+    expr_.reset(new Identifier(expr.name()));
   } else {
-    expr_ = new Literal(i->second);
+    expr_.reset(new Literal(i->second));
   }
 }
 
 void ExpressionConstantSubstituter::DoVisitComputation(
     const Computation& expr) {
   expr.operand1().Accept(this);
-  const Expression* operand1 = release_expr();
+  std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
-  expr_ = Computation::make(expr.op(), *operand1, *release_expr());
+  expr_ = Computation::Create(expr.op(), std::move(operand1), release_expr());
 }
 
 StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {
@@ -348,33 +321,33 @@ void StateFormulaConstantSubstituter::DoVisitComparison(
   switch (formula.op()) {
     case Comparison::LESS:
       formula_ = new LessThan(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
+          SubstituteConstants(formula.expr1(), *constant_values_),
+          SubstituteConstants(formula.expr2(), *constant_values_));
       break;
     case Comparison::LESS_EQUAL:
       formula_ = new LessThanOrEqual(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
+          SubstituteConstants(formula.expr1(), *constant_values_),
+          SubstituteConstants(formula.expr2(), *constant_values_));
       break;
     case Comparison::GREATER_EQUAL:
       formula_ = new GreaterThanOrEqual(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
+          SubstituteConstants(formula.expr1(), *constant_values_),
+          SubstituteConstants(formula.expr2(), *constant_values_));
       break;
     case Comparison::GREATER:
       formula_ = new GreaterThan(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
+          SubstituteConstants(formula.expr1(), *constant_values_),
+          SubstituteConstants(formula.expr2(), *constant_values_));
       break;
     case Comparison::EQUAL:
       formula_ = new Equality(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
+          SubstituteConstants(formula.expr1(), *constant_values_),
+          SubstituteConstants(formula.expr2(), *constant_values_));
       break;
     case Comparison::NOT_EQUAL:
       formula_ = new Inequality(
-          *SubstituteConstants(formula.expr1(), *constant_values_),
-          *SubstituteConstants(formula.expr2(), *constant_values_));
+          SubstituteConstants(formula.expr1(), *constant_values_),
+          SubstituteConstants(formula.expr2(), *constant_values_));
       break;
   }
 }
@@ -418,28 +391,28 @@ const Distribution* DistributionConstantSubstituter::release_distribution() {
 void DistributionConstantSubstituter::DoVisitExponential(
     const Exponential& distribution) {
   distribution_ = Exponential::make(
-      *SubstituteConstants(distribution.rate(), *constant_values_));
+      SubstituteConstants(distribution.rate(), *constant_values_));
 }
 
 void DistributionConstantSubstituter::DoVisitWeibull(
     const Weibull& distribution) {
   distribution_ = Weibull::make(
-      *SubstituteConstants(distribution.scale(), *constant_values_),
-      *SubstituteConstants(distribution.shape(), *constant_values_));
+      SubstituteConstants(distribution.scale(), *constant_values_),
+      SubstituteConstants(distribution.shape(), *constant_values_));
 }
 
 void DistributionConstantSubstituter::DoVisitLognormal(
     const Lognormal& distribution) {
   distribution_ = Lognormal::make(
-      *SubstituteConstants(distribution.scale(), *constant_values_),
-      *SubstituteConstants(distribution.shape(), *constant_values_));
+      SubstituteConstants(distribution.scale(), *constant_values_),
+      SubstituteConstants(distribution.shape(), *constant_values_));
 }
 
 void DistributionConstantSubstituter::DoVisitUniform(
     const Uniform& distribution) {
   distribution_ = Uniform::make(
-      *SubstituteConstants(distribution.low(), *constant_values_),
-      *SubstituteConstants(distribution.high(), *constant_values_));
+      SubstituteConstants(distribution.low(), *constant_values_),
+      SubstituteConstants(distribution.high(), *constant_values_));
 }
 
 }  // namespace

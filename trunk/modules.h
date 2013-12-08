@@ -42,22 +42,19 @@ struct Distribution;
  */
 struct Update {
   /* Constructs a variable update. */
-  Update(const Variable& variable, const Expression& expr);
-
-  /* Deletes this variable update. */
-  ~Update();
+  Update(const std::string& variable, std::unique_ptr<const Expression>&& expr);
 
   /* Returns the variable for this update. */
-  const Variable& variable() const { return *variable_; }
+  const std::string& variable() const { return variable_; }
 
   /* Returns the expression for this update. */
   const Expression& expr() const { return *expr_; }
 
 private:
   /* The variable for this update. */
-  const Variable* variable_;
+  std::string variable_;
   /* The expression for this update. */
-  const Expression* expr_;
+  std::unique_ptr<const Expression> expr_;
 };
 
 
@@ -124,7 +121,7 @@ struct Module {
   ~Module();
 
   /* Adds a variable to this module. */
-  void add_variable(const Variable& variable);
+  void add_variable(const std::string& variable);
 
   /* Adds a command to this module. */
   void add_command(const Command* command);
@@ -134,14 +131,14 @@ struct Module {
                const std::map<std::string, TypedValue>& rate_values);
 
   /* Returns the variables for this module. */
-  const std::vector<const Variable*>& variables() const { return variables_; }
+  const std::vector<std::string>& variables() const { return variables_; }
 
   /* Returns the commands for this module. */
   const std::vector<const Command*>& commands() const { return commands_; }
 
 private:
   /* The variables for this module. */
-  std::vector<const Variable*> variables_;
+  std::vector<std::string> variables_;
   /* The commands for this module. */
   std::vector<const Command*> commands_;
 };

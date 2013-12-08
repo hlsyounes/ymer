@@ -20,6 +20,7 @@
 #include "expression.h"
 
 #include <map>
+#include <memory>
 #include <ostream>
 #include <set>
 #include <string>
@@ -29,30 +30,10 @@
 #include "ddutil.h"
 #include "typed-value.h"
 
-Expression::Expression()
-    : ref_count_(0) {
-}
-
-Expression::~Expression() {
-}
+Expression::~Expression() = default;
 
 void Expression::Accept(ExpressionVisitor* visitor) const {
   DoAccept(visitor);
-}
-
-void Expression::ref(const Expression* e) {
-  if (e != NULL) {
-    ++e->ref_count_;
-  }
-}
-
-void Expression::destructive_deref(const Expression* e) {
-  if (e != NULL) {
-    --e->ref_count_;
-    if (e->ref_count_ == 0) {
-      delete e;
-    }
-  }
 }
 
 VariableProperties::VariableProperties(int min_value, int low_bit, int high_bit)
@@ -84,7 +65,7 @@ class ExpressionCompiler : public ExpressionVisitor {
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
   virtual void DoVisitComputation(const Computation& expr);
 
   const DecisionDiagramManager* manager_;
@@ -105,7 +86,7 @@ void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
   mtbdd_ = manager_->GetConstant(expr.value().value<double>());
 }
 
-void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
+void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   auto i = variable_properties_->find(expr.name());
   CHECK(i != variable_properties_->end());
   const VariableProperties& p = i->second;
@@ -174,7 +155,7 @@ class ExpressionPrinter : public ExpressionVisitor {
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
   virtual void DoVisitComputation(const Computation& expr);
 
   std::ostream* os_;
@@ -189,7 +170,7 @@ void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
   *os_ << expr.value();
 }
 
-void ExpressionPrinter::DoVisitVariable(const Variable& expr) {
+void ExpressionPrinter::DoVisitIdentifier(const Identifier& expr) {
   *os_ << expr.name();
 }
 
@@ -244,24 +225,21 @@ std::ostream& operator<<(std::ostream& os, const Expression& e) {
 }
 
 Computation::Computation(Operator op,
-                         const Expression& operand1,
-                         const Expression& operand2)
-    : op_(op), operand1_(&operand1), operand2_(&operand2) {
-  ref(operand1_);
-  ref(operand2_);
+                         std::unique_ptr<const Expression>&& operand1,
+                         std::unique_ptr<const Expression>&& operand2)
+    : op_(op), operand1_(std::move(operand1)), operand2_(std::move(operand2)) {
 }
 
-Computation::~Computation() {
-  destructive_deref(operand1_);
-  destructive_deref(operand2_);
-}
+Computation::~Computation() = default;
 
-const Expression* Computation::make(
-    Operator op, const Expression& operand1, const Expression& operand2) {
-  const Literal* v1 = dynamic_cast<const Literal*>(&operand1);
-  if (v1 != NULL) {
-    const Literal* v2 = dynamic_cast<const Literal*>(&operand2);
-    if (v2 != NULL) {
+std::unique_ptr<const Expression> Computation::Create(
+    Operator op,
+    std::unique_ptr<const Expression>&& operand1,
+    std::unique_ptr<const Expression>&& operand2) {
+  const Literal* v1 = dynamic_cast<const Literal*>(operand1.get());
+  if (v1 != nullptr) {
+    const Literal* v2 = dynamic_cast<const Literal*>(operand2.get());
+    if (v2 != nullptr) {
       TypedValue value(0);
       switch (op) {
         case PLUS:
@@ -278,100 +256,49 @@ const Expression* Computation::make(
           value = v1->value() / v2->value();
           break;
       }
-      ref(v1);
-      ref(v2);
-      destructive_deref(v1);
-      destructive_deref(v2);
-      return new Literal(value);
+      return std::unique_ptr<const Expression>(new Literal(value));
     }
   }
-  switch (op) {
-    case PLUS:
-      return new Addition(operand1, operand2);
-    case MINUS:
-      return new Subtraction(operand1, operand2);
-    case MULTIPLY:
-      return new Multiplication(operand1, operand2);
-    case DIVIDE:
-      return new Division(operand1, operand2);
-  }
-  LOG(FATAL) << "bad op";
+  return std::unique_ptr<const Expression>(new Computation(
+      op, std::move(operand1), std::move(operand2)));
 }
 
 void Computation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitComputation(*this);
 }
 
-Addition::Addition(const Expression& term1, const Expression& term2)
-    : Computation(PLUS, term1, term2) {
-}
-
-Addition::~Addition() {
-}
-
-Subtraction::Subtraction(const Expression& term1, const Expression& term2)
-    : Computation(MINUS, term1, term2) {
-}
-
-Subtraction::~Subtraction() {
-}
-
-Multiplication::Multiplication(const Expression& factor1,
-                               const Expression& factor2)
-    : Computation(MULTIPLY, factor1, factor2) {
-}
-
-Multiplication::~Multiplication() {
-}
-
-Division::Division(const Expression& factor1, const Expression& factor2)
-    : Computation(DIVIDE, factor1, factor2) {
-}
-
-Division::~Division() {
-}
-
-Variable::Variable(const std::string& name)
+Identifier::Identifier(const std::string& name)
     : name_(name) {
 }
 
-Variable::~Variable() {
+Identifier::~Identifier() = default;
+
+std::unique_ptr<const Identifier> Identifier::Create(const std::string& name) {
+  return std::unique_ptr<const Identifier>(new Identifier(name));
 }
 
-void Variable::DoAccept(ExpressionVisitor* visitor) const {
-  visitor->VisitVariable(*this);
+void Identifier::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitIdentifier(*this);
 }
 
 Literal::Literal(const TypedValue& value)
     : value_(value) {
 }
 
-Literal::~Literal() {
-}
+Literal::~Literal() = default;
 
 void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
 }
 
-ExpressionVisitor::ExpressionVisitor() {
-}
-
-ExpressionVisitor::ExpressionVisitor(const ExpressionVisitor&) {
-}
-
-ExpressionVisitor& ExpressionVisitor::operator=(const ExpressionVisitor&) {
-  return *this;
-}
-
-ExpressionVisitor::~ExpressionVisitor() {
-}
+ExpressionVisitor::~ExpressionVisitor() = default;
 
 void ExpressionVisitor::VisitLiteral(const Literal& expr) {
   DoVisitLiteral(expr);
 }
 
-void ExpressionVisitor::VisitVariable(const Variable& expr) {
-  DoVisitVariable(expr);
+void ExpressionVisitor::VisitIdentifier(const Identifier& expr) {
+  DoVisitIdentifier(expr);
 }
 
 void ExpressionVisitor::VisitComputation(const Computation& expr) {

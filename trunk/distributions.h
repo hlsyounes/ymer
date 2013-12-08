@@ -139,7 +139,7 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d);
 class Exponential : public Distribution {
  public:
   /* Returns an exponential distribution with the given rate. */
-  static const Exponential* make(const Expression& rate);
+  static const Exponential* make(std::unique_ptr<const Expression>&& rate);
 
   /* Deletes this exponential distribution. */
   virtual ~Exponential();
@@ -152,12 +152,12 @@ class Exponential : public Distribution {
 
 private:
   /* Constructs an exponential distribution with the given rate. */
-  Exponential(const Expression& rate);
+  Exponential(std::unique_ptr<const Expression>&& rate);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
 
   /* The rate of this exponential distribution. */
-  const Expression* rate_;
+  std::unique_ptr<const Expression> rate_;
 };
 
 
@@ -170,8 +170,8 @@ private:
 class Weibull : public Distribution {
  public:
   /* Returns a Weibull distribution with the given scale and shape. */
-  static const Distribution* make(const Expression& scale,
-				  const Expression& shape);
+  static const Distribution* make(std::unique_ptr<const Expression>&& scale,
+				  std::unique_ptr<const Expression>&& shape);
 
   /* Deletes this Weibull distribution. */
   virtual ~Weibull();
@@ -187,14 +187,15 @@ class Weibull : public Distribution {
 
 private:
   /* Constructs a Weibull distribution with the given scale and shape. */
-  Weibull(const Expression& scale, const Expression& shape);
+  Weibull(std::unique_ptr<const Expression>&& scale,
+          std::unique_ptr<const Expression>&& shape);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
 
   /* The scale of this Weibull distribution. */
-  const Expression* scale_;
+  std::unique_ptr<const Expression> scale_;
   /* The shape of this Weibull distribution. */
-  const Expression* shape_;
+  std::unique_ptr<const Expression> shape_;
 };
 
 
@@ -207,8 +208,8 @@ private:
 class Lognormal : public Distribution {
  public:
   /* Returns a lognormal distribution with the given scale and shape. */
-  static const Lognormal* make(const Expression& scale,
-			       const Expression& shape);
+  static const Lognormal* make(std::unique_ptr<const Expression>&& scale,
+			       std::unique_ptr<const Expression>&& shape);
 
   /* Deletes this lognormal distribution. */
   virtual ~Lognormal();
@@ -224,14 +225,15 @@ class Lognormal : public Distribution {
 
 private:
   /* Constructs a lognormal distribution with the given scale and shape. */
-  Lognormal(const Expression& scale, const Expression& shape);
+  Lognormal(std::unique_ptr<const Expression>&& scale,
+            std::unique_ptr<const Expression>&& shape);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
 
   /* The scale of this lognormal distribution. */
-  const Expression* scale_;
+  std::unique_ptr<const Expression> scale_;
   /* The shape of this lognormal distribution. */
-  const Expression* shape_;
+  std::unique_ptr<const Expression> shape_;
 };
 
 
@@ -244,7 +246,8 @@ private:
 class Uniform : public Distribution {
  public:
   /* Returns a uniform distribution with the bounds. */
-  static const Uniform* make(const Expression& low, const Expression& high);
+  static const Uniform* make(std::unique_ptr<const Expression>&& low,
+                             std::unique_ptr<const Expression>&& high);
 
   /* Deletes this uniform distribution. */
   virtual ~Uniform();
@@ -260,14 +263,15 @@ class Uniform : public Distribution {
 
 private:
   /* Constructs a uniform distribution with the given bounds. */
-  Uniform(const Expression& low, const Expression& high);
+  Uniform(std::unique_ptr<const Expression>&& low,
+          std::unique_ptr<const Expression>&& high);
 
   virtual void DoAccept(DistributionVisitor* visitor) const;
 
   /* The lower bound of this uniform distribution. */
-  const Expression* low_;
+  std::unique_ptr<const Expression> low_;
   /* The upper bound of this uniform distribution. */
-  const Expression* high_;
+  std::unique_ptr<const Expression> high_;
 };
 
 // Abstract base class for distribution visitors.

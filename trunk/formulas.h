@@ -409,7 +409,9 @@ class Comparison : public StateFormula {
 
 protected:
   /* Constructs a comparison. */
-  Comparison(Operator op, const Expression& expr1, const Expression& expr2);
+  Comparison(Operator op,
+             std::unique_ptr<const Expression>&& expr1,
+             std::unique_ptr<const Expression>&& expr2);
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -417,9 +419,9 @@ private:
   // The operator for this comparison.
   Operator op_;
   /* The first expression. */
-  const Expression* expr1_;
+  std::unique_ptr<const Expression> expr1_;
   /* The second expression. */
-  const Expression* expr2_;
+  std::unique_ptr<const Expression> expr2_;
 };
 
 
@@ -431,7 +433,8 @@ private:
  */
 struct LessThan : public Comparison {
   /* Constructs a less-than comparison. */
-  LessThan(const Expression& expr1, const Expression& expr2);
+  LessThan(std::unique_ptr<const Expression>&& expr1,
+           std::unique_ptr<const Expression>&& expr2);
 
 protected:
   /* Prints this object on the given stream. */
@@ -447,7 +450,8 @@ protected:
  */
 struct LessThanOrEqual : public Comparison {
   /* Constructs a less-than-or-equal comparison. */
-  LessThanOrEqual(const Expression& expr1, const Expression& expr2);
+  LessThanOrEqual(std::unique_ptr<const Expression>&& expr1,
+                  std::unique_ptr<const Expression>&& expr2);
 
 protected:
   /* Prints this object on the given stream. */
@@ -463,7 +467,8 @@ protected:
  */
 struct GreaterThanOrEqual : public Comparison {
   /* Constructs a greater-than-or-equal comparison. */
-  GreaterThanOrEqual(const Expression& expr1, const Expression& expr2);
+  GreaterThanOrEqual(std::unique_ptr<const Expression>&& expr1,
+                     std::unique_ptr<const Expression>&& expr2);
 
 protected:
   /* Prints this object on the given stream. */
@@ -479,7 +484,8 @@ protected:
  */
 struct GreaterThan : public Comparison {
   /* Constructs a greater-than comparison. */
-  GreaterThan(const Expression& expr1, const Expression& expr2);
+  GreaterThan(std::unique_ptr<const Expression>&& expr1,
+              std::unique_ptr<const Expression>&& expr2);
 
 protected:
   /* Prints this object on the given stream. */
@@ -495,7 +501,8 @@ protected:
  */
 struct Equality : public Comparison {
   /* Constructs an equality comparison. */
-  Equality(const Expression& expr1, const Expression& expr2);
+  Equality(std::unique_ptr<const Expression>&& expr1,
+           std::unique_ptr<const Expression>&& expr2);
 
 protected:
   /* Prints this object on the given stream. */
@@ -511,7 +518,8 @@ protected:
  */
 struct Inequality : public Comparison {
   /* Constructs an inequality comparison. */
-  Inequality(const Expression& expr1, const Expression& expr2);
+  Inequality(std::unique_ptr<const Expression>&& expr1,
+             std::unique_ptr<const Expression>&& expr2);
 
 protected:
   /* Prints this object on the given stream. */

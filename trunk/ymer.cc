@@ -291,7 +291,7 @@ class ExpressionCompiler
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
   virtual void DoVisitComputation(const Computation& expr);
   virtual void DoVisitConjunction(const Conjunction& formula);
   virtual void DoVisitDisjunction(const Disjunction& formula);
@@ -325,7 +325,7 @@ void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
   type_ = value.type();
 }
 
-void ExpressionCompiler::DoVisitVariable(const Variable& expr) {
+void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   auto i = variables_by_name_->find(expr.name());
   int variable;
   if (i == variables_by_name_->end()) {
@@ -630,11 +630,11 @@ CompiledUpdate CompileUpdate(
     const Update& update,
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
-  auto i = variables_by_name.find(update.variable().name());
+  auto i = variables_by_name.find(update.variable());
   int variable;
   if (i == variables_by_name.end()) {
     errors->push_back(StrCat(
-        "undefined variable '", update.variable().name(), "' in update"));
+        "undefined variable '", update.variable(), "' in update"));
     variable = -1;
   } else {
     variable = i->second;

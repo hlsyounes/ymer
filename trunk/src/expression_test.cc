@@ -29,173 +29,157 @@ TEST(LiteralTest, Output) {
   EXPECT_EQ("17;0.5;true;false", StrCat(a, ';', b, ';', c, ';', d));
 }
 
-TEST(VariableTest, Output) {
-  const Variable a("foo"), b("bar"), c("baz");
+TEST(IdentifierTest, Output) {
+  const Identifier a("foo"), b("bar"), c("baz");
   EXPECT_EQ("foo;bar;baz", StrCat(a, ';', b, ';', c));
 }
 
 TEST(ComputationTest, OutputAddition) {
-  const Expression* expr1 =
-      Computation::make(Computation::PLUS,
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr2 =
-      Computation::make(Computation::PLUS,
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr3 =
-      Computation::make(Computation::PLUS,
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr4 =
-      Computation::make(Computation::PLUS,
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
+  auto expr1 =
+      Computation::Create(Computation::PLUS,
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr2 =
+      Computation::Create(Computation::PLUS,
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr3 =
+      Computation::Create(Computation::PLUS,
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr4 =
+      Computation::Create(Computation::PLUS,
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
   EXPECT_EQ("a+b+c-d;a-b+c*d;a*b+c/d;a/b+c+d",
             StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
-  delete expr1;
-  delete expr2;
-  delete expr3;
-  delete expr4;
 }
 
 TEST(ComputationTest, OutputSubtraction) {
-  const Expression* expr1 =
-      Computation::make(Computation::MINUS,
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr2 =
-      Computation::make(Computation::MINUS,
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr3 =
-      Computation::make(Computation::MINUS,
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr4 =
-      Computation::make(Computation::MINUS,
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
+  auto expr1 =
+      Computation::Create(Computation::MINUS,
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr2 =
+      Computation::Create(Computation::MINUS,
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr3 =
+      Computation::Create(Computation::MINUS,
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr4 =
+      Computation::Create(Computation::MINUS,
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
   EXPECT_EQ("a+b-(c-d);a-b-c*d;a*b-c/d;a/b-(c+d)",
             StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
-  delete expr1;
-  delete expr2;
-  delete expr3;
-  delete expr4;
 }
 
 TEST(ComputationTest, OutputMultiplication) {
-  const Expression* expr1 =
-      Computation::make(Computation::MULTIPLY,
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr2 =
-      Computation::make(Computation::MULTIPLY,
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr3 =
-      Computation::make(Computation::MULTIPLY,
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr4 =
-      Computation::make(Computation::MULTIPLY,
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
+  auto expr1 =
+      Computation::Create(Computation::MULTIPLY,
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr2 =
+      Computation::Create(Computation::MULTIPLY,
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr3 =
+      Computation::Create(Computation::MULTIPLY,
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr4 =
+      Computation::Create(Computation::MULTIPLY,
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
   EXPECT_EQ("(a+b)*(c-d);(a-b)*c*d;a*b*c/d;a/b*(c+d)",
             StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
-  delete expr1;
-  delete expr2;
-  delete expr3;
-  delete expr4;
 }
 
 TEST(ComputationTest, OutputDivision) {
-  const Expression* expr1 =
-      Computation::make(Computation::DIVIDE,
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr2 =
-      Computation::make(Computation::DIVIDE,
-                        *Computation::make(Computation::MINUS,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr3 =
-      Computation::make(Computation::DIVIDE,
-                        *Computation::make(Computation::MULTIPLY,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
-  const Expression* expr4 =
-      Computation::make(Computation::DIVIDE,
-                        *Computation::make(Computation::DIVIDE,
-                                           *new Variable("a"),
-                                           *new Variable("b")),
-                        *Computation::make(Computation::PLUS,
-                                           *new Variable("c"),
-                                           *new Variable("d")));
+  auto expr1 =
+      Computation::Create(Computation::DIVIDE,
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr2 =
+      Computation::Create(Computation::DIVIDE,
+                          Computation::Create(Computation::MINUS,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr3 =
+      Computation::Create(Computation::DIVIDE,
+                          Computation::Create(Computation::MULTIPLY,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
+  auto expr4 =
+      Computation::Create(Computation::DIVIDE,
+                          Computation::Create(Computation::DIVIDE,
+                                              Identifier::Create("a"),
+                                              Identifier::Create("b")),
+                          Computation::Create(Computation::PLUS,
+                                              Identifier::Create("c"),
+                                              Identifier::Create("d")));
   EXPECT_EQ("(a+b)/(c-d);(a-b)/(c*d);a*b/(c/d);a/b/(c+d)",
             StrCat(*expr1, ';', *expr2, ';', *expr3, ';', *expr4));
-  delete expr1;
-  delete expr2;
-  delete expr3;
-  delete expr4;
 }
 
 }  // namespace

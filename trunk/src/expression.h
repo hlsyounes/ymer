@@ -1,5 +1,5 @@
 // Copyright (C) 2003--2005 Carnegie Mellon University
-// Copyright (C) 2011--2012 Google Inc
+// Copyright (C) 2011--2013 Google Inc
 //
 // This file is part of Ymer.
 //
@@ -24,6 +24,7 @@
 #define EXPRESSION_H_
 
 #include <map>
+#include <memory>
 #include <ostream>
 #include <string>
 
@@ -40,36 +41,18 @@ class ExpressionVisitor;
 //     ...
 //   };
 //
-//   Expression* expr = ...;
+//   const Expression* expr = ...;
 //   ConcreteExpressionVisitor visitor;
 //   expr->Accept(&visitor);
 //
 class Expression {
  public:
-  // Disallow copy and assign.
-  Expression(const Expression&) = delete;
-  Expression& operator=(const Expression&) = delete;
-
   virtual ~Expression();
-
-  // Increases the reference count for the given expression.
-  static void ref(const Expression* e);
-
-  // Decreases the reference count for the given expression and
-  // deletes it if the the reference count becomes zero.
-  static void destructive_deref(const Expression* e);
 
   void Accept(ExpressionVisitor* visitor) const;
 
-protected:
-  // Constructs an expression.
-  Expression();
-
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
-
-  // Reference counter.
-  mutable int ref_count_;
 };
 
 class VariableProperties {
@@ -122,8 +105,10 @@ class Computation : public Expression {
   virtual ~Computation();
 
   // Factory method for creating computations.
-  static const Expression* make(
-      Operator op, const Expression& operand1, const Expression& operand2);
+  static std::unique_ptr<const Expression> Create(
+      Operator op,
+      std::unique_ptr<const Expression>&& operand1,
+      std::unique_ptr<const Expression>&& operand2);
 
   // Returns the operator for this computation.
   const Operator op() const { return op_; }
@@ -137,8 +122,8 @@ class Computation : public Expression {
 protected:
   // Constructs a computation.
   Computation(Operator op,
-              const Expression& operand1,
-              const Expression& operand2);
+              std::unique_ptr<const Expression>&& operand1,
+              std::unique_ptr<const Expression>&& operand2);
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
@@ -146,70 +131,21 @@ private:
   // The operator for this computation.
   Operator op_;
   // The first operand for this computation.
-  const Expression* operand1_;
+  std::unique_ptr<const Expression> operand1_;
   // The second operand for this computation.
-  const Expression* operand2_;
+  std::unique_ptr<const Expression> operand2_;
 };
 
-// An addition expression.
-class Addition : public Computation {
- public:
-  virtual ~Addition();
-
-private:
-  // Constructs an addition.
-  Addition(const Expression& term1, const Expression& term2);
-
-  friend const Expression* Computation::make(
-      Operator, const Expression&, const Expression&);
-};
-
-// A subtraction expression.
-class Subtraction : public Computation {
- public:
-  virtual ~Subtraction();
-
-private:
-  // Constructs a subtraction.
-  Subtraction(const Expression& term1, const Expression& term2);
-
-  friend const Expression* Computation::make(
-      Operator, const Expression&, const Expression&);
-};
-
-// A multiplication expression.
-class Multiplication : public Computation {
- public:
-  virtual ~Multiplication();
-
-private:
-  // Constructs a multiplication.
-  Multiplication(const Expression& factor1, const Expression& factor2);
-
-  friend const Expression* Computation::make(
-      Operator, const Expression&, const Expression&);
-};
-
-// A division expression.
-class Division : public Computation {
- public:
-  virtual ~Division();
-
-private:
-  // Constructs a division.
-  Division(const Expression& factor1, const Expression& factor2);
-
-  friend const Expression* Computation::make(
-      Operator, const Expression&, const Expression&);
-};
-
-// A variable expression.
-class Variable : public Expression {
+// An identifier.
+class Identifier : public Expression {
  public:
   // Constructs an identifier with the given name.
-  explicit Variable(const std::string& name);
+  explicit Identifier(const std::string& name);
 
-  virtual ~Variable();
+  virtual ~Identifier();
+
+  // Factory method for creating identifiers.
+  static std::unique_ptr<const Identifier> Create(const std::string& name);
 
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
@@ -225,7 +161,7 @@ private:
 class Literal : public Expression {
  public:
   // Constructs a literal that represents the given value.
-  Literal(const TypedValue& value);
+  explicit Literal(const TypedValue& value);
 
   virtual ~Literal();
 
@@ -243,18 +179,15 @@ private:
 class ExpressionVisitor {
  public:
   void VisitLiteral(const Literal& expr);
-  void VisitVariable(const Variable& expr);
+  void VisitIdentifier(const Identifier& expr);
   void VisitComputation(const Computation& expr);
 
  protected:
-  ExpressionVisitor();
-  ExpressionVisitor(const ExpressionVisitor&);
-  ExpressionVisitor& operator=(const ExpressionVisitor&);
   ~ExpressionVisitor();
 
  private:
   virtual void DoVisitLiteral(const Literal& expr) = 0;
-  virtual void DoVisitVariable(const Variable& expr) = 0;
+  virtual void DoVisitIdentifier(const Identifier& expr) = 0;
   virtual void DoVisitComputation(const Computation& expr) = 0;
 };
 
