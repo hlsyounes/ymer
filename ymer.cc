@@ -696,11 +696,14 @@ CompiledModel CompileModel(const Model& model,
 class PropertyCompiler : public StateFormulaVisitor {
  public:
   PropertyCompiler(const std::map<std::string, int>* variables_by_name,
+                   int next_path_property_index,
                    std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledProperty> release_property() {
     return std::move(property_);
   }
+
+  int next_path_property_index() const { return next_path_property_index_; }
 
  private:
   virtual void DoVisitConjunction(const Conjunction& formula);
@@ -712,48 +715,58 @@ class PropertyCompiler : public StateFormulaVisitor {
 
   std::unique_ptr<const CompiledProperty> property_;
   const std::map<std::string, int>* variables_by_name_;
+  int next_path_property_index_;
   std::vector<std::string>* errors_;
 };
 
 std::unique_ptr<const CompiledProperty> CompileProperty(
     const StateFormula& property,
     const std::map<std::string, int>& variables_by_name,
+    int* next_path_property_index,
     std::vector<std::string>* errors) {
-  PropertyCompiler compiler(&variables_by_name, errors);
+  PropertyCompiler compiler(&variables_by_name, *next_path_property_index,
+                            errors);
   property.Accept(&compiler);
+  *next_path_property_index = compiler.next_path_property_index();
   return compiler.release_property();
 }
 
 class PathPropertyCompiler : public PathFormulaVisitor {
  public:
   PathPropertyCompiler(const std::map<std::string, int>* variables_by_name,
-                       std::vector<std::string>* errors);
+                       int next_index, std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledPathProperty> release_path_property() {
     return std::move(path_property_);
   }
+
+  int next_index() const { return next_index_; }
 
  private:
   virtual void DoVisitUntil(const Until& formula);
 
   std::unique_ptr<const CompiledPathProperty> path_property_;
   const std::map<std::string, int>* variables_by_name_;
+  int next_index_;
   std::vector<std::string>* errors_;
 };
 
 std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
     const PathFormula& path_property,
-    const std::map<std::string, int> variables_by_name,
+    const std::map<std::string, int> variables_by_name, int* next_index,
     std::vector<std::string>* errors) {
-  PathPropertyCompiler compiler(&variables_by_name, errors);
+  PathPropertyCompiler compiler(&variables_by_name, *next_index, errors);
   path_property.Accept(&compiler);
+  *next_index = compiler.next_index();
   return compiler.release_path_property();
 }
 
 PropertyCompiler::PropertyCompiler(
     const std::map<std::string, int>* variables_by_name,
+    int next_path_property_index,
     std::vector<std::string>* errors)
-    : variables_by_name_(variables_by_name), errors_(errors) {
+    : variables_by_name_(variables_by_name),
+      next_path_property_index_(next_path_property_index), errors_(errors) {
   CHECK(variables_by_name);
   CHECK(errors);
 }
@@ -798,7 +811,8 @@ void PropertyCompiler::DoVisitImplication(const Implication& formula) {
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
   std::unique_ptr<const CompiledPathProperty> path_property =
-      CompilePathProperty(formula.formula(), *variables_by_name_, errors_);
+      CompilePathProperty(formula.formula(), *variables_by_name_,
+                          &next_path_property_index_, errors_);
   if (!formula.strict()) {
     property_ = CompiledProbabilisticProperty::MakeGreaterEqual(
         formula.threshold().value<double>(), std::move(path_property));
@@ -815,21 +829,24 @@ void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
 }
 
 PathPropertyCompiler::PathPropertyCompiler(
-    const std::map<std::string, int>* variables_by_name,
+    const std::map<std::string, int>* variables_by_name, int next_index,
     std::vector<std::string>* errors)
-    : variables_by_name_(variables_by_name), errors_(errors) {
+    : variables_by_name_(variables_by_name), next_index_(next_index),
+      errors_(errors) {
   CHECK(variables_by_name);
   CHECK(errors);
 }
 
 void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
-  std::unique_ptr<const CompiledProperty> pre =
-      CompileProperty(formula.pre(), *variables_by_name_, errors_);
-  std::unique_ptr<const CompiledProperty> post =
-      CompileProperty(formula.post(), *variables_by_name_, errors_);
+  int index = next_index_;
+  ++next_index_;
+  std::unique_ptr<const CompiledProperty> pre = CompileProperty(
+      formula.pre(), *variables_by_name_, &next_index_, errors_);
+  std::unique_ptr<const CompiledProperty> post = CompileProperty(
+      formula.post(), *variables_by_name_, &next_index_, errors_);
   path_property_ = CompiledUntilProperty::Make(
       formula.min_time().value<double>(), formula.max_time().value<double>(),
-      std::move(pre), std::move(post));
+      std::move(pre), std::move(post), index, StrCat(formula), &formula);
 }
 
 std::unique_ptr<const CompiledProperty> CompileProperty(
@@ -840,7 +857,22 @@ std::unique_ptr<const CompiledProperty> CompileProperty(
   for (const CompiledVariable& v : model.variables()) {
     variables_by_name.insert({ v.name(), variables_by_name.size() });
   }
-  return CompileProperty(property, variables_by_name, errors);
+  int next_path_property_index = 0;
+  return CompileProperty(property, variables_by_name, &next_path_property_index,
+                         errors);
+}
+
+std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
+    const PathFormula& property,
+    const CompiledModel& model,
+    std::vector<std::string>* errors) {
+  std::map<std::string, int> variables_by_name;
+  for (const CompiledVariable& v : model.variables()) {
+    variables_by_name.insert({ v.name(), variables_by_name.size() });
+  }
+  int next_index = 0;
+  return CompilePathProperty(property, variables_by_name,
+                             &next_index, errors);
 }
 
 }  // namespace
@@ -1082,6 +1114,7 @@ int main(int argc, char* argv[]) {
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
 	const State init_state(&compiled_model, &evaluator, &sampler);
 	const PathFormula* pf = 0;
+        std::unique_ptr<const CompiledPathProperty> property;
         ModelCheckingParams nested_params = params;
 	timeval timeout;
 	timeval* to = 0;
@@ -1099,8 +1132,9 @@ int main(int argc, char* argv[]) {
 	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = pf->sample(nullptr, *global_model, init_state,
-                                     nested_params, &stats);
+	      msg.value = GetObservation(*property, *global_model, nullptr,
+                                         nested_params, &evaluator, init_state,
+                                         &stats);
 	      VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -1128,22 +1162,12 @@ int main(int argc, char* argv[]) {
 		return 1;
 	      }
 	      if (pf != 0) {
-                double nested_error;
-		if (pf->probabilistic()) {
-                  // TODO(hlsyounes): nested_error and other model-checking
-                  // parameters should really come from the server.
-                  if (params.nested_error > 0) {
-                    // User-specified nested error.
-                    nested_error = params.nested_error;
-                  } else {
-                    // Simple heuristic for nested error.
-                    nested_error = 0.8 * MaxNestedError(params.delta);
-                  }
-		} else {
-                  nested_error = 0.0;
-                }
-                nested_params.alpha = nested_error;
-                nested_params.beta = nested_error;
+                // Since we currently do not support distributed sampling for
+                // properties with nested probabilistic operators, we can just
+                // set the nested error bounds to 0.
+                nested_params.alpha = 0;
+                nested_params.beta = 0;
+                property = CompilePathProperty(*pf, compiled_model, &errors);
 	      }
 	      to = &timeout;
 	      VLOG(1) << "Sampling started for property " << smsg.value;
@@ -1221,7 +1245,6 @@ int main(int argc, char* argv[]) {
 	current_property = fi - properties.begin();
 	size_t accepts = 0;
         ModelCheckingStats stats;
-	double total_cached = 0.0;
 	for (size_t i = 0; i < trials; i++) {
 	  timeval start_time;
 	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
@@ -1237,9 +1260,8 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-	  bool sol =
-              (*fi)->verify(nullptr, *global_model, init_state, params, &stats);
-	  total_cached += (*fi)->clear_cache();
+	  bool sol = Verify(*property, *global_model, nullptr, params,
+                            &evaluator, init_state, &stats);
 	  double t;
 	  if (server_socket != -1) {
 	    timeval end_time;
@@ -1279,7 +1301,6 @@ int main(int argc, char* argv[]) {
 	  }
 	}
 	if (trials > 1) {
-	  double cached_avg = total_cached/trials;
 	  std::cout << "Model checking time mean: " << stats.time.mean()
 		    << " seconds" << std::endl
                     << "Model checking time min: " << stats.time.min()
@@ -1306,7 +1327,8 @@ int main(int argc, char* argv[]) {
                     << stats.path_length.sample_stddev() << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl
-		    << "Average cached: " << cached_avg << std::endl;
+		    << "Average cached: " << stats.sample_cache_size.mean()
+                    << std::endl;
 	}
       }
     } else if (engine == HYBRID_ENGINE) {
@@ -1359,7 +1381,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = (*fi)->verify(dd_model, estimate, params);
+	  BDD ddf = (*fi)->verify(dd_model, estimate, true, params);
 	  BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
@@ -1434,6 +1456,8 @@ int main(int argc, char* argv[]) {
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
+        std::unique_ptr<const CompiledProperty> property =
+            CompileProperty(**fi, compiled_model, &errors);
 	size_t accepts = 0;
         ModelCheckingStats stats;
 	for (size_t i = 0; i < trials; i++) {
@@ -1446,9 +1470,8 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  bool sol = (*fi)->verify(&dd_model, *global_model, init_state, params,
-                                   &stats);
-	  (*fi)->clear_cache();
+	  bool sol = Verify(*property, *global_model, &dd_model, params,
+                            &evaluator, init_state, &stats);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else

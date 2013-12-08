@@ -43,14 +43,6 @@
 #include "glog/logging.h"
 #include "gsl/gsl_cdf.h"
 
-/* Nesting level of formula just being verified. */
-size_t StateFormula::formula_level_ = 0;
-
-/* Registered clients. */
-static std::map<int, short> registered_clients;
-/* Next client id. */
-static short next_client_id = 1;
-
 namespace {
 
 void PrintProgress(int n) {
@@ -61,9 +53,20 @@ void PrintProgress(int n) {
   }
 }
 
-}  // namespace
+class CompiledPropertySamplingVerifier
+    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
+ public:
+  CompiledPropertySamplingVerifier(const Model* model,
+                                   const DecisionDiagramModel* dd_model,
+                                   const ModelCheckingParams& params,
+                                   CompiledExpressionEvaluator* evaluator,
+                                   const State* state, int probabilistic_level,
+                                   ModelCheckingStats* stats);
 
-class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
+  bool result() const { return result_; }
+
+  int GetSampleCacheSize() const;
+
  private:
   virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
   virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
@@ -71,20 +74,46 @@ class CompiledPropertySamplingVerifier : public CompiledPropertyVisitor {
       const CompiledProbabilisticProperty& property);
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
+  virtual void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& property);
+
+  bool VerifyHelper(const CompiledProperty& property, const BDD* ddf);
 
   bool result_;
+  const Model* model_;
+  const DecisionDiagramModel* dd_model_;
   ModelCheckingParams params_;
   CompiledExpressionEvaluator* evaluator_;
-  const std::vector<int>* state_;
+  const State* state_;
+  int probabilistic_level_;
+  ModelCheckingStats* stats_;
+  std::map<int, std::map<std::vector<int>, Sample<int>>> sample_cache_;
+  std::map<int, std::pair<BDD, BDD>> dd_cache_;
+
+  // Registered clients.
+  std::map<int, short> registered_clients_;
+  // Next client id.
+  short next_client_id_;
 };
 
-/* ====================================================================== */
-/* Conjunction */
+CompiledPropertySamplingVerifier::CompiledPropertySamplingVerifier(
+    const Model* model,
+    const DecisionDiagramModel* dd_model,
+    const ModelCheckingParams& params,
+    CompiledExpressionEvaluator* evaluator,
+    const State* state, int probabilistic_level,
+    ModelCheckingStats* stats)
+    : model_(model), dd_model_(dd_model), params_(params),
+      evaluator_(evaluator), state_(state),
+      probabilistic_level_(probabilistic_level), stats_(stats),
+      next_client_id_(1) {
+}
 
 void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
   double alpha = params_.alpha / property.operands().size();
   std::swap(params_.alpha, alpha);
+  result_ = true;
   for (const CompiledProperty& operand : property.operands()) {
     operand.Accept(this);
     if (result_ == false) {
@@ -94,64 +123,6 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
   std::swap(params_.alpha, alpha);
 }
 
-/* Verifies this state formula using the statistical engine. */
-bool Conjunction::verify(const DecisionDiagramModel* dd_model,
-                         const Model& model, const State& state,
-                         const ModelCheckingParams& params,
-                         ModelCheckingStats* stats) const {
-  ModelCheckingParams nested_params = params;
-  nested_params.alpha = params.alpha / conjuncts().size();
-  for (auto fi = conjuncts().rbegin(); fi != conjuncts().rend(); fi++) {
-    if (!(*fi)->verify(dd_model, model, state, nested_params, stats)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-/* Clears the cache of any probabilistic operator. */
-size_t Conjunction::clear_cache() const {
-  size_t n = 0;
-  for (const StateFormula* conjunct : conjuncts()) {
-    n += conjunct->clear_cache();
-  }
-  return n;
-}
-
-
-/* ====================================================================== */
-/* Disjunction */
-
-/* Verifies this state formula using the statistical engine. */
-bool Disjunction::verify(const DecisionDiagramModel* dd_model,
-                         const Model& model, const State& state,
-                         const ModelCheckingParams& params,
-                         ModelCheckingStats* stats) const {
-  ModelCheckingParams nested_params = params;
-  nested_params.beta = params.beta / disjuncts().size();
-  for (auto fi = disjuncts().rbegin(); fi != disjuncts().rend(); fi++) {
-    if ((*fi)->verify(dd_model, model, state, nested_params, stats)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
-/* Clears the cache of any probabilistic operator. */
-size_t Disjunction::clear_cache() const {
-  size_t n = 0;
-  for (const StateFormula* disjunct : disjuncts()) {
-    n += disjunct->clear_cache();
-  }
-  return n;
-}
-
-
-/* ====================================================================== */
-/* Negation */
-
 void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
     const CompiledNotProperty& property) {
   std::swap(params_.alpha, params_.beta);
@@ -160,100 +131,47 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
   std::swap(params_.alpha, params_.beta);
 }
 
-/* Verifies this state formula using the statistical engine. */
-bool Negation::verify(const DecisionDiagramModel* dd_model,
-                      const Model& model, const State& state,
-                      const ModelCheckingParams& params,
-                      ModelCheckingStats* stats) const {
-  ModelCheckingParams nested_params = params;
-  std::swap(nested_params.alpha, nested_params.beta);
-  return !negand().verify(dd_model, model, state, nested_params, stats);
-}
-
-
-/* Clears the cache of any probabilistic operator. */
-size_t Negation::clear_cache() const {
-  return negand().clear_cache();
-}
-
-
-/* ====================================================================== */
-/* Implication */
-
-/* Verifies this state formula using the statistical engine. */
-bool Implication::verify(const DecisionDiagramModel* dd_model,
-                         const Model& model, const State& state,
-                         const ModelCheckingParams& params,
-                         ModelCheckingStats* stats) const {
-  ModelCheckingParams nested_params = params;
-  nested_params.beta = params.beta / 2;
-  std::swap(nested_params.alpha, nested_params.beta);
-  if (!antecedent().verify(dd_model, model, state, nested_params, stats)) {
-    return true;
-  } else {
-    std::swap(nested_params.alpha, nested_params.beta);
-    return consequent().verify(dd_model, model, state, nested_params, stats);
-  }
-}
-
-
-/* Clears the cache of any probabilistic operator. */
-size_t Implication::clear_cache() const {
-  return antecedent().clear_cache() + consequent().clear_cache();
-}
-
-
-/* ====================================================================== */
-/* Probabilistic */
-
 void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
     const CompiledProbabilisticProperty& property) {
-  // TODO(hlsyounes): implement.
-}
-
-/* Verifies this state formula using the statistical engine. */
-bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
-                           const Model& model, const State& state,
-                           const ModelCheckingParams& params,
-                           ModelCheckingStats* stats) const {
+  ++probabilistic_level_;
   double nested_error = 0.0;
-  if (dd_model == nullptr && formula().probabilistic()) {
-    if (params.nested_error > 0) {
+  if (dd_model_ == nullptr && property.path_property().is_probabilistic()) {
+    if (params_.nested_error > 0) {
       // User-specified nested error.
-      nested_error = params.nested_error;
+      nested_error = params_.nested_error;
     } else {
       // Simple heuristic for nested error.
-      nested_error = 0.8 * MaxNestedError(params.delta);
+      nested_error = 0.8 * MaxNestedError(params_.delta);
     }
-    if (formula_level() == 0) {
+    if (probabilistic_level_ == 1) {
       VLOG(1) << "Nested error: " << nested_error;
       VLOG(1) << "Maximum symmetric nested error: "
-              << MaxNestedError(params.delta);
+              << MaxNestedError(params_.delta);
     }
   }
-  const double theta = threshold().value<double>();
+  const double theta = property.threshold();
   const double theta0 =
-      std::min(1.0, (theta + params.delta)*(1.0 - nested_error));
+      std::min(1.0, (theta + params_.delta)*(1.0 - nested_error));
   const double theta1 =
-      std::max(0.0, 1.0 - (1.0 - (theta - params.delta))*(1.0 - nested_error));
-  ModelCheckingParams nested_params = params;
+      std::max(0.0, 1.0 - (1.0 - (theta - params_.delta))*(1.0 - nested_error));
+  ModelCheckingParams nested_params = params_;
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
-  if (params.algorithm == ESTIMATE) {
-    if (formula_level() == 0) {
+  if (params_.algorithm == ESTIMATE) {
+    if (probabilistic_level_ == 1) {
       std::cout << "Sequential estimation";
     }
-    formula_level_++;
-    SequentialEstimator<int> estimator(params.delta, params.alpha);
+    SequentialEstimator<int> estimator(params_.delta, params_.alpha);
+    std::swap(params_, nested_params);
     while (true) {
-      const bool x =
-          formula().sample(dd_model, model, state, nested_params, stats);
+      property.path_property().Accept(this);
+      const bool x = result_;
       estimator.AddObservation(x ? 1 : 0);
-      if (formula_level() == 1) {
+      if (probabilistic_level_ == 1) {
         PrintProgress(estimator.count());
       }
       if (VLOG_IS_ON(2)) {
-        LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+        LOG(INFO) << std::string(2*(probabilistic_level_ - 1), ' ')
                   << estimator.count() << '\t' << estimator.value() << '\t'
                   << estimator.state() << '\t' << estimator.bound();
       }
@@ -261,43 +179,49 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
         break;
       }
     }
-    formula_level_--;
-    if (formula_level() == 0) {
+    std::swap(params_, nested_params);
+    if (probabilistic_level_ == 1) {
       std::cout << estimator.count() << " observations." << std::endl;
-      std::cout << "Pr[" << formula() << "] = " << estimator.value() << " ("
-                << std::max(0.0, estimator.value() - params.delta) << ','
-                << std::min(1.0, estimator.value() + params.delta) << ")"
+      std::cout << "Pr[" << property.path_property().string() << "] = "
+                << estimator.value() << " ("
+                << std::max(0.0, estimator.value() - params_.delta) << ','
+                << std::min(1.0, estimator.value() + params_.delta) << ")"
                 << std::endl;
-      stats->sample_size.AddObservation(estimator.count());
+      stats_->sample_size.AddObservation(estimator.count());
     }
-    if (strict()) {
-      return estimator.value() > theta;
-    } else {
-      return estimator.value() >= theta;
+    switch (property.op()) {
+      case CompiledProbabilisticProperty::Operator::GREATER:
+        result_ = estimator.value() > theta;
+        break;
+      case CompiledProbabilisticProperty::Operator::GREATER_EQUAL:
+        result_ = estimator.value() >= theta;
+        break;
     }
+    --probabilistic_level_;
+    return;
   }
 
   std::unique_ptr<BernoulliTester> tester;
-  if (params.algorithm == FIXED) {
-    tester.reset(new FixedBernoulliTester(theta, theta,
-                                          params.fixed_sample_size));
-  } else if (params.algorithm == SSP) {
-    tester.reset(new SingleSamplingBernoulliTester(theta0, theta1,
-                                                   params.alpha, params.beta));
+  if (params_.algorithm == FIXED) {
+    tester.reset(new FixedBernoulliTester(
+        theta, theta, params_.fixed_sample_size));
+  } else if (params_.algorithm == SSP) {
+    tester.reset(new SingleSamplingBernoulliTester(
+        theta0, theta1, params_.alpha, params_.beta));
   } else { /* algorithm == SPRT */
-    tester.reset(new SprtBernoulliTester(theta0, theta1,
-                                         params.alpha, params.beta));
+    tester.reset(new SprtBernoulliTester(
+        theta0, theta1, params_.alpha, params_.beta));
   }
-  if (formula_level() == 0) {
+  if (probabilistic_level_ == 1) {
     std::cout << "Acceptance sampling";
   }
-  if (params.memoization) {
-    auto ci = cache_.find(state.values());
-    if (ci != cache_.end()) {
+  if (params_.memoization) {
+    auto& sample_cache = sample_cache_[property.path_property().index()];
+    auto ci = sample_cache.find(state_->values());
+    if (ci != sample_cache.end()) {
       tester->SetSample(ci->second);
     }
   }
-  formula_level_++;
   std::queue<short> schedule;
   std::map<short, std::queue<bool> > buffer;
   std::map<short, size_t> sample_count;
@@ -310,15 +234,15 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
     FD_SET(server_socket, &master_fds);
     fdmax = server_socket;
     std::set<int> closed_sockets;
-    for (std::map<int, short>::const_iterator ci = registered_clients.begin();
-	 ci != registered_clients.end(); ci++) {
+    for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
+	 ci != registered_clients_.end(); ci++) {
       int sockfd = (*ci).first;
       short client_id = (*ci).second;
       ServerMsg smsg = { ServerMsg::START, current_property };
       int nbytes = send(sockfd, &smsg, sizeof smsg, 0);
       if (nbytes == -1) {
 	perror(PACKAGE);
-	return -1;
+        LOG(FATAL) << "server error";
       } else if (nbytes == 0) {
 	closed_sockets.insert(sockfd);
 	close(sockfd);
@@ -332,9 +256,10 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
     }
     for (std::set<int>::const_iterator ci = closed_sockets.begin();
 	 ci != closed_sockets.end(); ci++) {
-      registered_clients.erase(*ci);
+      registered_clients_.erase(*ci);
     }
   }
+  std::swap(params_, nested_params);
   while (!tester->done()) {
     bool s = false, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
@@ -374,7 +299,7 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
 	if (sockfd > fdmax) {
 	  fdmax = sockfd;
 	}
-	int client_id = next_client_id++;
+	int client_id = next_client_id_++;
 	ServerMsg smsg = { ServerMsg::REGISTER, client_id };
 	if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
 	  perror(PACKAGE);
@@ -386,7 +311,7 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
 	    perror(PACKAGE);
 	    close(sockfd);
 	  } else {
-	    registered_clients[sockfd] = client_id;
+	    registered_clients_[sockfd] = client_id;
 	    schedule.push(client_id);
 	    unsigned long addr = ntohl(client_addr.sin_addr.s_addr);
 	    std::cout << "Registering client " << client_id << " @ "
@@ -399,8 +324,8 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
       }
       std::set<int> closed_sockets;
       for (std::map<int, short>::const_iterator ci =
-	     registered_clients.begin();
-	   ci != registered_clients.end(); ci++) {
+	     registered_clients_.begin();
+	   ci != registered_clients_.end(); ci++) {
 	int sockfd = (*ci).first;
 	short client_id = (*ci).second;
 	if (FD_ISSET(sockfd, &read_fds)) {
@@ -445,29 +370,30 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
       }
       for (std::set<int>::const_iterator ci = closed_sockets.begin();
 	   ci != closed_sockets.end(); ci++) {
-	registered_clients.erase(*ci);
+	registered_clients_.erase(*ci);
       }
     } else {
       /* Local mode. */
-      s = formula().sample(dd_model, model, state, nested_params, stats);
+      property.path_property().Accept(this);
+      s = result_;
       have_sample = true;
     }
     if (!have_sample) {
       continue;
     }
     tester->AddObservation(s);
-    if (formula_level() == 1) {
+    if (probabilistic_level_ == 1) {
       PrintProgress(tester->sample().count());
     }
     if (VLOG_IS_ON(2)) {
-      LOG(INFO) << std::string(' ', 2*(formula_level() - 1))
+      LOG(INFO) << std::string(2*(probabilistic_level_ - 1), ' ')
                 << tester->StateToString();
     }
   }
-  formula_level_--;
-  if (formula_level() == 0) {
+  std::swap(params_, nested_params);
+  if (probabilistic_level_ == 1) {
     std::cout << tester->sample().count() << " observations." << std::endl;
-    stats->sample_size.AddObservation(tester->sample().count());
+    stats_->sample_size.AddObservation(tester->sample().count());
   }
   if (server_socket != -1) {
     if (VLOG_IS_ON(1)) {
@@ -478,8 +404,8 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
 		  << usage_count[(*si).first] << " used";
       }
     }
-    for (std::map<int, short>::const_iterator ci = registered_clients.begin();
-	 ci != registered_clients.end(); ci++) {
+    for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
+	 ci != registered_clients_.end(); ci++) {
       int sockfd = (*ci).first;
       ServerMsg smsg = { ServerMsg::STOP };
       if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
@@ -488,48 +414,19 @@ bool Probabilistic::verify(const DecisionDiagramModel* dd_model,
       }
     }
   }
-  if (params.memoization) {
-    cache_[state.values()] = tester->sample();
+  if (params_.memoization) {
+    sample_cache_[property.path_property().index()][state_->values()] =
+        tester->sample();
   }
-  return tester->accept();
+  result_ = tester->accept();
+  --probabilistic_level_;
 }
-
-
-/* Clears the cache of any probabilistic operator. */
-size_t Probabilistic::clear_cache() const {
-  size_t n = cache_.size() + formula().clear_cache();
-  cache_.clear();
-  return n;
-}
-
-
-/* ====================================================================== */
-/* Comparison */
 
 void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
-  result_ = evaluator_->EvaluateIntExpression(property.expr(), *state_);
+  result_ = evaluator_->EvaluateIntExpression(property.expr(),
+                                              state_->values());
 }
-
-/* Verifies this state formula using the statistical engine. */
-bool Comparison::verify(const DecisionDiagramModel* dd_model,
-                        const Model& model, const State& state,
-                        const ModelCheckingParams& params,
-                        ModelCheckingStats* stats) const {
-  return holds(state.values());
-}
-
-
-/* Clears the cache of any probabilistic operator. */
-size_t Comparison::clear_cache() const {
-  return 0;
-}
-
-
-/* ====================================================================== */
-/* Until */
-
-namespace {
 
 BDD StateBdd(const DecisionDiagramModel& dd_model, const Model& model,
              const std::vector<int>& state) {
@@ -547,71 +444,59 @@ BDD StateBdd(const DecisionDiagramModel& dd_model, const Model& model,
   return dds;
 }
 
-bool Verify(const StateFormula& formula,
-            const DecisionDiagramModel* dd_model, const BDD* ddf,
-            const Model& model, const State& state,
-            const ModelCheckingParams& params, ModelCheckingStats* stats) {
-  if (dd_model != nullptr) {
-    BDD sol = *ddf && StateBdd(*dd_model, model, state.values());
-    return sol.get() != dd_model->manager().GetConstant(false).get();
-  } else {
-    return formula.verify(nullptr, model, state, params, stats);
-  }
-}
-
-}  // namespace
-
-/* Generates a sample for this path formula. */
-bool Until::sample(const DecisionDiagramModel* dd_model,
-                   const Model& model, const State& state,
-                   const ModelCheckingParams& params,
-                   ModelCheckingStats* stats) const {
+void CompiledPropertySamplingVerifier::DoVisitCompiledUntilProperty(
+    const CompiledUntilProperty& property) {
   const BDD* dd1 = nullptr;
   const BDD* dd2 = nullptr;
-  if (dd_model != nullptr) {
+  auto cached_dds = dd_cache_.end();
+  if (dd_model_ != nullptr) {
     // Mixed engine.
-    if (cached_dds_ == nullptr) {
-      BDD dd1 = pre().verify(*dd_model, false, params);
-      BDD dd2 = post().verify(*dd_model, false, params);
-      cached_dds_.reset(new std::pair<BDD, BDD>(dd1, dd2));
+    cached_dds = dd_cache_.find(property.index());
+    if (cached_dds == dd_cache_.end()) {
+      BDD dd1 =
+          property.formula().pre().verify(*dd_model_, false, false, params_);
+      BDD dd2 =
+          property.formula().post().verify(*dd_model_, false, false, params_);
+      cached_dds =
+          dd_cache_.insert({property.index(), std::make_pair(dd1, dd2)}).first;
     }
-    dd1 = &cached_dds_->first;
-    dd2 = &cached_dds_->second;
+    dd1 = &cached_dds->second.first;
+    dd2 = &cached_dds->second.second;
   }
   double t = 0.0;
-  State curr_state = state;
-  const double t_min = min_time().value<double>();
-  const double t_max = max_time().value<double>();
+  State curr_state = *state_;
+  const double t_min = property.min_time();
+  const double t_max = property.max_time();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
-  while (!done && path_length < params.max_path_length) {
-    if (VLOG_IS_ON(3) && StateFormula::formula_level() == 1) {
+  while (!done && path_length < params_.max_path_length) {
+    if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << curr_state.ToString();
     }
     State next_state = curr_state.Next();
     double next_t = t + (next_state.time() - curr_state.time());
+    const State* curr_state_ptr = &curr_state;
+    std::swap(state_, curr_state_ptr);
     if (t_min <= t) {
-      if (Verify(post(), dd_model, dd2, model, curr_state, params, stats)) {
+      if (VerifyHelper(property.post(), dd2)) {
         result = true;
         done = true;
-      } else if (!Verify(pre(), dd_model, dd1, model, curr_state, params,
-                         stats)) {
+      } else if (!VerifyHelper(property.pre(), dd1)) {
         result = false;
         done = true;
       }
     } else {
-      if (!Verify(pre(), dd_model, dd1, model, curr_state, params, stats)) {
+      if (!VerifyHelper(property.pre(), dd1)) {
         result = false;
         done = true;
-      } else if (t_min < next_t
-                 && Verify(post(), dd_model, dd2, model, curr_state, params,
-                           stats)) {
+      } else if (t_min < next_t && VerifyHelper(property.post(), dd2)) {
         t = t_min;
         result = true;
         done = true;
         output = true;
       }
     }
+    std::swap(state_, curr_state_ptr);
     if (!done) {
       curr_state = std::move(next_state);
       t = next_t;
@@ -633,14 +518,53 @@ bool Until::sample(const DecisionDiagramModel* dd_model,
       LOG(INFO) << ">>negative sample";
     }
   }
-  if (StateFormula::formula_level() == 1) {
-    stats->path_length.AddObservation(path_length);
+  if (probabilistic_level_ == 1) {
+    stats_->path_length.AddObservation(path_length);
   }
-  return result;
+  result_ = result;
 }
 
-/* Clears the cache of any probabilistic operator. */
-size_t Until::clear_cache() const {
-  cached_dds_.reset();
-  return pre().clear_cache() + post().clear_cache();
+bool CompiledPropertySamplingVerifier::VerifyHelper(
+    const CompiledProperty& property, const BDD* ddf) {
+  if (dd_model_ != nullptr) {
+    BDD sol = *ddf && StateBdd(*dd_model_, *model_, state_->values());
+    return sol.get() != dd_model_->manager().GetConstant(false).get();
+  } else {
+    property.Accept(this);
+    return result_;
+  }
+}
+
+int CompiledPropertySamplingVerifier::GetSampleCacheSize() const {
+  int sample_cache_size = 0;
+  for (const auto& cache : sample_cache_) {
+    sample_cache_size += cache.second.size();
+  }
+  return sample_cache_size;
+}
+
+}  // namespace
+
+bool Verify(const CompiledProperty& property,
+            const Model& model, const DecisionDiagramModel* dd_model,
+            const ModelCheckingParams& params,
+            CompiledExpressionEvaluator* evaluator, const State& state,
+            ModelCheckingStats* stats) {
+  CompiledPropertySamplingVerifier verifier(&model, dd_model, params,
+                                            evaluator, &state, 0, stats);
+  property.Accept(&verifier);
+  stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
+  return verifier.result();
+}
+
+bool GetObservation(const CompiledPathProperty& property,
+                    const Model& model, const DecisionDiagramModel* dd_model,
+                    const ModelCheckingParams& params,
+                    CompiledExpressionEvaluator* evaluator, const State& state,
+                    ModelCheckingStats* stats) {
+  CompiledPropertySamplingVerifier verifier(&model, dd_model, params,
+                                            evaluator, &state, 1, stats);
+  property.Accept(&verifier);
+  stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
+  return verifier.result();
 }

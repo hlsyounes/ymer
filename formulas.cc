@@ -208,17 +208,6 @@ bool Conjunction::probabilistic() const {
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool Conjunction::holds(const std::vector<int>& state) const {
-  for (const StateFormula* conjunct : conjuncts()) {
-    if (!conjunct->holds(state)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
 /* Prints this object on the given stream. */
 void Conjunction::print(std::ostream& os) const {
   if (conjuncts().empty()) {
@@ -282,17 +271,6 @@ bool Disjunction::probabilistic() const {
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool Disjunction::holds(const std::vector<int>& state) const {
-  for (const StateFormula* disjunct : disjuncts()) {
-    if (disjunct->holds(state)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 /* Prints this object on the given stream. */
 void Disjunction::print(std::ostream& os) const {
   if (disjuncts().empty()) {
@@ -350,12 +328,6 @@ bool Negation::probabilistic() const {
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool Negation::holds(const std::vector<int>& state) const {
-  return !negand().holds(state);
-}
-
-
 /* Prints this object on the given stream. */
 void Negation::print(std::ostream& os) const {
   os << '!';
@@ -398,12 +370,6 @@ bool Implication::probabilistic() const {
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool Implication::holds(const std::vector<int>& state) const {
-  return !antecedent().holds(state) || consequent().holds(state);
-}
-
-
 /* Prints this object on the given stream. */
 void Implication::print(std::ostream& os) const {
   os << antecedent() << " => ";
@@ -440,12 +406,6 @@ void Probabilistic::DoAccept(StateFormulaVisitor* visitor) const {
 /* Tests if this state formula contains probabilistic elements. */
 bool Probabilistic::probabilistic() const {
   return true;
-}
-
-
-/* Tests if this state formula holds in the given state. */
-bool Probabilistic::holds(const std::vector<int>& state) const {
-  LOG(FATAL) << "not implemented";
 }
 
 
@@ -493,12 +453,6 @@ LessThan::LessThan(const Expression& expr1, const Expression& expr2)
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool LessThan::holds(const std::vector<int>& state) const {
-  return expr1().value(state) < expr2().value(state);
-}
-
-
 /* Prints this object on the given stream. */
 void LessThan::print(std::ostream& os) const {
   os << expr1() << '<' << expr2();
@@ -512,12 +466,6 @@ void LessThan::print(std::ostream& os) const {
 LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
 				 const Expression& expr2)
     : Comparison(LESS_EQUAL, expr1, expr2) {
-}
-
-
-/* Tests if this state formula holds in the given state. */
-bool LessThanOrEqual::holds(const std::vector<int>& state) const {
-  return expr1().value(state) <= expr2().value(state);
 }
 
 
@@ -537,12 +485,6 @@ GreaterThanOrEqual::GreaterThanOrEqual(const Expression& expr1,
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool GreaterThanOrEqual::holds(const std::vector<int>& state) const {
-  return expr1().value(state) >= expr2().value(state);
-}
-
-
 /* Prints this object on the given stream. */
 void GreaterThanOrEqual::print(std::ostream& os) const {
   os << expr1() << ">=" << expr2();
@@ -555,12 +497,6 @@ void GreaterThanOrEqual::print(std::ostream& os) const {
 /* Constructs a greater-than comparison. */
 GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
     : Comparison(GREATER, expr1, expr2) {
-}
-
-
-/* Tests if this state formula holds in the given state. */
-bool GreaterThan::holds(const std::vector<int>& state) const {
-  return expr1().value(state) > expr2().value(state);
 }
 
 
@@ -579,12 +515,6 @@ Equality::Equality(const Expression& expr1, const Expression& expr2)
 }
 
 
-/* Tests if this state formula holds in the given state. */
-bool Equality::holds(const std::vector<int>& state) const {
-  return expr1().value(state) == expr2().value(state);
-}
-
-
 /* Prints this object on the given stream. */
 void Equality::print(std::ostream& os) const {
   os << expr1() << '=' << expr2();
@@ -597,12 +527,6 @@ void Equality::print(std::ostream& os) const {
 /* Constructs an inequality comparison. */
 Inequality::Inequality(const Expression& expr1, const Expression& expr2)
     : Comparison(NOT_EQUAL, expr1, expr2) {
-}
-
-
-/* Tests if this state formula holds in the given state. */
-bool Inequality::holds(const std::vector<int>& state) const {
-  return expr1().value(state) != expr2().value(state);
 }
 
 

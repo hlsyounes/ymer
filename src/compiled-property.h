@@ -40,13 +40,17 @@ class CompiledProperty {
 
   virtual ~CompiledProperty();
 
+  bool is_probabilistic() const { return is_probabilistic_; }
+
   void Accept(CompiledPropertyVisitor* visitor) const;
 
  protected:
-  CompiledProperty();
+  explicit CompiledProperty(bool is_probabilistic);
 
  private:
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const = 0;
+
+  bool is_probabilistic_;
 };
 
 // Output operator for compiled properties.
@@ -64,13 +68,24 @@ class CompiledPathProperty {
 
   virtual ~CompiledPathProperty();
 
+  int index() const { return index_; }
+
+  bool is_probabilistic() const { return is_probabilistic_; }
+
+  const std::string& string() const { return string_; }
+
   void Accept(CompiledPathPropertyVisitor* visitor) const;
 
  protected:
-  CompiledPathProperty();
+  CompiledPathProperty(int index, bool is_probabilistic,
+                       const std::string& string);
 
  private:
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const = 0;
+
+  int index_;
+  bool is_probabilistic_;
+  std::string string_;
 };
 
 // Output operator for compiled path properties.
@@ -166,6 +181,9 @@ class CompiledExpressionProperty : public CompiledProperty {
   CompiledExpression expr_;
 };
 
+// TODO(hlsyounes): get rid of dependency on Until class.
+class Until;
+
 // A compiled until property.
 class CompiledUntilProperty : public CompiledPathProperty {
  public:
@@ -174,7 +192,8 @@ class CompiledUntilProperty : public CompiledPathProperty {
   static std::unique_ptr<const CompiledPathProperty> Make(
       double min_time, double max_time,
       std::unique_ptr<const CompiledProperty>&& pre,
-      std::unique_ptr<const CompiledProperty>&& post);
+      std::unique_ptr<const CompiledProperty>&& post,
+      int index, const std::string& string, const Until* formula);
 
   double min_time() const { return min_time_; }
 
@@ -184,10 +203,14 @@ class CompiledUntilProperty : public CompiledPathProperty {
 
   const CompiledProperty& post() const { return *post_; }
 
+  const Until& formula() const { return *formula_; }
+
  private:
   CompiledUntilProperty(double min_time, double max_time,
                         std::unique_ptr<const CompiledProperty>&& pre,
-                        std::unique_ptr<const CompiledProperty>&& post);
+                        std::unique_ptr<const CompiledProperty>&& post,
+                        int index, const std::string& string,
+                        const Until* formula);
 
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const;
 
@@ -195,6 +218,7 @@ class CompiledUntilProperty : public CompiledPathProperty {
   double max_time_;
   std::unique_ptr<const CompiledProperty> pre_;
   std::unique_ptr<const CompiledProperty> post_;
+  const Until* formula_;
 };
 
 // Abstract base class for compiled property visitors.

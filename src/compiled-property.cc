@@ -23,7 +23,9 @@
 
 #include "pointer-vector.h"
 
-CompiledProperty::CompiledProperty() = default;
+CompiledProperty::CompiledProperty(bool is_probabilistic)
+    : is_probabilistic_(is_probabilistic) {
+}
 
 CompiledProperty::~CompiledProperty() = default;
 
@@ -96,7 +98,10 @@ std::ostream& operator<<(std::ostream& os, const CompiledProperty& p) {
   return os;
 }
 
-CompiledPathProperty::CompiledPathProperty() = default;
+CompiledPathProperty::CompiledPathProperty(int index, bool is_probabilistic,
+                                           const std::string& string)
+    : index_(index), is_probabilistic_(is_probabilistic), string_(string) {
+}
 
 CompiledPathProperty::~CompiledPathProperty() = default;
 
@@ -138,9 +143,24 @@ std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p) {
   return os;
 }
 
+namespace {
+
+bool HasOneProbabilistic(
+    const PointerVector<const CompiledProperty>& operands) {
+  for (const CompiledProperty& operand : operands) {
+    if (operand.is_probabilistic()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 CompiledAndProperty::CompiledAndProperty(
     PointerVector<const CompiledProperty>&& operands)
-    : operands_(std::move(operands)) {
+    : CompiledProperty(HasOneProbabilistic(operands)),
+      operands_(std::move(operands)) {
 }
 
 CompiledAndProperty::~CompiledAndProperty() = default;
@@ -157,7 +177,8 @@ void CompiledAndProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
 
 CompiledNotProperty::CompiledNotProperty(
     std::unique_ptr<const CompiledProperty>&& operand)
-    : operand_(std::move(operand)) {
+    : CompiledProperty(operand->is_probabilistic()),
+      operand_(std::move(operand)) {
 }
 
 CompiledNotProperty::~CompiledNotProperty() = default;
@@ -175,7 +196,8 @@ void CompiledNotProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
 CompiledProbabilisticProperty::CompiledProbabilisticProperty(
     Operator op, double threshold,
     std::unique_ptr<const CompiledPathProperty>&& path_property)
-    : op_(op), threshold_(threshold), path_property_(std::move(path_property)) {
+    : CompiledProperty(true),
+      op_(op), threshold_(threshold), path_property_(std::move(path_property)) {
 }
 
 CompiledProbabilisticProperty::~CompiledProbabilisticProperty() = default;
@@ -205,7 +227,7 @@ void CompiledProbabilisticProperty::DoAccept(
 
 CompiledExpressionProperty::CompiledExpressionProperty(
     const CompiledExpression& expr)
-    : expr_(expr) {
+    : CompiledProperty(false), expr_(expr) {
 }
 
 CompiledExpressionProperty::~CompiledExpressionProperty() = default;
@@ -224,9 +246,12 @@ void CompiledExpressionProperty::DoAccept(
 CompiledUntilProperty::CompiledUntilProperty(
     double min_time, double max_time,
     std::unique_ptr<const CompiledProperty>&& pre,
-    std::unique_ptr<const CompiledProperty>&& post)
-    : min_time_(min_time), max_time_(max_time), pre_(std::move(pre)),
-      post_(std::move(post)) {
+    std::unique_ptr<const CompiledProperty>&& post,
+    int index, const std::string& string, const Until* formula)
+    : CompiledPathProperty(
+          index, pre->is_probabilistic() || post->is_probabilistic(), string),
+      min_time_(min_time), max_time_(max_time), pre_(std::move(pre)),
+      post_(std::move(post)), formula_(formula) {
 }
 
 CompiledUntilProperty::~CompiledUntilProperty() = default;
@@ -234,9 +259,11 @@ CompiledUntilProperty::~CompiledUntilProperty() = default;
 std::unique_ptr<const CompiledPathProperty> CompiledUntilProperty::Make(
     double min_time, double max_time,
     std::unique_ptr<const CompiledProperty>&& pre,
-    std::unique_ptr<const CompiledProperty>&& post) {
+    std::unique_ptr<const CompiledProperty>&& post,
+    int index, const std::string& string, const Until* formula) {
   return std::unique_ptr<const CompiledPathProperty>(new CompiledUntilProperty(
-      min_time, max_time, std::move(pre), std::move(post)));
+      min_time, max_time, std::move(pre), std::move(post), index, string,
+      formula));
 }
 
 void CompiledUntilProperty::DoAccept(
