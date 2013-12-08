@@ -23,12 +23,10 @@
 #ifndef EXPRESSION_H_
 #define EXPRESSION_H_
 
-#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
 
-#include "ddutil.h"
 #include "typed-value.h"
 
 class ExpressionVisitor;
@@ -55,44 +53,48 @@ private:
   virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
 };
 
-class VariableProperties {
- public:
-  VariableProperties(int min_value, int low_bit, int high_bit);
-
-  int min_value() const { return min_value_; }
-
-  int low_bit() const { return low_bit_; }
-
-  int high_bit() const { return high_bit_; }
-
- private:
-  int min_value_;
-  int low_bit_;
-  int high_bit_;
-};
-
-// Returns the 'current state' MTBDD representation for an expression.
-ADD mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e);
-
-// Returns the 'next state' MTBDD representation for an expression.
-ADD primed_mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e);
-
-// Returns the 'current state' MTBDD representation for a variable.
-ADD variable_mtbdd(const DecisionDiagramManager& manager,
-                   int low, int low_bit, int high_bit);
-
-// Returns the 'next state' MTBDD representation for a variable.
-ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
-                          int low, int low_bit, int high_bit);
-
 // Output operator for expressions.
 std::ostream& operator<<(std::ostream& os, const Expression& e);
+
+// A literal expression.
+class Literal : public Expression {
+ public:
+  // Constructs a literal that represents the given value.
+  explicit Literal(const TypedValue& value);
+
+  virtual ~Literal();
+
+  // Factory method for creating literals.
+  static std::unique_ptr<const Literal> Create(const TypedValue& value);
+
+  // Returns the value of this literal.
+  const TypedValue& value() const { return value_; }
+
+private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  TypedValue value_;
+};
+
+// An identifier expression.
+class Identifier : public Expression {
+ public:
+  // Constructs an identifier with the given name.
+  explicit Identifier(const std::string& name);
+
+  virtual ~Identifier();
+
+  // Factory method for creating identifiers.
+  static std::unique_ptr<const Identifier> Create(const std::string& name);
+
+  // Returns the name of this identifier.
+  const std::string& name() const { return name_; }
+
+private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  std::string name_;
+};
 
 // A computation expression.
 class Computation : public Expression {
@@ -101,6 +103,11 @@ class Computation : public Expression {
   enum Operator {
     PLUS, MINUS, MULTIPLY, DIVIDE
   };
+
+  // Constructs a computation.
+  Computation(Operator op,
+              std::unique_ptr<const Expression>&& operand1,
+              std::unique_ptr<const Expression>&& operand2);
 
   virtual ~Computation();
 
@@ -119,60 +126,12 @@ class Computation : public Expression {
   // Returns the second operand for this computation.
   const Expression& operand2() const { return *operand2_; }
 
-protected:
-  // Constructs a computation.
-  Computation(Operator op,
-              std::unique_ptr<const Expression>&& operand1,
-              std::unique_ptr<const Expression>&& operand2);
-
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
-  // The operator for this computation.
   Operator op_;
-  // The first operand for this computation.
   std::unique_ptr<const Expression> operand1_;
-  // The second operand for this computation.
   std::unique_ptr<const Expression> operand2_;
-};
-
-// An identifier.
-class Identifier : public Expression {
- public:
-  // Constructs an identifier with the given name.
-  explicit Identifier(const std::string& name);
-
-  virtual ~Identifier();
-
-  // Factory method for creating identifiers.
-  static std::unique_ptr<const Identifier> Create(const std::string& name);
-
-  // Returns the name of this identifier.
-  const std::string& name() const { return name_; }
-
-private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
-
-  // The name of this identifier.
-  std::string name_;
-};
-
-// A literal expression.
-class Literal : public Expression {
- public:
-  // Constructs a literal that represents the given value.
-  explicit Literal(const TypedValue& value);
-
-  virtual ~Literal();
-
-  // Returns the value of this literal.
-  const TypedValue& value() const { return value_; }
-
-private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
-
-  // The value.
-  TypedValue value_;
 };
 
 // Abstract base class for expression visitors.

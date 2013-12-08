@@ -125,6 +125,22 @@ private:
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m);
 
+class VariableProperties {
+ public:
+  VariableProperties(int min_value, int low_bit, int high_bit);
+
+  int min_value() const { return min_value_; }
+
+  int low_bit() const { return low_bit_; }
+
+  int high_bit() const { return high_bit_; }
+
+ private:
+  int min_value_;
+  int low_bit_;
+  int high_bit_;
+};
+
 // A model compiled into decision diagrams.
 class DecisionDiagramModel {
  public:
@@ -160,5 +176,37 @@ class DecisionDiagramModel {
   int initial_state_index_;
   ODDNode* odd_;
 };
+
+// Returns the 'current state' MTBDD representation for an expression.
+ADD mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e);
+
+// Returns the 'next state' MTBDD representation for an expression.
+ADD primed_mtbdd(
+    const DecisionDiagramManager& manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const Expression& e);
+
+// Returns the 'current state' MTBDD representation for a variable.
+ADD variable_mtbdd(const DecisionDiagramManager& manager,
+                   int low, int low_bit, int high_bit);
+
+// Returns the 'next state' MTBDD representation for a variable.
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
+                          int low, int low_bit, int high_bit);
+
+// Returns the `current state' BDD representation for a state formula.
+BDD bdd(
+    const DecisionDiagramManager& dd_man,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f);
+
+// Returns the `next state' BDD representation for a state formula.
+BDD primed_bdd(
+    const DecisionDiagramManager& dd_man,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    const StateFormula& f);
 
 #endif  // MODELS_H_
