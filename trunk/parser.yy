@@ -630,8 +630,7 @@ static int integer_value(const TypedValue* q) {
 
 /* Returns a variable representing an integer constant. */
 static const Variable* find_constant(const std::string* ident) {
-  std::map<std::string, const Variable*>::const_iterator ci =
-    constants.find(*ident);
+  auto ci = constants.find(*ident);
   if (ci != constants.end()) {
     delete ident;
     return (*ci).second;
@@ -1004,7 +1003,6 @@ static const Variable* declare_variable(const std::string* ident,
     int s = ((start != NULL)
              ? EvaluateConstantExpression(*start, constant_values).value<int>()
              : low);
-    v->SetVariableProperties(model->variables().size());
     variable_lows.insert(std::make_pair(v, range.l));
     Expression::ref(range.l);
     variable_highs.insert(std::make_pair(v, range.h));

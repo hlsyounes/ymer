@@ -26,6 +26,61 @@
 #include "config.h"
 #include "src/expression.h"
 
+namespace {
+
+class ConstantExpressionEvaluator : public ExpressionVisitor {
+ public:
+  ConstantExpressionEvaluator();
+
+  TypedValue value() const { return value_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  TypedValue value_;
+};
+
+ConstantExpressionEvaluator::ConstantExpressionEvaluator()
+    : value_(0) {
+}
+
+void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
+  value_ = expr.value();
+}
+
+void ConstantExpressionEvaluator::DoVisitVariable(const Variable& expr) {
+  LOG(FATAL) << "expecting constant expression";
+}
+
+void ConstantExpressionEvaluator::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  TypedValue operand1 = value_;
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case Computation::PLUS:
+      value_ = operand1 + value_;
+      break;
+    case Computation::MINUS:
+      value_ = operand1 - value_;
+      break;
+    case Computation::MULTIPLY:
+      value_ = operand1 * value_;
+      break;
+    case Computation::DIVIDE:
+      value_ = operand1 / value_;
+      break;
+  }
+}
+
+TypedValue EvaluateConstantExpression(const Expression& expr) {
+  ConstantExpressionEvaluator evaluator;
+  expr.Accept(&evaluator);
+  return evaluator.value();
+}
+
+}  // namespace
 
 /* ====================================================================== */
 /* Distribution */
@@ -226,7 +281,7 @@ void Exponential::DoAccept(DistributionVisitor* visitor) const {
 void Exponential::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double lambda_inv = 1.0/rate().value(std::vector<int>()).value<double>();
+  double lambda_inv = 1.0/EvaluateConstantExpression(rate()).value<double>();
   double mi = 1.0;
   for (size_t i = 1; i <= n; i++) {
     mi *= i*lambda_inv;
@@ -273,8 +328,8 @@ void Weibull::DoAccept(DistributionVisitor* visitor) const {
 void Weibull::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double eta = scale().value(std::vector<int>()).value<double>();
-  double beta_inv = 1.0/shape().value(std::vector<int>()).value<double>();
+  double eta = EvaluateConstantExpression(scale()).value<double>();
+  double beta_inv = 1.0/EvaluateConstantExpression(shape()).value<double>();
   double ei = 1.0;
   double bi = 1.0;
   for (size_t i = 1; i <= n; i++) {
@@ -317,8 +372,8 @@ void Lognormal::DoAccept(DistributionVisitor* visitor) const {
 void Lognormal::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double mu = scale().value(std::vector<int>()).value<double>();
-  double sigma = shape().value(std::vector<int>()).value<double>();
+  double mu = EvaluateConstantExpression(scale()).value<double>();
+  double sigma = EvaluateConstantExpression(shape()).value<double>();
   double mean = log(mu) - sigma*sigma/2.0;
   for (size_t i = 1; i <= n; i++) {
     m.push_back(exp(i*mean + i*i*sigma*sigma/2.0));
@@ -357,8 +412,8 @@ void Uniform::DoAccept(DistributionVisitor* visitor) const {
 void Uniform::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double a = low().value(std::vector<int>()).value<double>();
-  double b = high().value(std::vector<int>()).value<double>();
+  double a = EvaluateConstantExpression(low()).value<double>();
+  double b = EvaluateConstantExpression(high()).value<double>();
   double ai = a;
   double bi = b;
   for (size_t i = 1; i <= n; i++) {
