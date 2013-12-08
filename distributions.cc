@@ -36,7 +36,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitVariable(const Variable& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
   virtual void DoVisitComputation(const Computation& expr);
 
   TypedValue value_;
@@ -50,7 +50,7 @@ void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
   value_ = expr.value();
 }
 
-void ConstantExpressionEvaluator::DoVisitVariable(const Variable& expr) {
+void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   LOG(FATAL) << "expecting constant expression";
 }
 
@@ -256,22 +256,19 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
 /* Exponential */
 
 /* Returns an exponential distribution with the given rate. */
-const Exponential* Exponential::make(const Expression& rate) {
-  return new Exponential(rate);
+const Exponential* Exponential::make(std::unique_ptr<const Expression>&& rate) {
+  return new Exponential(std::move(rate));
 }
 
 
 /* Constructs an exponential distribution with the given rate. */
-Exponential::Exponential(const Expression& rate)
-  : rate_(&rate) {
-  Expression::ref(rate_);
+Exponential::Exponential(std::unique_ptr<const Expression>&& rate)
+    : rate_(std::move(rate)) {
 }
 
 
 /* Deletes this exponential distribution. */
-Exponential::~Exponential() {
-  Expression::destructive_deref(rate_);
-}
+Exponential::~Exponential() = default;
 
 void Exponential::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitExponential(*this);
@@ -294,31 +291,27 @@ void Exponential::moments(std::vector<double>& m, size_t n) const {
 /* Weibull */
 
 /* Returns a Weibull distribution with the given scale and shape. */
-const Distribution* Weibull::make(const Expression& scale,
-				  const Expression& shape) {
-  const Literal* value = dynamic_cast<const Literal*>(&shape);
-  if (value != NULL && value->value() == 1) {
-    return Exponential::make(
-        *Computation::make(Computation::DIVIDE, *value, scale));
+const Distribution* Weibull::make(std::unique_ptr<const Expression>&& scale,
+				  std::unique_ptr<const Expression>&& shape) {
+  const Literal* value = dynamic_cast<const Literal*>(shape.get());
+  if (value != nullptr && value->value() == 1) {
+    return Exponential::make(Computation::Create(
+        Computation::DIVIDE, std::move(shape), std::move(scale)));
   } else {
-    return new Weibull(scale, shape);
+    return new Weibull(std::move(scale), std::move(shape));
   }
 }
 
 
 /* Constructs a Weibull distribution with the given scale and shape. */
-Weibull::Weibull(const Expression& scale, const Expression& shape)
-  : scale_(&scale), shape_(&shape) {
-  Expression::ref(scale_);
-  Expression::ref(shape_);
+Weibull::Weibull(std::unique_ptr<const Expression>&& scale,
+                 std::unique_ptr<const Expression>&& shape)
+    : scale_(std::move(scale)), shape_(std::move(shape)) {
 }
 
 
 /* Deletes this Weibull distribution. */
-Weibull::~Weibull() {
-  Expression::destructive_deref(scale_);
-  Expression::destructive_deref(shape_);
-}
+Weibull::~Weibull() = default;
 
 void Weibull::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitWeibull(*this);
@@ -344,25 +337,21 @@ void Weibull::moments(std::vector<double>& m, size_t n) const {
 /* Lognormal */
 
 /* Returns a lognormal distribution with the given scale and shape. */
-const Lognormal* Lognormal::make(const Expression& scale,
-				 const Expression& shape) {
-  return new Lognormal(scale, shape);
+const Lognormal* Lognormal::make(std::unique_ptr<const Expression>&& scale,
+				 std::unique_ptr<const Expression>&& shape) {
+  return new Lognormal(std::move(scale), std::move(shape));
 }
 
 
 /* Constructs a lognormal distribution with the given scale and shape. */
-Lognormal::Lognormal(const Expression& scale, const Expression& shape)
-    : scale_(&scale), shape_(&shape) {
-  Expression::ref(scale_);
-  Expression::ref(shape_);
+Lognormal::Lognormal(std::unique_ptr<const Expression>&& scale,
+                     std::unique_ptr<const Expression>&& shape)
+    : scale_(std::move(scale)), shape_(std::move(shape)) {
 }
 
 
 /* Deletes this lognormal distribution. */
-Lognormal::~Lognormal() {
-  Expression::destructive_deref(scale_);
-  Expression::destructive_deref(shape_);
-}
+Lognormal::~Lognormal() = default;
 
 void Lognormal::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitLognormal(*this);
@@ -385,24 +374,21 @@ void Lognormal::moments(std::vector<double>& m, size_t n) const {
 /* Uniform */
 
 /* Returns a uniform distribution with the given bounds. */
-const Uniform* Uniform::make(const Expression& low, const Expression& high) {
-  return new Uniform(low, high);
+const Uniform* Uniform::make(std::unique_ptr<const Expression>&& low,
+                             std::unique_ptr<const Expression>&& high) {
+  return new Uniform(std::move(low), std::move(high));
 }
 
 
 /* Constructs a uniform distribution with the given bounds. */
-Uniform::Uniform(const Expression& low, const Expression& high)
-  : low_(&low), high_(&high) {
-  Expression::ref(low_);
-  Expression::ref(high_);
+Uniform::Uniform(std::unique_ptr<const Expression>&& low,
+                 std::unique_ptr<const Expression>&& high)
+    : low_(std::move(low)), high_(std::move(high)) {
 }
 
 
 /* Deletes this uniform distribution. */
-Uniform::~Uniform() {
-  Expression::destructive_deref(low_);
-  Expression::destructive_deref(high_);
-}
+Uniform::~Uniform() = default;
 
 void Uniform::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitUniform(*this);

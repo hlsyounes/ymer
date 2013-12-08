@@ -182,7 +182,10 @@ BDD update_bdd(
     const DecisionDiagramManager& manager,
     const std::map<std::string, VariableProperties>& variable_properties,
     const Update& update) {
-  return primed_mtbdd(manager, variable_properties, update.variable())
+  auto i = variable_properties.find(update.variable());
+  const VariableProperties& p = i->second;
+  return variable_primed_mtbdd(manager,
+                               p.min_value(), p.low_bit(), p.high_bit())
       == mtbdd(manager, variable_properties, update.expr());
 }
 
@@ -196,7 +199,7 @@ BDD command_bdd(
   BDD ddu = manager.GetConstant(true);
   for (const Update* update : command.updates()) {
     ddu = update_bdd(manager, variable_properties, *update) && ddu;
-    updated_variables->insert(update->variable().name());
+    updated_variables->insert(update->variable());
   }
   return bdd(manager, variable_properties, command.guard()) && ddu;
 }
@@ -373,6 +376,24 @@ const Distribution* CopyDistribution(const Distribution& distribution) {
   return copier.release_distribution();
 }
 
+class ExpressionCopier : public ExpressionVisitor {
+ public:
+  std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitComputation(const Computation& expr);
+
+  std::unique_ptr<const Expression> expr_;
+};
+
+std::unique_ptr<const Expression> CopyExpression(const Expression& expr) {
+  ExpressionCopier copier;
+  expr.Accept(&copier);
+  return copier.release_expr();
+}
+
 StateFormulaCopier::StateFormulaCopier()
     : formula_(NULL) {
 }
@@ -423,25 +444,30 @@ void StateFormulaCopier::DoVisitProbabilistic(const Probabilistic& formula) {
 }
 
 void StateFormulaCopier::DoVisitComparison(const Comparison& formula) {
-  // TODO(hlsyounes): Copy expr1 and expr2 expressions.
   switch (formula.op()) {
     case Comparison::LESS:
-      formula_ = new LessThan(formula.expr1(), formula.expr2());
+      formula_ = new LessThan(CopyExpression(formula.expr1()),
+                              CopyExpression(formula.expr2()));
       break;
     case Comparison::LESS_EQUAL:
-      formula_ = new LessThanOrEqual(formula.expr1(), formula.expr2());
+      formula_ = new LessThanOrEqual(CopyExpression(formula.expr1()),
+                                     CopyExpression(formula.expr2()));
       break;
     case Comparison::GREATER_EQUAL:
-      formula_ = new GreaterThanOrEqual(formula.expr1(), formula.expr2());
+      formula_ = new GreaterThanOrEqual(CopyExpression(formula.expr1()),
+                                        CopyExpression(formula.expr2()));
       break;
     case Comparison::GREATER:
-      formula_ = new GreaterThan(formula.expr1(), formula.expr2());
+      formula_ = new GreaterThan(CopyExpression(formula.expr1()),
+                                 CopyExpression(formula.expr2()));
       break;
     case Comparison::EQUAL:
-      formula_ = new Equality(formula.expr1(), formula.expr2());
+      formula_ = new Equality(CopyExpression(formula.expr1()),
+                              CopyExpression(formula.expr2()));
       break;
     case Comparison::NOT_EQUAL:
-      formula_ = new Inequality(formula.expr1(), formula.expr2());
+      formula_ = new Inequality(CopyExpression(formula.expr1()),
+                                CopyExpression(formula.expr2()));
       break;
   }
 }
@@ -480,23 +506,37 @@ const Distribution* DistributionCopier::release_distribution() {
 }
 
 void DistributionCopier::DoVisitExponential(const Exponential& distribution) {
-  // TODO(hlsyounes): Copy rate expression.
-  distribution_ = Exponential::make(distribution.rate());
+  distribution_ = Exponential::make(CopyExpression(distribution.rate()));
 }
 
 void DistributionCopier::DoVisitWeibull(const Weibull& distribution) {
-  // TODO(hlsyounes): Copy scale and shape expressions.
-  distribution_ = Weibull::make(distribution.scale(), distribution.shape());
+  distribution_ = Weibull::make(CopyExpression(distribution.scale()),
+                                CopyExpression(distribution.shape()));
 }
 
 void DistributionCopier::DoVisitLognormal(const Lognormal& distribution) {
-  // TODO(hlsyounes): Copy scale and shape expressions.
-  distribution_ = Lognormal::make(distribution.scale(), distribution.shape());
+  distribution_ = Lognormal::make(CopyExpression(distribution.scale()),
+                                  CopyExpression(distribution.shape()));
 }
 
 void DistributionCopier::DoVisitUniform(const Uniform& distribution) {
-  // TODO(hlsyounes): Copy low and high expressions.
-  distribution_ = Uniform::make(distribution.low(), distribution.high());
+  distribution_ = Uniform::make(CopyExpression(distribution.low()),
+                                CopyExpression(distribution.high()));
+}
+
+void ExpressionCopier::DoVisitLiteral(const Literal& expr) {
+  expr_.reset(new Literal(expr.value()));
+}
+
+void ExpressionCopier::DoVisitIdentifier(const Identifier& expr) {
+  expr_.reset(new Identifier(expr.name()));
+}
+
+void ExpressionCopier::DoVisitComputation(const Computation& expr) {
+  expr.operand1().Accept(this);
+  std::unique_ptr<const Expression> operand1 = release_expr();
+  expr.operand2().Accept(this);
+  expr_ = Computation::Create(expr.op(), std::move(operand1), release_expr());
 }
 
 }  // namespace
@@ -566,10 +606,12 @@ void Model::compile() {
 				     " synchronization pair must have rate 1");
 	    }
 	    for (const Update* update : ci.updates()) {
-	      c->add_update(new Update(update->variable(), update->expr()));
+	      c->add_update(new Update(update->variable(),
+                                       CopyExpression(update->expr())));
 	    }
 	    for (const Update* update : cj.updates()) {
-	      c->add_update(new Update(update->variable(), update->expr()));
+	      c->add_update(new Update(update->variable(),
+                                       CopyExpression(update->expr())));
 	    }
 	    commands_.push_back(c);
 	    command_modules_.push_back({});

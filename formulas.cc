@@ -421,18 +421,14 @@ void Probabilistic::print(std::ostream& os) const {
 
 /* Constructs a comparison. */
 Comparison::Comparison(Operator op,
-                       const Expression& expr1, const Expression& expr2)
-    : op_(op), expr1_(&expr1), expr2_(&expr2) {
-  Expression::ref(expr1_);
-  Expression::ref(expr2_);
+                       std::unique_ptr<const Expression>&& expr1,
+                       std::unique_ptr<const Expression>&& expr2)
+    : op_(op), expr1_(std::move(expr1)), expr2_(std::move(expr2)) {
 }
 
 
 /* Deletes this comparison. */
-Comparison::~Comparison() {
-  Expression::destructive_deref(expr1_);
-  Expression::destructive_deref(expr2_);
-}
+Comparison::~Comparison() = default;
 
 void Comparison::DoAccept(StateFormulaVisitor* visitor) const {
   visitor->VisitComparison(*this);
@@ -448,8 +444,9 @@ bool Comparison::probabilistic() const {
 /* LessThan */
 
 /* Constructs a less-than comparison. */
-LessThan::LessThan(const Expression& expr1, const Expression& expr2)
-    : Comparison(LESS, expr1, expr2) {
+LessThan::LessThan(std::unique_ptr<const Expression>&& expr1,
+                   std::unique_ptr<const Expression>&& expr2)
+    : Comparison(LESS, std::move(expr1), std::move(expr2)) {
 }
 
 
@@ -463,9 +460,9 @@ void LessThan::print(std::ostream& os) const {
 /* LessThanOrEqual */
 
 /* Constructs a less-than-or-equal comparison. */
-LessThanOrEqual::LessThanOrEqual(const Expression& expr1,
-				 const Expression& expr2)
-    : Comparison(LESS_EQUAL, expr1, expr2) {
+LessThanOrEqual::LessThanOrEqual(std::unique_ptr<const Expression>&& expr1,
+				 std::unique_ptr<const Expression>&& expr2)
+    : Comparison(LESS_EQUAL, std::move(expr1), std::move(expr2)) {
 }
 
 
@@ -479,9 +476,10 @@ void LessThanOrEqual::print(std::ostream& os) const {
 /* GreaterThanOrEqual */
 
 /* Constructs a greater-than-or-equal comparison. */
-GreaterThanOrEqual::GreaterThanOrEqual(const Expression& expr1,
-				       const Expression& expr2)
-    : Comparison(GREATER_EQUAL, expr1, expr2) {
+GreaterThanOrEqual::GreaterThanOrEqual(
+    std::unique_ptr<const Expression>&& expr1,
+    std::unique_ptr<const Expression>&& expr2)
+    : Comparison(GREATER_EQUAL, std::move(expr1), std::move(expr2)) {
 }
 
 
@@ -495,8 +493,9 @@ void GreaterThanOrEqual::print(std::ostream& os) const {
 /* GreaterThan */
 
 /* Constructs a greater-than comparison. */
-GreaterThan::GreaterThan(const Expression& expr1, const Expression& expr2)
-    : Comparison(GREATER, expr1, expr2) {
+GreaterThan::GreaterThan(std::unique_ptr<const Expression>&& expr1,
+                         std::unique_ptr<const Expression>&& expr2)
+    : Comparison(GREATER, std::move(expr1), std::move(expr2)) {
 }
 
 
@@ -510,8 +509,9 @@ void GreaterThan::print(std::ostream& os) const {
 /* Equality */
 
 /* Constructs an equality comparison. */
-Equality::Equality(const Expression& expr1, const Expression& expr2)
-    : Comparison(EQUAL, expr1, expr2) {
+Equality::Equality(std::unique_ptr<const Expression>&& expr1,
+                   std::unique_ptr<const Expression>&& expr2)
+    : Comparison(EQUAL, std::move(expr1), std::move(expr2)) {
 }
 
 
@@ -525,8 +525,9 @@ void Equality::print(std::ostream& os) const {
 /* Inequality */
 
 /* Constructs an inequality comparison. */
-Inequality::Inequality(const Expression& expr1, const Expression& expr2)
-    : Comparison(NOT_EQUAL, expr1, expr2) {
+Inequality::Inequality(std::unique_ptr<const Expression>&& expr1,
+                       std::unique_ptr<const Expression>&& expr2)
+    : Comparison(NOT_EQUAL, std::move(expr1), std::move(expr2)) {
 }
 
 
