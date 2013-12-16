@@ -614,4 +614,822 @@ TEST(CompiledExpressionEvaluatorTest, EvaluatesMod) {
   EXPECT_EQ(42 % 17, evaluator.EvaluateIntExpression(expr2, {}));
 }
 
+TEST(OptimizeIntExpressionTest, Constant) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0) });
+  EXPECT_EQ(expr.operations(), OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, Variable) {
+  const CompiledExpression expr(
+      { Operation::MakeILOAD(0, 0) });
+  EXPECT_EQ(expr.operations(), OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantNegation) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeINEG(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(-17, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(-42, 0),
+        Operation::MakeINEG(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(42, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantLogicalNot) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(true, 0),
+        Operation::MakeNOT(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(false, 0),
+        Operation::MakeNOT(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantAddition) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIADD(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeICONST(17 + 42, 0)
+  };
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantSubtraction) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeISUB(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeICONST(17 - 42, 0)
+  };
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantMultiplication) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIMUL(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeICONST(17 * 42, 0)
+  };
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIntEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIEQ(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIEQ(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeIEQ(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantDoubleEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDEQ(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDEQ(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDEQ(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIntNotEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeINE(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeINE(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeINE(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantDoubleNotEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDNE(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDNE(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDNE(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIntLess) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILT(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILT(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeILT(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantDoubleLess) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDLT(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDLT(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDLT(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIntLessEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILE(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILE(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeILE(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantDoubleLessEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDLE(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDLE(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDLE(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIntGreaterEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIGE(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIGE(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeIGE(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantDoubleGreaterEqual) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDGE(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDGE(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDGE(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIntGreater) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIGT(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIGT(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeIGT(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantDoubleGreater) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDGT(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.25, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDGT(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDGT(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantMin) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIMIN(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeICONST(17, 0)
+  };
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantMax) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeIMAX(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeICONST(42, 0)
+  };
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantFloor) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeFLOOR(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(0, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(-0.5, 0),
+        Operation::MakeFLOOR(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(-1, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantCeil) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeCEIL(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(1, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(-0.5, 0),
+        Operation::MakeCEIL(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(0, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantMod) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeMOD(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(17 % 42, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(42, 0),
+        Operation::MakeICONST(17, 1),
+        Operation::MakeMOD(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(42 % 17, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIfFalse) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(false, 0),
+        Operation::MakeIFFALSE(0, 4),
+        Operation::MakeICONST(17, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeICONST(42, 0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(42, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(true, 0),
+        Operation::MakeIFFALSE(0, 4),
+        Operation::MakeICONST(17, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeICONST(42, 0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(17, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantIfTrue) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(false, 0),
+        Operation::MakeIFTRUE(0, 4),
+        Operation::MakeICONST(17, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeICONST(42, 0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(17, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(true, 0),
+        Operation::MakeIFTRUE(0, 4),
+        Operation::MakeICONST(17, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeICONST(42, 0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(42, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, EliminatesDeadCode) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(4711, 0),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeICONST(17, 0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeICONST(17, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(4711, 0),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILOAD(0, 0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeILOAD(0, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeICONST(4711, 0),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILOAD(0, 0),
+        Operation::MakeINEG(0) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeINEG(0)
+  };
+  EXPECT_EQ(expected3, OptimizeIntExpression(expr3).operations());
+  const CompiledExpression expr4(
+      { Operation::MakeICONST(4711, 0),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILOAD(0, 0),
+        Operation::MakeIADD(0, 1) });
+  const std::vector<Operation> expected4 = {
+    Operation::MakeICONST(42, 1),
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeIADD(0, 1)
+  };
+  EXPECT_EQ(expected4, OptimizeIntExpression(expr4).operations());
+  const CompiledExpression expr5(
+      { Operation::MakeICONST(4711, 0),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeICONST(42, 1),
+        Operation::MakeILOAD(0, 0),
+        Operation::MakeI2D(0),
+        Operation::MakeFLOOR(0) });
+  const std::vector<Operation> expected5 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeI2D(0),
+    Operation::MakeFLOOR(0),
+  };
+  EXPECT_EQ(expected5, OptimizeIntExpression(expr5).operations());
+  const CompiledExpression expr6(
+      { Operation::MakeICONST(4711, 0),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeILOAD(0, 0),
+        Operation::MakeDCONST(0.25, 0),
+        Operation::MakeI2D(0),
+        Operation::MakeDEQ(0, 1) });
+  const std::vector<Operation> expected6 = {
+    Operation::MakeDCONST(0.5, 1),
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeI2D(0),
+    Operation::MakeDEQ(0, 1)
+  };
+  EXPECT_EQ(expected6, OptimizeIntExpression(expr6).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, Constant) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0) });
+  EXPECT_EQ(expr.operations(), OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantConversion) {
+  const CompiledExpression expr(
+      { Operation::MakeICONST(17, 0),
+        Operation::MakeI2D(0) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(17.0, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantNegation) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDNEG(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeDCONST(-0.5, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeDoubleExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(-0.25, 0),
+        Operation::MakeDNEG(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeDCONST(0.25, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantAddition) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDADD(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(0.5 + 0.25, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantSubtraction) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDSUB(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(0.5 - 0.25, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantMultiplication) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDMUL(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(0.5 * 0.25, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantDivision) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDDIV(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(0.5 / 0.25, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantMin) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDMIN(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(0.25, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantMax) {
+  const CompiledExpression expr(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(0.25, 1),
+        Operation::MakeDMAX(0, 1) });
+  const std::vector<Operation> expected = {
+    Operation::MakeDCONST(0.5, 0)
+  };
+  EXPECT_EQ(expected, OptimizeDoubleExpression(expr).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantPow) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(4.0, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakePOW(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeDCONST(pow(4.0, 0.5), 0)
+  };
+  EXPECT_EQ(expected1, OptimizeDoubleExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(4.0, 1),
+        Operation::MakePOW(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeDCONST(pow(0.5, 4.0), 0)
+  };
+  EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantLog) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(4.0, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeLOG(0, 1) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeDCONST(log(4.0) / log(0.5), 0)
+  };
+  EXPECT_EQ(expected1, OptimizeDoubleExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.5, 0),
+        Operation::MakeDCONST(4.0, 1),
+        Operation::MakeLOG(0, 1) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeDCONST(log(0.5) / log(4.0), 0)
+  };
+  EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantIfFalse) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(false, 0),
+        Operation::MakeIFFALSE(0, 4),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeDCONST(0.25, 0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeDCONST(0.25, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeDoubleExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(true, 0),
+        Operation::MakeIFFALSE(0, 4),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeDCONST(0.25, 0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeDCONST(0.5, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, ConstantIfTrue) {
+  const CompiledExpression expr1(
+      { Operation::MakeICONST(false, 0),
+        Operation::MakeIFTRUE(0, 4),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeDCONST(0.25, 0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeDCONST(0.5, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeDoubleExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeICONST(true, 0),
+        Operation::MakeIFTRUE(0, 4),
+        Operation::MakeDCONST(0.5, 0),
+        Operation::MakeGOTO(5),
+        Operation::MakeDCONST(0.25, 0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeDCONST(0.25, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, EliminatesDeadCode) {
+  const CompiledExpression expr1(
+      { Operation::MakeDCONST(0.125, 0),
+        Operation::MakeICONST(42, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeDCONST(0.25, 0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeDCONST(0.25, 0)
+  };
+  EXPECT_EQ(expected1, OptimizeDoubleExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeDCONST(0.125, 0),
+        Operation::MakeICONST(42, 0),
+        Operation::MakeILOAD(0, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeI2D(0),
+        Operation::MakeDNEG(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeI2D(0),
+    Operation::MakeDNEG(0)
+  };
+  EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+  const CompiledExpression expr3(
+      { Operation::MakeDCONST(0.125, 0),
+        Operation::MakeICONST(42, 0),
+        Operation::MakeILOAD(0, 0),
+        Operation::MakeDCONST(0.5, 1),
+        Operation::MakeI2D(0),
+        Operation::MakeDADD(0, 1) });
+  const std::vector<Operation> expected3 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeDCONST(0.5, 1),
+    Operation::MakeI2D(0),
+    Operation::MakeDADD(0, 1)
+  };
+  EXPECT_EQ(expected3, OptimizeDoubleExpression(expr3).operations());
+}
+
 }  // namespace

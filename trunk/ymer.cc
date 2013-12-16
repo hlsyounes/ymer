@@ -544,8 +544,13 @@ CompiledExpression CompileExpression(
   if (type != expected_type) {
     errors->push_back(StrCat("type mismatch; expecting expression of type ",
                              expected_type, "; found ", type));
+    return CompiledExpression({});
   }
-  return CompiledExpression(operations);
+  if (expected_type == Type::DOUBLE) {
+    return OptimizeDoubleExpression(CompiledExpression(operations));
+  } else {
+    return OptimizeIntExpression(CompiledExpression(operations));
+  }
 }
 
 CompiledExpression CompileExpression(
@@ -557,8 +562,10 @@ CompiledExpression CompileExpression(
   if (compiler.type() != Type::BOOL) {
     errors->push_back(StrCat("type mismatch; expecting expression of type ",
                              Type::BOOL, "; found ", compiler.type()));
+    return CompiledExpression({});
   }
-  return CompiledExpression(compiler.release_operations());
+  return OptimizeIntExpression(
+      CompiledExpression(compiler.release_operations()));
 }
 
 class DistributionCompiler : public DistributionVisitor {

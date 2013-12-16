@@ -536,7 +536,7 @@ void ExpressionCopier::DoVisitComputation(const Computation& expr) {
   expr.operand1().Accept(this);
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
-  expr_ = Computation::Create(expr.op(), std::move(operand1), release_expr());
+  expr_ = Computation::New(expr.op(), std::move(operand1), release_expr());
 }
 
 }  // namespace

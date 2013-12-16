@@ -56,132 +56,132 @@ TEST(IdentifierTest, Output) {
 
 TEST(ComputationTest, OutputAddition) {
   const Computation expr1(Computation::PLUS,
-                          Computation::Create(Computation::PLUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MINUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::PLUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MINUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr2(Computation::PLUS,
-                          Computation::Create(Computation::MINUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MULTIPLY,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MINUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MULTIPLY,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr3(Computation::PLUS,
-                          Computation::Create(Computation::MULTIPLY,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::DIVIDE,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MULTIPLY,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::DIVIDE,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr4(Computation::PLUS,
-                          Computation::Create(Computation::DIVIDE,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::PLUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::DIVIDE,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::PLUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   EXPECT_EQ("17+b+c-d;17-b+c*d;17*b+c/d;17/b+c+d",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(ComputationTest, OutputSubtraction) {
   const Computation expr1(Computation::MINUS,
-                          Computation::Create(Computation::PLUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MINUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::PLUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MINUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr2(Computation::MINUS,
-                          Computation::Create(Computation::MINUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MULTIPLY,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MINUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MULTIPLY,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr3(Computation::MINUS,
-                          Computation::Create(Computation::MULTIPLY,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::DIVIDE,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MULTIPLY,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::DIVIDE,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr4(Computation::MINUS,
-                          Computation::Create(Computation::DIVIDE,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::PLUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::DIVIDE,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::PLUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   EXPECT_EQ("17+b-(c-d);17-b-c*d;17*b-c/d;17/b-(c+d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(ComputationTest, OutputMultiplication) {
   const Computation expr1(Computation::MULTIPLY,
-                          Computation::Create(Computation::PLUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MINUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::PLUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MINUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr2(Computation::MULTIPLY,
-                          Computation::Create(Computation::MINUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MULTIPLY,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MINUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MULTIPLY,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr3(Computation::MULTIPLY,
-                          Computation::Create(Computation::MULTIPLY,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::DIVIDE,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MULTIPLY,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::DIVIDE,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr4(Computation::MULTIPLY,
-                          Computation::Create(Computation::DIVIDE,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::PLUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::DIVIDE,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::PLUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   EXPECT_EQ("(17+b)*(c-d);(17-b)*c*d;17*b*c/d;17/b*(c+d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(ComputationTest, OutputDivision) {
   const Computation expr1(Computation::DIVIDE,
-                          Computation::Create(Computation::PLUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MINUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::PLUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MINUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr2(Computation::DIVIDE,
-                          Computation::Create(Computation::MINUS,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::MULTIPLY,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MINUS,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::MULTIPLY,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr3(Computation::DIVIDE,
-                          Computation::Create(Computation::MULTIPLY,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::DIVIDE,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::MULTIPLY,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::DIVIDE,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   const Computation expr4(Computation::DIVIDE,
-                          Computation::Create(Computation::DIVIDE,
-                                              Literal::Create(17),
-                                              Identifier::Create("b")),
-                          Computation::Create(Computation::PLUS,
-                                              Identifier::Create("c"),
-                                              Identifier::Create("d")));
+                          Computation::New(Computation::DIVIDE,
+                                           Literal::New(17),
+                                           Identifier::New("b")),
+                          Computation::New(Computation::PLUS,
+                                           Identifier::New("c"),
+                                           Identifier::New("d")));
   EXPECT_EQ("(17+b)/(c-d);(17-b)/(c*d);17*b/(c/d);17/b/(c+d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }

@@ -166,6 +166,9 @@ class Operation {
   int operand2_;
 };
 
+// Equality operator for operations.
+bool operator==(const Operation& left, const Operation& right);
+
 // Output operator for operations.
 std::ostream& operator<<(std::ostream& os, const Operation& operation);
 
@@ -214,5 +217,13 @@ class CompiledExpressionEvaluator {
   std::vector<int> iregs_;
   std::vector<double> dregs_;
 };
+
+// Optimizes the given expression, assuming it evaluates to an integer in
+// register 0.
+CompiledExpression OptimizeIntExpression(const CompiledExpression& expr);
+
+// Optimizes the given expression, assuming it evaluates to a double in
+// register 0.
+CompiledExpression OptimizeDoubleExpression(const CompiledExpression& expr);
 
 #endif  // COMPILED_EXPRESSION_H_
