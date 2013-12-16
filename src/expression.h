@@ -64,8 +64,8 @@ class Literal : public Expression {
 
   virtual ~Literal();
 
-  // Factory method for creating literals.
-  static std::unique_ptr<const Literal> Create(const TypedValue& value);
+  // Factory method for literals.
+  static std::unique_ptr<const Literal> New(const TypedValue& value);
 
   // Returns the value of this literal.
   const TypedValue& value() const { return value_; }
@@ -84,8 +84,8 @@ class Identifier : public Expression {
 
   virtual ~Identifier();
 
-  // Factory method for creating identifiers.
-  static std::unique_ptr<const Identifier> Create(const std::string& name);
+  // Factory method for identifiers.
+  static std::unique_ptr<const Identifier> New(const std::string& name);
 
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
@@ -111,8 +111,8 @@ class Computation : public Expression {
 
   virtual ~Computation();
 
-  // Factory method for creating computations.
-  static std::unique_ptr<const Expression> Create(
+  // Factory method for computations.
+  static std::unique_ptr<const Expression> New(
       Operator op,
       std::unique_ptr<const Expression>&& operand1,
       std::unique_ptr<const Expression>&& operand2);

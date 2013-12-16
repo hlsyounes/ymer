@@ -118,7 +118,7 @@ Literal::Literal(const TypedValue& value)
 
 Literal::~Literal() = default;
 
-std::unique_ptr<const Literal> Literal::Create(const TypedValue& value) {
+std::unique_ptr<const Literal> Literal::New(const TypedValue& value) {
   return std::unique_ptr<const Literal>(new Literal(value));
 }
 
@@ -132,7 +132,7 @@ Identifier::Identifier(const std::string& name)
 
 Identifier::~Identifier() = default;
 
-std::unique_ptr<const Identifier> Identifier::Create(const std::string& name) {
+std::unique_ptr<const Identifier> Identifier::New(const std::string& name) {
   return std::unique_ptr<const Identifier>(new Identifier(name));
 }
 
@@ -148,33 +148,10 @@ Computation::Computation(Operator op,
 
 Computation::~Computation() = default;
 
-std::unique_ptr<const Expression> Computation::Create(
+std::unique_ptr<const Expression> Computation::New(
     Operator op,
     std::unique_ptr<const Expression>&& operand1,
     std::unique_ptr<const Expression>&& operand2) {
-  const Literal* v1 = dynamic_cast<const Literal*>(operand1.get());
-  if (v1 != nullptr) {
-    const Literal* v2 = dynamic_cast<const Literal*>(operand2.get());
-    if (v2 != nullptr) {
-      TypedValue value(0);
-      switch (op) {
-        case PLUS:
-          value = v1->value() + v2->value();
-          break;
-        case MINUS:
-          value = v1->value() - v2->value();
-          break;
-        case MULTIPLY:
-          value = v1->value() * v2->value();
-          break;
-        case DIVIDE:
-          CHECK(v2->value() != 0);
-          value = v1->value() / v2->value();
-          break;
-      }
-      return std::unique_ptr<const Expression>(new Literal(value));
-    }
-  }
   return std::unique_ptr<const Expression>(new Computation(
       op, std::move(operand1), std::move(operand2)));
 }

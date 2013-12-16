@@ -295,7 +295,7 @@ const Distribution* Weibull::make(std::unique_ptr<const Expression>&& scale,
 				  std::unique_ptr<const Expression>&& shape) {
   const Literal* value = dynamic_cast<const Literal*>(shape.get());
   if (value != nullptr && value->value() == 1) {
-    return Exponential::make(Computation::Create(
+    return Exponential::make(Computation::New(
         Computation::DIVIDE, std::move(shape), std::move(scale)));
   } else {
     return new Weibull(std::move(scale), std::move(shape));

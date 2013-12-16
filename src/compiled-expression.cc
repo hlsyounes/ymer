@@ -21,7 +21,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <ostream>
+#include <queue>
+#include <set>
 #include <vector>
 #include <utility>
 
@@ -284,6 +287,60 @@ Operation::Operation(Opcode opcode, int operand)
 
 Operation::Operation(Opcode opcode)
     : opcode_(opcode) {
+}
+
+bool operator==(const Operation& left, const Operation& right) {
+  if (left.opcode() != right.opcode()) {
+    return false;
+  }
+  switch (left.opcode()) {
+    case Opcode::ICONST:
+    case Opcode::ILOAD:
+    case Opcode::IADD:
+    case Opcode::DADD:
+    case Opcode::ISUB:
+    case Opcode::DSUB:
+    case Opcode::IMUL:
+    case Opcode::DMUL:
+    case Opcode::DDIV:
+    case Opcode::IEQ:
+    case Opcode::DEQ:
+    case Opcode::INE:
+    case Opcode::DNE:
+    case Opcode::ILT:
+    case Opcode::DLT:
+    case Opcode::ILE:
+    case Opcode::DLE:
+    case Opcode::IGE:
+    case Opcode::DGE:
+    case Opcode::IGT:
+    case Opcode::DGT:
+    case Opcode::IFFALSE:
+    case Opcode::IFTRUE:
+    case Opcode::IMIN:
+    case Opcode::DMIN:
+    case Opcode::IMAX:
+    case Opcode::DMAX:
+    case Opcode::POW:
+    case Opcode::LOG:
+    case Opcode::MOD:
+      return left.ioperand1() == right.ioperand1()
+          && left.operand2() == right.operand2();
+    case Opcode::DCONST:
+      return left.doperand1() == right.doperand1()
+          && left.operand2() == right.operand2();
+    case Opcode::I2D:
+    case Opcode::INEG:
+    case Opcode::DNEG:
+    case Opcode::NOT:
+    case Opcode::GOTO:
+    case Opcode::FLOOR:
+    case Opcode::CEIL:
+      return left.ioperand1() == right.ioperand1();
+    case Opcode::NOP:
+      return true;
+  }
+  LOG(FATAL) << "bad opcode";
 }
 
 std::ostream& operator<<(std::ostream& os, const Operation& operation) {
@@ -569,4 +626,681 @@ void CompiledExpressionEvaluator::ExecuteOperations(
         break;
     }
   }
+}
+
+namespace {
+
+// An operation index in a control flow graph.
+struct OperationIndex {
+  // The index of the basic block to which the operation belongs.
+  size_t block;
+  // The index of the operation within its block.
+  size_t operation;
+};
+
+bool operator<(const OperationIndex& left, const OperationIndex& right) {
+  return left.block < right.block
+      || (left.block == right.block && left.operation < right.operation);
+}
+
+// The state of a register in a basic block of a control flow graph.
+template <typename T>
+class RegisterState {
+ public:
+  RegisterState();
+
+  void SetValue(T value, const OperationIndex& dependency);
+  void SetDependency(const OperationIndex& dependency);
+  void AddDependencies(const std::set<OperationIndex>& dependencies);
+  void MergeWith(const RegisterState<T>& other_state);
+
+  const T* value() const { return has_value_ ? &value_ : nullptr; }
+  const std::set<OperationIndex>& dependencies() const { return dependencies_; }
+
+ private:
+  bool has_value_;
+  T value_;
+  std::set<OperationIndex> dependencies_;
+};
+
+template <typename T>
+RegisterState<T>::RegisterState()
+    : has_value_(false) {
+}
+
+template <typename T>
+void RegisterState<T>::SetValue(T value, const OperationIndex& dependency) {
+  has_value_ = true;
+  value_ = value;
+  dependencies_ = {dependency};
+}
+
+template <typename T>
+void RegisterState<T>::SetDependency(const OperationIndex& dependency) {
+  has_value_ = false;
+  dependencies_ = {dependency};
+}
+
+template <typename T>
+void RegisterState<T>::AddDependencies(
+    const std::set<OperationIndex>& dependencies) {
+  dependencies_.insert(dependencies.begin(), dependencies.end());
+}
+
+template <typename T>
+void RegisterState<T>::MergeWith(const RegisterState<T>& other_state) {
+  if (has_value_) {
+    if ((other_state.has_value_ && value_ != other_state.value_)
+        || (!other_state.has_value_ && other_state.dependencies_.empty())) {
+      has_value_ = false;
+    }
+  } else if (other_state.has_value_ && dependencies_.empty()) {
+    has_value_ = true;
+    value_ = other_state.value_;
+  }
+  AddDependencies(other_state.dependencies_);
+}
+
+// A basic block of a control flow graph.
+class BasicBlock {
+ public:
+  BasicBlock(size_t index, bool is_dead);
+
+  void SetDead(bool is_dead);
+  void SetIntValue(size_t r, int value);
+  void SetIntDependency(size_t r, const Operation& o);
+  void SetDoubleValue(size_t r, double value);
+  void AddOperation(const Operation& o);
+  void AddUnaryIntOperation(const Operation& o);
+  void AddUnaryIntFromDoubleOperation(const Operation& o);
+  void AddUnaryDoubleOperation(const Operation& o);
+  void AddUnaryDoubleFromIntOperation(const Operation& o);
+  void AddBinaryIntOperation(const Operation& o);
+  void AddBinaryIntFromDoubleOperation(const Operation& o);
+  void AddBinaryDoubleOperation(const Operation& o);
+  void AddSuccessor(BasicBlock* successor);
+
+  size_t index() const { return index_; }
+  bool is_dead() const { return is_dead_; }
+  const std::vector<Operation>& operations() const { return operations_; }
+  const std::set<OperationIndex>& dependencies() const { return dependencies_; }
+  const std::vector<size_t>& successors() const { return successors_; }
+  const std::map<size_t, RegisterState<int>>& int_states() const {
+    return int_states_;
+  }
+  const std::map<size_t, RegisterState<double>>& double_states() const {
+    return double_states_;
+  }
+
+  const int* GetIntValue(size_t r) const;
+  const double* GetDoubleValue(size_t r) const;
+  std::set<OperationIndex> GetIntDependencies(size_t r) const;
+  std::set<OperationIndex> GetDoubleDependencies(size_t r) const;
+  bool IsFallthrough() const;
+
+ private:
+  void SetDoubleDependency(size_t r, const Operation& o);
+  void AddIntDependency(size_t r, const Operation& o);
+  void AddDoubleDependency(size_t r, const Operation& o);
+  void AddIntDependenciesFromIntDependencies(size_t r, size_t src_r);
+  void AddIntDependenciesFromDoubleDependencies(size_t r, size_t src_r);
+  void AddDoubleDependenciesFromIntDependencies(size_t r, size_t src_r);
+  void AddDoubleDependenciesFromDoubleDependencies(size_t r, size_t src_r);
+
+  size_t index_;
+  bool is_dead_;
+  std::vector<Operation> operations_;
+  std::set<OperationIndex> dependencies_;
+  std::vector<size_t> successors_;
+  std::map<size_t, RegisterState<int>> int_states_;
+  std::map<size_t, RegisterState<double>> double_states_;
+};
+
+BasicBlock::BasicBlock(size_t index, bool is_dead)
+    : index_(index), is_dead_(is_dead) {
+}
+
+void BasicBlock::SetDead(bool is_dead) {
+  is_dead_ = is_dead;
+}
+
+void BasicBlock::SetIntValue(size_t r, int value) {
+  int_states_[r].SetValue(value, {index_, operations_.size()});
+  operations_.push_back(Operation::MakeICONST(value, r));
+}
+
+void BasicBlock::SetIntDependency(size_t r, const Operation& o) {
+  int_states_[r].SetDependency({index_, operations_.size()});
+  operations_.push_back(o);
+}
+
+void BasicBlock::SetDoubleValue(size_t r, double value) {
+  double_states_[r].SetValue(value, {index_, operations_.size()});
+  operations_.push_back(Operation::MakeDCONST(value, r));
+}
+
+void BasicBlock::AddOperation(const Operation& o) {
+  operations_.push_back(o);
+}
+
+void BasicBlock::AddUnaryIntOperation(const Operation& o) {
+  const int* value = GetIntValue(o.ioperand1());
+  if (value == nullptr) {
+    AddIntDependency(o.ioperand1(), o);
+  } else {
+    int v;
+    switch (o.opcode()) {
+      case Opcode::INEG:
+        v = -*value;
+        break;
+      case Opcode::NOT:
+        v = !*value;
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetIntValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::AddUnaryIntFromDoubleOperation(const Operation& o) {
+  const double* value = GetDoubleValue(o.ioperand1());
+  if (value == nullptr) {
+    SetIntDependency(o.ioperand1(), o);
+    AddIntDependenciesFromDoubleDependencies(o.ioperand1(), o.ioperand1());
+  } else {
+    int v;
+    switch (o.opcode()) {
+      case Opcode::FLOOR:
+        v = floor(*value);
+        break;
+      case Opcode::CEIL:
+        v = ceil(*value);
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetIntValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::AddUnaryDoubleOperation(const Operation& o) {
+  const double* value = GetDoubleValue(o.ioperand1());
+  if (value == nullptr) {
+    AddDoubleDependency(o.ioperand1(), o);
+  } else {
+    double v;
+    switch (o.opcode()) {
+      case Opcode::DNEG:
+        v = -*value;
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetDoubleValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::AddUnaryDoubleFromIntOperation(const Operation& o) {
+  const int* value = GetIntValue(o.ioperand1());
+  if (value == nullptr) {
+    SetDoubleDependency(o.ioperand1(), o);
+    AddDoubleDependenciesFromIntDependencies(o.ioperand1(), o.ioperand1());
+  } else {
+    double v;
+    switch (o.opcode()) {
+      case Opcode::I2D:
+        v = *value;
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetDoubleValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::AddBinaryIntOperation(const Operation& o) {
+  const int* value1 = GetIntValue(o.ioperand1());
+  const int* value2 = GetIntValue(o.operand2());
+  if (value1 == nullptr || value2 == nullptr) {
+    AddIntDependency(o.ioperand1(), o);
+    AddIntDependenciesFromIntDependencies(o.ioperand1(), o.operand2());
+  } else {
+    int v;
+    switch (o.opcode()) {
+      case Opcode::IADD:
+        v = *value1 + *value2;
+        break;
+      case Opcode::ISUB:
+        v = *value1 - *value2;
+        break;
+      case Opcode::IMUL:
+        v = *value1 * *value2;
+        break;
+      case Opcode::IEQ:
+        v = *value1 == *value2;
+        break;
+      case Opcode::INE:
+        v = *value1 != *value2;
+        break;
+      case Opcode::ILT:
+        v = *value1 < *value2;
+        break;
+      case Opcode::ILE:
+        v = *value1 <= *value2;
+        break;
+      case Opcode::IGE:
+        v = *value1 >= *value2;
+        break;
+      case Opcode::IGT:
+        v = *value1 > *value2;
+        break;
+      case Opcode::IMIN:
+        v = std::min(*value1, *value2);
+        break;
+      case Opcode::IMAX:
+        v = std::max(*value1, *value2);
+        break;
+      case Opcode::MOD:
+        v = *value1 % *value2;
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetIntValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::AddBinaryIntFromDoubleOperation(const Operation& o) {
+  const double* value1 = GetDoubleValue(o.ioperand1());
+  const double* value2 = GetDoubleValue(o.operand2());
+  if (value1 == nullptr || value2 == nullptr) {
+    SetIntDependency(o.ioperand1(), o);
+    AddIntDependenciesFromDoubleDependencies(o.ioperand1(), o.ioperand1());
+    AddIntDependenciesFromDoubleDependencies(o.ioperand1(), o.operand2());
+  } else {
+    int v;
+    switch (o.opcode()) {
+      case Opcode::DEQ:
+        v = *value1 == *value2;
+        break;
+      case Opcode::DNE:
+        v = *value1 != *value2;
+        break;
+      case Opcode::DLT:
+        v = *value1 < *value2;
+        break;
+      case Opcode::DLE:
+        v = *value1 <= *value2;
+        break;
+      case Opcode::DGE:
+        v = *value1 >= *value2;
+        break;
+      case Opcode::DGT:
+        v = *value1 > *value2;
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetIntValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::AddBinaryDoubleOperation(const Operation& o) {
+  const double* value1 = GetDoubleValue(o.ioperand1());
+  const double* value2 = GetDoubleValue(o.operand2());
+  if (value1 == nullptr || value2 == nullptr) {
+    AddDoubleDependency(o.ioperand1(), o);
+    AddDoubleDependenciesFromDoubleDependencies(o.ioperand1(), o.operand2());
+  } else {
+    double v;
+    switch (o.opcode()) {
+      case Opcode::DADD:
+        v = *value1 + *value2;
+        break;
+      case Opcode::DSUB:
+        v = *value1 - *value2;
+        break;
+      case Opcode::DMUL:
+        v = *value1 * *value2;
+        break;
+      case Opcode::DDIV:
+        v = *value1 / *value2;
+        break;
+      case Opcode::DMIN:
+        v = std::min(*value1, *value2);
+        break;
+      case Opcode::DMAX:
+        v = std::max(*value1, *value2);
+        break;
+      case Opcode::POW:
+        v = pow(*value1, *value2);
+        break;
+      case Opcode::LOG:
+        v = log(*value1) / log(*value2);
+        break;
+      default:
+        LOG(FATAL) << "internal error";
+    }
+    SetDoubleValue(o.ioperand1(), v);
+  }
+}
+
+void BasicBlock::SetDoubleDependency(size_t r, const Operation& o) {
+  double_states_[r].SetDependency({index_, operations_.size()});
+  operations_.push_back(o);
+}
+
+void BasicBlock::AddIntDependency(size_t r, const Operation& o) {
+  int_states_[r].AddDependencies({{index_, operations_.size()}});
+  operations_.push_back(o);
+}
+
+
+void BasicBlock::AddDoubleDependency(size_t r, const Operation& o) {
+  double_states_[r].AddDependencies({{index_, operations_.size()}});
+  operations_.push_back(o);
+}
+
+void BasicBlock::AddIntDependenciesFromIntDependencies(size_t r,
+                                                       size_t src_r) {
+  int_states_[r].AddDependencies(int_states_[src_r].dependencies());
+}
+
+void BasicBlock::AddIntDependenciesFromDoubleDependencies(size_t r,
+                                                          size_t src_r) {
+  int_states_[r].AddDependencies(double_states_[src_r].dependencies());
+}
+
+void BasicBlock::AddDoubleDependenciesFromIntDependencies(size_t r,
+                                                          size_t src_r) {
+  double_states_[r].AddDependencies(int_states_[src_r].dependencies());
+}
+
+void BasicBlock::AddDoubleDependenciesFromDoubleDependencies(size_t r,
+                                                             size_t src_r) {
+  double_states_[r].AddDependencies(double_states_[src_r].dependencies());
+}
+
+void BasicBlock::AddSuccessor(BasicBlock* successor) {
+  successors_.push_back(successor->index());
+  successor->SetDead(false);
+  for (const auto& entry : int_states()) {
+    successor->int_states_[entry.first].MergeWith(entry.second);
+  }
+  for (const auto& entry : double_states()) {
+    successor->double_states_[entry.first].MergeWith(entry.second);
+  }
+  successor->dependencies_.insert(dependencies_.begin(), dependencies_.end());
+  if (!IsFallthrough()) {
+    successor->dependencies_.insert({index_, operations_.size() - 1});
+    const Operation& o = operations_.back();
+    if (o.opcode() != Opcode::GOTO) {
+      const std::set<OperationIndex>& branch_dependencies =
+          int_states_[o.ioperand1()].dependencies();
+      successor->dependencies_.insert(branch_dependencies.begin(),
+                                      branch_dependencies.end());
+    }
+  }
+}
+
+const int* BasicBlock::GetIntValue(size_t r) const {
+  const auto i = int_states_.find(r);
+  return (i == int_states_.end()) ? nullptr : i->second.value();
+}
+
+const double* BasicBlock::GetDoubleValue(size_t r) const {
+  const auto i = double_states_.find(r);
+  return (i == double_states_.end()) ? nullptr : i->second.value();
+}
+
+std::set<OperationIndex> BasicBlock::GetIntDependencies(size_t r) const {
+  std::set<OperationIndex> int_dependencies;
+  const auto i = int_states_.find(r);
+  if (i != int_states_.end()) {
+    int_dependencies = i->second.dependencies();
+    int_dependencies.insert(dependencies_.begin(), dependencies_.end());
+  }
+  return int_dependencies;
+}
+
+std::set<OperationIndex> BasicBlock::GetDoubleDependencies(size_t r) const {
+  std::set<OperationIndex> double_dependencies;
+  const auto i = double_states_.find(r);
+  if (i != double_states_.end()) {
+    double_dependencies = i->second.dependencies();
+    double_dependencies.insert(dependencies_.begin(), dependencies_.end());
+  }
+  return double_dependencies;
+}
+
+bool IsJump(const Operation& o) {
+  switch (o.opcode()) {
+    case Opcode::IFFALSE:
+    case Opcode::IFTRUE:
+    case Opcode::GOTO:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool BasicBlock::IsFallthrough() const {
+  return operations_.empty() || !IsJump(operations_.back());
+}
+
+void MaybeAddBlock(size_t predecessor, size_t start,
+                   std::vector<BasicBlock>* blocks,
+                   std::map<size_t, size_t>* block_starts) {
+  const auto result = block_starts->insert({start, blocks->size()});
+  if (result.second) {
+    blocks->emplace_back(blocks->size(), false);
+  }
+  (*blocks)[predecessor].AddSuccessor(&(*blocks)[result.first->second]);
+}
+
+void MaybeAddDeadBlock(size_t predecessor, size_t start,
+                       std::vector<BasicBlock>* blocks,
+                       std::map<size_t, size_t>* block_starts) {
+  const auto result = block_starts->insert({start, blocks->size()});
+  if (result.second) {
+    blocks->emplace_back(blocks->size(), true);
+  }
+}
+
+void MaybeAddBranch(size_t block_index, const Operation& o, size_t pc,
+                    std::vector<BasicBlock>* blocks,
+                    std::map<size_t, size_t>* block_starts) {
+  BasicBlock& block = (*blocks)[block_index];
+  const int* value = block.GetIntValue(o.ioperand1());
+  if (value == nullptr) {
+    block.AddOperation(o);
+    MaybeAddBlock(block_index, pc + 1, blocks, block_starts);
+    MaybeAddBlock(block_index, o.operand2(), blocks, block_starts);
+  } else if ((o.opcode() == Opcode::IFFALSE && !*value)
+             || (o.opcode() == Opcode::IFTRUE && *value)) {
+    block.AddOperation(Operation::MakeGOTO(o.operand2()));
+    MaybeAddDeadBlock(block_index, pc + 1, blocks, block_starts);
+    MaybeAddBlock(block_index, o.operand2(), blocks, block_starts);
+  } else {
+    block.AddOperation(Operation::MakeNOP());
+    MaybeAddDeadBlock(block_index, o.operand2(), blocks, block_starts);
+  }
+}
+
+std::vector<BasicBlock> MakeControlFlowGraph(
+    const std::vector<Operation>& operations) {
+  std::vector<BasicBlock> blocks;
+  std::map<size_t, size_t> block_starts;
+  size_t block_index = 0;
+  blocks.emplace_back(block_index, false);
+  for (size_t pc = 0; pc < operations.size(); ++pc) {
+    const auto i = block_starts.find(pc);
+    if (i != block_starts.end()) {
+      if (blocks[block_index].IsFallthrough()) {
+        MaybeAddBlock(block_index, pc, &blocks, &block_starts);
+      }
+      block_index = i->second;
+    }
+    BasicBlock& block = blocks[block_index];
+    if (block.is_dead()) {
+      continue;
+    }
+    const Operation& o = operations[pc];
+    switch (o.opcode()) {
+      case Opcode::ICONST:
+        block.SetIntValue(o.operand2(), o.ioperand1());
+        break;
+      case Opcode::DCONST:
+        block.SetDoubleValue(o.operand2(), o.doperand1());
+        break;
+      case Opcode::ILOAD:
+        block.SetIntDependency(o.operand2(), o);
+        break;
+      case Opcode::INEG:
+      case Opcode::NOT:
+        block.AddUnaryIntOperation(o);
+        break;
+      case Opcode::FLOOR:
+      case Opcode::CEIL:
+        block.AddUnaryIntFromDoubleOperation(o);
+        break;
+      case Opcode::DNEG:
+        block.AddUnaryDoubleOperation(o);
+        break;
+      case Opcode::I2D:
+        block.AddUnaryDoubleFromIntOperation(o);
+        break;
+      case Opcode::IADD:
+      case Opcode::ISUB:
+      case Opcode::IMUL:
+      case Opcode::IEQ:
+      case Opcode::INE:
+      case Opcode::ILT:
+      case Opcode::ILE:
+      case Opcode::IGE:
+      case Opcode::IGT:
+      case Opcode::IMIN:
+      case Opcode::IMAX:
+      case Opcode::MOD:
+        block.AddBinaryIntOperation(o);
+        break;
+      case Opcode::DADD:
+      case Opcode::DSUB:
+      case Opcode::DMUL:
+      case Opcode::DDIV:
+      case Opcode::DMIN:
+      case Opcode::DMAX:
+      case Opcode::POW:
+      case Opcode::LOG:
+        block.AddBinaryDoubleOperation(o);
+        break;
+      case Opcode::DEQ:
+      case Opcode::DNE:
+      case Opcode::DLT:
+      case Opcode::DLE:
+      case Opcode::DGE:
+      case Opcode::DGT:
+        block.AddBinaryIntFromDoubleOperation(o);
+        break;
+      case Opcode::IFFALSE:
+      case Opcode::IFTRUE:
+        MaybeAddBranch(block_index, o, pc, &blocks, &block_starts);
+        break;
+      case Opcode::GOTO:
+        block.AddOperation(o);
+        MaybeAddBlock(block_index, o.ioperand1(), &blocks, &block_starts);
+        break;
+      case Opcode::NOP:
+        break;
+    }
+  }
+  if (blocks[block_index].IsFallthrough()) {
+    MaybeAddBlock(block_index, operations.size(), &blocks, &block_starts);
+  }
+  return blocks;
+}
+
+size_t GetEndBlockIndex(const std::vector<BasicBlock>& blocks) {
+  std::queue<size_t> live_blocks;
+  live_blocks.push(0);
+  while (!live_blocks.empty()) {
+    size_t i = live_blocks.front();
+    live_blocks.pop();
+    if (blocks[i].successors().empty()) {
+      return i;
+    }
+    for (size_t j : blocks[i].successors()) {
+      live_blocks.push(j);
+    }
+  }
+  LOG(FATAL) << "internal error";
+}
+
+CompiledExpression OptimizeExpressionImpl(
+    const std::vector<BasicBlock>& blocks,
+    const std::set<OperationIndex>& live_operations) {
+  std::vector<Operation> optimized_operations;
+  std::multimap<size_t, size_t> jump_targets;
+  for (const OperationIndex& live_operation : live_operations) {
+    const BasicBlock& block = blocks[live_operation.block];
+    const Operation& operation = block.operations()[live_operation.operation];
+    bool overwrite_jump_operation = false;
+    while (true) {
+      auto i = jump_targets.find(block.index());
+      if (i == jump_targets.end()) {
+        break;
+      }
+      if (i->second == optimized_operations.size() - 1) {
+        overwrite_jump_operation = true;
+      }
+      Operation& jump_operation = optimized_operations[i->second];
+      switch (jump_operation.opcode()) {
+        case Opcode::IFFALSE:
+          jump_operation = Operation::MakeIFFALSE(jump_operation.ioperand1(),
+                                                  optimized_operations.size());
+          break;
+        case Opcode::IFTRUE:
+          jump_operation = Operation::MakeIFTRUE(jump_operation.ioperand1(),
+                                                 optimized_operations.size());
+          break;
+        case Opcode::GOTO:
+          jump_operation = Operation::MakeGOTO(optimized_operations.size());
+          break;
+        default:
+          LOG(FATAL) << "internal error";
+      }
+      jump_targets.erase(i);
+    }
+    if (IsJump(operation)) {
+      jump_targets.insert(
+          {block.successors().back(), optimized_operations.size()});
+    }
+    if (overwrite_jump_operation) {
+      optimized_operations.pop_back();
+    }
+    optimized_operations.push_back(operation);
+  }
+  if (IsJump(optimized_operations.back())) {
+    optimized_operations.pop_back();
+  }
+  return CompiledExpression(optimized_operations);
+}
+
+}  // namespace
+
+CompiledExpression OptimizeIntExpression(const CompiledExpression& expr) {
+  const std::vector<BasicBlock> blocks =
+      MakeControlFlowGraph(expr.operations());
+  const std::set<OperationIndex> live_operations =
+      blocks[GetEndBlockIndex(blocks)].GetIntDependencies(0);
+  return OptimizeExpressionImpl(blocks, live_operations);
+}
+
+CompiledExpression OptimizeDoubleExpression(const CompiledExpression& expr) {
+  const std::vector<BasicBlock> blocks =
+      MakeControlFlowGraph(expr.operations());
+  const std::set<OperationIndex> live_operations =
+      blocks[GetEndBlockIndex(blocks)].GetDoubleDependencies(0);
+  return OptimizeExpressionImpl(blocks, live_operations);
 }
