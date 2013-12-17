@@ -65,6 +65,7 @@
 #include <config.h>
 #endif
 
+#include <stdio.h>
 #include "mtr.h"
 
 #ifdef __cplusplus

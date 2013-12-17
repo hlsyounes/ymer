@@ -41,7 +41,6 @@ class DecisionDiagram {
   double MintermCount(int num_variables) const;
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
-  DdNode* release();
   DdNode* get() const { return node(); }
 
  protected:
@@ -139,6 +138,7 @@ class ADD : public DecisionDiagram {
   ADD operator-(const ADD& dd) const;
   ADD operator*(const ADD& dd) const;
   ADD operator/(const ADD& dd) const;
+  ADD operator%(const ADD& dd) const;
 
   // Comparison operators for ADDs.
   BDD operator==(const ADD& dd) const;
@@ -151,18 +151,47 @@ class ADD : public DecisionDiagram {
  private:
   // An ADD operator to use with Apply().
   typedef DdNode* (*Op)(DdManager*, DdNode**, DdNode**);
+  // An ADD operator to use with MonadicApply().
+  typedef DdNode* (*MonadicOp)(DdManager*, DdNode*);
 
   ADD(DdManager* manager, DdNode* node);
 
   // Returns the result of applying op to ADDs dd1 and dd2.
   static ADD Apply(Op op, const ADD& dd1, const ADD& dd2);
 
+  // Returns the result of applying op to ADD dd.
+  static ADD MonadicApply(MonadicOp op, const ADD& dd);
+
   friend class DecisionDiagramManager;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
+  friend ADD min(const ADD& dd1, const ADD& dd2);
+  friend ADD max(const ADD& dd1, const ADD& dd2);
+  friend ADD floor(const ADD& dd);
+  friend ADD ceil(const ADD& dd);
+  friend ADD pow(const ADD& dd1, const ADD& dd2);
+  friend ADD log(const ADD& dd);
 };
 
 // Returns the ADD for dd1 ? dd2 : dd3.
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3);
+
+// Returns the ADD for min(dd1, dd2).
+ADD min(const ADD& dd1, const ADD& dd2);
+
+// Returns the ADD for max(dd1, dd2).
+ADD max(const ADD& dd1, const ADD& dd2);
+
+// Returns the ADD for floor(dd).
+ADD floor(const ADD& dd);
+
+// Returns the ADD for ceil(dd).
+ADD ceil(const ADD& dd);
+
+// Returns the ADD for pow(dd1, dd2).
+ADD pow(const ADD& dd1, const ADD& dd2);
+
+// Returns the ADD for log(dd).
+ADD log(const ADD& dd);
 
 // Wrapper class for variable arrays.
 template <typename DD>

@@ -18,7 +18,7 @@
 
 #include "ddutil.h"
 
-#include <cstdio>  // cudd.h needs declaration for FILE.
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -59,6 +59,52 @@ ValueType ValueInStateImpl(DdNode* dd, const std::vector<bool>& state) {
     dd = (state[index]) ? ThenChild(dd) : ElseChild(dd);
   }
   return NodeValue<ValueType>(dd);
+}
+
+// Add operator for unary minus.
+DdNode* AddNegate(DdManager* manager, DdNode* node) {
+  if (Cudd_IsConstant(node)) {
+    return Cudd_addConst(manager, -Cudd_V(node));
+  }
+  return nullptr;
+}
+
+// ADD operator for modulo.
+DdNode* AddMod(DdManager* manager, DdNode** node1, DdNode** node2) {
+  if (Cudd_IsConstant(*node1) && Cudd_IsConstant(*node2)) {
+    return Cudd_addConst(manager,
+                         static_cast<int>(Cudd_V(*node1)) %
+                         static_cast<int>(Cudd_V(*node2)));
+  }
+  return nullptr;
+}
+
+// ADD operator for floor().
+DdNode* AddFloor(DdManager* manager, DdNode* node) {
+  if (Cudd_IsConstant(node)) {
+    return Cudd_addConst(manager, floor(Cudd_V(node)));
+  }
+  return nullptr;
+}
+
+// ADD operator for ceil().
+DdNode* AddCeil(DdManager* manager, DdNode* node) {
+  if (Cudd_IsConstant(node)) {
+    return Cudd_addConst(manager, ceil(Cudd_V(node)));
+  }
+  return nullptr;
+}
+
+// ADD operator for pow().
+DdNode* AddPow(DdManager* manager, DdNode** node1, DdNode** node2) {
+  // Special cases: pow(1, y) == 1; pow(x, 0) == 1.
+  if (*node1 == Cudd_ReadOne(manager) || *node2 == Cudd_ReadZero(manager)) {
+    return Cudd_ReadOne(manager);
+  }
+  if (Cudd_IsConstant(*node1) && Cudd_IsConstant(*node2)) {
+    return Cudd_addConst(manager, pow(Cudd_V(*node1), Cudd_V(*node2)));
+  }
+  return nullptr;
 }
 
 }  // namespace
@@ -106,12 +152,6 @@ bool DecisionDiagram::IsConstant() const {
 
 double DecisionDiagram::MintermCount(int num_variables) const {
   return Cudd_CountMinterm(manager_, node_, num_variables);
-}
-
-DdNode* DecisionDiagram::release() {
-  DdNode* const node = node_;
-  node_ = nullptr;
-  return node;
 }
 
 BDD::BDD(DdManager* manager, DdNode* node)
@@ -211,7 +251,7 @@ BDD ADD::StrictThreshold(double threshold) const {
 }
 
 ADD ADD::operator-() const {
-  return ADD(manager(), Cudd_addNegate(manager(), node()));
+  return MonadicApply(AddNegate, *this);
 }
 
 ADD ADD::operator+(const ADD& dd) const {
@@ -228,6 +268,10 @@ ADD ADD::operator*(const ADD& dd) const {
 
 ADD ADD::operator/(const ADD& dd) const {
   return Apply(Cudd_addDivide, *this, dd);
+}
+
+ADD ADD::operator%(const ADD& dd) const {
+  return Apply(AddMod, *this, dd);
 }
 
 BDD ADD::operator==(const ADD& dd) const {
@@ -259,11 +303,40 @@ ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {
   return ADD(manager, Cudd_addApply(manager, op, dd1.node(), dd2.node()));
 }
 
+ADD ADD::MonadicApply(MonadicOp op, const ADD& dd) {
+  return ADD(dd.manager(),
+             Cudd_addMonadicApply(dd.manager(), op, dd.node()));
+}
+
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3) {
   DdManager* const manager = dd1.manager();
   const ADD cond(dd1);
   return ADD(manager,
              Cudd_addIte(manager, cond.node(), dd2.node(), dd3.node()));
+}
+
+ADD min(const ADD& dd1, const ADD& dd2) {
+  return ADD::Apply(Cudd_addMinimum, dd1, dd2);
+}
+
+ADD max(const ADD& dd1, const ADD& dd2) {
+  return ADD::Apply(Cudd_addMaximum, dd1, dd2);
+}
+
+ADD floor(const ADD& dd) {
+  return ADD::MonadicApply(AddFloor, dd);
+}
+
+ADD ceil(const ADD& dd) {
+  return ADD::MonadicApply(AddCeil, dd);
+}
+
+ADD pow(const ADD& dd1, const ADD& dd2) {
+  return ADD::Apply(AddPow, dd1, dd2);
+}
+
+ADD log(const ADD& dd) {
+  return ADD::MonadicApply(Cudd_addLog, dd);
 }
 
 DecisionDiagramManager::DecisionDiagramManager(int num_variables)
