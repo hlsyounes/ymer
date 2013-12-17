@@ -37,6 +37,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -53,6 +54,11 @@ void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
 
 void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   LOG(FATAL) << "expecting constant expression";
+}
+
+void ConstantExpressionEvaluator::DoVisitFunctionCall(
+    const FunctionCall& expr) {
+  // TODO(hlsyounes): implement.
 }
 
 void ConstantExpressionEvaluator::DoVisitUnaryOperation(

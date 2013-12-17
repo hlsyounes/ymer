@@ -19,11 +19,28 @@
 
 #include "expression.h"
 
+#include "pointer-vector.h"
 #include "strutil.h"
 
 #include "gtest/gtest.h"
 
 namespace {
+
+PointerVector<const Expression> MakeArguments(
+    std::unique_ptr<const Expression>&& argument) {
+  PointerVector<const Expression> arguments;
+  arguments.push_back(std::move(argument));
+  return std::move(arguments);
+}
+
+PointerVector<const Expression> MakeArguments(
+    std::unique_ptr<const Expression>&& argument1,
+    std::unique_ptr<const Expression>&& argument2) {
+  PointerVector<const Expression> arguments;
+  arguments.push_back(std::move(argument1));
+  arguments.push_back(std::move(argument2));
+  return std::move(arguments);
+}
 
 TEST(LiteralTest, Constructor) {
   const Literal a(17), b(0.5), c(true), d(false);
@@ -52,6 +69,61 @@ TEST(IdentifierTest, Constructor) {
 TEST(IdentifierTest, Output) {
   const Identifier a("foo"), b("bar"), c("baz");
   EXPECT_EQ("foo;bar;baz", StrCat(a, ';', b, ';', c));
+}
+
+TEST(FunctionCallTest, OutputUnknownFunction) {
+  const FunctionCall expr1(Function::UNKNOWN, {});
+  EXPECT_EQ("<<unknown function>>()", StrCat(expr1));
+}
+
+TEST(FunctionCallTest, OutputMin) {
+  const FunctionCall expr1(Function::MIN, MakeArguments(Literal::New(17)));
+  const FunctionCall expr2(Function::MIN,
+                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  EXPECT_EQ("min(17);min(42, 0.5)", StrCat(expr1, ';', expr2));
+}
+
+TEST(FunctionCallTest, OutputMax) {
+  const FunctionCall expr1(Function::MAX, MakeArguments(Literal::New(17)));
+  const FunctionCall expr2(Function::MAX,
+                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  EXPECT_EQ("max(17);max(42, 0.5)", StrCat(expr1, ';', expr2));
+}
+
+TEST(FunctionCallTest, OutputFloor) {
+  const FunctionCall expr1(Function::FLOOR, MakeArguments(Literal::New(17)));
+  const FunctionCall expr2(Function::FLOOR, MakeArguments(Literal::New(0.5)));
+  EXPECT_EQ("floor(17);floor(0.5)", StrCat(expr1, ';', expr2));
+}
+
+TEST(FunctionCallTest, OutputCeil) {
+  const FunctionCall expr1(Function::CEIL, MakeArguments(Literal::New(17)));
+  const FunctionCall expr2(Function::CEIL, MakeArguments(Literal::New(0.5)));
+  EXPECT_EQ("ceil(17);ceil(0.5)", StrCat(expr1, ';', expr2));
+}
+
+TEST(FunctionCallTest, OutputPow) {
+  const FunctionCall expr1(Function::POW,
+                           MakeArguments(Literal::New(17), Literal::New(-0.5)));
+  const FunctionCall expr2(Function::POW,
+                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  EXPECT_EQ("pow(17, -0.5);pow(42, 0.5)", StrCat(expr1, ';', expr2));
+}
+
+TEST(FunctionCallTest, OutputLog) {
+  const FunctionCall expr1(Function::LOG,
+                           MakeArguments(Literal::New(17), Literal::New(2.5)));
+  const FunctionCall expr2(Function::LOG,
+                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  EXPECT_EQ("log(17, 2.5);log(42, 0.5)", StrCat(expr1, ';', expr2));
+}
+
+TEST(FunctionCallTest, OutputMod) {
+  const FunctionCall expr1(Function::MOD,
+                           MakeArguments(Literal::New(17), Literal::New(42)));
+  const FunctionCall expr2(Function::MOD,
+                           MakeArguments(Literal::New(42), Literal::New(-17)));
+  EXPECT_EQ("mod(17, 42);mod(42, -17)", StrCat(expr1, ';', expr2));
 }
 
 TEST(UnaryOperationTest, OutputNegation) {

@@ -24,6 +24,7 @@
 #include <set>
 #include <string>
 
+#include "pointer-vector.h"
 #include "typed-value.h"
 
 #include "glog/logging.h"
@@ -44,6 +45,7 @@ class ExpressionPrinter : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -61,6 +63,20 @@ void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
 
 void ExpressionPrinter::DoVisitIdentifier(const Identifier& expr) {
   *os_ << expr.name();
+}
+
+void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
+  *os_ << expr.function() << '(';
+  bool first = true;
+  for (const Expression& argument : expr.arguments()) {
+    if (first) {
+      first = false;
+    } else {
+      *os_ << ", ";
+    }
+    *os_ << argument;
+  }
+  *os_ << ')';
 }
 
 void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
@@ -141,6 +157,45 @@ void Identifier::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitIdentifier(*this);
 }
 
+std::ostream& operator<<(std::ostream& os, Function function) {
+  switch (function) {
+    case Function::UNKNOWN:
+      return os << "<<unknown function>>";
+    case Function::MIN:
+      return os << "min";
+    case Function::MAX:
+      return os << "max";
+    case Function::FLOOR:
+      return os << "floor";
+    case Function::CEIL:
+      return os << "ceil";
+    case Function::POW:
+      return os << "pow";
+    case Function::LOG:
+      return os << "log";
+    case Function::MOD:
+      return os << "mod";
+  }
+  LOG(FATAL) << "bad function";
+}
+
+FunctionCall::FunctionCall(Function function,
+                           PointerVector<const Expression>&& arguments)
+    : function_(function), arguments_(std::move(arguments)) {
+}
+
+FunctionCall::~FunctionCall() = default;
+
+std::unique_ptr<const FunctionCall> FunctionCall::New(
+    Function function, PointerVector<const Expression>&& arguments) {
+  return std::unique_ptr<const FunctionCall>(new FunctionCall(
+      function, std::move(arguments)));
+}
+
+void FunctionCall::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitFunctionCall(*this);
+}
+
 std::ostream& operator<<(std::ostream& os, UnaryOperator op) {
   switch (op) {
     case UnaryOperator::NEGATE:
@@ -208,6 +263,10 @@ void ExpressionVisitor::VisitLiteral(const Literal& expr) {
 
 void ExpressionVisitor::VisitIdentifier(const Identifier& expr) {
   DoVisitIdentifier(expr);
+}
+
+void ExpressionVisitor::VisitFunctionCall(const FunctionCall& expr) {
+  DoVisitFunctionCall(expr);
 }
 
 void ExpressionVisitor::VisitUnaryOperation(const UnaryOperation& expr) {

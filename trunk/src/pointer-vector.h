@@ -30,22 +30,22 @@
 template <typename T>
 class PointerVector {
  public:
-  typedef typename std::vector<std::unique_ptr<const T>>::size_type size_type;
+  typedef typename std::vector<std::unique_ptr<T>>::size_type size_type;
 
-  class Iterator : public std::iterator<std::input_iterator_tag, const T> {
+  class Iterator : public std::iterator<std::input_iterator_tag, T> {
    public:
     bool operator==(const Iterator& rhs) const { return i_ == rhs.i_; }
     bool operator!=(const Iterator& rhs) const { return i_ != rhs.i_; }
-    const T& operator*() const { return **i_; }
+    T& operator*() const { return **i_; }
     Iterator& operator++() { ++i_; return *this; }
     Iterator& operator++(int) { Iterator tmp(*this); ++i_; return tmp; }
 
    private:
     explicit Iterator(
-        typename std::vector<std::unique_ptr<const T>>::const_iterator i)
+        typename std::vector<std::unique_ptr<T>>::const_iterator i)
         : i_(i) {}
 
-    typename std::vector<std::unique_ptr<const T>>::const_iterator i_;
+    typename std::vector<std::unique_ptr<T>>::const_iterator i_;
 
     friend class PointerVector;
   };
@@ -53,13 +53,13 @@ class PointerVector {
   size_type size() const { return elements_.size(); }
   Iterator begin() const { return Iterator(elements_.begin()); }
   Iterator end() const { return Iterator(elements_.end()); }
-  const T& operator[](int i) const { return *elements_[i]; }
-  void push_back(std::unique_ptr<const T>&& element) {
+  T& operator[](int i) const { return *elements_[i]; }
+  void push_back(std::unique_ptr<T>&& element) {
     elements_.push_back(std::move(element));
   }
 
  private:
-  std::vector<std::unique_ptr<const T>> elements_;
+  std::vector<std::unique_ptr<T>> elements_;
 };
 
 #endif  // POINTER_VECTOR_H_
