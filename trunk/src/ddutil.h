@@ -134,6 +134,7 @@ class ADD : public DecisionDiagram {
   BDD StrictThreshold(double threshold) const;
 
   // Arithmetic operators for ADDs.
+  ADD operator-() const;
   ADD operator+(const ADD& dd) const;
   ADD operator-(const ADD& dd) const;
   ADD operator*(const ADD& dd) const;

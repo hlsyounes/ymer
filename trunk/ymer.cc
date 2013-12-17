@@ -292,7 +292,8 @@ class ExpressionCompiler
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConjunction(const Conjunction& formula);
   virtual void DoVisitDisjunction(const Disjunction& formula);
   virtual void DoVisitNegation(const Negation& formula);
@@ -339,7 +340,24 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   type_ = Type::INT;
 }
 
-void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
+void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  if (type_ == Type::BOOL) {
+    errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
+                              " applied to ", Type::BOOL));
+  }
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      if (type_ == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDNEG(dst_));
+      } else {
+        operations_.push_back(Operation::MakeINEG(dst_));
+      }
+      break;
+  }
+}
+
+void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   Type type1 = type_;
   ++dst_;
@@ -351,7 +369,7 @@ void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
                               " applied to ", Type::BOOL));
   }
   if (type1 != Type::DOUBLE &&
-      (type2 == Type::DOUBLE || expr.op() == Computation::DIVIDE)) {
+      (type2 == Type::DOUBLE || expr.op() == BinaryOperator::DIVIDE)) {
     operations_.push_back(Operation::MakeI2D(dst_));
     type1 = Type::DOUBLE;
   }
@@ -360,28 +378,28 @@ void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
     type2 = Type::DOUBLE;
   }
   switch (expr.op()) {
-    case Computation::PLUS:
+    case BinaryOperator::PLUS:
       if (type1 == Type::DOUBLE) {
         operations_.push_back(Operation::MakeDADD(dst_, dst_ + 1));
       } else {
         operations_.push_back(Operation::MakeIADD(dst_, dst_ + 1));
       }
       break;
-    case Computation::MINUS:
+    case BinaryOperator::MINUS:
       if (type1 == Type::DOUBLE) {
         operations_.push_back(Operation::MakeDSUB(dst_, dst_ + 1));
       } else {
         operations_.push_back(Operation::MakeISUB(dst_, dst_ + 1));
       }
       break;
-    case Computation::MULTIPLY:
+    case BinaryOperator::MULTIPLY:
       if (type1 == Type::DOUBLE) {
         operations_.push_back(Operation::MakeDMUL(dst_, dst_ + 1));
       } else {
         operations_.push_back(Operation::MakeIMUL(dst_, dst_ + 1));
       }
       break;
-    case Computation::DIVIDE:
+    case BinaryOperator::DIVIDE:
       operations_.push_back(Operation::MakeDDIV(dst_, dst_ + 1));
       break;
   }

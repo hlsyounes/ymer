@@ -37,7 +37,8 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   TypedValue value_;
 };
@@ -54,21 +55,32 @@ void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   LOG(FATAL) << "expecting constant expression";
 }
 
-void ConstantExpressionEvaluator::DoVisitComputation(const Computation& expr) {
+void ConstantExpressionEvaluator::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      value_ = -value_;
+      break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   TypedValue operand1 = value_;
   expr.operand2().Accept(this);
   switch (expr.op()) {
-    case Computation::PLUS:
+    case BinaryOperator::PLUS:
       value_ = operand1 + value_;
       break;
-    case Computation::MINUS:
+    case BinaryOperator::MINUS:
       value_ = operand1 - value_;
       break;
-    case Computation::MULTIPLY:
+    case BinaryOperator::MULTIPLY:
       value_ = operand1 * value_;
       break;
-    case Computation::DIVIDE:
+    case BinaryOperator::DIVIDE:
       value_ = operand1 / value_;
       break;
   }
@@ -295,8 +307,8 @@ const Distribution* Weibull::make(std::unique_ptr<const Expression>&& scale,
 				  std::unique_ptr<const Expression>&& shape) {
   const Literal* value = dynamic_cast<const Literal*>(shape.get());
   if (value != nullptr && value->value() == 1) {
-    return Exponential::make(Computation::New(
-        Computation::DIVIDE, std::move(shape), std::move(scale)));
+    return Exponential::make(BinaryOperation::New(
+        BinaryOperator::DIVIDE, std::move(shape), std::move(scale)));
   } else {
     return new Weibull(std::move(scale), std::move(shape));
   }

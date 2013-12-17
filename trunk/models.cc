@@ -383,7 +383,8 @@ class ExpressionCopier : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   std::unique_ptr<const Expression> expr_;
 };
@@ -532,11 +533,16 @@ void ExpressionCopier::DoVisitIdentifier(const Identifier& expr) {
   expr_.reset(new Identifier(expr.name()));
 }
 
-void ExpressionCopier::DoVisitComputation(const Computation& expr) {
+void ExpressionCopier::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  expr_ = UnaryOperation::New(expr.op(), release_expr());
+}
+
+void ExpressionCopier::DoVisitBinaryOperation(const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
-  expr_ = Computation::New(expr.op(), std::move(operand1), release_expr());
+  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
 }
 
 }  // namespace
@@ -1065,7 +1071,8 @@ class ExpressionCompiler : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   const DecisionDiagramManager* manager_;
   const std::map<std::string, VariableProperties>* variable_properties_;
@@ -1093,21 +1100,30 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
       *manager_, p.min_value(), p.low_bit(), p.high_bit(), primed_);
 }
 
-void ExpressionCompiler::DoVisitComputation(const Computation& expr) {
+void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      mtbdd_ = -mtbdd_;
+      break;
+  }
+}
+
+void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   ADD operand1 = mtbdd_;
   expr.operand2().Accept(this);
   switch (expr.op()) {
-    case Computation::PLUS:
+    case BinaryOperator::PLUS:
       mtbdd_ = operand1 + mtbdd_;
       break;
-    case Computation::MINUS:
+    case BinaryOperator::MINUS:
       mtbdd_ = operand1 - mtbdd_;
       break;
-    case Computation::MULTIPLY:
+    case BinaryOperator::MULTIPLY:
       mtbdd_ = operand1 * mtbdd_;
       break;
-    case Computation::DIVIDE:
+    case BinaryOperator::DIVIDE:
       mtbdd_ = operand1 / mtbdd_;
       break;
   }

@@ -119,7 +119,8 @@ class ExpressionConstantSubstituter : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
   std::unique_ptr<const Expression> expr_;
@@ -258,12 +259,18 @@ void ExpressionConstantSubstituter::DoVisitIdentifier(const Identifier& expr) {
   }
 }
 
-void ExpressionConstantSubstituter::DoVisitComputation(
-    const Computation& expr) {
+void ExpressionConstantSubstituter::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  expr_ = UnaryOperation::New(expr.op(), release_expr());
+}
+
+void ExpressionConstantSubstituter::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
-  expr_ = Computation::New(expr.op(), std::move(operand1), release_expr());
+  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
 }
 
 StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {
