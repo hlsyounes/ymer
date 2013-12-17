@@ -1112,7 +1112,63 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
-  // TODO(hlsyounes): implement.
+  std::vector<ADD> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(mtbdd_);
+  }
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      LOG(FATAL) << "bad function call";
+    case Function::MIN:
+      if (arguments.size() < 1) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        mtbdd_ = min(mtbdd_, arguments[i]);
+      }
+      break;
+    case Function::MAX:
+      if (arguments.size() < 1) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        mtbdd_ = max(mtbdd_, arguments[i]);
+      }
+      break;
+    case Function::FLOOR:
+      if (arguments.size() != 1) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = floor(arguments[0]);
+      break;
+    case Function::CEIL:
+      if (arguments.size() != 1) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = ceil(arguments[0]);
+      break;
+    case Function::POW:
+      if (arguments.size() != 2) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = pow(arguments[0], arguments[1]);
+      break;
+    case Function::LOG:
+      if (arguments.size() != 2) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = log(arguments[0]) / log(arguments[1]);
+      break;
+    case Function::MOD:
+      if (arguments.size() != 2) {
+        LOG(FATAL) << "bad function call";
+      }
+      mtbdd_ = arguments[0] % arguments[1];
+      break;
+  }
 }
 
 void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
