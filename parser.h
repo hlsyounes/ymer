@@ -63,7 +63,8 @@
      NEQ = 281,
      EQ = 282,
      GTE = 283,
-     LTE = 284
+     LTE = 284,
+     UMINUS = 285
    };
 #endif
 /* Tokens.  */
@@ -94,6 +95,7 @@
 #define EQ 282
 #define GTE 283
 #define LTE 284
+#define UMINUS 285
 
 
 
@@ -103,7 +105,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 257 "parser.yy"
+#line 264 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -118,7 +120,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 122 "parser.h"
+#line 124 "parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

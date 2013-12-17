@@ -171,12 +171,18 @@ static void compile_model();
 
 namespace {
 
-const Expression* NewComputation(Computation::Operator op,
-                                 const Expression* operand1,
-                                 const Expression* operand2) {
-  return Computation::New(op,
-                          std::unique_ptr<const Expression>(operand1),
-                          std::unique_ptr<const Expression>(operand2))
+const UnaryOperation* NewUnaryOperation(UnaryOperator op,
+                                        const Expression* operand) {
+  return UnaryOperation::New(op, std::unique_ptr<const Expression>(operand))
+      .release();
+}
+
+const BinaryOperation* NewBinaryOperation(BinaryOperator op,
+                                          const Expression* operand1,
+                                          const Expression* operand2) {
+  return BinaryOperation::New(op,
+                              std::unique_ptr<const Expression>(operand1),
+                              std::unique_ptr<const Expression>(operand2))
       .release();
 }
 
@@ -253,6 +259,7 @@ const Uniform* NewUniform(const Expression* low, const Expression* high) {
 %left '<' LTE GTE '>' EQ NEQ
 %left '+' '-'
 %left '*' '/'
+%right UMINUS
 
 %union {
   size_t synch;
@@ -435,31 +442,38 @@ distribution : rate_expr { $$ = NewExponential($1); }
 
 expr : integer { $$ = make_literal($1); }
      | NAME { $$ = find_variable($1); }
-     | expr '+' expr { $$ = NewComputation(Computation::PLUS, $1, $3); }
-     | expr '-' expr { $$ = NewComputation(Computation::MINUS, $1, $3); }
-     | expr '*' expr { $$ = NewComputation(Computation::MULTIPLY, $1, $3); }
+     | '-' expr %prec UMINUS
+         { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
+     | expr '+' expr
+         { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
+     | expr '-' expr
+         { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
+     | expr '*' expr
+         { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
      | '(' expr ')' { $$ = $2; }
      ;
 
 rate_expr : NUMBER { $$ = make_literal($1); }
           | NAME { $$ = find_rate_or_variable($1); }
+          | '-' rate_expr %prec UMINUS
+              { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
           | rate_expr '+' rate_expr
-              { $$ = NewComputation(Computation::PLUS, $1, $3); }
+              { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
           | rate_expr '-' rate_expr
-              { $$ = NewComputation(Computation::MINUS, $1, $3); }
+              { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
           | rate_expr '*' rate_expr
-              { $$ = NewComputation(Computation::MULTIPLY, $1, $3); }
+              { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
           | rate_expr '/' rate_expr
-              { $$ = NewComputation(Computation::DIVIDE, $1, $3); }
+              { $$ = NewBinaryOperation(BinaryOperator::DIVIDE, $1, $3); }
           | '(' rate_expr ')' { $$ = $2; }
           ;
 
 const_rate_expr : NUMBER { $$ = make_literal($1); }
                 | NAME { $$ = find_rate($1); }
                 | const_rate_expr '*' const_rate_expr
-                    { $$ = NewComputation(Computation::MULTIPLY, $1, $3); }
+                    { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
                 | const_rate_expr '/' const_rate_expr
-                    { $$ = NewComputation(Computation::DIVIDE, $1, $3); }
+                    { $$ = NewBinaryOperation(BinaryOperator::DIVIDE, $1, $3); }
                 | '(' const_rate_expr ')' { $$ = $2; }
                 ;
 
@@ -472,12 +486,14 @@ range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
 
 const_expr : integer { $$ = make_literal($1); }
            | NAME { $$ = find_constant($1); }
+           | '-' const_expr %prec UMINUS
+               { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
            | const_expr '+' const_expr
-               { $$ = NewComputation(Computation::PLUS, $1, $3); }
+               { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
            | const_expr '-' const_expr
-               { $$ = NewComputation(Computation::MINUS, $1, $3); }
+               { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
            | const_expr '*' const_expr
-               { $$ = NewComputation(Computation::MULTIPLY, $1, $3); }
+               { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
            | '(' const_expr ')' { $$ = $2; }
 	   ;
 
@@ -525,12 +541,14 @@ path_formula : csl_formula 'U' LTE NUMBER csl_formula
 
 csl_expr : integer { $$ = make_literal($1); }
          | NAME { $$ = value_or_variable($1); }
+         | '-' csl_expr %prec UMINUS
+             { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
          | csl_expr '+' csl_expr
-             { $$ = NewComputation(Computation::PLUS, $1, $3); }
+             { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
          | csl_expr '-' csl_expr
-             { $$ = NewComputation(Computation::MINUS, $1, $3); }
+             { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
          | csl_expr '*' csl_expr
-             { $$ = NewComputation(Computation::MULTIPLY, $1, $3); }
+             { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
          | '(' csl_expr ')' { $$ = $2; }
          ;
 
@@ -549,7 +567,8 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
   TypedValue value_;
@@ -570,21 +589,32 @@ void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   value_ = i->second;
 }
 
-void ConstantExpressionEvaluator::DoVisitComputation(const Computation& expr) {
+void ConstantExpressionEvaluator::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      value_ = -value_;
+      break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   TypedValue operand1 = value_;
   expr.operand2().Accept(this);
   switch (expr.op()) {
-    case Computation::PLUS:
+    case BinaryOperator::PLUS:
       value_ = operand1 + value_;
       break;
-    case Computation::MINUS:
+    case BinaryOperator::MINUS:
       value_ = operand1 - value_;
       break;
-    case Computation::MULTIPLY:
+    case BinaryOperator::MULTIPLY:
       value_ = operand1 * value_;
       break;
-    case Computation::DIVIDE:
+    case BinaryOperator::DIVIDE:
       value_ = operand1 / value_;
       break;
   }
@@ -1007,7 +1037,8 @@ class ExpressionIdentifierSubstituter : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   std::map<std::string, std::string> substitutions_;
   std::unique_ptr<const Expression> expr_;
@@ -1163,12 +1194,18 @@ void ExpressionIdentifierSubstituter::DoVisitIdentifier(
   }
 }
 
-void ExpressionIdentifierSubstituter::DoVisitComputation(
-    const Computation& expr) {
+void ExpressionIdentifierSubstituter::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  expr_ = UnaryOperation::New(expr.op(), release_expr());
+}
+
+void ExpressionIdentifierSubstituter::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
-  expr_ = Computation::New(expr.op(), std::move(operand1), release_expr());
+  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
 }
 
 StateFormulaIdentifierSubstituter::StateFormulaIdentifierSubstituter(

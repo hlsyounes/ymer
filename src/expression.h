@@ -96,40 +96,76 @@ private:
   std::string name_;
 };
 
-// A computation expression.
-class Computation : public Expression {
+// Supported uniary operators.
+enum class UnaryOperator {
+  NEGATE
+};
+
+// Output operator for unary operators.
+std::ostream& operator<<(std::ostream& os, UnaryOperator op);
+
+// A unary operation expression.
+class UnaryOperation : public Expression {
  public:
-  // Supported computation operators.
-  enum Operator {
-    PLUS, MINUS, MULTIPLY, DIVIDE
-  };
+  // Constructs a unary operation with the given operator and operand.
+  UnaryOperation(UnaryOperator op, std::unique_ptr<const Expression>&& operand);
 
-  // Constructs a computation.
-  Computation(Operator op,
-              std::unique_ptr<const Expression>&& operand1,
-              std::unique_ptr<const Expression>&& operand2);
+  virtual ~UnaryOperation();
 
-  virtual ~Computation();
+  // Factory method for unary operations.
+  static std::unique_ptr<const UnaryOperation> New(
+      UnaryOperator op, std::unique_ptr<const Expression>&& operand);
 
-  // Factory method for computations.
-  static std::unique_ptr<const Expression> New(
-      Operator op,
+  // Returns the operator of this unary operation.
+  UnaryOperator op() const { return op_; }
+
+  // Returns the operand of this unary operation.
+  const Expression& operand() const { return *operand_; }
+
+ private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  UnaryOperator op_;
+  std::unique_ptr<const Expression> operand_;
+};
+
+// Supported binary operators.
+enum class BinaryOperator {
+  PLUS, MINUS, MULTIPLY, DIVIDE
+};
+
+// Output operator for binary operators.
+std::ostream& operator<<(std::ostream& os, BinaryOperator op);
+
+// A binary operation expression.
+class BinaryOperation : public Expression {
+ public:
+  // Constructs a binary operation with the given operator and operands.
+  BinaryOperation(BinaryOperator op,
+                  std::unique_ptr<const Expression>&& operand1,
+                  std::unique_ptr<const Expression>&& operand2);
+
+  virtual ~BinaryOperation();
+
+  // Factory method for binary operations.
+  static std::unique_ptr<const BinaryOperation> New(
+      BinaryOperator op,
       std::unique_ptr<const Expression>&& operand1,
       std::unique_ptr<const Expression>&& operand2);
 
-  // Returns the operator for this computation.
-  const Operator op() const { return op_; }
+  // Returns the operator for this binary operation.
+  const BinaryOperator op() const { return op_; }
 
-  // Returns the first operand for this computation.
+  // Returns the first operand for this binary operation.
   const Expression& operand1() const { return *operand1_; }
 
-  // Returns the second operand for this computation.
+  // Returns the second operand for this binary operation.
   const Expression& operand2() const { return *operand2_; }
 
 private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
-  Operator op_;
+  BinaryOperator op_;
   std::unique_ptr<const Expression> operand1_;
   std::unique_ptr<const Expression> operand2_;
 };
@@ -139,7 +175,8 @@ class ExpressionVisitor {
  public:
   void VisitLiteral(const Literal& expr);
   void VisitIdentifier(const Identifier& expr);
-  void VisitComputation(const Computation& expr);
+  void VisitUnaryOperation(const UnaryOperation& expr);
+  void VisitBinaryOperation(const BinaryOperation& expr);
 
  protected:
   ~ExpressionVisitor();
@@ -147,7 +184,8 @@ class ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr) = 0;
   virtual void DoVisitIdentifier(const Identifier& expr) = 0;
-  virtual void DoVisitComputation(const Computation& expr) = 0;
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr) = 0;
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr) = 0;
 };
 
 #endif  // EXPRESSION_H_

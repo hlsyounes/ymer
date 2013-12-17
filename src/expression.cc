@@ -44,10 +44,11 @@ class ExpressionPrinter : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitComputation(const Computation& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
   std::ostream* os_;
-  std::set<Computation::Operator> need_parentheses_;
+  std::set<BinaryOperator> need_parentheses_;
 };
 
 ExpressionPrinter::ExpressionPrinter(std::ostream* os)
@@ -62,40 +63,40 @@ void ExpressionPrinter::DoVisitIdentifier(const Identifier& expr) {
   *os_ << expr.name();
 }
 
-void ExpressionPrinter::DoVisitComputation(const Computation& expr) {
-  std::set<Computation::Operator> need_parentheses;
+void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  std::set<BinaryOperator> need_parentheses;
+  std::swap(need_parentheses_, need_parentheses);
+  *os_ << expr.op();
+  need_parentheses_.insert(BinaryOperator::PLUS);
+  need_parentheses_.insert(BinaryOperator::MINUS);
+  need_parentheses_.insert(BinaryOperator::MULTIPLY);
+  need_parentheses_.insert(BinaryOperator::DIVIDE);
+  expr.operand().Accept(this);
+  std::swap(need_parentheses_, need_parentheses);
+}
+
+void ExpressionPrinter::DoVisitBinaryOperation(const BinaryOperation& expr) {
+  std::set<BinaryOperator> need_parentheses;
   std::swap(need_parentheses_, need_parentheses);
   const bool outer = need_parentheses.find(expr.op()) != need_parentheses.end();
   if (outer) {
     *os_ << '(';
   }
-  if (expr.op() == Computation::MULTIPLY || expr.op() == Computation::DIVIDE) {
-    need_parentheses_.insert(Computation::PLUS);
-    need_parentheses_.insert(Computation::MINUS);
+  if (expr.op() == BinaryOperator::MULTIPLY
+      || expr.op() == BinaryOperator::DIVIDE) {
+    need_parentheses_.insert(BinaryOperator::PLUS);
+    need_parentheses_.insert(BinaryOperator::MINUS);
   }
   expr.operand1().Accept(this);
-  switch (expr.op()) {
-    case Computation::PLUS:
-      *os_ << '+';
-      break;
-    case Computation::MINUS:
-      *os_ << '-';
-      break;
-    case Computation::MULTIPLY:
-      *os_ << '*';
-      break;
-    case Computation::DIVIDE:
-      *os_ << '/';
-      break;
-  }
+  *os_ << expr.op();
   need_parentheses_.clear();
-  if (expr.op() != Computation::PLUS) {
-    need_parentheses_.insert(Computation::PLUS);
-    need_parentheses_.insert(Computation::MINUS);
+  if (expr.op() != BinaryOperator::PLUS) {
+    need_parentheses_.insert(BinaryOperator::PLUS);
+    need_parentheses_.insert(BinaryOperator::MINUS);
   }
-  if (expr.op() == Computation::DIVIDE) {
-    need_parentheses_.insert(Computation::MULTIPLY);
-    need_parentheses_.insert(Computation::DIVIDE);
+  if (expr.op() == BinaryOperator::DIVIDE) {
+    need_parentheses_.insert(BinaryOperator::MULTIPLY);
+    need_parentheses_.insert(BinaryOperator::DIVIDE);
   }
   expr.operand2().Accept(this);
   if (outer) {
@@ -140,24 +141,63 @@ void Identifier::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitIdentifier(*this);
 }
 
-Computation::Computation(Operator op,
-                         std::unique_ptr<const Expression>&& operand1,
-                         std::unique_ptr<const Expression>&& operand2)
+std::ostream& operator<<(std::ostream& os, UnaryOperator op) {
+  switch (op) {
+    case UnaryOperator::NEGATE:
+      return os << '-';
+  }
+  LOG(FATAL) << "bad unary operator";
+}
+
+UnaryOperation::UnaryOperation(UnaryOperator op,
+                               std::unique_ptr<const Expression>&& operand)
+    : op_(op), operand_(std::move(operand)) {
+}
+
+UnaryOperation::~UnaryOperation() = default;
+
+std::unique_ptr<const UnaryOperation> UnaryOperation::New(
+    UnaryOperator op, std::unique_ptr<const Expression>&& operand) {
+  return std::unique_ptr<const UnaryOperation>(new UnaryOperation(
+      op, std::move(operand)));
+}
+
+void UnaryOperation::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitUnaryOperation(*this);
+}
+
+std::ostream& operator<<(std::ostream& os, BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::PLUS:
+      return os << '+';
+    case BinaryOperator::MINUS:
+      return os << '-';
+    case BinaryOperator::MULTIPLY:
+      return os << '*';
+    case BinaryOperator::DIVIDE:
+      return os << '/';
+  }
+  LOG(FATAL) << "bad binary operator";
+}
+
+BinaryOperation::BinaryOperation(BinaryOperator op,
+                                 std::unique_ptr<const Expression>&& operand1,
+                                 std::unique_ptr<const Expression>&& operand2)
     : op_(op), operand1_(std::move(operand1)), operand2_(std::move(operand2)) {
 }
 
-Computation::~Computation() = default;
+BinaryOperation::~BinaryOperation() = default;
 
-std::unique_ptr<const Expression> Computation::New(
-    Operator op,
+std::unique_ptr<const BinaryOperation> BinaryOperation::New(
+    BinaryOperator op,
     std::unique_ptr<const Expression>&& operand1,
     std::unique_ptr<const Expression>&& operand2) {
-  return std::unique_ptr<const Expression>(new Computation(
+  return std::unique_ptr<const BinaryOperation>(new BinaryOperation(
       op, std::move(operand1), std::move(operand2)));
 }
 
-void Computation::DoAccept(ExpressionVisitor* visitor) const {
-  visitor->VisitComputation(*this);
+void BinaryOperation::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitBinaryOperation(*this);
 }
 
 ExpressionVisitor::~ExpressionVisitor() = default;
@@ -170,6 +210,10 @@ void ExpressionVisitor::VisitIdentifier(const Identifier& expr) {
   DoVisitIdentifier(expr);
 }
 
-void ExpressionVisitor::VisitComputation(const Computation& expr) {
-  DoVisitComputation(expr);
+void ExpressionVisitor::VisitUnaryOperation(const UnaryOperation& expr) {
+  DoVisitUnaryOperation(expr);
+}
+
+void ExpressionVisitor::VisitBinaryOperation(const BinaryOperation& expr) {
+  DoVisitBinaryOperation(expr);
 }

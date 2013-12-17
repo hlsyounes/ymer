@@ -210,6 +210,10 @@ BDD ADD::StrictThreshold(double threshold) const {
              Cudd_addBddStrictThreshold(manager(), node(), threshold));
 }
 
+ADD ADD::operator-() const {
+  return ADD(manager(), Cudd_addNegate(manager(), node()));
+}
+
 ADD ADD::operator+(const ADD& dd) const {
   return Apply(Cudd_addPlus, *this, dd);
 }

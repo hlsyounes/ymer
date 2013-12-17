@@ -124,6 +124,20 @@ TEST(DecisionDiagramTest, StrictThresholdNonConstants) {
   EXPECT_TRUE(dd.ValueInState({false, false}));
 }
 
+TEST(DecisionDiagramTest, NegatesConstant) {
+  const DecisionDiagramManager manager(0);
+  const ADD dd = -manager.GetConstant(2);
+  EXPECT_EQ(-2, dd.Value());
+}
+
+TEST(DecisionDiagramTest, NegatesNonConstant) {
+  const DecisionDiagramManager manager(1);
+  const ADD dd = -Ite(manager.GetBddVariable(0),
+                      manager.GetConstant(2), manager.GetConstant(-3));
+  EXPECT_EQ(-2, dd.ValueInState({true}));
+  EXPECT_EQ(3, dd.ValueInState({false}));
+}
+
 TEST(DecisionDiagramTest, AddsConstants) {
   const DecisionDiagramManager manager(0);
   const ADD dd = manager.GetConstant(2) + manager.GetConstant(3);
