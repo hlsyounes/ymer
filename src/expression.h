@@ -27,6 +27,7 @@
 #include <ostream>
 #include <string>
 
+#include "pointer-vector.h"
 #include "typed-value.h"
 
 class ExpressionVisitor;
@@ -94,6 +95,41 @@ private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
   std::string name_;
+};
+
+// Supported functions.
+enum class Function {
+  UNKNOWN, MIN, MAX, FLOOR, CEIL, POW, LOG, MOD
+};
+
+// Output operator for functions.
+std::ostream& operator<<(std::ostream& os, Function function);
+
+// A function call expression.
+class FunctionCall : public Expression {
+ public:
+  // Constructs a function call for the given function with the given arguments.
+  FunctionCall(Function function, PointerVector<const Expression>&& arguments);
+
+  virtual ~FunctionCall();
+
+  // Factory method for function calls.
+  static std::unique_ptr<const FunctionCall> New(
+      Function function, PointerVector<const Expression>&& arguments);
+
+  // Returns the function of this function call.
+  Function function() const { return function_; }
+
+  // Returns the arguments of this function call.
+  const PointerVector<const Expression>& arguments() const {
+    return arguments_;
+  }
+
+ private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  Function function_;
+  PointerVector<const Expression> arguments_;
 };
 
 // Supported uniary operators.
@@ -175,6 +211,7 @@ class ExpressionVisitor {
  public:
   void VisitLiteral(const Literal& expr);
   void VisitIdentifier(const Identifier& expr);
+  void VisitFunctionCall(const FunctionCall& expr);
   void VisitUnaryOperation(const UnaryOperation& expr);
   void VisitBinaryOperation(const BinaryOperation& expr);
 
@@ -184,6 +221,7 @@ class ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr) = 0;
   virtual void DoVisitIdentifier(const Identifier& expr) = 0;
+  virtual void DoVisitFunctionCall(const FunctionCall& expr) = 0;
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr) = 0;
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr) = 0;
 };

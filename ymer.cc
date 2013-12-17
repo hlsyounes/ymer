@@ -292,6 +292,7 @@ class ExpressionCompiler
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConjunction(const Conjunction& formula);
@@ -338,6 +339,10 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   }
   operations_.push_back(Operation::MakeILOAD(variable, dst_));
   type_ = Type::INT;
+}
+
+void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
+  // TODO(hlsyounes): implement.
 }
 
 void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {

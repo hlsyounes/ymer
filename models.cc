@@ -383,6 +383,7 @@ class ExpressionCopier : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -531,6 +532,15 @@ void ExpressionCopier::DoVisitLiteral(const Literal& expr) {
 
 void ExpressionCopier::DoVisitIdentifier(const Identifier& expr) {
   expr_.reset(new Identifier(expr.name()));
+}
+
+void ExpressionCopier::DoVisitFunctionCall(const FunctionCall& expr) {
+  PointerVector<const Expression> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(release_expr());
+  }
+  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
 }
 
 void ExpressionCopier::DoVisitUnaryOperation(const UnaryOperation& expr) {
@@ -1071,6 +1081,7 @@ class ExpressionCompiler : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -1098,6 +1109,10 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   const VariableProperties& p = i->second;
   mtbdd_ = CompileVariable(
       *manager_, p.min_value(), p.low_bit(), p.high_bit(), primed_);
+}
+
+void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
+  // TODO(hlsyounes): implement.
 }
 
 void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {

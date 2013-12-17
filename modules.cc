@@ -119,6 +119,7 @@ class ExpressionConstantSubstituter : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -257,6 +258,16 @@ void ExpressionConstantSubstituter::DoVisitIdentifier(const Identifier& expr) {
   } else {
     expr_.reset(new Literal(i->second));
   }
+}
+
+void ExpressionConstantSubstituter::DoVisitFunctionCall(
+    const FunctionCall& expr) {
+  PointerVector<const Expression> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(release_expr());
+  }
+  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
 }
 
 void ExpressionConstantSubstituter::DoVisitUnaryOperation(

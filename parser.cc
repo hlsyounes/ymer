@@ -2857,6 +2857,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -2877,6 +2878,11 @@ void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   auto i = constant_values_->find(expr.name());
   CHECK(i != constant_values_->end());
   value_ = i->second;
+}
+
+void ConstantExpressionEvaluator::DoVisitFunctionCall(
+    const FunctionCall& expr) {
+  // TODO(hlsyounes): implement.
 }
 
 void ConstantExpressionEvaluator::DoVisitUnaryOperation(
@@ -3327,6 +3333,7 @@ class ExpressionIdentifierSubstituter : public ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr);
   virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
 
@@ -3482,6 +3489,16 @@ void ExpressionIdentifierSubstituter::DoVisitIdentifier(
   } else {
     expr_.reset(new Identifier(i->second));
   }
+}
+
+void ExpressionIdentifierSubstituter::DoVisitFunctionCall(
+    const FunctionCall& expr) {
+  PointerVector<const Expression> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(release_expr());
+  }
+  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
 }
 
 void ExpressionIdentifierSubstituter::DoVisitUnaryOperation(
