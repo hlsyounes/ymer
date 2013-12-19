@@ -28,18 +28,14 @@ namespace {
 
 PointerVector<const Expression> MakeArguments(
     std::unique_ptr<const Expression>&& argument) {
-  PointerVector<const Expression> arguments;
-  arguments.push_back(std::move(argument));
-  return std::move(arguments);
+  return PointerVector<const Expression>(std::move(argument));
 }
 
 PointerVector<const Expression> MakeArguments(
     std::unique_ptr<const Expression>&& argument1,
     std::unique_ptr<const Expression>&& argument2) {
-  PointerVector<const Expression> arguments;
-  arguments.push_back(std::move(argument1));
-  arguments.push_back(std::move(argument2));
-  return std::move(arguments);
+  return PointerVector<const Expression>(std::move(argument1),
+                                         std::move(argument2));
 }
 
 TEST(LiteralTest, Constructor) {

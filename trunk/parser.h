@@ -48,23 +48,24 @@
      TRUE_TOKEN = 266,
      FALSE_TOKEN = 267,
      EXP = 268,
-     REWARDS = 269,
-     ENDREWARDS = 270,
-     MODULE = 271,
-     ENDMODULE = 272,
-     PNAME = 273,
-     NAME = 274,
-     LABEL_NAME = 275,
-     NUMBER = 276,
-     ARROW = 277,
-     DOTDOT = 278,
-     ILLEGAL_TOKEN = 279,
-     IMPLY = 280,
-     NEQ = 281,
-     EQ = 282,
-     GTE = 283,
-     LTE = 284,
-     UMINUS = 285
+     FUNC = 269,
+     REWARDS = 270,
+     ENDREWARDS = 271,
+     MODULE = 272,
+     ENDMODULE = 273,
+     PNAME = 274,
+     IDENTIFIER = 275,
+     LABEL_NAME = 276,
+     NUMBER = 277,
+     ARROW = 278,
+     DOTDOT = 279,
+     ILLEGAL_TOKEN = 280,
+     IMPLY = 281,
+     NEQ = 282,
+     EQ = 283,
+     GTE = 284,
+     LTE = 285,
+     UMINUS = 286
    };
 #endif
 /* Tokens.  */
@@ -79,23 +80,24 @@
 #define TRUE_TOKEN 266
 #define FALSE_TOKEN 267
 #define EXP 268
-#define REWARDS 269
-#define ENDREWARDS 270
-#define MODULE 271
-#define ENDMODULE 272
-#define PNAME 273
-#define NAME 274
-#define LABEL_NAME 275
-#define NUMBER 276
-#define ARROW 277
-#define DOTDOT 278
-#define ILLEGAL_TOKEN 279
-#define IMPLY 280
-#define NEQ 281
-#define EQ 282
-#define GTE 283
-#define LTE 284
-#define UMINUS 285
+#define FUNC 269
+#define REWARDS 270
+#define ENDREWARDS 271
+#define MODULE 272
+#define ENDMODULE 273
+#define PNAME 274
+#define IDENTIFIER 275
+#define LABEL_NAME 276
+#define NUMBER 277
+#define ARROW 278
+#define DOTDOT 279
+#define ILLEGAL_TOKEN 280
+#define IMPLY 281
+#define NEQ 282
+#define EQ 283
+#define GTE 284
+#define LTE 285
+#define UMINUS 286
 
 
 
@@ -105,7 +107,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 264 "parser.yy"
+#line 312 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -116,11 +118,13 @@ typedef union YYSTYPE
   int nat;
   const std::string* str;
   const TypedValue* num;
+  Function function;
+  PointerVector<const Expression>* arguments;
 
 
 
 /* Line 2068 of yacc.c  */
-#line 124 "parser.h"
+#line 128 "parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

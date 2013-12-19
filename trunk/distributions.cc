@@ -58,7 +58,49 @@ void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
 
 void ConstantExpressionEvaluator::DoVisitFunctionCall(
     const FunctionCall& expr) {
-  // TODO(hlsyounes): implement.
+  std::vector<TypedValue> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(value_);
+  }
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      LOG(FATAL) << "bad function call";
+    case Function::MIN:
+      CHECK(!arguments.empty());
+      value_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        value_ = std::min(value_, arguments[i]);
+      }
+      break;
+    case Function::MAX:
+      CHECK(!arguments.empty());
+      value_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        value_ = std::max(value_, arguments[i]);
+      }
+      break;
+    case Function::FLOOR:
+      CHECK(arguments.size() == 1);
+      value_ = floor(arguments[0]);
+      break;
+    case Function::CEIL:
+      CHECK(arguments.size() == 2);
+      value_ = ceil(arguments[0]);
+      break;
+    case Function::POW:
+      CHECK(arguments.size() == 2);
+      value_ = pow(arguments[0], arguments[1]);
+      break;
+    case Function::LOG:
+      CHECK(arguments.size() == 2);
+      value_ = log(arguments[0]) / log(arguments[1]);
+      break;
+    case Function::MOD:
+      CHECK(arguments.size() == 2);
+      value_ = arguments[0] % arguments[1];
+      break;
+  }
 }
 
 void ConstantExpressionEvaluator::DoVisitUnaryOperation(
