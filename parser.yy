@@ -171,72 +171,120 @@ static void compile_model();
 
 namespace {
 
-const UnaryOperation* NewUnaryOperation(UnaryOperator op,
-                                        const Expression* operand) {
-  return UnaryOperation::New(op, std::unique_ptr<const Expression>(operand))
+template <typename T>
+std::unique_ptr<T> MakeUnique(T* ptr) {
+  return std::unique_ptr<T>(ptr);
+}
+
+Function MakeFunction(std::unique_ptr<const std::string>&& name) {
+  if (*name == "min") {
+    return Function::MIN;
+  } else if (*name == "max") {
+    return Function::MAX;
+  } else if (*name == "floor") {
+    return Function::FLOOR;
+  } else if (*name == "ceil") {
+    return Function::CEIL;
+  } else if (*name == "pow") {
+    return Function::POW;
+  } else if (*name == "log") {
+    return Function::LOG;
+  } else if (*name == "mod") {
+    return Function::MOD;
+  } else {
+    yyerror("unknown function");
+    return Function::UNKNOWN;
+  }
+}
+
+const FunctionCall* NewFunctionCall(
+    Function function,
+    std::unique_ptr<PointerVector<const Expression>>&& arguments) {
+  return FunctionCall::New(function, std::move(*arguments)).release();
+}
+
+const UnaryOperation* NewNegate(std::unique_ptr<const Expression>&& operand) {
+  return UnaryOperation::New(UnaryOperator::NEGATE, std::move(operand))
       .release();
 }
 
-const BinaryOperation* NewBinaryOperation(BinaryOperator op,
-                                          const Expression* operand1,
-                                          const Expression* operand2) {
-  return BinaryOperation::New(op,
-                              std::unique_ptr<const Expression>(operand1),
-                              std::unique_ptr<const Expression>(operand2))
+const BinaryOperation* NewPlus(std::unique_ptr<const Expression>&& operand1,
+                               std::unique_ptr<const Expression>&& operand2) {
+  return BinaryOperation::New(BinaryOperator::PLUS,
+                              std::move(operand1), std::move(operand2))
       .release();
 }
 
-LessThan* NewLessThan(const Expression* expr1, const Expression* expr2) {
-  return new LessThan(std::unique_ptr<const Expression>(expr1),
-                      std::unique_ptr<const Expression>(expr2));
+const BinaryOperation* NewMinus(std::unique_ptr<const Expression>&& operand1,
+                                std::unique_ptr<const Expression>&& operand2) {
+  return BinaryOperation::New(BinaryOperator::MINUS,
+                              std::move(operand1), std::move(operand2))
+      .release();
 }
 
-LessThanOrEqual* NewLessThanOrEqual(const Expression* expr1,
-                                    const Expression* expr2) {
-  return new LessThanOrEqual(std::unique_ptr<const Expression>(expr1),
-                             std::unique_ptr<const Expression>(expr2));
+const BinaryOperation* NewMultiply(
+    std::unique_ptr<const Expression>&& operand1,
+    std::unique_ptr<const Expression>&& operand2) {
+  return BinaryOperation::New(BinaryOperator::MULTIPLY,
+                              std::move(operand1), std::move(operand2))
+      .release();
 }
 
-GreaterThanOrEqual* NewGreaterThanOrEqual(const Expression* expr1,
-                                          const Expression* expr2) {
-  return new GreaterThanOrEqual(std::unique_ptr<const Expression>(expr1),
-                                std::unique_ptr<const Expression>(expr2));
+const BinaryOperation* NewDivide(std::unique_ptr<const Expression>&& operand1,
+                                 std::unique_ptr<const Expression>&& operand2) {
+  return BinaryOperation::New(BinaryOperator::DIVIDE,
+                              std::move(operand1), std::move(operand2))
+      .release();
 }
 
-GreaterThan* NewGreaterThan(const Expression* expr1, const Expression* expr2) {
-  return new GreaterThan(std::unique_ptr<const Expression>(expr1),
-                         std::unique_ptr<const Expression>(expr2));
+LessThan* NewLessThan(std::unique_ptr<const Expression>&& expr1,
+                      std::unique_ptr<const Expression>&& expr2) {
+  return new LessThan(std::move(expr1), std::move(expr2));
 }
 
-Equality* NewEquality(const Expression* expr1, const Expression* expr2) {
-  return new Equality(std::unique_ptr<const Expression>(expr1),
-                      std::unique_ptr<const Expression>(expr2));
+LessThanOrEqual* NewLessThanOrEqual(std::unique_ptr<const Expression>&& expr1,
+                                    std::unique_ptr<const Expression>&& expr2) {
+  return new LessThanOrEqual(std::move(expr1), std::move(expr2));
 }
 
-Inequality* NewInequality(const Expression* expr1, const Expression* expr2) {
-  return new Inequality(std::unique_ptr<const Expression>(expr1),
-                        std::unique_ptr<const Expression>(expr2));
+GreaterThanOrEqual* NewGreaterThanOrEqual(
+    std::unique_ptr<const Expression>&& expr1,
+    std::unique_ptr<const Expression>&& expr2) {
+  return new GreaterThanOrEqual(std::move(expr1), std::move(expr2));
 }
 
-const Exponential* NewExponential(const Expression* rate) {
-  return Exponential::make(std::unique_ptr<const Expression>(rate));
+GreaterThan* NewGreaterThan(std::unique_ptr<const Expression>&& expr1,
+                            std::unique_ptr<const Expression>&& expr2) {
+  return new GreaterThan(std::move(expr1), std::move(expr2));
 }
 
-const Distribution* NewWeibull(const Expression* scale,
-                               const Expression* shape) {
-  return Weibull::make(std::unique_ptr<const Expression>(scale),
-                       std::unique_ptr<const Expression>(shape));
+Equality* NewEquality(std::unique_ptr<const Expression>&& expr1,
+                      std::unique_ptr<const Expression>&& expr2) {
+  return new Equality(std::move(expr1), std::move(expr2));
 }
 
-const Lognormal* NewLognormal(const Expression* scale,
-                               const Expression* shape) {
-  return Lognormal::make(std::unique_ptr<const Expression>(scale),
-                         std::unique_ptr<const Expression>(shape));
+Inequality* NewInequality(std::unique_ptr<const Expression>&& expr1,
+                          std::unique_ptr<const Expression>&& expr2) {
+  return new Inequality(std::move(expr1), std::move(expr2));
 }
 
-const Uniform* NewUniform(const Expression* low, const Expression* high) {
-  return Uniform::make(std::unique_ptr<const Expression>(low),
-                       std::unique_ptr<const Expression>(high));
+const Exponential* NewExponential(std::unique_ptr<const Expression>&& rate) {
+  return Exponential::make(std::move(rate));
+}
+
+const Distribution* NewWeibull(std::unique_ptr<const Expression>&& scale,
+                               std::unique_ptr<const Expression>&& shape) {
+  return Weibull::make(std::move(scale), std::move(shape));
+}
+
+const Lognormal* NewLognormal(std::unique_ptr<const Expression>&& scale,
+                              std::unique_ptr<const Expression>&& shape) {
+  return Lognormal::make(std::move(scale), std::move(shape));
+}
+
+const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
+                          std::unique_ptr<const Expression>&& high) {
+  return Uniform::make(std::move(low), std::move(high));
 }
 
 }  // namespace
@@ -246,10 +294,10 @@ const Uniform* NewUniform(const Expression* low, const Expression* high) {
 %token STOCHASTIC CTMC
 %token CONST_TOKEN INT_TOKEN DOUBLE RATE GLOBAL INIT
 %token TRUE_TOKEN FALSE_TOKEN
-%token EXP
+%token EXP FUNC
 %token REWARDS ENDREWARDS
 %token MODULE ENDMODULE
-%token PNAME NAME LABEL_NAME NUMBER
+%token PNAME IDENTIFIER LABEL_NAME NUMBER
 %token ARROW DOTDOT
 %token ILLEGAL_TOKEN
 
@@ -271,6 +319,8 @@ const Uniform* NewUniform(const Expression* low, const Expression* high) {
   int nat;
   const std::string* str;
   const TypedValue* num;
+  Function function;
+  PointerVector<const Expression>* arguments;
 }
 
 %type <synch> synchronization
@@ -280,8 +330,12 @@ const Uniform* NewUniform(const Expression* low, const Expression* high) {
 %type <expr> expr rate_expr const_rate_expr const_expr csl_expr
 %type <range> range
 %type <nat> integer
-%type <str> PNAME NAME
+%type <str> PNAME IDENTIFIER
 %type <num> NUMBER
+%type <function> function
+%type <arguments> arguments
+
+%destructor { delete $$; } <arguments>
 
 %%
 
@@ -311,18 +365,25 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST_TOKEN NAME ';' { declare_constant($2, nullptr); }
-            | CONST_TOKEN NAME '=' const_expr ';' { declare_constant($2, $4); }
-            | CONST_TOKEN INT_TOKEN NAME ';' { declare_constant($3, nullptr); }
-            | CONST_TOKEN INT_TOKEN NAME '=' const_expr ';'
+declaration : CONST_TOKEN IDENTIFIER ';'
+                { declare_constant($2, nullptr); }
+            | CONST_TOKEN IDENTIFIER '=' const_expr ';'
+                { declare_constant($2, $4); }
+            | CONST_TOKEN INT_TOKEN IDENTIFIER ';'
+                { declare_constant($3, nullptr); }
+            | CONST_TOKEN INT_TOKEN IDENTIFIER '=' const_expr ';'
                 { declare_constant($3, $5); }
-            | RATE NAME ';' { declare_rate($2, nullptr); }
-            | RATE NAME '=' const_rate_expr ';' { declare_rate($2, $4); }
-            | CONST_TOKEN DOUBLE NAME ';' { declare_rate($3, nullptr); }
-            | CONST_TOKEN DOUBLE NAME '=' const_rate_expr ';'
+            | RATE IDENTIFIER ';'
+                { declare_rate($2, nullptr); }
+            | RATE IDENTIFIER '=' const_rate_expr ';'
+                { declare_rate($2, $4); }
+            | CONST_TOKEN DOUBLE IDENTIFIER ';'
+                { declare_rate($3, nullptr); }
+            | CONST_TOKEN DOUBLE IDENTIFIER '=' const_rate_expr ';'
                 { declare_rate($3, $5); }
-            | GLOBAL NAME ':' range ';' { declare_variable($2, $4, nullptr); }
-            | GLOBAL NAME ':' range INIT const_expr ';'
+            | GLOBAL IDENTIFIER ':' range ';'
+                { declare_variable($2, $4, nullptr); }
+            | GLOBAL IDENTIFIER ':' range INIT const_expr ';'
                 { declare_variable($2, $4, $6); }
             ;
 
@@ -334,9 +395,10 @@ modules : /* empty */
         | modules module_decl
         ;
 
-module_decl : MODULE NAME { prepare_module($2); } variables commands ENDMODULE
+module_decl : MODULE IDENTIFIER { prepare_module($2); } variables commands
+              ENDMODULE
                 { add_module(); }
-            | MODULE NAME '=' NAME '[' substitutions ']' ENDMODULE
+            | MODULE IDENTIFIER '=' IDENTIFIER '[' substitutions ']' ENDMODULE
                 { add_module($2, $4); }
             ;
 
@@ -348,15 +410,15 @@ subst_list : subst
            | subst_list ',' subst
            ;
 
-subst : NAME '=' NAME { add_substitution($1, $3); }
+subst : IDENTIFIER '=' IDENTIFIER { add_substitution($1, $3); }
       ;
 
 variables : /* empty */
           | variables variable_decl
           ;
 
-variable_decl : NAME ':' range ';' { declare_variable($1, $3, nullptr); }
-              | NAME ':' range INIT const_expr ';'
+variable_decl : IDENTIFIER ':' range ';' { declare_variable($1, $3, nullptr); }
+              | IDENTIFIER ':' range INIT const_expr ';'
                   { declare_variable($1, $3, $5); }
               ;
 
@@ -369,7 +431,7 @@ command : synchronization formula ARROW distribution ':'
         ;
 
 synchronization : '[' ']' { $$ = 0; }
-                | '[' NAME ']' { $$ = synchronization_value($2); }
+                | '[' IDENTIFIER ']' { $$ = synchronization_value($2); }
                 ;
 
 update : PNAME '=' expr { add_update($1, $3); }
@@ -401,7 +463,7 @@ state_reward : formula ':' rate_expr ';'
                  { delete $1; delete $3; }
              ;
 
-transition_reward : '[' NAME ']' formula ':' rate_expr ';'
+transition_reward : '[' IDENTIFIER ']' formula ':' rate_expr ';'
                       { delete $2; delete $4; delete $6; }
                   ;
 
@@ -414,12 +476,18 @@ formula : TRUE_TOKEN { $$ = new Conjunction(); }
         | formula '&' formula { $$ = make_conjunction($1, $3); }
         | formula '|' formula { $$ = make_disjunction($1, $3); }
         | '!' formula { $$ = new Negation($2); }
-        | expr '<' expr { $$ = NewLessThan($1, $3); }
-        | expr LTE expr { $$ = NewLessThanOrEqual($1, $3); }
-        | expr GTE expr { $$ = NewGreaterThanOrEqual($1, $3); }
-        | expr '>' expr { $$ = NewGreaterThan($1, $3); }
-        | expr '=' expr %prec EQ { $$ = NewEquality($1, $3); }
-        | expr NEQ expr { $$ = NewInequality($1, $3); }
+        | expr '<' expr
+            { $$ = NewLessThan(MakeUnique($1), MakeUnique($3)); }
+        | expr LTE expr
+            { $$ = NewLessThanOrEqual(MakeUnique($1), MakeUnique($3)); }
+        | expr GTE expr
+            { $$ = NewGreaterThanOrEqual(MakeUnique($1), MakeUnique($3)); }
+        | expr '>' expr
+            { $$ = NewGreaterThan(MakeUnique($1), MakeUnique($3)); }
+        | expr '=' expr %prec EQ
+            { $$ = NewEquality(MakeUnique($1), MakeUnique($3)); }
+        | expr NEQ expr
+            { $$ = NewInequality(MakeUnique($1), MakeUnique($3)); }
         | '(' formula ')' { $$ = $2; }
         ;
 
@@ -427,55 +495,80 @@ formula : TRUE_TOKEN { $$ = new Conjunction(); }
 /* ====================================================================== */
 /* Distributions. */
 
-distribution : rate_expr { $$ = NewExponential($1); }
-             | EXP '(' rate_expr ')' { $$ = NewExponential($3); }
+distribution : rate_expr
+                 { $$ = NewExponential(MakeUnique($1)); }
+             | EXP '(' rate_expr ')'
+                 { $$ = NewExponential(MakeUnique($3)); }
              | 'W' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = NewWeibull($3, $5); }
+                 { $$ = NewWeibull(MakeUnique($3), MakeUnique($5)); }
              | 'L' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = NewLognormal($3, $5); }
+                 { $$ = NewLognormal(MakeUnique($3), MakeUnique($5)); }
              | 'U' '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = NewUniform($3, $5); }
+                 { $$ = NewUniform(MakeUnique($3), MakeUnique($5)); }
              ;
 
 /* ====================================================================== */
 /* Expressions. */
 
-expr : integer { $$ = make_literal($1); }
-     | NAME { $$ = find_variable($1); }
+expr : integer
+         { $$ = make_literal($1); }
+     | IDENTIFIER
+         { $$ = find_variable($1); }
+     | function '(' arguments ')'
+         { $$ = NewFunctionCall($1, MakeUnique($3)); }
+     | FUNC '(' function ',' arguments ')'
+         { $$ = NewFunctionCall($3, MakeUnique($5)); }
      | '-' expr %prec UMINUS
-         { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
+         { $$ = NewNegate(MakeUnique($2)); }
      | expr '+' expr
-         { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
+         { $$ = NewPlus(MakeUnique($1), MakeUnique($3)); }
      | expr '-' expr
-         { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
+         { $$ = NewMinus(MakeUnique($1), MakeUnique($3)); }
      | expr '*' expr
-         { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
-     | '(' expr ')' { $$ = $2; }
+         { $$ = NewMultiply(MakeUnique($1), MakeUnique($3)); }
+     | '(' expr ')'
+         { $$ = $2; }
      ;
 
-rate_expr : NUMBER { $$ = make_literal($1); }
-          | NAME { $$ = find_rate_or_variable($1); }
+rate_expr : NUMBER
+              { $$ = make_literal($1); }
+          | IDENTIFIER
+              { $$ = find_rate_or_variable($1); }
           | '-' rate_expr %prec UMINUS
-              { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
+              { $$ = NewNegate(MakeUnique($2)); }
           | rate_expr '+' rate_expr
-              { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
+              { $$ = NewPlus(MakeUnique($1), MakeUnique($3)); }
           | rate_expr '-' rate_expr
-              { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
+              { $$ = NewMinus(MakeUnique($1), MakeUnique($3)); }
           | rate_expr '*' rate_expr
-              { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
+              { $$ = NewMultiply(MakeUnique($1), MakeUnique($3)); }
           | rate_expr '/' rate_expr
-              { $$ = NewBinaryOperation(BinaryOperator::DIVIDE, $1, $3); }
-          | '(' rate_expr ')' { $$ = $2; }
+              { $$ = NewDivide(MakeUnique($1), MakeUnique($3)); }
+          | '(' rate_expr ')'
+              { $$ = $2; }
           ;
 
-const_rate_expr : NUMBER { $$ = make_literal($1); }
-                | NAME { $$ = find_rate($1); }
+const_rate_expr : NUMBER
+                    { $$ = make_literal($1); }
+                | IDENTIFIER
+                    { $$ = find_rate($1); }
                 | const_rate_expr '*' const_rate_expr
-                    { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
+                    { $$ = NewMultiply(MakeUnique($1), MakeUnique($3)); }
                 | const_rate_expr '/' const_rate_expr
-                    { $$ = NewBinaryOperation(BinaryOperator::DIVIDE, $1, $3); }
-                | '(' const_rate_expr ')' { $$ = $2; }
+                    { $$ = NewDivide(MakeUnique($1), MakeUnique($3)); }
+                | '(' const_rate_expr ')'
+                    { $$ = $2; }
                 ;
+
+function : IDENTIFIER
+             { $$ = MakeFunction(MakeUnique($1)); }
+         ;
+
+arguments : expr
+              { $$ = new PointerVector<const Expression>(MakeUnique($1)); }
+          | arguments ',' expr
+              { $$ = $1; $$->push_back(MakeUnique($3)); }
+          ;
 
 
 /* ====================================================================== */
@@ -484,17 +577,20 @@ const_rate_expr : NUMBER { $$ = make_literal($1); }
 range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
       ;
 
-const_expr : integer { $$ = make_literal($1); }
-           | NAME { $$ = find_constant($1); }
+const_expr : integer
+               { $$ = make_literal($1); }
+           | IDENTIFIER
+               { $$ = find_constant($1); }
            | '-' const_expr %prec UMINUS
-               { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
+               { $$ = NewNegate(MakeUnique($2)); }
            | const_expr '+' const_expr
-               { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
+               { $$ = NewPlus(MakeUnique($1), MakeUnique($3)); }
            | const_expr '-' const_expr
-               { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
+               { $$ = NewMinus(MakeUnique($1), MakeUnique($3)); }
            | const_expr '*' const_expr
-               { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
-           | '(' const_expr ')' { $$ = $2; }
+               { $$ = NewMultiply(MakeUnique($1), MakeUnique($3)); }
+           | '(' const_expr ')'
+               { $$ = $2; }
 	   ;
 
 integer : NUMBER { $$ = integer_value($1); }
@@ -523,13 +619,20 @@ csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
             | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
             | csl_formula '|' csl_formula { $$ = make_disjunction($1, $3); }
             | '!' csl_formula { $$ = new Negation($2); }
-            | csl_expr '<' csl_expr { $$ = NewLessThan($1, $3); }
-            | csl_expr LTE csl_expr { $$ = NewLessThanOrEqual($1, $3); }
-            | csl_expr GTE csl_expr { $$ = NewGreaterThanOrEqual($1, $3); }
-            | csl_expr '>' csl_expr { $$ = NewGreaterThan($1, $3); }
-            | csl_expr '=' csl_expr %prec EQ { $$ = NewEquality($1, $3); }
-            | csl_expr NEQ csl_expr { $$ = NewInequality($1, $3); }
-            | '(' csl_formula ')' { $$ = $2; }
+            | csl_expr '<' csl_expr
+                { $$ = NewLessThan(MakeUnique($1), MakeUnique($3)); }
+            | csl_expr LTE csl_expr
+                { $$ = NewLessThanOrEqual(MakeUnique($1), MakeUnique($3)); }
+            | csl_expr GTE csl_expr
+                { $$ = NewGreaterThanOrEqual(MakeUnique($1), MakeUnique($3)); }
+            | csl_expr '>' csl_expr
+                { $$ = NewGreaterThan(MakeUnique($1), MakeUnique($3)); }
+            | csl_expr '=' csl_expr %prec EQ
+                { $$ = NewEquality(MakeUnique($1), MakeUnique($3)); }
+            | csl_expr NEQ csl_expr
+                { $$ = NewInequality(MakeUnique($1), MakeUnique($3)); }
+            | '(' csl_formula ')'
+                { $$ = $2; }
             ;
 
 path_formula : csl_formula 'U' LTE NUMBER csl_formula
@@ -539,19 +642,21 @@ path_formula : csl_formula 'U' LTE NUMBER csl_formula
 //             | 'X' csl_formula
              ;
 
-csl_expr : integer { $$ = make_literal($1); }
-         | NAME { $$ = value_or_variable($1); }
+csl_expr : integer
+             { $$ = make_literal($1); }
+         | IDENTIFIER
+             { $$ = value_or_variable($1); }
          | '-' csl_expr %prec UMINUS
-             { $$ = NewUnaryOperation(UnaryOperator::NEGATE, $2); }
+             { $$ = NewNegate(MakeUnique($2)); }
          | csl_expr '+' csl_expr
-             { $$ = NewBinaryOperation(BinaryOperator::PLUS, $1, $3); }
+             { $$ = NewPlus(MakeUnique($1), MakeUnique($3)); }
          | csl_expr '-' csl_expr
-             { $$ = NewBinaryOperation(BinaryOperator::MINUS, $1, $3); }
+             { $$ = NewMinus(MakeUnique($1), MakeUnique($3)); }
          | csl_expr '*' csl_expr
-             { $$ = NewBinaryOperation(BinaryOperator::MULTIPLY, $1, $3); }
-         | '(' csl_expr ')' { $$ = $2; }
+             { $$ = NewMultiply(MakeUnique($1), MakeUnique($3)); }
+         | '(' csl_expr ')'
+             { $$ = $2; }
          ;
-
 
 %%
 
@@ -592,7 +697,49 @@ void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
 
 void ConstantExpressionEvaluator::DoVisitFunctionCall(
     const FunctionCall& expr) {
-  // TODO(hlsyounes): implement.
+  std::vector<TypedValue> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(value_);
+  }
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      LOG(FATAL) << "bad function call";
+    case Function::MIN:
+      CHECK(!arguments.empty());
+      value_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        value_ = std::min(value_, arguments[i]);
+      }
+      break;
+    case Function::MAX:
+      CHECK(!arguments.empty());
+      value_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        value_ = std::max(value_, arguments[i]);
+      }
+      break;
+    case Function::FLOOR:
+      CHECK(arguments.size() == 1);
+      value_ = floor(arguments[0]);
+      break;
+    case Function::CEIL:
+      CHECK(arguments.size() == 2);
+      value_ = ceil(arguments[0]);
+      break;
+    case Function::POW:
+      CHECK(arguments.size() == 2);
+      value_ = pow(arguments[0], arguments[1]);
+      break;
+    case Function::LOG:
+      CHECK(arguments.size() == 2);
+      value_ = log(arguments[0]) / log(arguments[1]);
+      break;
+    case Function::MOD:
+      CHECK(arguments.size() == 2);
+      value_ = arguments[0] % arguments[1];
+      break;
+  }
 }
 
 void ConstantExpressionEvaluator::DoVisitUnaryOperation(

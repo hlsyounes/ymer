@@ -342,7 +342,163 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
-  // TODO(hlsyounes): implement.
+  std::vector<Type> argument_types;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    ++dst_;
+    argument_types.push_back(type_);
+  }
+  dst_ -= argument_types.size();
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      errors_->push_back("unknown function call");
+      break;
+    case Function::MIN:
+      if (argument_types.empty()) {
+        errors_->push_back(StrCat(expr.function(), " applied to 0 arguments"));
+      } else {
+        type_ = argument_types[0];
+        for (size_t i = 1; i < argument_types.size(); ++i) {
+          if (type_ != argument_types[i]) {
+            if (type_ == Type::BOOL || argument_types[i] == Type::BOOL) {
+              errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                        " applied to ", type_, " and ",
+                                        argument_types[i]));
+            }
+            if (type_ != Type::DOUBLE && argument_types[i] == Type::DOUBLE) {
+              operations_.push_back(Operation::MakeI2D(dst_));
+              type_ = Type::DOUBLE;
+            }
+            if (argument_types[i] != Type::DOUBLE && type_ == Type::DOUBLE) {
+              operations_.push_back(Operation::MakeI2D(dst_ + i));
+            }
+          }
+          if (type_ == Type::DOUBLE) {
+            operations_.push_back(Operation::MakeDMIN(dst_, dst_ + i));
+          } else {
+            operations_.push_back(Operation::MakeIMIN(dst_, dst_ + i));
+          }
+        }
+      }
+      break;
+    case Function::MAX:
+      if (argument_types.empty()) {
+        errors_->push_back(StrCat(expr.function(), " applied to 0 arguments"));
+      } else {
+        type_ = argument_types[0];
+        for (size_t i = 1; i < argument_types.size(); ++i) {
+          if (type_ != argument_types[i]) {
+            if (type_ == Type::BOOL || argument_types[i] == Type::BOOL) {
+              errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                        " applied to ", type_, " and ",
+                                        argument_types[i]));
+            }
+            if (type_ != Type::DOUBLE && argument_types[i] == Type::DOUBLE) {
+              operations_.push_back(Operation::MakeI2D(dst_));
+              type_ = Type::DOUBLE;
+            }
+            if (argument_types[i] != Type::DOUBLE && type_ == Type::DOUBLE) {
+              operations_.push_back(Operation::MakeI2D(dst_ + i));
+            }
+          }
+          if (type_ == Type::DOUBLE) {
+            operations_.push_back(Operation::MakeDMAX(dst_, dst_ + i));
+          } else {
+            operations_.push_back(Operation::MakeIMAX(dst_, dst_ + i));
+          }
+        }
+      }
+      break;
+    case Function::FLOOR:
+      if (argument_types.size() != 1) {
+        errors_->push_back(StrCat(expr.function(), " applied to ",
+                                  argument_types.size(), " arguments"));
+      } else {
+        if (argument_types[0] == Type::BOOL) {
+          errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                    " applied to ", Type::BOOL));
+        }
+        if (argument_types[0] != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_));
+        }
+        operations_.push_back(Operation::MakeFLOOR(dst_));
+        type_ = Type::INT;
+      }
+      break;
+    case Function::CEIL:
+      if (argument_types.size() != 1) {
+        errors_->push_back(StrCat(expr.function(), " applied to ",
+                                  argument_types.size(), " arguments"));
+      } else {
+        if (argument_types[0] == Type::BOOL) {
+          errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                    " applied to ", Type::BOOL));
+        }
+        if (argument_types[0] != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_));
+        }
+        operations_.push_back(Operation::MakeCEIL(dst_));
+        type_ = Type::INT;
+      }
+      break;
+    case Function::POW:
+      if (argument_types.size() != 2) {
+        errors_->push_back(StrCat(expr.function(), " applied to ",
+                                  argument_types.size(), " arguments"));
+      } else {
+        if (argument_types[0] == Type::BOOL
+            || argument_types[1] == Type::BOOL) {
+          errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                    " applied to ", Type::BOOL));
+        }
+        if (argument_types[0] != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_));
+        }
+        if (argument_types[1] != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_ + 1));
+        }
+        operations_.push_back(Operation::MakePOW(dst_, dst_ + 1));
+        type_ = Type::DOUBLE;
+      }
+      break;
+    case Function::LOG:
+      if (argument_types.size() != 2) {
+        errors_->push_back(StrCat(expr.function(), " applied to ",
+                                  argument_types.size(), " arguments"));
+      } else {
+        if (argument_types[0] == Type::BOOL
+            || argument_types[1] == Type::BOOL) {
+          errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                    " applied to ", Type::BOOL));
+        }
+        if (argument_types[0] != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_));
+        }
+        if (argument_types[1] != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_ + 1));
+        }
+        operations_.push_back(Operation::MakeLOG(dst_, dst_ + 1));
+        type_ = Type::DOUBLE;
+      }
+      break;
+    case Function::MOD:
+      if (argument_types.size() != 2) {
+        errors_->push_back(StrCat(expr.function(), " applied to ",
+                                  argument_types.size(), " arguments"));
+      } else {
+        if (argument_types[0] != Type::INT) {
+          errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                    " applied to ", argument_types[0]));
+        }
+        if (argument_types[1] != Type::INT) {
+          errors_->push_back(StrCat("type mismatch; ", expr.function(),
+                                    " applied to ", argument_types[1]));
+        }
+        operations_.push_back(Operation::MakeMOD(dst_, dst_ + 1));
+        type_ = Type::INT;
+      }
+      break;
+  }
 }
 
 void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {

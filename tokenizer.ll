@@ -24,6 +24,7 @@
  */
 %{
 #include <config.h>
+#include "src/expression.h"
 #include "src/typed-value.h"
 #include <cstdlib>
 #include <stdexcept>
@@ -32,7 +33,6 @@
 struct StateFormula;
 struct PathFormula;
 struct Distribution;
-struct Expression;
 /* An integer range (duplicated from parser.yy). */
 struct Range { int l, h; };
 
@@ -71,9 +71,10 @@ endrewards              return ENDREWARDS;
 true			return TRUE_TOKEN;
 false			return FALSE_TOKEN;
 Exp			return EXP;
+func                    return FUNC;
 [WLPUX]			return yytext[0];
 {IDENT}\'		return make_string(yytext, PNAME);
-{IDENT}			return make_string(yytext, NAME);
+{IDENT}			return make_string(yytext, IDENTIFIER);
 \"{IDENT}\"             return LABEL_NAME;
 [0-9]*[./]?[0-9]+	return make_number(yytext);
 ->			return ARROW;

@@ -50,6 +50,12 @@ class PointerVector {
     friend class PointerVector;
   };
 
+  PointerVector() {}
+  template <typename... Args>
+  PointerVector(Args&&... args) {
+    Init(std::forward<Args>(args)...);
+  }
+
   size_type size() const { return elements_.size(); }
   Iterator begin() const { return Iterator(elements_.begin()); }
   Iterator end() const { return Iterator(elements_.end()); }
@@ -59,6 +65,13 @@ class PointerVector {
   }
 
  private:
+  void Init() {}
+  template <typename... Args>
+  void Init(std::unique_ptr<T>&& element, Args&&... args) {
+    push_back(std::move(element));
+    Init(std::forward<Args>(args)...);
+  }
+
   std::vector<std::unique_ptr<T>> elements_;
 };
 
