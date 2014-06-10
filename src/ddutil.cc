@@ -158,6 +158,10 @@ BDD::BDD(DdManager* manager, DdNode* node)
     : DecisionDiagram(manager, node) {
 }
 
+BDD::BDD(const ADD& dd)
+    : DecisionDiagram(dd.manager(), (!dd.Interval(0, 0)).node()) {
+}
+
 bool BDD::Value() const {
   CHECK(IsConstant());
   return NodeValue<bool>(node());

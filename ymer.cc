@@ -295,6 +295,7 @@ class ExpressionCompiler
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
   virtual void DoVisitConjunction(const Conjunction& formula);
   virtual void DoVisitDisjunction(const Disjunction& formula);
   virtual void DoVisitNegation(const Negation& formula);
@@ -567,6 +568,43 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
   type_ = type1;
 }
 
+void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  int iffalse_pos = operations_.size();
+  operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
+  if (type_ != Type::BOOL) {
+    errors_->push_back(StrCat("type mismatch; expecting condition of type ",
+                              Type::BOOL, "; found ", type_));
+  }
+  ++dst_;
+  expr.if_branch().Accept(this);
+  Type if_type = type_;
+  size_t if_end = operations_.size();
+  ++dst_;
+  expr.else_branch().Accept(this);
+  Type else_type = type_;
+  dst_ -= 2;
+  if (!(if_type == else_type ||
+        (if_type == Type::INT && else_type == Type::DOUBLE) ||
+        (else_type == Type::INT && if_type == Type::DOUBLE))) {
+    errors_->push_back(StrCat("incompatible types for condition branches; ",
+                              if_type, " and ", else_type));
+  }
+  if (if_type != Type::DOUBLE && else_type == Type::DOUBLE) {
+    operations_.insert(operations_.begin() + if_end,
+                       Operation::MakeI2D(dst_ + 1));
+    ++if_end;
+    if_type = Type::DOUBLE;
+  }
+  if (else_type != Type::DOUBLE && if_type == Type::DOUBLE) {
+    operations_.push_back(Operation::MakeI2D(dst_ + 2));
+  }
+  operations_.insert(operations_.begin() + if_end,
+                     Operation::MakeGOTO(operations_.size()));
+  operations_[iffalse_pos] = Operation::MakeIFFALSE(dst_, if_end + 1);
+  type_ = if_type;
+}
+
 void ExpressionCompiler::DoVisitConjunction(const Conjunction& formula) {
   size_t n = formula.conjuncts().size();
   for (size_t i = 0; i < n; ++i) {
@@ -649,7 +687,7 @@ void ExpressionCompiler::DoVisitComparison(const Comparison& formula) {
   --dst_;
   if (!(type1 == type2 ||
         (type1 == Type::INT && type2 == Type::DOUBLE) ||
-        (type2 == Type::INT && type2 == Type::DOUBLE))) {
+        (type2 == Type::INT && type1 == Type::DOUBLE))) {
     errors_->push_back(StrCat("incompatible types for binary operator ",
                               formula.op(), "; ", type1, " and ", type2));
   }
@@ -959,7 +997,7 @@ PropertyCompiler::PropertyCompiler(
 
 void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
   size_t n = formula.conjuncts().size();
-  PointerVector<const CompiledProperty> operands;
+  UniquePtrVector<const CompiledProperty> operands;
   for (size_t i = 0; i < n; ++i) {
     const StateFormula& operand = *formula.conjuncts()[i];
     operand.Accept(this);
@@ -970,7 +1008,7 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
 
 void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
   size_t n = formula.disjuncts().size();
-  PointerVector<const CompiledProperty> operands;
+  UniquePtrVector<const CompiledProperty> operands;
   for (size_t i = 0; i < n; ++i) {
     const StateFormula& operand = *formula.disjuncts()[i];
     operand.Accept(this);
@@ -986,7 +1024,7 @@ void PropertyCompiler::DoVisitNegation(const Negation& formula) {
 }
 
 void PropertyCompiler::DoVisitImplication(const Implication& formula) {
-  PointerVector<const CompiledProperty> operands;
+  UniquePtrVector<const CompiledProperty> operands;
   formula.antecedent().Accept(this);
   operands.push_back(std::move(property_));
   formula.consequent().Accept(this);

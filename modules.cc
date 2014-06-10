@@ -122,6 +122,7 @@ class ExpressionConstantSubstituter : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
   std::unique_ptr<const Expression> expr_;
@@ -262,7 +263,7 @@ void ExpressionConstantSubstituter::DoVisitIdentifier(const Identifier& expr) {
 
 void ExpressionConstantSubstituter::DoVisitFunctionCall(
     const FunctionCall& expr) {
-  PointerVector<const Expression> arguments;
+  UniquePtrVector<const Expression> arguments;
   for (const Expression& argument : expr.arguments()) {
     argument.Accept(this);
     arguments.push_back(release_expr());
@@ -282,6 +283,17 @@ void ExpressionConstantSubstituter::DoVisitBinaryOperation(
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
   expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
+}
+
+void ExpressionConstantSubstituter::DoVisitConditional(
+    const Conditional& expr) {
+  expr.condition().Accept(this);
+  std::unique_ptr<const Expression> condition = release_expr();
+  expr.if_branch().Accept(this);
+  std::unique_ptr<const Expression> if_branch = release_expr();
+  expr.else_branch().Accept(this);
+  expr_ = Conditional::New(std::move(condition),
+                           std::move(if_branch), release_expr());
 }
 
 StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {

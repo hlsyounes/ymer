@@ -24,7 +24,7 @@
 #include <set>
 #include <string>
 
-#include "pointer-vector.h"
+#include "unique-ptr-vector.h"
 #include "typed-value.h"
 
 #include "glog/logging.h"
@@ -48,13 +48,17 @@ class ExpressionPrinter : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
+
+  void CallAccept(const Expression& expr);
 
   std::ostream* os_;
   std::set<BinaryOperator> need_parentheses_;
+  int level_;
 };
 
 ExpressionPrinter::ExpressionPrinter(std::ostream* os)
-    : os_(os) {
+    : os_(os), level_(0) {
 }
 
 void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
@@ -66,6 +70,8 @@ void ExpressionPrinter::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
+  std::set<BinaryOperator> need_parentheses;
+  std::swap(need_parentheses_, need_parentheses);
   *os_ << expr.function() << '(';
   bool first = true;
   for (const Expression& argument : expr.arguments()) {
@@ -74,9 +80,10 @@ void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
     } else {
       *os_ << ", ";
     }
-    *os_ << argument;
+    CallAccept(argument);
   }
   *os_ << ')';
+  std::swap(need_parentheses_, need_parentheses);
 }
 
 void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
@@ -87,7 +94,7 @@ void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
   need_parentheses_.insert(BinaryOperator::MINUS);
   need_parentheses_.insert(BinaryOperator::MULTIPLY);
   need_parentheses_.insert(BinaryOperator::DIVIDE);
-  expr.operand().Accept(this);
+  CallAccept(expr.operand());
   std::swap(need_parentheses_, need_parentheses);
 }
 
@@ -103,7 +110,7 @@ void ExpressionPrinter::DoVisitBinaryOperation(const BinaryOperation& expr) {
     need_parentheses_.insert(BinaryOperator::PLUS);
     need_parentheses_.insert(BinaryOperator::MINUS);
   }
-  expr.operand1().Accept(this);
+  CallAccept(expr.operand1());
   *os_ << expr.op();
   need_parentheses_.clear();
   if (expr.op() != BinaryOperator::PLUS) {
@@ -114,11 +121,34 @@ void ExpressionPrinter::DoVisitBinaryOperation(const BinaryOperation& expr) {
     need_parentheses_.insert(BinaryOperator::MULTIPLY);
     need_parentheses_.insert(BinaryOperator::DIVIDE);
   }
-  expr.operand2().Accept(this);
+  CallAccept(expr.operand2());
   if (outer) {
     *os_ << ')';
   }
   std::swap(need_parentheses_, need_parentheses);
+}
+
+void ExpressionPrinter::DoVisitConditional(const Conditional& expr) {
+  std::set<BinaryOperator> need_parentheses;
+  std::swap(need_parentheses_, need_parentheses);
+  if (level_ > 0) {
+    *os_ << '(';
+  }
+  CallAccept(expr.condition());
+  *os_ << " ? ";
+  CallAccept(expr.if_branch());
+  *os_ << " : ";
+  CallAccept(expr.else_branch());
+  if (level_ > 0) {
+    *os_ << ')';
+  }
+  std::swap(need_parentheses_, need_parentheses);
+}
+
+void ExpressionPrinter::CallAccept(const Expression& expr) {
+  ++level_;
+  expr.Accept(this);
+  --level_;
 }
 
 }  // namespace
@@ -180,14 +210,14 @@ std::ostream& operator<<(std::ostream& os, Function function) {
 }
 
 FunctionCall::FunctionCall(Function function,
-                           PointerVector<const Expression>&& arguments)
+                           UniquePtrVector<const Expression>&& arguments)
     : function_(function), arguments_(std::move(arguments)) {
 }
 
 FunctionCall::~FunctionCall() = default;
 
 std::unique_ptr<const FunctionCall> FunctionCall::New(
-    Function function, PointerVector<const Expression>&& arguments) {
+    Function function, UniquePtrVector<const Expression>&& arguments) {
   return std::unique_ptr<const FunctionCall>(new FunctionCall(
       function, std::move(arguments)));
 }
@@ -255,6 +285,27 @@ void BinaryOperation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitBinaryOperation(*this);
 }
 
+Conditional::Conditional(std::unique_ptr<const Expression>&& condition,
+                         std::unique_ptr<const Expression>&& if_branch,
+                         std::unique_ptr<const Expression>&& else_branch)
+    : condition_(std::move(condition)),
+      if_branch_(std::move(if_branch)), else_branch_(std::move(else_branch)) {
+}
+
+Conditional::~Conditional() = default;
+
+std::unique_ptr<const Conditional> Conditional::New(
+    std::unique_ptr<const Expression>&& condition,
+    std::unique_ptr<const Expression>&& if_branch,
+    std::unique_ptr<const Expression>&& else_branch) {
+  return std::unique_ptr<const Conditional>(new Conditional(
+      std::move(condition), std::move(if_branch), std::move(else_branch)));
+}
+
+void Conditional::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitConditional(*this);
+}
+
 ExpressionVisitor::~ExpressionVisitor() = default;
 
 void ExpressionVisitor::VisitLiteral(const Literal& expr) {
@@ -275,4 +326,8 @@ void ExpressionVisitor::VisitUnaryOperation(const UnaryOperation& expr) {
 
 void ExpressionVisitor::VisitBinaryOperation(const BinaryOperation& expr) {
   DoVisitBinaryOperation(expr);
+}
+
+void ExpressionVisitor::VisitConditional(const Conditional& expr) {
+  DoVisitConditional(expr);
 }

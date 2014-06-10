@@ -19,8 +19,8 @@
 //
 // A vector class that takes ownership of its elements.
 
-#ifndef POINTER_VECTOR_H_
-#define POINTER_VECTOR_H_
+#ifndef UNIQUE_PTR_VECTOR_H_
+#define UNIQUE_PTR_VECTOR_H_
 
 #include <iterator>
 #include <memory>
@@ -28,7 +28,7 @@
 #include <vector>
 
 template <typename T>
-class PointerVector {
+class UniquePtrVector {
  public:
   typedef typename std::vector<std::unique_ptr<T>>::size_type size_type;
 
@@ -47,12 +47,12 @@ class PointerVector {
 
     typename std::vector<std::unique_ptr<T>>::const_iterator i_;
 
-    friend class PointerVector;
+    friend class UniquePtrVector;
   };
 
-  PointerVector() {}
+  UniquePtrVector() {}
   template <typename... Args>
-  PointerVector(Args&&... args) {
+  UniquePtrVector(Args&&... args) {
     Init(std::forward<Args>(args)...);
   }
 
@@ -75,4 +75,4 @@ class PointerVector {
   std::vector<std::unique_ptr<T>> elements_;
 };
 
-#endif  // POINTER_VECTOR_H_
+#endif  // UNIQUE_PTR_VECTOR_H_

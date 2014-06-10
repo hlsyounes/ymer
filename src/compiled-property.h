@@ -26,7 +26,7 @@
 #include <memory>
 
 #include "compiled-expression.h"
-#include "pointer-vector.h"
+#include "unique-ptr-vector.h"
 
 class CompiledPropertyVisitor;
 
@@ -97,18 +97,18 @@ class CompiledAndProperty : public CompiledProperty {
   virtual ~CompiledAndProperty();
 
   static std::unique_ptr<const CompiledProperty> Make(
-      PointerVector<const CompiledProperty>&& operands);
+      UniquePtrVector<const CompiledProperty>&& operands);
 
-  const PointerVector<const CompiledProperty>& operands() const {
+  const UniquePtrVector<const CompiledProperty>& operands() const {
     return operands_;
   }
 
  private:
-  CompiledAndProperty(PointerVector<const CompiledProperty>&& operands);
+  CompiledAndProperty(UniquePtrVector<const CompiledProperty>&& operands);
 
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
-  PointerVector<const CompiledProperty> operands_;
+  UniquePtrVector<const CompiledProperty> operands_;
 };
 
 // A compiled NOT property.
