@@ -199,7 +199,7 @@ Function MakeFunction(std::unique_ptr<const std::string>&& name) {
 
 const FunctionCall* NewFunctionCall(
     Function function,
-    std::unique_ptr<PointerVector<const Expression>>&& arguments) {
+    std::unique_ptr<UniquePtrVector<const Expression>>&& arguments) {
   return FunctionCall::New(function, std::move(*arguments)).release();
 }
 
@@ -320,7 +320,7 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
   const std::string* str;
   const TypedValue* num;
   Function function;
-  PointerVector<const Expression>* arguments;
+  UniquePtrVector<const Expression>* arguments;
 }
 
 %type <synch> synchronization
@@ -565,7 +565,7 @@ function : IDENTIFIER
          ;
 
 arguments : expr
-              { $$ = new PointerVector<const Expression>(MakeUnique($1)); }
+              { $$ = new UniquePtrVector<const Expression>(MakeUnique($1)); }
           | arguments ',' expr
               { $$ = $1; $$->push_back(MakeUnique($3)); }
           ;
@@ -675,6 +675,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
   TypedValue value_;
@@ -770,6 +771,15 @@ void ConstantExpressionEvaluator::DoVisitBinaryOperation(
     case BinaryOperator::DIVIDE:
       value_ = operand1 / value_;
       break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  if (value_.value<bool>()) {
+    expr.if_branch().Accept(this);
+  } else {
+    expr.else_branch().Accept(this);
   }
 }
 
@@ -1193,6 +1203,7 @@ class ExpressionIdentifierSubstituter : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
 
   std::map<std::string, std::string> substitutions_;
   std::unique_ptr<const Expression> expr_;
@@ -1350,7 +1361,7 @@ void ExpressionIdentifierSubstituter::DoVisitIdentifier(
 
 void ExpressionIdentifierSubstituter::DoVisitFunctionCall(
     const FunctionCall& expr) {
-  PointerVector<const Expression> arguments;
+  UniquePtrVector<const Expression> arguments;
   for (const Expression& argument : expr.arguments()) {
     argument.Accept(this);
     arguments.push_back(release_expr());
@@ -1370,6 +1381,17 @@ void ExpressionIdentifierSubstituter::DoVisitBinaryOperation(
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
   expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
+}
+
+void ExpressionIdentifierSubstituter::DoVisitConditional(
+    const Conditional& expr) {
+  expr.condition().Accept(this);
+  std::unique_ptr<const Expression> condition = release_expr();
+  expr.if_branch().Accept(this);
+  std::unique_ptr<const Expression> if_branch = release_expr();
+  expr.else_branch().Accept(this);
+  expr_ = Conditional::New(std::move(condition),
+                           std::move(if_branch), release_expr());
 }
 
 StateFormulaIdentifierSubstituter::StateFormulaIdentifierSubstituter(

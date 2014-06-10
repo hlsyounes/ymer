@@ -110,15 +110,15 @@ noinst_LTLIBRARIES += src/libtyped-value.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libtyped_value_la_LIBADD = glog/libglog.la
 
-# Pointer-vector library.
-noinst_LTLIBRARIES += src/libpointer-vector.la
-src_libpointer_vector_la_SOURCES = src/pointer-vector.h
+# Unique-ptr-vector library.
+noinst_LTLIBRARIES += src/libunique-ptr-vector.la
+src_libunique_ptr_vector_la_SOURCES = src/unique-ptr-vector.h
 
 # Expression library.
 noinst_LTLIBRARIES += src/libexpression.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
-src_libexpression_la_LIBADD = src/libtyped-value.la src/libpointer-vector.la \
-    glog/libglog.la
+src_libexpression_la_LIBADD = src/libtyped-value.la \
+    src/libunique-ptr-vector.la glog/libglog.la
 
 # Compiled expression library.
 noinst_LTLIBRARIES += src/libcompiled-expression.la
@@ -145,7 +145,7 @@ noinst_LTLIBRARIES += src/libcompiled-property.la
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
-    src/libpointer-vector.la
+    src/libunique-ptr-vector.la
 
 #
 # Ymer binaries.

@@ -21,7 +21,7 @@
 
 #include <utility>
 
-#include "pointer-vector.h"
+#include "unique-ptr-vector.h"
 
 CompiledProperty::CompiledProperty(bool is_probabilistic)
     : is_probabilistic_(is_probabilistic) {
@@ -146,7 +146,7 @@ std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p) {
 namespace {
 
 bool HasOneProbabilistic(
-    const PointerVector<const CompiledProperty>& operands) {
+    const UniquePtrVector<const CompiledProperty>& operands) {
   for (const CompiledProperty& operand : operands) {
     if (operand.is_probabilistic()) {
       return true;
@@ -158,7 +158,7 @@ bool HasOneProbabilistic(
 }  // namespace
 
 CompiledAndProperty::CompiledAndProperty(
-    PointerVector<const CompiledProperty>&& operands)
+    UniquePtrVector<const CompiledProperty>&& operands)
     : CompiledProperty(HasOneProbabilistic(operands)),
       operands_(std::move(operands)) {
 }
@@ -166,7 +166,7 @@ CompiledAndProperty::CompiledAndProperty(
 CompiledAndProperty::~CompiledAndProperty() = default;
 
 std::unique_ptr<const CompiledProperty> CompiledAndProperty::Make(
-    PointerVector<const CompiledProperty>&& operands) {
+    UniquePtrVector<const CompiledProperty>&& operands) {
   return std::unique_ptr<const CompiledProperty>(
       new CompiledAndProperty(std::move(operands)));
 }

@@ -40,6 +40,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
 
   TypedValue value_;
 };
@@ -131,6 +132,15 @@ void ConstantExpressionEvaluator::DoVisitBinaryOperation(
     case BinaryOperator::DIVIDE:
       value_ = operand1 / value_;
       break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  if (value_.value<bool>()) {
+    expr.if_branch().Accept(this);
+  } else {
+    expr.else_branch().Accept(this);
   }
 }
 

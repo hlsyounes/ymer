@@ -386,6 +386,7 @@ class ExpressionCopier : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
 
   std::unique_ptr<const Expression> expr_;
 };
@@ -535,7 +536,7 @@ void ExpressionCopier::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionCopier::DoVisitFunctionCall(const FunctionCall& expr) {
-  PointerVector<const Expression> arguments;
+  UniquePtrVector<const Expression> arguments;
   for (const Expression& argument : expr.arguments()) {
     argument.Accept(this);
     arguments.push_back(release_expr());
@@ -553,6 +554,16 @@ void ExpressionCopier::DoVisitBinaryOperation(const BinaryOperation& expr) {
   std::unique_ptr<const Expression> operand1 = release_expr();
   expr.operand2().Accept(this);
   expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
+}
+
+void ExpressionCopier::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  std::unique_ptr<const Expression> condition = release_expr();
+  expr.if_branch().Accept(this);
+  std::unique_ptr<const Expression> if_branch = release_expr();
+  expr.else_branch().Accept(this);
+  expr_ = Conditional::New(std::move(condition),
+                           std::move(if_branch), release_expr());
 }
 
 }  // namespace
@@ -1084,6 +1095,7 @@ class ExpressionCompiler : public ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr);
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
 
   const DecisionDiagramManager* manager_;
   const std::map<std::string, VariableProperties>* variable_properties_;
@@ -1184,6 +1196,15 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
       mtbdd_ = operand1 / mtbdd_;
       break;
   }
+}
+
+void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  BDD condition = BDD(mtbdd_);
+  expr.if_branch().Accept(this);
+  ADD if_branch = mtbdd_;
+  expr.else_branch().Accept(this);
+  mtbdd_ = Ite(condition, if_branch, mtbdd_);
 }
 
 }  // namespace

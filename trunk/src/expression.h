@@ -27,8 +27,8 @@
 #include <ostream>
 #include <string>
 
-#include "pointer-vector.h"
 #include "typed-value.h"
+#include "unique-ptr-vector.h"
 
 class ExpressionVisitor;
 
@@ -109,19 +109,20 @@ std::ostream& operator<<(std::ostream& os, Function function);
 class FunctionCall : public Expression {
  public:
   // Constructs a function call for the given function with the given arguments.
-  FunctionCall(Function function, PointerVector<const Expression>&& arguments);
+  explicit FunctionCall(Function function,
+                        UniquePtrVector<const Expression>&& arguments);
 
   virtual ~FunctionCall();
 
   // Factory method for function calls.
   static std::unique_ptr<const FunctionCall> New(
-      Function function, PointerVector<const Expression>&& arguments);
+      Function function, UniquePtrVector<const Expression>&& arguments);
 
   // Returns the function of this function call.
   Function function() const { return function_; }
 
   // Returns the arguments of this function call.
-  const PointerVector<const Expression>& arguments() const {
+  const UniquePtrVector<const Expression>& arguments() const {
     return arguments_;
   }
 
@@ -129,7 +130,7 @@ class FunctionCall : public Expression {
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
   Function function_;
-  PointerVector<const Expression> arguments_;
+  UniquePtrVector<const Expression> arguments_;
 };
 
 // Supported uniary operators.
@@ -144,7 +145,8 @@ std::ostream& operator<<(std::ostream& os, UnaryOperator op);
 class UnaryOperation : public Expression {
  public:
   // Constructs a unary operation with the given operator and operand.
-  UnaryOperation(UnaryOperator op, std::unique_ptr<const Expression>&& operand);
+  explicit UnaryOperation(UnaryOperator op,
+                          std::unique_ptr<const Expression>&& operand);
 
   virtual ~UnaryOperation();
 
@@ -177,9 +179,9 @@ std::ostream& operator<<(std::ostream& os, BinaryOperator op);
 class BinaryOperation : public Expression {
  public:
   // Constructs a binary operation with the given operator and operands.
-  BinaryOperation(BinaryOperator op,
-                  std::unique_ptr<const Expression>&& operand1,
-                  std::unique_ptr<const Expression>&& operand2);
+  explicit BinaryOperation(BinaryOperator op,
+                           std::unique_ptr<const Expression>&& operand1,
+                           std::unique_ptr<const Expression>&& operand2);
 
   virtual ~BinaryOperation();
 
@@ -206,6 +208,39 @@ private:
   std::unique_ptr<const Expression> operand2_;
 };
 
+// A conditional expression.
+class Conditional : public Expression {
+ public:
+  // Constructs a conditional with the given condition and branch expressions.
+  explicit Conditional(std::unique_ptr<const Expression>&& condition,
+                       std::unique_ptr<const Expression>&& if_branch,
+                       std::unique_ptr<const Expression>&& else_branch);
+
+  virtual ~Conditional();
+
+  // Factory method for conditional expressions.
+  static std::unique_ptr<const Conditional> New(
+      std::unique_ptr<const Expression>&& condition,
+      std::unique_ptr<const Expression>&& if_branch,
+      std::unique_ptr<const Expression>&& else_branch);
+
+  // Returns the condition for this conditional expression.
+  const Expression& condition() const { return *condition_; }
+
+  // Returns the if-branch for this conditional expression.
+  const Expression& if_branch() const { return *if_branch_; }
+
+  // Returns the else-branch for this conditional expression.
+  const Expression& else_branch() const { return *else_branch_; }
+
+ private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  std::unique_ptr<const Expression> condition_;
+  std::unique_ptr<const Expression> if_branch_;
+  std::unique_ptr<const Expression> else_branch_;
+};
+
 // Abstract base class for expression visitors.
 class ExpressionVisitor {
  public:
@@ -214,6 +249,7 @@ class ExpressionVisitor {
   void VisitFunctionCall(const FunctionCall& expr);
   void VisitUnaryOperation(const UnaryOperation& expr);
   void VisitBinaryOperation(const BinaryOperation& expr);
+  void VisitConditional(const Conditional& expr);
 
  protected:
   ~ExpressionVisitor();
@@ -224,6 +260,7 @@ class ExpressionVisitor {
   virtual void DoVisitFunctionCall(const FunctionCall& expr) = 0;
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr) = 0;
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr) = 0;
+  virtual void DoVisitConditional(const Conditional& expr) = 0;
 };
 
 #endif  // EXPRESSION_H_

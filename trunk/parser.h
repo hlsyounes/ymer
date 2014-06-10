@@ -119,7 +119,7 @@ typedef union YYSTYPE
   const std::string* str;
   const TypedValue* num;
   Function function;
-  PointerVector<const Expression>* arguments;
+  UniquePtrVector<const Expression>* arguments;
 
 
 

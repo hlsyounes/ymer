@@ -19,23 +19,23 @@
 
 #include "expression.h"
 
-#include "pointer-vector.h"
+#include "unique-ptr-vector.h"
 #include "strutil.h"
 
 #include "gtest/gtest.h"
 
 namespace {
 
-PointerVector<const Expression> MakeArguments(
+UniquePtrVector<const Expression> MakeArguments(
     std::unique_ptr<const Expression>&& argument) {
-  return PointerVector<const Expression>(std::move(argument));
+  return UniquePtrVector<const Expression>(std::move(argument));
 }
 
-PointerVector<const Expression> MakeArguments(
+UniquePtrVector<const Expression> MakeArguments(
     std::unique_ptr<const Expression>&& argument1,
     std::unique_ptr<const Expression>&& argument2) {
-  return PointerVector<const Expression>(std::move(argument1),
-                                         std::move(argument2));
+  return UniquePtrVector<const Expression>(std::move(argument1),
+                                           std::move(argument2));
 }
 
 TEST(LiteralTest, Constructor) {
@@ -281,6 +281,21 @@ TEST(BinaryOperationTest, OutputDivision) {
                                                    Identifier::New("d")));
   EXPECT_EQ("(17+b)/(c-d);(17-b)/(c*d);17*b/(c/d);17/b/(c+d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
+}
+
+TEST(ConditionalTest, OutputConditional) {
+  const Conditional expr1(
+      Literal::New(true),
+      Conditional::New(BinaryOperation::New(BinaryOperator::PLUS,
+                                            Identifier::New("a"),
+                                            Identifier::New("b")),
+                       UnaryOperation::New(
+                           UnaryOperator::NEGATE,
+                           FunctionCall::New(Function::CEIL,
+                                             Identifier::New("c"))),
+                       Identifier::New("d")),
+      Literal::New(17));
+  EXPECT_EQ("true ? (a+b ? -ceil(c) : d) : 17", StrCat(expr1));
 }
 
 }  // namespace

@@ -64,6 +64,27 @@ TEST(DecisionDiagramTest, Value) {
   EXPECT_EQ(3.14159, manager.GetConstant(3.14159).Value());
 }
 
+TEST(DecisionDiagramTest, ConvertsConstantADDToBDD) {
+  const DecisionDiagramManager manager(0);
+  EXPECT_TRUE(BDD(manager.GetConstant(17.0)).Value());
+  EXPECT_TRUE(BDD(manager.GetConstant(-42.0)).Value());
+  EXPECT_FALSE(BDD(manager.GetConstant(0)).Value());
+}
+
+TEST(DecisionDiagramTest, ConvertsNonConstantADDToBDD) {
+  const DecisionDiagramManager manager(2);
+  const ADD dd =
+      Ite(manager.GetBddVariable(0),
+          Ite(manager.GetBddVariable(1),
+              manager.GetConstant(1), manager.GetConstant(0)),
+          Ite(manager.GetBddVariable(1),
+              manager.GetConstant(0), manager.GetConstant(3.14159)));
+  EXPECT_TRUE(BDD(dd).ValueInState({true, true}));
+  EXPECT_FALSE(BDD(dd).ValueInState({true, false}));
+  EXPECT_FALSE(BDD(dd).ValueInState({false, true}));
+  EXPECT_TRUE(BDD(dd).ValueInState({false, false}));
+}
+
 TEST(DecisionDiagramTest, ConvertsConstantBDDToADD) {
   const DecisionDiagramManager manager(0);
   EXPECT_EQ(1, ADD(manager.GetConstant(true)).Value());

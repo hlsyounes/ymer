@@ -170,7 +170,7 @@ am_src_libcompiled_model_la_OBJECTS = compiled-model.lo
 src_libcompiled_model_la_OBJECTS =  \
 	$(am_src_libcompiled_model_la_OBJECTS)
 src_libcompiled_property_la_DEPENDENCIES =  \
-	src/libcompiled-expression.la src/libpointer-vector.la
+	src/libcompiled-expression.la src/libunique-ptr-vector.la
 am_src_libcompiled_property_la_OBJECTS = compiled-property.lo
 src_libcompiled_property_la_OBJECTS =  \
 	$(am_src_libcompiled_property_la_OBJECTS)
@@ -178,13 +178,9 @@ src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
 am_src_libddutil_la_OBJECTS = ddutil.lo
 src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
 src_libexpression_la_DEPENDENCIES = src/libtyped-value.la \
-	src/libpointer-vector.la glog/libglog.la
+	src/libunique-ptr-vector.la glog/libglog.la
 am_src_libexpression_la_OBJECTS = expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
-src_libpointer_vector_la_LIBADD =
-am_src_libpointer_vector_la_OBJECTS =
-src_libpointer_vector_la_OBJECTS =  \
-	$(am_src_libpointer_vector_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
@@ -202,6 +198,10 @@ src_libtest_main_la_OBJECTS = $(am_src_libtest_main_la_OBJECTS)
 src_libtyped_value_la_DEPENDENCIES = glog/libglog.la
 am_src_libtyped_value_la_OBJECTS = typed-value.lo
 src_libtyped_value_la_OBJECTS = $(am_src_libtyped_value_la_OBJECTS)
+src_libunique_ptr_vector_la_LIBADD =
+am_src_libunique_ptr_vector_la_OBJECTS =
+src_libunique_ptr_vector_la_OBJECTS =  \
+	$(am_src_libunique_ptr_vector_la_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_src_compiled_distribution_test_OBJECTS =  \
@@ -290,10 +290,10 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_libpointer_vector_la_SOURCES) $(src_librng_la_SOURCES) \
-	$(src_libstatistics_la_SOURCES) $(src_libstrutil_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
+	$(src_libstrutil_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
+	$(src_libunique_ptr_vector_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
@@ -308,10 +308,10 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_libpointer_vector_la_SOURCES) $(src_librng_la_SOURCES) \
-	$(src_libstatistics_la_SOURCES) $(src_libstrutil_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
+	$(src_libstrutil_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
+	$(src_libunique_ptr_vector_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
@@ -525,7 +525,7 @@ SUBDIRS = glog gsl gtest
 
 # Typed-value library.
 
-# Pointer-vector library.
+# Unique-ptr-vector library.
 
 # Expression library.
 
@@ -539,10 +539,10 @@ SUBDIRS = glog gsl gtest
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
 	src/libstrutil.la src/libstatistics.la src/libddutil.la \
-	src/librng.la src/libtyped-value.la src/libpointer-vector.la \
-	src/libexpression.la src/libcompiled-expression.la \
-	src/libcompiled-distribution.la src/libcompiled-model.la \
-	src/libcompiled-property.la
+	src/librng.la src/libtyped-value.la \
+	src/libunique-ptr-vector.la src/libexpression.la \
+	src/libcompiled-expression.la src/libcompiled-distribution.la \
+	src/libcompiled-model.la src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -601,10 +601,10 @@ src_librng_la_SOURCES = src/rng.h src/rng.cc
 src_librng_la_LIBADD = dcmt/lib/libdcmt.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libtyped_value_la_LIBADD = glog/libglog.la
-src_libpointer_vector_la_SOURCES = src/pointer-vector.h
+src_libunique_ptr_vector_la_SOURCES = src/unique-ptr-vector.h
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
-src_libexpression_la_LIBADD = src/libtyped-value.la src/libpointer-vector.la \
-    glog/libglog.la
+src_libexpression_la_LIBADD = src/libtyped-value.la \
+    src/libunique-ptr-vector.la glog/libglog.la
 
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
@@ -625,7 +625,7 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
-    src/libpointer-vector.la
+    src/libunique-ptr-vector.la
 
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
@@ -793,8 +793,6 @@ src/libddutil.la: $(src_libddutil_la_OBJECTS) $(src_libddutil_la_DEPENDENCIES) $
 	$(CXXLINK)  $(src_libddutil_la_OBJECTS) $(src_libddutil_la_LIBADD) $(LIBS)
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) $(EXTRA_src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
-src/libpointer-vector.la: $(src_libpointer_vector_la_OBJECTS) $(src_libpointer_vector_la_DEPENDENCIES) $(EXTRA_src_libpointer_vector_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(LINK)  $(src_libpointer_vector_la_OBJECTS) $(src_libpointer_vector_la_LIBADD) $(LIBS)
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
 src/libstatistics.la: $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_DEPENDENCIES) $(EXTRA_src_libstatistics_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -805,6 +803,8 @@ src/libtest-main.la: $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_DEPEND
 	$(CXXLINK)  $(src_libtest_main_la_OBJECTS) $(src_libtest_main_la_LIBADD) $(LIBS)
 src/libtyped-value.la: $(src_libtyped_value_la_OBJECTS) $(src_libtyped_value_la_DEPENDENCIES) $(EXTRA_src_libtyped_value_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(CXXLINK)  $(src_libtyped_value_la_OBJECTS) $(src_libtyped_value_la_LIBADD) $(LIBS)
+src/libunique-ptr-vector.la: $(src_libunique_ptr_vector_la_OBJECTS) $(src_libunique_ptr_vector_la_DEPENDENCIES) $(EXTRA_src_libunique_ptr_vector_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(LINK)  $(src_libunique_ptr_vector_la_OBJECTS) $(src_libunique_ptr_vector_la_LIBADD) $(LIBS)
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"

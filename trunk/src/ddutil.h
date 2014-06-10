@@ -70,6 +70,9 @@ class ADD;
 // Wrapper class for BDDs, with automatic referencing and dereferencing.
 class BDD : public DecisionDiagram {
  public:
+  // Explicit conversion from ADD to BDD.
+  explicit BDD(const ADD& dd);
+
   // Returns the value of this BDD.  Requires that this BDD is constant.
   bool Value() const;
 
@@ -163,6 +166,7 @@ class ADD : public DecisionDiagram {
   static ADD MonadicApply(MonadicOp op, const ADD& dd);
 
   friend class DecisionDiagramManager;
+  friend class BDD;
   friend ADD Ite(const BDD&, const ADD&, const ADD&);
   friend ADD min(const ADD& dd1, const ADD& dd2);
   friend ADD max(const ADD& dd1, const ADD& dd2);
