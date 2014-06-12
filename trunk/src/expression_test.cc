@@ -291,8 +291,9 @@ TEST(ConditionalTest, OutputConditional) {
                                             Identifier::New("b")),
                        UnaryOperation::New(
                            UnaryOperator::NEGATE,
-                           FunctionCall::New(Function::CEIL,
-                                             Identifier::New("c"))),
+                           FunctionCall::New(
+                               Function::CEIL,
+                               MakeArguments(Identifier::New("c")))),
                        Identifier::New("d")),
       Literal::New(17));
   EXPECT_EQ("true ? (a+b ? -ceil(c) : d) : 17", StrCat(expr1));

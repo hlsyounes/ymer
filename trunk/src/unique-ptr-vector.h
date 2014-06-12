@@ -24,6 +24,7 @@
 
 #include <iterator>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -51,8 +52,16 @@ class UniquePtrVector {
   };
 
   UniquePtrVector() {}
+  template <typename InputIterator,
+            typename = typename std::enable_if<
+              !std::is_same<InputIterator, std::unique_ptr<T> >::value>::type>
+  explicit UniquePtrVector(InputIterator first, InputIterator last) {
+    for (InputIterator i = first; i != last; ++i) {
+      elements_.push_back(std::move(*i));
+    }
+  }
   template <typename... Args>
-  UniquePtrVector(Args&&... args) {
+  explicit UniquePtrVector(Args&&... args) {
     Init(std::forward<Args>(args)...);
   }
 

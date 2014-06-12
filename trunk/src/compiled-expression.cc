@@ -396,6 +396,69 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
   return os;
 }
 
+std::vector<Operation> MakeConjunction(
+    const std::vector<Operation>& operations1,
+    const std::vector<Operation>& operations2) {
+  std::vector<Operation> operations(operations1);
+  const size_t pc_shift = operations1.size() + 1;
+  operations.push_back(
+      Operation::MakeIFFALSE(0, pc_shift + operations2.size()));
+  for (const Operation& o : operations2) {
+    switch (o.opcode()) {
+      case Opcode::ICONST:
+      case Opcode::ILOAD:
+      case Opcode::DCONST:
+      case Opcode::I2D:
+      case Opcode::FLOOR:
+      case Opcode::CEIL:
+      case Opcode::INEG:
+      case Opcode::DNEG:
+      case Opcode::NOT:
+      case Opcode::IADD:
+      case Opcode::ISUB:
+      case Opcode::IMUL:
+      case Opcode::IEQ:
+      case Opcode::INE:
+      case Opcode::ILT:
+      case Opcode::ILE:
+      case Opcode::IGE:
+      case Opcode::IGT:
+      case Opcode::IMIN:
+      case Opcode::IMAX:
+      case Opcode::MOD:
+      case Opcode::DADD:
+      case Opcode::DSUB:
+      case Opcode::DMUL:
+      case Opcode::DDIV:
+      case Opcode::DMIN:
+      case Opcode::DMAX:
+      case Opcode::POW:
+      case Opcode::LOG:
+      case Opcode::DEQ:
+      case Opcode::DNE:
+      case Opcode::DLT:
+      case Opcode::DLE:
+      case Opcode::DGE:
+      case Opcode::DGT:
+      case Opcode::NOP:
+        operations.push_back(o);
+        break;
+      case Opcode::IFFALSE:
+        operations.push_back(
+            Operation::MakeIFFALSE(o.ioperand1(), o.operand2() + pc_shift));
+        break;
+      case Opcode::IFTRUE:
+        operations.push_back(
+            Operation::MakeIFTRUE(o.ioperand1(), o.operand2() + pc_shift));
+        break;
+      case Opcode::GOTO:
+        operations.push_back(Operation::MakeGOTO(o.ioperand1() + pc_shift));
+        break;
+    }
+  }
+  return operations;
+}
+
 CompiledExpression::CompiledExpression(
     const std::vector<Operation>& operations)
     : operations_(operations) {
