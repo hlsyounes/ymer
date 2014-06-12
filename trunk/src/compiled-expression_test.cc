@@ -643,6 +643,43 @@ TEST(OptimizeIntExpressionTest, ConstantNegation) {
   EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
 }
 
+TEST(OptimizeIntExpressionTest, MultiNegation) {
+  const CompiledExpression expr1(
+      { Operation::MakeILOAD(0, 0),
+        Operation::MakeINEG(0),
+        Operation::MakeILOAD(1, 1),
+        Operation::MakeIADD(0, 1),
+        Operation::MakeINEG(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeINEG(0),
+    Operation::MakeILOAD(1, 1),
+    Operation::MakeIADD(0, 1),
+    Operation::MakeINEG(0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeILOAD(0, 0),
+        Operation::MakeINEG(0),
+        Operation::MakeILOAD(1, 1),
+        Operation::MakeINEG(1),
+        Operation::MakeINEG(1),
+        Operation::MakeIADD(0, 1),
+        Operation::MakeINEG(0),
+        Operation::MakeINEG(0),
+        Operation::MakeINEG(0),
+        Operation::MakeINEG(0),
+        Operation::MakeINEG(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeINEG(0),
+    Operation::MakeILOAD(1, 1),
+    Operation::MakeIADD(0, 1),
+    Operation::MakeINEG(0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
 TEST(OptimizeIntExpressionTest, ConstantLogicalNot) {
   const CompiledExpression expr1(
       { Operation::MakeICONST(true, 0),
@@ -656,6 +693,43 @@ TEST(OptimizeIntExpressionTest, ConstantLogicalNot) {
         Operation::MakeNOT(0) });
   const std::vector<Operation> expected2 = {
     Operation::MakeICONST(true, 0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, MultiLogicalNot) {
+  const CompiledExpression expr1(
+      { Operation::MakeILOAD(0, 0),
+        Operation::MakeNOT(0),
+        Operation::MakeIFFALSE(0, 5),
+        Operation::MakeILOAD(1, 0),
+        Operation::MakeNOT(0),
+        Operation::MakeNOT(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeNOT(0),
+    Operation::MakeIFFALSE(0, 5),
+    Operation::MakeILOAD(1, 0),
+    Operation::MakeNOT(0),
+    Operation::MakeNOT(0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeILOAD(0, 0),
+        Operation::MakeNOT(0),
+        Operation::MakeIFFALSE(0, 6),
+        Operation::MakeILOAD(1, 0),
+        Operation::MakeNOT(0),
+        Operation::MakeNOT(0),
+        Operation::MakeNOT(0),
+        Operation::MakeNOT(0),
+        Operation::MakeNOT(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeNOT(0),
+    Operation::MakeIFFALSE(0, 4),
+    Operation::MakeILOAD(1, 0),
+    Operation::MakeNOT(0)
   };
   EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
 }
@@ -1241,6 +1315,55 @@ TEST(OptimizeDoubleExpressionTest, ConstantNegation) {
     Operation::MakeDCONST(0.25, 0)
   };
   EXPECT_EQ(expected2, OptimizeDoubleExpression(expr2).operations());
+}
+
+TEST(OptimizeDoubleExpressionTest, MultiNegation) {
+  const CompiledExpression expr1(
+      { Operation::MakeILOAD(0, 0),
+        Operation::MakeI2D(0),
+        Operation::MakeDNEG(0),
+        Operation::MakeILOAD(1, 1),
+        Operation::MakeI2D(1),
+        Operation::MakeDADD(0, 1),
+        Operation::MakeDNEG(0),
+        Operation::MakeCEIL(0) });
+  const std::vector<Operation> expected1 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeI2D(0),
+    Operation::MakeDNEG(0),
+    Operation::MakeILOAD(1, 1),
+    Operation::MakeI2D(1),
+    Operation::MakeDADD(0, 1),
+    Operation::MakeDNEG(0),
+    Operation::MakeCEIL(0)
+  };
+  EXPECT_EQ(expected1, OptimizeIntExpression(expr1).operations());
+  const CompiledExpression expr2(
+      { Operation::MakeILOAD(0, 0),
+        Operation::MakeI2D(0),
+        Operation::MakeDNEG(0),
+        Operation::MakeILOAD(1, 1),
+        Operation::MakeI2D(1),
+        Operation::MakeDNEG(1),
+        Operation::MakeDNEG(1),
+        Operation::MakeDADD(0, 1),
+        Operation::MakeDNEG(0),
+        Operation::MakeDNEG(0),
+        Operation::MakeDNEG(0),
+        Operation::MakeDNEG(0),
+        Operation::MakeDNEG(0),
+        Operation::MakeCEIL(0) });
+  const std::vector<Operation> expected2 = {
+    Operation::MakeILOAD(0, 0),
+    Operation::MakeI2D(0),
+    Operation::MakeDNEG(0),
+    Operation::MakeILOAD(1, 1),
+    Operation::MakeI2D(1),
+    Operation::MakeDADD(0, 1),
+    Operation::MakeDNEG(0),
+    Operation::MakeCEIL(0)
+  };
+  EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
 }
 
 TEST(OptimizeDoubleExpressionTest, ConstantAddition) {

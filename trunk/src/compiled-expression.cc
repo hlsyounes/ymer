@@ -992,14 +992,24 @@ void BasicBlock::SetDoubleDependency(size_t r, const Operation& o) {
 }
 
 void BasicBlock::AddIntDependency(size_t r, const Operation& o) {
-  int_states_[r].AddDependencies({{index_, operations_.size()}});
-  operations_.push_back(o);
+  if ((o.opcode() == Opcode::INEG || o.opcode() == Opcode::NOT)
+      && !operations_.empty() && operations_.back() == o) {
+    operations_.back() = Operation::MakeNOP();
+  } else {
+    int_states_[r].AddDependencies({{index_, operations_.size()}});
+    operations_.push_back(o);
+  }
 }
 
 
 void BasicBlock::AddDoubleDependency(size_t r, const Operation& o) {
-  double_states_[r].AddDependencies({{index_, operations_.size()}});
-  operations_.push_back(o);
+  if (o.opcode() == Opcode::DNEG
+      && !operations_.empty() && operations_.back() == o) {
+    operations_.back() = Operation::MakeNOP();
+  } else {
+    double_states_[r].AddDependencies({{index_, operations_.size()}});
+    operations_.push_back(o);
+  }
 }
 
 void BasicBlock::AddIntDependenciesFromIntDependencies(size_t r,
@@ -1279,7 +1289,9 @@ CompiledExpression OptimizeExpressionImpl(
     if (overwrite_jump_operation) {
       optimized_operations.pop_back();
     }
-    optimized_operations.push_back(operation);
+    if (operation.opcode() != Opcode::NOP) {
+      optimized_operations.push_back(operation);
+    }
   }
   if (IsJump(optimized_operations.back())) {
     optimized_operations.pop_back();
