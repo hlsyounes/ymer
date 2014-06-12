@@ -190,11 +190,11 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
       stats_->sample_size.AddObservation(estimator.count());
     }
     switch (property.op()) {
-      case CompiledProbabilisticProperty::Operator::GREATER:
-        result_ = estimator.value() > theta;
-        break;
-      case CompiledProbabilisticProperty::Operator::GREATER_EQUAL:
+      case CompiledProbabilisticOperator::GREATER_EQUAL:
         result_ = estimator.value() >= theta;
+        break;
+      case CompiledProbabilisticOperator::GREATER:
+        result_ = estimator.value() > theta;
         break;
     }
     --probabilistic_level_;
