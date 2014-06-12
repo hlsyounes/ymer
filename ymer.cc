@@ -746,7 +746,7 @@ void ExpressionCompiler::DoVisitComparison(const Comparison& formula) {
   type_ = Type::BOOL;
 }
 
-CompiledExpression CompileExpression(
+CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
@@ -781,8 +781,15 @@ CompiledExpression CompileExpression(
                              Type::BOOL, "; found ", compiler.type()));
     return CompiledExpression({});
   }
+  return CompiledExpression(compiler.release_operations());
+}
+
+CompiledExpression CompileAndOptimizeExpression(
+    const StateFormula& expr,
+    const std::map<std::string, int>& variables_by_name,
+    std::vector<std::string>* errors) {
   return OptimizeIntExpression(
-      CompiledExpression(compiler.release_operations()));
+      CompileExpression(expr, variables_by_name, errors));
 }
 
 class DistributionCompiler : public DistributionVisitor {
@@ -814,30 +821,31 @@ DistributionCompiler::DistributionCompiler(
 
 void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
   dist_ = CompiledDistribution::MakeMemoryless(
-      CompileExpression(
+      CompileAndOptimizeExpression(
           dist.rate(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
   dist_ = CompiledDistribution::MakeWeibull(
-      CompileExpression(
+      CompileAndOptimizeExpression(
           dist.scale(), Type::DOUBLE, *variables_by_name_, errors_),
-      CompileExpression(
+      CompileAndOptimizeExpression(
           dist.shape(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
   dist_ = CompiledDistribution::MakeLognormal(
-      CompileExpression(
+      CompileAndOptimizeExpression(
           dist.scale(), Type::DOUBLE, *variables_by_name_, errors_),
-      CompileExpression(
+      CompileAndOptimizeExpression(
           dist.shape(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
   dist_ = CompiledDistribution::MakeUniform(
-      CompileExpression(dist.low(), Type::DOUBLE, *variables_by_name_, errors_),
-      CompileExpression(
+      CompileAndOptimizeExpression(
+          dist.low(), Type::DOUBLE, *variables_by_name_, errors_),
+      CompileAndOptimizeExpression(
           dist.high(), Type::DOUBLE, *variables_by_name_, errors_));
 }
 
@@ -865,7 +873,8 @@ CompiledUpdate CompileUpdate(
   }
   return CompiledUpdate(
       variable,
-      CompileExpression(update.expr(), Type::INT, variables_by_name, errors));
+      CompileAndOptimizeExpression(
+          update.expr(), Type::INT, variables_by_name, errors));
 }
 
 std::vector<CompiledUpdate> CompileUpdates(
@@ -894,7 +903,7 @@ CompiledCommand CompileCommand(
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
   return CompiledCommand(
-      CompileExpression(command.guard(), variables_by_name, errors),
+      CompileAndOptimizeExpression(command.guard(), variables_by_name, errors),
       { CompileOutcome(command.delay(), command.updates(),
                        variables_by_name, errors) });
 }
@@ -1003,7 +1012,7 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
     operand.Accept(this);
     operands.push_back(std::move(property_));
   }
-  property_ = CompiledAndProperty::Make(std::move(operands));
+  property_ = CompiledAndProperty::New(std::move(operands));
 }
 
 void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
@@ -1012,15 +1021,15 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
   for (size_t i = 0; i < n; ++i) {
     const StateFormula& operand = *formula.disjuncts()[i];
     operand.Accept(this);
-    operands.push_back(CompiledNotProperty::Make(std::move(property_)));
+    operands.push_back(CompiledNotProperty::New(std::move(property_)));
   }
   property_ =
-      CompiledNotProperty::Make(CompiledAndProperty::Make(std::move(operands)));
+      CompiledNotProperty::New(CompiledAndProperty::New(std::move(operands)));
 }
 
 void PropertyCompiler::DoVisitNegation(const Negation& formula) {
   formula.negand().Accept(this);
-  property_ = CompiledNotProperty::Make(std::move(property_));
+  property_ = CompiledNotProperty::New(std::move(property_));
 }
 
 void PropertyCompiler::DoVisitImplication(const Implication& formula) {
@@ -1028,9 +1037,9 @@ void PropertyCompiler::DoVisitImplication(const Implication& formula) {
   formula.antecedent().Accept(this);
   operands.push_back(std::move(property_));
   formula.consequent().Accept(this);
-  operands.push_back(CompiledNotProperty::Make(std::move(property_)));
+  operands.push_back(CompiledNotProperty::New(std::move(property_)));
   property_ =
-      CompiledNotProperty::Make(CompiledAndProperty::Make(std::move(operands)));
+      CompiledNotProperty::New(CompiledAndProperty::New(std::move(operands)));
 }
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
@@ -1038,10 +1047,12 @@ void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
       CompilePathProperty(formula.formula(), *variables_by_name_,
                           &next_path_property_index_, errors_);
   if (!formula.strict()) {
-    property_ = CompiledProbabilisticProperty::MakeGreaterEqual(
+    property_ = CompiledProbabilisticProperty::New(
+        CompiledProbabilisticOperator::GREATER_EQUAL,
         formula.threshold().value<double>(), std::move(path_property));
   } else {
-    property_ = CompiledProbabilisticProperty::MakeGreater(
+    property_ = CompiledProbabilisticProperty::New(
+        CompiledProbabilisticOperator::GREATER,
         formula.threshold().value<double>(), std::move(path_property));
   }
 }
@@ -1049,7 +1060,7 @@ void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
 void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
   CompiledExpression compiled_expr =
       CompileExpression(formula, *variables_by_name_, errors_);
-  property_ = CompiledExpressionProperty::Make(compiled_expr);
+  property_ = CompiledExpressionProperty::New(compiled_expr);
 }
 
 PathPropertyCompiler::PathPropertyCompiler(
@@ -1068,7 +1079,7 @@ void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
       formula.pre(), *variables_by_name_, &next_index_, errors_);
   std::unique_ptr<const CompiledProperty> post = CompileProperty(
       formula.post(), *variables_by_name_, &next_index_, errors_);
-  path_property_ = CompiledUntilProperty::Make(
+  path_property_ = CompiledUntilProperty::New(
       formula.min_time().value<double>(), formula.max_time().value<double>(),
       std::move(pre), std::move(post), index, StrCat(formula), &formula);
 }
@@ -1086,6 +1097,13 @@ std::unique_ptr<const CompiledProperty> CompileProperty(
                          errors);
 }
 
+std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
+    const StateFormula& property,
+    const CompiledModel& model,
+    std::vector<std::string>* errors) {
+  return OptimizeProperty(*CompileProperty(property, model, errors));
+}
+
 std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
     const PathFormula& property,
     const CompiledModel& model,
@@ -1097,6 +1115,13 @@ std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
   int next_index = 0;
   return CompilePathProperty(property, variables_by_name,
                              &next_index, errors);
+}
+
+std::unique_ptr<const CompiledPathProperty> OptimizeAndCompilePathProperty(
+    const PathFormula& property,
+    const CompiledModel& model,
+    std::vector<std::string>* errors) {
+  return OptimizePathProperty(*CompilePathProperty(property, model, errors));
 }
 
 }  // namespace
@@ -1391,7 +1416,8 @@ int main(int argc, char* argv[]) {
                 // set the nested error bounds to 0.
                 nested_params.alpha = 0;
                 nested_params.beta = 0;
-                property = CompilePathProperty(*pf, compiled_model, &errors);
+                property = OptimizeAndCompilePathProperty(
+                    *pf, compiled_model, &errors);
 	      }
 	      to = &timeout;
 	      VLOG(1) << "Sampling started for property " << smsg.value;
@@ -1465,7 +1491,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileProperty(**fi, compiled_model, &errors);
+            CompileAndOptimizeProperty(**fi, compiled_model, &errors);
 	current_property = fi - properties.begin();
 	size_t accepts = 0;
         ModelCheckingStats stats;
@@ -1681,7 +1707,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileProperty(**fi, compiled_model, &errors);
+            CompileAndOptimizeProperty(**fi, compiled_model, &errors);
 	size_t accepts = 0;
         ModelCheckingStats stats;
 	for (size_t i = 0; i < trials; i++) {

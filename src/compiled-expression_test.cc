@@ -37,7 +37,8 @@ TEST(MakeConjunctionTest, MakesConjunction) {
     Operation::MakeGOTO(5),
     Operation::MakeICONST(42, 0)
   };
-  const std::vector<Operation> expected = {
+  const std::vector<Operation> empty_operations;
+  const std::vector<Operation> expected1 = {
     Operation::MakeICONST(true, 0),
     Operation::MakeNOT(0),
     Operation::MakeIFFALSE(0, 8),
@@ -47,7 +48,24 @@ TEST(MakeConjunctionTest, MakesConjunction) {
     Operation::MakeGOTO(8),
     Operation::MakeICONST(42, 0)
   };
-  EXPECT_EQ(expected, MakeConjunction(operations1, operations2));
+  EXPECT_EQ(expected1, MakeConjunction(operations1, operations2));
+  const std::vector<Operation> expected2 = {
+    Operation::MakeICONST(false, 0),
+    Operation::MakeIFFALSE(0, 4),
+    Operation::MakeICONST(17, 0),
+    Operation::MakeGOTO(5),
+    Operation::MakeICONST(42, 0),
+    Operation::MakeIFFALSE(0, 8),
+    Operation::MakeICONST(true, 0),
+    Operation::MakeNOT(0)
+  };
+  EXPECT_EQ(expected2, MakeConjunction(operations2, operations1));
+  EXPECT_EQ(operations1, MakeConjunction(operations1, empty_operations));
+  EXPECT_EQ(operations1, MakeConjunction(empty_operations, operations1));
+  EXPECT_EQ(operations2, MakeConjunction(operations2, empty_operations));
+  EXPECT_EQ(operations2, MakeConjunction(empty_operations, operations2));
+  EXPECT_EQ(empty_operations, MakeConjunction(empty_operations,
+                                              empty_operations));
 }
 
 TEST(GetNumRegistersTest, Constant) {

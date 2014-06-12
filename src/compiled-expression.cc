@@ -399,6 +399,12 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
 std::vector<Operation> MakeConjunction(
     const std::vector<Operation>& operations1,
     const std::vector<Operation>& operations2) {
+  if (operations1.empty()) {
+    return operations2;
+  }
+  if (operations2.empty()) {
+    return operations1;
+  }
   std::vector<Operation> operations(operations1);
   const size_t pc_shift = operations1.size() + 1;
   operations.push_back(
