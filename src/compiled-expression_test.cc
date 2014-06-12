@@ -25,6 +25,31 @@
 
 namespace {
 
+TEST(MakeConjunctionTest, MakesConjunction) {
+  const std::vector<Operation> operations1 = {
+    Operation::MakeICONST(true, 0),
+    Operation::MakeNOT(0)
+  };
+  const std::vector<Operation> operations2 = {
+    Operation::MakeICONST(false, 0),
+    Operation::MakeIFFALSE(0, 4),
+    Operation::MakeICONST(17, 0),
+    Operation::MakeGOTO(5),
+    Operation::MakeICONST(42, 0)
+  };
+  const std::vector<Operation> expected = {
+    Operation::MakeICONST(true, 0),
+    Operation::MakeNOT(0),
+    Operation::MakeIFFALSE(0, 8),
+    Operation::MakeICONST(false, 0),
+    Operation::MakeIFFALSE(0, 7),
+    Operation::MakeICONST(17, 0),
+    Operation::MakeGOTO(8),
+    Operation::MakeICONST(42, 0)
+  };
+  EXPECT_EQ(expected, MakeConjunction(operations1, operations2));
+}
+
 TEST(GetNumRegistersTest, Constant) {
   const CompiledExpression expr1({ Operation::MakeICONST(17, 3) });
   EXPECT_EQ(std::make_pair(4, 0), GetNumRegisters(expr1));

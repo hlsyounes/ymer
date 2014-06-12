@@ -166,6 +166,13 @@ class Operation {
   int operand2_;
 };
 
+// Returns the operations that represent the conjunction of operations1 and
+// operations2, assuming both operations1 and operations2 store the result in
+// integer register 0.
+std::vector<Operation> MakeConjunction(
+    const std::vector<Operation>& operations1,
+    const std::vector<Operation>& operations2);
+
 // Equality operator for operations.
 bool operator==(const Operation& left, const Operation& right);
 
