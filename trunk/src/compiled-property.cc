@@ -40,7 +40,8 @@ namespace {
 
 // A compiled property visitor that prints a compiled property to an output
 // stream.
-class CompiledPropertyPrinter : public CompiledPropertyVisitor {
+class CompiledPropertyPrinter
+    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
  public:
   explicit CompiledPropertyPrinter(std::ostream* os);
 
@@ -51,6 +52,8 @@ class CompiledPropertyPrinter : public CompiledPropertyVisitor {
       const CompiledProbabilisticProperty& property);
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
+  virtual void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& property);
 
   std::ostream* os_;
 };
@@ -64,14 +67,15 @@ void CompiledPropertyPrinter::DoVisitCompiledAndProperty(
   size_t n = property.operands().size();
   *os_ << "AND of " << n << " operands";
   for (size_t i = 0; i < n; ++i) {
-    *os_ << std::endl << "operand " << i << ":"
-         << std::endl << property.operands()[i];
+    *os_ << std::endl << "operand " << i << ":" << std::endl;
+    property.operands()[i].Accept(this);
   }
 }
 
 void CompiledPropertyPrinter::DoVisitCompiledNotProperty(
     const CompiledNotProperty& property) {
-  *os_ << "NOT of:" << std::endl << property.operand();
+  *os_ << "NOT of:" << std::endl;
+  property.operand().Accept(this);
 }
 
 void CompiledPropertyPrinter::DoVisitCompiledProbabilisticProperty(
@@ -85,12 +89,22 @@ void CompiledPropertyPrinter::DoVisitCompiledProbabilisticProperty(
       *os_ << ">";
       break;
   }
-  *os_ << " " << property.threshold() << std::endl << property.path_property();
+  *os_ << " " << property.threshold() << std::endl;
+  property.path_property().Accept(this);
 }
 
 void CompiledPropertyPrinter::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
   *os_ << property.expr();
+}
+
+void CompiledPropertyPrinter::DoVisitCompiledUntilProperty(
+    const CompiledUntilProperty& property) {
+  *os_ << "UNTIL [" << property.min_time() << ", " << property.max_time() << "]"
+       << std::endl << "pre:" << std::endl;
+  property.pre().Accept(this);
+  *os_ << std::endl << "post:" << std::endl;
+  property.post().Accept(this);
 }
 
 }  // namespace
@@ -112,36 +126,8 @@ void CompiledPathProperty::Accept(CompiledPathPropertyVisitor* visitor) const {
   return DoAccept(visitor);
 }
 
-namespace {
-
-// A compiled path property visitor that prints a compiled path property to an
-// output stream.
-class CompiledPathPropertyPrinter : public CompiledPathPropertyVisitor {
- public:
-  explicit CompiledPathPropertyPrinter(std::ostream* os);
-
- private:
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& property);
-
-  std::ostream* os_;
-};
-
-CompiledPathPropertyPrinter::CompiledPathPropertyPrinter(std::ostream* os)
-    : os_(os) {
-}
-
-void CompiledPathPropertyPrinter::DoVisitCompiledUntilProperty(
-    const CompiledUntilProperty& property) {
-  *os_ << "UNTIL [" << property.min_time() << ", " << property.max_time() << "]"
-       << std::endl << "pre:" << std::endl << property.pre()
-       << std::endl << "post:" << std::endl << property.post();
-}
-
-}  // namespace
-
 std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p) {
-  CompiledPathPropertyPrinter printer(&os);
+  CompiledPropertyPrinter printer(&os);
   p.Accept(&printer);
   return os;
 }

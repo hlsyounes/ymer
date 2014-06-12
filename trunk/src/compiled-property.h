@@ -86,6 +86,9 @@ std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 // A compiled AND property.
 class CompiledAndProperty : public CompiledProperty {
  public:
+  explicit CompiledAndProperty(
+      UniquePtrVector<const CompiledProperty>&& operands);
+
   virtual ~CompiledAndProperty();
 
   static std::unique_ptr<const CompiledAndProperty> New(
@@ -96,8 +99,6 @@ class CompiledAndProperty : public CompiledProperty {
   }
 
  private:
-  CompiledAndProperty(UniquePtrVector<const CompiledProperty>&& operands);
-
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   UniquePtrVector<const CompiledProperty> operands_;
@@ -106,6 +107,9 @@ class CompiledAndProperty : public CompiledProperty {
 // A compiled NOT property.
 class CompiledNotProperty : public CompiledProperty {
  public:
+  explicit CompiledNotProperty(
+      std::unique_ptr<const CompiledProperty>&& operand);
+
   virtual ~CompiledNotProperty();
 
   static std::unique_ptr<const CompiledNotProperty> New(
@@ -114,9 +118,6 @@ class CompiledNotProperty : public CompiledProperty {
   const CompiledProperty& operand() const { return *operand_; }
 
  private:
-  explicit CompiledNotProperty(
-      std::unique_ptr<const CompiledProperty>&& operand);
-
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   std::unique_ptr<const CompiledProperty> operand_;
@@ -130,6 +131,10 @@ enum class CompiledProbabilisticOperator {
 // A compiled probabilistic property.
 class CompiledProbabilisticProperty : public CompiledProperty {
  public:
+  explicit CompiledProbabilisticProperty(
+      CompiledProbabilisticOperator op, double threshold,
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+
   virtual ~CompiledProbabilisticProperty();
 
   static std::unique_ptr<const CompiledProbabilisticProperty> New(
@@ -144,10 +149,6 @@ class CompiledProbabilisticProperty : public CompiledProperty {
   const CompiledPathProperty& path_property() const { return *path_property_; }
 
  private:
-  explicit CompiledProbabilisticProperty(
-      CompiledProbabilisticOperator op, double threshold,
-      std::unique_ptr<const CompiledPathProperty>&& path_property);
-
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   CompiledProbabilisticOperator op_;
@@ -158,6 +159,8 @@ class CompiledProbabilisticProperty : public CompiledProperty {
 // A compiled expression property.
 class CompiledExpressionProperty : public CompiledProperty {
  public:
+  explicit CompiledExpressionProperty(const CompiledExpression& expr);
+
   virtual ~CompiledExpressionProperty();
 
   static std::unique_ptr<const CompiledExpressionProperty> New(
@@ -166,8 +169,6 @@ class CompiledExpressionProperty : public CompiledProperty {
   const CompiledExpression& expr() const { return expr_; }
 
  private:
-  explicit CompiledExpressionProperty(const CompiledExpression& expr);
-
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   CompiledExpression expr_;
@@ -179,6 +180,12 @@ class Until;
 // A compiled until property.
 class CompiledUntilProperty : public CompiledPathProperty {
  public:
+  explicit CompiledUntilProperty(double min_time, double max_time,
+                                 std::unique_ptr<const CompiledProperty>&& pre,
+                                 std::unique_ptr<const CompiledProperty>&& post,
+                                 int index, const std::string& string,
+                                 const Until* formula);
+
   virtual ~CompiledUntilProperty();
 
   static std::unique_ptr<const CompiledUntilProperty> New(
@@ -199,12 +206,6 @@ class CompiledUntilProperty : public CompiledPathProperty {
   const Until* formula_ptr() const { return formula_; }
 
  private:
-  explicit CompiledUntilProperty(double min_time, double max_time,
-                                 std::unique_ptr<const CompiledProperty>&& pre,
-                                 std::unique_ptr<const CompiledProperty>&& post,
-                                 int index, const std::string& string,
-                                 const Until* formula);
-
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const;
 
   double min_time_;

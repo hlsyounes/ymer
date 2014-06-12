@@ -220,6 +220,12 @@ check_PROGRAMS += src/compiled-model_test
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
 
+# Test for compiled property library.
+check_PROGRAMS += src/compiled-property_test
+src_compiled_property_test_SOURCES = src/compiled-property_test.cc
+src_compiled_property_test_LDADD = src/libcompiled-property.la \
+     src/libstrutil.la src/libtest-main.la
+
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
 TESTS = $(check_PROGRAMS)
