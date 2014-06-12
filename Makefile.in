@@ -42,7 +42,8 @@ check_PROGRAMS = src/strutil_test$(EXEEXT) \
 	src/expression_test$(EXEEXT) \
 	src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
-	src/compiled-model_test$(EXEEXT)
+	src/compiled-model_test$(EXEEXT) \
+	src/compiled-property_test$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
@@ -223,6 +224,12 @@ src_compiled_model_test_OBJECTS =  \
 	$(am_src_compiled_model_test_OBJECTS)
 src_compiled_model_test_DEPENDENCIES = src/libcompiled-model.la \
 	src/libtest-main.la
+am_src_compiled_property_test_OBJECTS =  \
+	compiled-property_test.$(OBJEXT)
+src_compiled_property_test_OBJECTS =  \
+	$(am_src_compiled_property_test_OBJECTS)
+src_compiled_property_test_DEPENDENCIES = src/libcompiled-property.la \
+	src/libstrutil.la src/libtest-main.la
 am_src_ddutil_test_OBJECTS = ddutil_test.$(OBJEXT)
 src_ddutil_test_OBJECTS = $(am_src_ddutil_test_OBJECTS)
 src_ddutil_test_DEPENDENCIES = src/libddutil.la src/libtest-main.la
@@ -297,10 +304,12 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libunique_ptr_vector_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
-	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
-	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_compiled_model_test_SOURCES) \
+	$(src_compiled_property_test_SOURCES) \
+	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
+	$(src_rng_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
@@ -315,10 +324,12 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libunique_ptr_vector_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
-	$(src_compiled_model_test_SOURCES) $(src_ddutil_test_SOURCES) \
-	$(src_expression_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_compiled_model_test_SOURCES) \
+	$(src_compiled_property_test_SOURCES) \
+	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
+	$(src_rng_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -669,6 +680,10 @@ src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
 
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
+src_compiled_property_test_SOURCES = src/compiled-property_test.cc
+src_compiled_property_test_LDADD = src/libcompiled-property.la \
+     src/libstrutil.la src/libtest-main.la
+
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
@@ -867,6 +882,9 @@ src/compiled-expression_test$(EXEEXT): $(src_compiled_expression_test_OBJECTS) $
 src/compiled-model_test$(EXEEXT): $(src_compiled_model_test_OBJECTS) $(src_compiled_model_test_DEPENDENCIES) $(EXTRA_src_compiled_model_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/compiled-model_test$(EXEEXT)
 	$(CXXLINK) $(src_compiled_model_test_OBJECTS) $(src_compiled_model_test_LDADD) $(LIBS)
+src/compiled-property_test$(EXEEXT): $(src_compiled_property_test_OBJECTS) $(src_compiled_property_test_DEPENDENCIES) $(EXTRA_src_compiled_property_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/compiled-property_test$(EXEEXT)
+	$(CXXLINK) $(src_compiled_property_test_OBJECTS) $(src_compiled_property_test_LDADD) $(LIBS)
 src/ddutil_test$(EXEEXT): $(src_ddutil_test_OBJECTS) $(src_ddutil_test_DEPENDENCIES) $(EXTRA_src_ddutil_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/ddutil_test$(EXEEXT)
 	$(CXXLINK) $(src_ddutil_test_OBJECTS) $(src_ddutil_test_LDADD) $(LIBS)
@@ -905,6 +923,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-model_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-property.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compiled-property_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddApply.Plo@am__quote@
@@ -1755,6 +1774,20 @@ compiled-model_test.obj: src/compiled-model_test.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/compiled-model_test.cc' object='compiled-model_test.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o compiled-model_test.obj `if test -f 'src/compiled-model_test.cc'; then $(CYGPATH_W) 'src/compiled-model_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/compiled-model_test.cc'; fi`
+
+compiled-property_test.o: src/compiled-property_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT compiled-property_test.o -MD -MP -MF $(DEPDIR)/compiled-property_test.Tpo -c -o compiled-property_test.o `test -f 'src/compiled-property_test.cc' || echo '$(srcdir)/'`src/compiled-property_test.cc
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/compiled-property_test.Tpo $(DEPDIR)/compiled-property_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/compiled-property_test.cc' object='compiled-property_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o compiled-property_test.o `test -f 'src/compiled-property_test.cc' || echo '$(srcdir)/'`src/compiled-property_test.cc
+
+compiled-property_test.obj: src/compiled-property_test.cc
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT compiled-property_test.obj -MD -MP -MF $(DEPDIR)/compiled-property_test.Tpo -c -o compiled-property_test.obj `if test -f 'src/compiled-property_test.cc'; then $(CYGPATH_W) 'src/compiled-property_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/compiled-property_test.cc'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/compiled-property_test.Tpo $(DEPDIR)/compiled-property_test.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='src/compiled-property_test.cc' object='compiled-property_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o compiled-property_test.obj `if test -f 'src/compiled-property_test.cc'; then $(CYGPATH_W) 'src/compiled-property_test.cc'; else $(CYGPATH_W) '$(srcdir)/src/compiled-property_test.cc'; fi`
 
 ddutil_test.o: src/ddutil_test.cc
 @am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT ddutil_test.o -MD -MP -MF $(DEPDIR)/ddutil_test.Tpo -c -o ddutil_test.o `test -f 'src/ddutil_test.cc' || echo '$(srcdir)/'`src/ddutil_test.cc
