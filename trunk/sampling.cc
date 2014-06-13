@@ -453,10 +453,10 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledUntilProperty(
     // Mixed engine.
     cached_dds = dd_cache_.find(property.index());
     if (cached_dds == dd_cache_.end()) {
-      BDD dd1 =
-          property.formula().pre().verify(*dd_model_, false, false, params_);
-      BDD dd2 =
-          property.formula().post().verify(*dd_model_, false, false, params_);
+      BDD dd1 = Verify(
+          property.formula().pre(), *dd_model_, false, false, params_.epsilon);
+      BDD dd2 = Verify(
+          property.formula().post(), *dd_model_, false, false, params_.epsilon);
       cached_dds =
           dd_cache_.insert({property.index(), std::make_pair(dd1, dd2)}).first;
     }

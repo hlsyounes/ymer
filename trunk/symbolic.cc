@@ -30,92 +30,85 @@
 #include <iostream>
 #include <stdexcept>
 
-/* ====================================================================== */
-/* Conjunction */
+namespace {
 
-/* Verifies this state formula using the hybrid engine. */
-BDD Conjunction::verify(const DecisionDiagramModel& dd_model,
-                        bool estimate, bool top_level_formula,
-                        const ModelCheckingParams& params) const {
-  BDD sol = dd_model.reachable_states();
-  for (const StateFormula* conjunct : conjuncts()) {
-    sol = conjunct->verify(dd_model, estimate, top_level_formula, params)
-        && sol;
+class SymbolicVerifier : public StateFormulaVisitor, public PathFormulaVisitor {
+ public:
+  explicit SymbolicVerifier(const DecisionDiagramModel* dd_model,
+                            bool estimate, bool top_level_formula,
+                            double epsilon);
+
+  BDD result() const { return result_; }
+
+ private:
+  virtual void DoVisitConjunction(const Conjunction& formula);
+  virtual void DoVisitDisjunction(const Disjunction& formula);
+  virtual void DoVisitNegation(const Negation& formula);
+  virtual void DoVisitImplication(const Implication& formula);
+  virtual void DoVisitProbabilistic(const Probabilistic& formula);
+  virtual void DoVisitComparison(const Comparison& formula);
+  virtual void DoVisitUntil(const Until& formula);
+
+  const DecisionDiagramModel* dd_model_;
+  bool estimate_;
+  bool top_level_formula_;
+  double epsilon_;
+  double threshold_;
+  bool strict_;
+  BDD result_;
+};
+
+SymbolicVerifier::SymbolicVerifier(const DecisionDiagramModel* dd_model,
+                                   bool estimate, bool top_level_formula,
+                                   double epsilon)
+    : dd_model_(dd_model), estimate_(estimate),
+      top_level_formula_(top_level_formula), epsilon_(epsilon),
+      result_(dd_model->manager().GetConstant(false)) {
+}
+
+void SymbolicVerifier::DoVisitConjunction(const Conjunction& formula) {
+  BDD result = dd_model_->reachable_states();
+  for (const StateFormula* conjunct : formula.conjuncts()) {
+    conjunct->Accept(this);
+    result = result_ && result;
   }
-  return sol;
+  result_ = result;
 }
 
-
-/* ====================================================================== */
-/* Disjunction */
-
-/* Verifies this state formula using the hybrid engine. */
-BDD Disjunction::verify(const DecisionDiagramModel& dd_model,
-                        bool estimate, bool top_level_formula,
-                        const ModelCheckingParams& params) const {
-  BDD sol = dd_model.manager().GetConstant(false);
-  for (const StateFormula* disjunct : disjuncts()) {
-    sol = disjunct->verify(dd_model, estimate, top_level_formula, params)
-        || sol;
+void SymbolicVerifier::DoVisitDisjunction(const Disjunction& formula) {
+  BDD result = dd_model_->manager().GetConstant(false);
+  for (const StateFormula* disjunct : formula.disjuncts()) {
+    disjunct->Accept(this);
+    result = result_ || result;
   }
-  return dd_model.reachable_states() && sol;
+  result_ = dd_model_->reachable_states() && result;
 }
 
-
-/* ====================================================================== */
-/* Negation */
-
-/* Verifies this state formula using the hybrid engine. */
-BDD Negation::verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const {
-  BDD sol = !negand().verify(dd_model, estimate, top_level_formula, params);
-  return dd_model.reachable_states() && sol;
+void SymbolicVerifier::DoVisitNegation(const Negation& formula) {
+  formula.negand().Accept(this);
+  result_ = dd_model_->reachable_states() && !result_;
 }
 
-
-/* ====================================================================== */
-/* Implication */
-
-/* Verifies this state formula using the hybrid engine. */
-BDD Implication::verify(const DecisionDiagramModel& dd_model,
-                        bool estimate, bool top_level_formula,
-                        const ModelCheckingParams& params) const {
-  BDD sol = !antecedent().verify(dd_model, estimate, top_level_formula, params)
-      || consequent().verify(dd_model, estimate, top_level_formula, params);
-  return dd_model.reachable_states() && sol;
+void SymbolicVerifier::DoVisitImplication(const Implication& formula) {
+  formula.antecedent().Accept(this);
+  BDD result1 = result_;
+  formula.consequent().Accept(this);
+  result_ = dd_model_->reachable_states() && (!result1 || result_);
 }
 
-
-/* ====================================================================== */
-/* Probabilistic */
-
-/* Verifies this state formula using the hybrid engine. */
-BDD Probabilistic::verify(const DecisionDiagramModel& dd_model,
-                          bool estimate, bool top_level_formula,
-                          const ModelCheckingParams& params) const {
-  BDD res = formula().verify(dd_model, threshold(), strict(), estimate,
-                             top_level_formula, params);
-  return res;
+void SymbolicVerifier::DoVisitProbabilistic(const Probabilistic& formula) {
+  threshold_ = formula.threshold().value<double>();
+  strict_ = formula.strict();
+  formula.formula().Accept(this);
 }
 
-
-/* ====================================================================== */
-/* Comparison */
-
-/* Verifies this state formula using the hybrid engine. */
-BDD Comparison::verify(const DecisionDiagramModel& dd_model,
-                       bool estimate, bool top_level_formula,
-                       const ModelCheckingParams& params) const {
-  BDD ddc = bdd(dd_model.manager(), dd_model.variable_properties(), *this);
-  return ddc && dd_model.reachable_states();
+void SymbolicVerifier::DoVisitComparison(const Comparison& formula) {
+  result_ =
+      bdd(dd_model_->manager(), dd_model_->variable_properties(), formula);
+  result_ = result_ && dd_model_->reachable_states();
 }
 
-
-/* ====================================================================== */
-/* Until */
-
-/* Recursive component of mtbdd_to_double_vector. */
+// Recursive component of mtbdd_to_double_vector.
 static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
                                        DdNode* dd, int level,
 				       ODDNode* odd, long o, double* res) {
@@ -137,13 +130,12 @@ static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
   }
 }
 
-
-/* Converts an MTBDD to a double vector. */
+// Converts an MTBDD to a double vector.
 static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
                                       const ADD& dd, ODDNode* odd) {
-  /* Determine size. */
+  // Determine size.
   size_t n = odd->eoff + odd->toff;
-  /* Create array. */
+  // Create array.
   double* res = new double[n];
   for (size_t i = 0; i < n; i++) {
     res[i] = 0.0;
@@ -153,8 +145,7 @@ static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
   return res;
 }
 
-
-/* Recursive component of double_vector_to_bdd. */
+// Recursive component of double_vector_to_bdd.
 static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
                                     const std::vector<double>& vec,
                                     bool strict, double bound,
@@ -179,8 +170,7 @@ static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
   }
 }
 
-
-/* Converts a double vector to a BDD. */
+// Converts a double vector to a BDD.
 static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
                                 const std::vector<double>& vec,
                                 bool strict, double bound,
@@ -188,16 +178,15 @@ static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
   return double_vector_to_bdd_rec(ddman, vec, strict, bound, 0, odd, 0);
 }
 
-
-/* Matrix vector multiplication stuff. */
+// Matrix vector multiplication stuff.
 static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
 		     HDDNode* hdd, int level, long row, long col)
 {
   if (hdd == hddm->zero) {
-    /* It is the zero node. */
+    // It is the zero node.
     return;
   } else if (hdd->sb) {
-    /* There is a sparse bit. */
+    // There is a sparse bit.
     SparseBit* sb = hdd->sb;
     int n = sb->n;
     double* non_zeros = sb->non_zeros;
@@ -212,7 +201,7 @@ static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
     }
     return;
   } else if (level == hddm->num_levels) {
-    /* We have reached the bottom. */
+    // We have reached the bottom.
     soln2[row] += soln[col]*hdd->type.val*unif;
     return;
   }
@@ -231,8 +220,7 @@ static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
   }
 }
 
-
-/* Poisson tail bounds. */
+// Poisson tail bounds.
 static double tail_bound(int n, double lambda, int left, int right,
 			 double epsilon) {
   int m = (int) lambda;
@@ -254,24 +242,21 @@ static double tail_bound(int n, double lambda, int left, int right,
   }
 }
 
-
-/* Finds truncation points L and R and computes weights for a sum of
-   Poisson probabilities with rate lambda given an error bound of
-   epsilon (Fox & Glynn, CACM 31(4):440-445, 1988) */
+// Finds truncation points L and R and computes weights for a sum of
+// Poisson probabilities with rate lambda given an error bound of
+// epsilon (Fox & Glynn, CACM 31(4):440-445, 1988).
 static void fox_glynn_weighter(int& left, int& right, double*& weights,
 			       double& weight_sum, double lambda,
 			       double epsilon) {
-  /* Set the mode. */
+  // Set the mode.
   int m = int(lambda);
 
-  /* Make sure lambda is positive. */
+  // Make sure lambda is positive.
   if (lambda <= 0.0) {
     throw std::invalid_argument("lambda <= 0.0");
   }
 
-  /*
-   * Find truncation points L and R.
-   */
+  // Find truncation points L and R.
   double sqrt_lambda = sqrt(lambda);
   double sqrt_2pi = sqrt(2.0*M_PI);
   if (lambda < 25.0) {
@@ -279,8 +264,8 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     if (exp(-lambda) < DBL_MIN) {
       throw std::underflow_error("potential underflow for Fox-Glynn");
     }
-  } else { /* lambda >= 25.0 */
-    /* Find left using Corollary 2 with actual lambda. */
+  } else {  // lambda >= 25.0
+    // Find left using Corollary 2 with actual lambda.
     double b = (1.0 + 1.0/lambda)*exp(1.0/8.0/lambda);
     int i = 2;
     for (; i < m; i++) {
@@ -293,7 +278,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     left = m - i;
   }
   if (lambda < 400.0) {
-    /* Find right using Corollary 1 with lambda=400. */
+    // Find right using Corollary 1 with lambda=400.
     double a = (1.0 + 1.0/400.0)*exp(1.0/16.0)*M_SQRT2;
     int i = 2;
     int i_max = (400 + 3)/2;
@@ -306,8 +291,8 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
       }
     }
     right = m + i;
-  } else { /* lambda >= 400.0 */
-    /* Find right using Corollary 1 with actual lambda. */
+  } else {  // lambda >= 400.0
+    // Find right using Corollary 1 with actual lambda.
     double a = (1.0 + 1.0/lambda)*exp(1.0/16.0)*M_SQRT2;
     int i = 2;
     int i_max = int((lambda + 3.0)/2.0);
@@ -320,46 +305,16 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
       }
     }
     right = m + i;
-#if 0
-    /* Check for underflow using corollary 3. */
-    double c_m = 1.0/sqrt_2pi/sqrt(m)*exp(m - lambda - 1.0/12.0/m);
-    double k_hat1 = right/sqrt_lambda + 1.0;
-    double e = exp(1.0)*pow(DBL_MAX*1e-10/(right - left), -2.0/k_hat1/k_hat1);
-    if (c_m*pow(e, -k_hat1*k_hat1/2.0) < DBL_MIN) {
-      throw std::underflow_error("potential underflow for Fox-Glynn");
-    }
-#endif
   }
-#if 0
-  if (lambda >= 25.0) {
-    /* Check for underflow using corollary 4. */
-    double c_m = 1.0/sqrt_2pi/sqrt(m)*exp(m - lambda - 1.0/12.0/m);
-    double k_tilde = (m - left)/sqrt_lambda;
-    double p;
-    if (k_tilde > 0 && k_tilde <= sqrt_lambda/2.0) {
-      p = c_m*exp(-k_tilde*k_tilde/2.0
-		  - k_tilde*k_tilde*k_tilde/3.0/sqrt_lambda);
-    } else {
-      double sqrt_m1 = sqrt(m + 1.0);
-      p = std::max(c_m*pow(1.0 - k_tilde/sqrt_m1, k_tilde*sqrt_m1),
-		   exp(-lambda));
-    }
-    if (p*((DBL_MAX*1e-10)/(right - left)) < DBL_MIN) {
-      throw std::underflow_error("potential underflow for Fox-Glynn");
-    }
-  }
-#endif
 
-  /*
-   * Compute weights.
-   */
+  // Compute weights.
   weights = new double[right - left + 1];
   weights[m - left] = (DBL_MAX*1e-10)/(right - left);
-  /* Down. */
+  // Down.
   for (int j = m; j > left; j--) {
     weights[j - 1 - left] = (j/lambda)*weights[j - left];
   }
-  /* Up. */
+  // Up.
   if (lambda < 400.0) {
     if (right > 600) {
       throw std::underflow_error("potential undeflow for Fox-Glynn");
@@ -380,9 +335,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     }
   }
 
-  /*
-   * Compute sum of weights.
-   */
+  // Compute sum of weights.
   weight_sum = 0.0;
   int s = left;
   int t = right;
@@ -398,38 +351,48 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
   weight_sum += weights[s - left];
 }
 
-
-/* Verifies this path formula using the hybrid engine. */
-BDD Until::verify(const DecisionDiagramModel& dd_model,
-                  const TypedValue& p, bool strict, bool estimate,
-                  bool top_level_formula,
-                  const ModelCheckingParams& params) const {
+void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   /*
    * Detect trivial cases.
    */
-  if (p == 0 && !strict) {
+  if (threshold_ == 0 && !strict_) {
     /* Satisfied by all reachable states. */
-    return dd_model.reachable_states();
-  } else if (p == 1 && strict) {
+    result_ = dd_model_->reachable_states();
+    return;
+  } else if (threshold_ == 1 && strict_) {
     /* Not satisfied by any states. */
-    return dd_model.manager().GetConstant(false);
+    result_ = dd_model_->manager().GetConstant(false);
+    return;
   }
 
   /*
    * Verify postcondition formula.
    */
-  BDD dd2 = post().verify(dd_model, false, false, params);
-  if (max_time() == 0) {
+  bool estimate = false;
+  bool top_level_formula = false;
+  std::swap(estimate_, estimate);
+  std::swap(top_level_formula_, top_level_formula);
+  formula.post().Accept(this);
+  BDD dd2 = result_;
+  std::swap(estimate_, estimate);
+  std::swap(top_level_formula_, top_level_formula);
+  if (formula.max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
-    return dd2;
+    result_ = dd2;
+    return;
   }
 
   /*
    * Verify precondition formula.
    */
-  BDD dd1 = pre().verify(dd_model, false, false, params);
+  std::swap(estimate_, estimate);
+  std::swap(top_level_formula_, top_level_formula);
+  formula.pre().Accept(this);
+  BDD dd1 = result_;
+  std::swap(estimate_, estimate);
+  std::swap(top_level_formula_, top_level_formula);
 
-  if (min_time() > 0) {
+  if (formula.min_time() > 0) {
     // TODO(hlsyounes): implement support for interval time bounds.
     throw std::invalid_argument("interval time bounds not supported");
   }
@@ -438,43 +401,42 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
    * Compute BDD representing non-absorbing states in transformed model.
    */
   BDD maybe = dd1 && !dd2;
-  if (maybe.get() == dd_model.manager().GetConstant(false).get()) {
+  if (maybe.get() == dd_model_->manager().GetConstant(false).get()) {
     /* All states are absorbing so solution is simply dd2. */
-    return dd2;
+    result_ = dd2;
+    return;
   }
 
   /* ---------------------------------------------------------------------- */
   /* Transient analysis. */
 
-  /* Probability threshold. */
-  double threshold = p.value<double>();
   /* Time limit. */
-  double time = max_time().value<double>();
+  double time = formula.max_time().value<double>();
   /* ODD for model. */
-  ODDNode* odd = dd_model.odd();
+  ODDNode* odd = dd_model_->odd();
   /* Number of states. */
   size_t nstates = odd->eoff + odd->toff;
 
   /*
    * Build HDD for matrix.
    */
-  if (top_level_formula) {
+  if (top_level_formula_) {
     std::cout << "Building hybrid MTBDD matrix...";
   }
-  ADD ddR = dd_model.rate_matrix() * ADD(maybe);
-  HDDMatrix* hddm = build_hdd_matrix(dd_model.manager(), ddR, odd);
-  if (top_level_formula) {
+  ADD ddR = dd_model_->rate_matrix() * ADD(maybe);
+  HDDMatrix* hddm = build_hdd_matrix(dd_model_->manager(), ddR, odd);
+  if (top_level_formula_) {
     std::cout << hddm->num_nodes << " nodes." << std::endl;
   }
 
   /*
    * Add sparse bits.
    */
-  if (top_level_formula) {
+  if (top_level_formula_) {
     std::cout << "Adding sparse bits...";
   }
   add_sparse_bits(hddm);
-  if (top_level_formula) {
+  if (top_level_formula_) {
     std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
               << std::endl;
   }
@@ -506,9 +468,9 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Create solution/iteration vectors.
    */
-  double* soln = mtbdd_to_double_vector(dd_model.manager(), ADD(dd2), odd);
+  double* soln = mtbdd_to_double_vector(dd_model_->manager(), ADD(dd2), odd);
   double* soln2 = new double[nstates];
-  int init = top_level_formula ? dd_model.initial_state_index() : -1;
+  int init = top_level_formula_ ? dd_model_->initial_state_index() : -1;
   std::vector<double> sum((init >= 0) ? 1 : nstates, 0);
 
   /*
@@ -517,13 +479,13 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   int left, right;
   double* weights;
   double weight_sum;
-  if (top_level_formula) {
+  if (top_level_formula_) {
     std::cout << "Uniformization: " << max_diag << "*" << time << " = "
               << (max_diag*time) << std::endl;
   }
   fox_glynn_weighter(left, right, weights, weight_sum,
-		     1.01*max_diag*time, params.epsilon);
-  if (top_level_formula) {
+		     1.01*max_diag*time, epsilon_);
+  if (top_level_formula_) {
     std::cout << "Fox-Glynn: left = " << left << ", right = " << right
               << std::endl;
   }
@@ -531,14 +493,14 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   /*
    * Iterations before left bound to update vector.
    */
-  if (top_level_formula) {
+  if (top_level_formula_) {
     std::cout << "Computing probabilities";
   }
   int iters;
   bool done = false;
   bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
-    if (top_level_formula) {
+    if (top_level_formula_) {
       if (iters % 1000 == 0) {
         std::cout << ':';
       } else if (iters % 100 == 0) {
@@ -555,10 +517,10 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
     /*
      * Check for steady state convergence.
      */
-    if (!estimate) {
+    if (!estimate_) {
       done = true;
       double sqnorm = 0.0;
-      double sqbound = params.epsilon*params.epsilon/64.0;
+      double sqbound = epsilon_ * epsilon_ / 64.0;
       for (size_t i = 0; i < nstates; i++) {
 	double diff = soln2[i] - soln[i];
 	sqnorm += diff*diff;
@@ -591,7 +553,7 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
    * Accumulate weights.
    */
   for (; iters <= right && !done; iters++) {
-    if (top_level_formula) {
+    if (top_level_formula_) {
       if (iters % 1000 == 0) {
         std::cout << ':';
       } else if (iters % 100 == 0) {
@@ -609,10 +571,10 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
       /*
        * Check for steady state convergence.
        */
-      if (!estimate) {
+      if (!estimate_) {
 	done = true;
 	double sqnorm = 0.0;
-	double sqbound = params.epsilon*params.epsilon/64.0;
+	double sqbound = epsilon_ * epsilon_ / 64.0;
 	for (size_t i = 0; i < nstates; i++) {
 	  double diff = soln2[i] - soln[i];
 	  sqnorm += diff*diff;
@@ -655,18 +617,18 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
 	sum[i] += weights[iters - left]/weight_sum*soln[i];
       }
       double slack = tail_bound(iters, 1.01*max_diag*time,
-				left, right, params.epsilon);
+				left, right, epsilon_);
       if (VLOG_IS_ON(2) && init >= 0) {
 	LOG(INFO) << iters
 		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"
-		  << "; threshold = " << threshold;
+		  << "; threshold = " << threshold_;
       }
-      if (!estimate) {
+      if (!estimate_) {
 	bool pass = false;
-	if (strict) {
-	  pass = (sum[i] + slack <= threshold || sum[i] > threshold);
+	if (strict_) {
+	  pass = (sum[i] + slack <= threshold_ || sum[i] > threshold_);
 	} else {
-	  pass = (sum[i] + slack < threshold || sum[i] >= threshold);
+	  pass = (sum[i] + slack < threshold_ || sum[i] >= threshold_);
 	}
 	if (pass) {
 	  num_pass++;
@@ -687,15 +649,15 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   if (iters > right) {
     iters = right;
   }
-  if (top_level_formula) {
+  if (top_level_formula_) {
     std::cout << ' ' << iters << " iterations." << std::endl;
   }
-  if (estimate) {
+  if (estimate_) {
     std::cout.precision(10);
-    std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
+    std::cout << "Pr[" << formula << "] = " << sum[0] << std::endl;
     std::cout.precision(6);
   }
-  if (steady && top_level_formula) {
+  if (steady && top_level_formula_) {
     std::cout << "Steady state detected." << std::endl;
   }
   /*
@@ -708,13 +670,26 @@ BDD Until::verify(const DecisionDiagramModel& dd_model,
   delete weights;
 
   if (init >= 0) {
-    if ((strict && sum[0] > threshold) || (!strict && sum[0] >= threshold)) {
-      return dd_model.initial_state();
+    if ((strict_ && sum[0] > threshold_)
+      || (!strict_ && sum[0] >= threshold_)) {
+      result_ = dd_model_->initial_state();
+      return;
     } else {
-      return dd_model.manager().GetConstant(false);
+      result_ = dd_model_->manager().GetConstant(false);
+      return;
     }
   } else {
-    return double_vector_to_bdd(dd_model.manager(), sum, strict, threshold,
-                                odd);
+    result_ = double_vector_to_bdd(
+        dd_model_->manager(), sum, strict_, threshold_, odd);
+    return;
   }
+}
+
+}  // namespace
+
+BDD Verify(const StateFormula& property, const DecisionDiagramModel& dd_model,
+           bool estimate, bool top_level_formula, double epsilon) {
+  SymbolicVerifier verifier(&dd_model, estimate, top_level_formula, epsilon);
+  property.Accept(&verifier);
+  return verifier.result();
 }
