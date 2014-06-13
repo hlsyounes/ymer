@@ -1631,7 +1631,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = (*fi)->verify(dd_model, estimate, true, params);
+	  BDD ddf = Verify(**fi, dd_model, estimate, true, params.epsilon);
 	  BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);

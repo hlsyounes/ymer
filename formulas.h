@@ -88,11 +88,6 @@ class StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const = 0;
-
 protected:
   /* Constructs a state formula. */
   StateFormula() {}
@@ -141,12 +136,6 @@ class PathFormula {
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const = 0;
 
-  /* Verifies this path formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     const TypedValue& p, bool strict, bool estimate,
-                     bool top_level_formula,
-                     const ModelCheckingParams& params) const = 0;
-
 protected:
   /* Constructs a path formula. */
   PathFormula() {}
@@ -187,11 +176,6 @@ class Conjunction : public StateFormula {
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const;
-
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
 
@@ -221,11 +205,6 @@ class Disjunction : public StateFormula {
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -257,11 +236,6 @@ class Negation : public StateFormula {
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -296,11 +270,6 @@ class Implication : public StateFormula {
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -341,11 +310,6 @@ class Probabilistic : public StateFormula {
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -389,11 +353,6 @@ class Comparison : public StateFormula {
 
   /* Tests if this state formula contains probabilistic elements. */
   virtual bool probabilistic() const;
-
-  /* Verifies this state formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     bool estimate, bool top_level_formula,
-                     const ModelCheckingParams& params) const;
 
 protected:
   /* Constructs a comparison. */
@@ -545,12 +504,6 @@ class Until : public PathFormula {
   /* Tests if this path formula contains probabilistic elements. */
   virtual bool probabilistic() const;
 
-  /* Verifies this path formula using the hybrid engine. */
-  virtual BDD verify(const DecisionDiagramModel& dd_model,
-                     const TypedValue& p, bool strict, bool estimate,
-                     bool top_level_formula,
-                     const ModelCheckingParams& params) const;
-
 private:
   virtual void DoAccept(PathFormulaVisitor* visitor) const;
 
@@ -616,6 +569,9 @@ bool Verify(const CompiledProperty& property,
             const ModelCheckingParams& params,
             CompiledExpressionEvaluator* evaluator, const State& state,
             ModelCheckingStats* stats);
+
+BDD Verify(const StateFormula& property, const DecisionDiagramModel& dd_model,
+           bool estimate, bool top_level_formula, double epsilon);
 
 bool GetObservation(const CompiledPathProperty& property,
                     const Model& model, const DecisionDiagramModel* dd_model,
