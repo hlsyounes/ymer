@@ -85,9 +85,6 @@ class StateFormula {
 
   void Accept(StateFormulaVisitor* visitor) const;
 
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const = 0;
-
 protected:
   /* Constructs a state formula. */
   StateFormula() {}
@@ -133,9 +130,6 @@ class PathFormula {
 
   void Accept(PathFormulaVisitor* visitor) const;
 
-  /* Tests if this path formula contains probabilistic elements. */
-  virtual bool probabilistic() const = 0;
-
 protected:
   /* Constructs a path formula. */
   PathFormula() {}
@@ -173,9 +167,6 @@ class Conjunction : public StateFormula {
     return conjuncts_;
   }
 
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
-
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
 
@@ -202,9 +193,6 @@ class Disjunction : public StateFormula {
   const std::vector<const StateFormula*>& disjuncts() const {
     return disjuncts_;
   }
-
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -233,9 +221,6 @@ class Negation : public StateFormula {
 
   /* Returns the negated state formula. */
   const StateFormula& negand() const { return *negand_; }
-
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -267,9 +252,6 @@ class Implication : public StateFormula {
 
   /* Returns the consequent of this implication. */
   const StateFormula& consequent() const { return *consequent_; }
-
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -307,9 +289,6 @@ class Probabilistic : public StateFormula {
 
   /* Returns the path formula. */
   const PathFormula& formula() const { return *formula_; }
-
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
 
 private:
   virtual void DoAccept(StateFormulaVisitor* visitor) const;
@@ -350,9 +329,6 @@ class Comparison : public StateFormula {
 
   /* Returns the second expression of this comparison. */
   const Expression& expr2() const { return *expr2_; }
-
-  /* Tests if this state formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
 
 protected:
   /* Constructs a comparison. */
@@ -500,9 +476,6 @@ class Until : public PathFormula {
 
   /* Returns the upper time bound. */
   const TypedValue& max_time() const { return max_time_; }
-
-  /* Tests if this path formula contains probabilistic elements. */
-  virtual bool probabilistic() const;
 
 private:
   virtual void DoAccept(PathFormulaVisitor* visitor) const;

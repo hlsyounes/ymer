@@ -76,19 +76,8 @@ void Conjunction::DoAccept(StateFormulaVisitor* visitor) const {
 
 /* Adds a conjunct to this conjunction. */
 void Conjunction::add_conjunct(const StateFormula* conjunct) {
-  if (conjunct->probabilistic()) {
-    conjuncts_.insert(conjuncts_.begin(), conjunct);
-  } else {
-    conjuncts_.push_back(conjunct);
-  }
+  conjuncts_.push_back(conjunct);
 }
-
-
-/* Tests if this state formula contains probabilistic elements. */
-bool Conjunction::probabilistic() const {
-  return !conjuncts().empty() && conjuncts().front()->probabilistic();
-}
-
 
 /* Prints this object on the given stream. */
 void Conjunction::print(std::ostream& os) const {
@@ -139,19 +128,8 @@ void Disjunction::DoAccept(StateFormulaVisitor* visitor) const {
 
 /* Adds a disjunct to this disjunction. */
 void Disjunction::add_disjunct(const StateFormula* disjunct) {
-  if (disjunct->probabilistic()) {
-    disjuncts_.insert(disjuncts_.begin(), disjunct);
-  } else {
-    disjuncts_.push_back(disjunct);
-  }
+  disjuncts_.push_back(disjunct);
 }
-
-
-/* Tests if this state formula contains probabilistic elements. */
-bool Disjunction::probabilistic() const {
-  return !disjuncts().empty() && disjuncts().front()->probabilistic();
-}
-
 
 /* Prints this object on the given stream. */
 void Disjunction::print(std::ostream& os) const {
@@ -204,12 +182,6 @@ void Negation::DoAccept(StateFormulaVisitor* visitor) const {
   visitor->VisitNegation(*this);
 }
 
-/* Tests if this state formula contains probabilistic elements. */
-bool Negation::probabilistic() const {
-  return negand().probabilistic();
-}
-
-
 /* Prints this object on the given stream. */
 void Negation::print(std::ostream& os) const {
   os << '!';
@@ -246,12 +218,6 @@ void Implication::DoAccept(StateFormulaVisitor* visitor) const {
   visitor->VisitImplication(*this);
 }
 
-/* Tests if this state formula contains probabilistic elements. */
-bool Implication::probabilistic() const {
-  return antecedent().probabilistic() || consequent().probabilistic();
-}
-
-
 /* Prints this object on the given stream. */
 void Implication::print(std::ostream& os) const {
   os << antecedent() << " => ";
@@ -285,12 +251,6 @@ void Probabilistic::DoAccept(StateFormulaVisitor* visitor) const {
   visitor->VisitProbabilistic(*this);
 }
 
-/* Tests if this state formula contains probabilistic elements. */
-bool Probabilistic::probabilistic() const {
-  return true;
-}
-
-
 /* Prints this object on the given stream. */
 void Probabilistic::print(std::ostream& os) const {
   os << 'P' << (strict() ? ">" : ">=") << threshold()
@@ -315,12 +275,6 @@ Comparison::~Comparison() = default;
 void Comparison::DoAccept(StateFormulaVisitor* visitor) const {
   visitor->VisitComparison(*this);
 }
-
-/* Tests if this state formula contains probabilistic elements. */
-bool Comparison::probabilistic() const {
-  return false;
-}
-
 
 /* ====================================================================== */
 /* LessThan */
@@ -438,12 +392,6 @@ Until::~Until() {
 void Until::DoAccept(PathFormulaVisitor* visitor) const {
   visitor->VisitUntil(*this);
 }
-
-/* Tests if this path formula contains probabilistic elements. */
-bool Until::probabilistic() const {
-  return pre().probabilistic() || post().probabilistic();
-}
-
 
 /* Prints this object on the given stream. */
 void Until::print(std::ostream& os) const {
