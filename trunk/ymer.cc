@@ -621,41 +621,34 @@ void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
 
 void ExpressionCompiler::DoVisitConjunction(const Conjunction& formula) {
   size_t n = formula.conjuncts().size();
+  operations_.push_back(Operation::MakeICONST(1, dst_));
   for (size_t i = 0; i < n; ++i) {
     const StateFormula& conjunct = *formula.conjuncts()[i];
     size_t iffalse_pos = operations_.size();
-    if (i > 0) {
-      operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
-    }
+    operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
     conjunct.Accept(this);
     if (type_ != Type::BOOL) {
       errors_->push_back(StrCat("type mismatch; binary operator & applied to ",
                                 type_));
     }
-    if (i > 0) {
-      operations_[iffalse_pos] =
-          Operation::MakeIFFALSE(dst_, operations_.size());
-    }
+    operations_[iffalse_pos] = Operation::MakeIFFALSE(dst_, operations_.size());
   }
   type_ = Type::BOOL;
 }
 
 void ExpressionCompiler::DoVisitDisjunction(const Disjunction& formula) {
   size_t n = formula.disjuncts().size();
+  operations_.push_back(Operation::MakeICONST(0, dst_));
   for (size_t i = 0; i < n; ++i) {
     const StateFormula& disjunct = *formula.disjuncts()[i];
     size_t iftrue_pos = operations_.size();
-    if (i > 0) {
-      operations_.push_back(Operation::MakeNOP());  // placeholder for IFTRUE
-    }
+    operations_.push_back(Operation::MakeNOP());  // placeholder for IFTRUE
     disjunct.Accept(this);
     if (type_ != Type::BOOL) {
       errors_->push_back(StrCat("type mismatch; binary operator | applied to ",
                                 type_));
     }
-    if (i > 0) {
-      operations_[iftrue_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
-    }
+    operations_[iftrue_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
   }
   type_ = Type::BOOL;
 }
@@ -1026,7 +1019,13 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
     operand.Accept(this);
     operands.push_back(std::move(property_));
   }
-  property_ = CompiledAndProperty::New(std::move(operands));
+  if (operands.empty()) {
+    property_ = CompiledExpressionProperty::New(CompiledExpression(
+        CompiledExpression({Operation::MakeICONST(1, 0)})));
+  } else {
+    property_ = CompiledAndProperty::New(CompiledExpression({}),
+                                         std::move(operands));
+  }
 }
 
 void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
@@ -1037,8 +1036,8 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
     operand.Accept(this);
     operands.push_back(CompiledNotProperty::New(std::move(property_)));
   }
-  property_ =
-      CompiledNotProperty::New(CompiledAndProperty::New(std::move(operands)));
+  property_ = CompiledNotProperty::New(CompiledAndProperty::New(
+      CompiledExpression({}), std::move(operands)));
 }
 
 void PropertyCompiler::DoVisitNegation(const Negation& formula) {
@@ -1052,8 +1051,8 @@ void PropertyCompiler::DoVisitImplication(const Implication& formula) {
   operands.push_back(std::move(property_));
   formula.consequent().Accept(this);
   operands.push_back(CompiledNotProperty::New(std::move(property_)));
-  property_ =
-      CompiledNotProperty::New(CompiledAndProperty::New(std::move(operands)));
+  property_ = CompiledNotProperty::New(CompiledAndProperty::New(
+      CompiledExpression({}), std::move(operands)));
 }
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {

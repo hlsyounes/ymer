@@ -19,8 +19,8 @@
 
 #include "compiled-property.h"
 
-#include <deque>
 #include <utility>
+#include <vector>
 
 #include "unique-ptr-vector.h"
 
@@ -64,11 +64,19 @@ CompiledPropertyPrinter::CompiledPropertyPrinter(std::ostream* os)
 
 void CompiledPropertyPrinter::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
-  size_t n = property.operands().size();
-  *os_ << "AND of " << n << " operands";
-  for (size_t i = 0; i < n; ++i) {
-    *os_ << std::endl << "operand " << i << ":" << std::endl;
-    property.operands()[i].Accept(this);
+  const size_t operand_count =
+      property.other_operands().size() + (property.has_expr_operand() ? 1 : 0);
+  *os_ << "AND of " << operand_count << " operands";
+  int operand_index = 0;
+  if (property.has_expr_operand()) {
+    *os_ << std::endl << "operand " << operand_index << ':' << std::endl
+         << property.expr_operand();
+    ++operand_index;
+  }
+  for (const CompiledProperty& operand : property.other_operands()) {
+    *os_ << std::endl << "operand " << operand_index << ":" << std::endl;
+    operand.Accept(this);
+    ++operand_index;
   }
 }
 
@@ -147,17 +155,20 @@ bool HasOneProbabilistic(
 }  // namespace
 
 CompiledAndProperty::CompiledAndProperty(
-    UniquePtrVector<const CompiledProperty>&& operands)
-    : CompiledProperty(HasOneProbabilistic(operands)),
-      operands_(std::move(operands)) {
+    const CompiledExpression& optional_expr_operand,
+    UniquePtrVector<const CompiledProperty>&& other_operands)
+    : CompiledProperty(HasOneProbabilistic(other_operands)),
+      optional_expr_operand_(optional_expr_operand),
+      other_operands_(std::move(other_operands)) {
 }
 
 CompiledAndProperty::~CompiledAndProperty() = default;
 
 std::unique_ptr<const CompiledAndProperty> CompiledAndProperty::New(
-    UniquePtrVector<const CompiledProperty>&& operands) {
-  return std::unique_ptr<const CompiledAndProperty>(
-      new CompiledAndProperty(std::move(operands)));
+    const CompiledExpression& optional_expr_operand,
+    UniquePtrVector<const CompiledProperty>&& other_operands) {
+  return std::unique_ptr<const CompiledAndProperty>(new CompiledAndProperty(
+      optional_expr_operand, std::move(other_operands)));
 }
 
 void CompiledAndProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
@@ -299,7 +310,7 @@ class OptimizerState {
 
  private:
   std::vector<Operation> operations_;
-  std::deque<std::unique_ptr<const CompiledProperty> > conjuncts_;
+  std::vector<std::unique_ptr<const CompiledProperty> > conjuncts_;
   bool is_negated_;
 };
 
@@ -348,21 +359,23 @@ void OptimizerState::ConjunctionWith(OptimizerState&& state) {
 }
 
 std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty() {
-  if (operations_.empty() && conjuncts_.empty()) {
-    CHECK(!is_negated_);
-    // Empty state represents TRUE.
-    return CompiledExpressionProperty::New(
-        CompiledExpression({Operation::MakeICONST(true, 0)}));
-  }
-  if (!operations_.empty()) {
-    CompiledExpression expr(operations_);
-    conjuncts_.push_front(
-        CompiledExpressionProperty::New(OptimizeIntExpression(expr)));
-  }
-  std::unique_ptr<const CompiledProperty> property = (conjuncts_.size() == 1)
-      ? std::move(conjuncts_.front())
-      : CompiledAndProperty::New(UniquePtrVector<const CompiledProperty>(
+  const size_t operand_count =
+      conjuncts_.size() + (operations_.empty() ? 0 : 1);
+  std::unique_ptr<const CompiledProperty> property;
+  if (operand_count == 0) {
+    property = CompiledExpressionProperty::New(
+        CompiledExpression({Operation::MakeICONST(1, 0)}));
+  } else if (operand_count > 1) {
+    property = CompiledAndProperty::New(
+        OptimizeIntExpression(CompiledExpression(operations_)),
+        UniquePtrVector<const CompiledProperty>(
             conjuncts_.begin(), conjuncts_.end()));
+  } else if (conjuncts_.empty()) {
+    property = CompiledExpressionProperty::New(
+        OptimizeIntExpression(CompiledExpression(operations_)));
+  } else {
+    property = std::move(conjuncts_[0]);
+  }
   if (is_negated_) {
     property = CompiledNotProperty::New(std::move(property));
   }
@@ -399,7 +412,10 @@ CompiledPropertyOptimizer::release_property() {
 void CompiledPropertyOptimizer::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
   OptimizerState state = std::move(state_);
-  for (const CompiledProperty& operand : property.operands()) {
+  if (property.has_expr_operand()) {
+    state.ConjunctionWith(OptimizerState(property.expr_operand().operations()));
+  }
+  for (const CompiledProperty& operand : property.other_operands()) {
     operand.Accept(this);
     state.ConjunctionWith(std::move(state_));
   }

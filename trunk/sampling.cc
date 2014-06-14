@@ -111,16 +111,22 @@ CompiledPropertySamplingVerifier::CompiledPropertySamplingVerifier(
 
 void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
-  double alpha = params_.alpha / property.operands().size();
-  std::swap(params_.alpha, alpha);
   result_ = true;
-  for (const CompiledProperty& operand : property.operands()) {
-    operand.Accept(this);
-    if (result_ == false) {
-      break;
-    }
+  if (property.has_expr_operand()) {
+    result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
+                                                state_->values());
   }
-  std::swap(params_.alpha, alpha);
+  if (result_ == true && !property.other_operands().empty()) {
+    double alpha = params_.alpha / property.other_operands().size();
+    std::swap(params_.alpha, alpha);
+    for (const CompiledProperty& operand : property.other_operands()) {
+      operand.Accept(this);
+      if (result_ == false) {
+        break;
+      }
+    }
+    std::swap(params_.alpha, alpha);
+  }
 }
 
 void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(

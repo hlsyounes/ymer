@@ -31,6 +31,13 @@ NewCompiledExpressionProperty(int variable) {
       CompiledExpression({Operation::MakeILOAD(variable, 0)}));
 }
 
+CompiledExpression UnoptimizedCompiledExpression() {
+  return CompiledExpression({
+      Operation::MakeICONST(1, 0),
+      Operation::MakeICONST(0, 0)
+ });
+}
+
 std::unique_ptr<const CompiledProbabilisticProperty>
 NewCompiledProbabilisticProperty(int base_variable) {
   return CompiledProbabilisticProperty::New(
@@ -47,6 +54,39 @@ UniquePtrVector<const CompiledProperty> MakeConjuncts(
     std::unique_ptr<const CompiledProperty> operand2) {
   return UniquePtrVector<const CompiledProperty>(std::move(operand1),
                                                  std::move(operand2));
+}
+
+TEST(OptimizePropertyTest, OptimizesEmptyAnd) {
+  const CompiledAndProperty property = CompiledAndProperty(
+      CompiledExpression({}), UniquePtrVector<const CompiledProperty>());
+  const std::string expected = "0: ICONST 1 0";
+  EXPECT_EQ(expected, StrCat(*OptimizeProperty(property)));
+}
+
+TEST(OptimizePropertyTest, OptimizesExpressionConjunct) {
+  const CompiledAndProperty property = CompiledAndProperty(
+      UnoptimizedCompiledExpression(),
+      MakeConjuncts(NewCompiledProbabilisticProperty(0),
+                    NewCompiledProbabilisticProperty(2)));
+  const std::string expected =
+      "AND of 3 operands\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ILOAD 0 0\n"
+      "post:\n"
+      "0: ILOAD 1 0\n"
+      "operand 2:\n"
+      "P > 0.25\n"
+      "UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ILOAD 2 0\n"
+      "post:\n"
+      "0: ILOAD 3 0";
+  EXPECT_EQ(expected, StrCat(*OptimizeProperty(property)));
 }
 
 TEST(OptimizePropertyTest, OptimizesLogicOperators) {
@@ -68,11 +108,13 @@ TEST(OptimizePropertyTest, OptimizesLogicOperators) {
       "0: ILOAD 1 0";
   EXPECT_EQ(expected2, StrCat(*OptimizeProperty(property2)));
   const CompiledAndProperty property3 = CompiledAndProperty(
+      CompiledExpression({}),
       MakeConjuncts(
           NewCompiledExpressionProperty(0),
           CompiledNotProperty::New(
               CompiledNotProperty::New(
                   CompiledAndProperty::New(
+                      CompiledExpression({}),
                       MakeConjuncts(
                           CompiledNotProperty::New(
                               NewCompiledProbabilisticProperty(1)),
