@@ -92,7 +92,7 @@ TEST(GetNumRegistersTest, Negation) {
   EXPECT_EQ(std::make_pair(0, 2), GetNumRegisters(expr2));
 }
 
-TEST(GetNumRegistersTest, Not) {
+TEST(GetNumRegistersTest, LogicalNot) {
   const CompiledExpression expr({ Operation::MakeNOT(0) });
   EXPECT_EQ(std::make_pair(1, 0), GetNumRegisters(expr));
 }

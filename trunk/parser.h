@@ -60,12 +60,13 @@
      ARROW = 278,
      DOTDOT = 279,
      ILLEGAL_TOKEN = 280,
-     IMPLY = 281,
-     NEQ = 282,
-     EQ = 283,
-     GTE = 284,
-     LTE = 285,
-     UMINUS = 286
+     EQV = 281,
+     IMP = 282,
+     NEQ = 283,
+     EQ = 284,
+     GTE = 285,
+     LTE = 286,
+     UMINUS = 287
    };
 #endif
 /* Tokens.  */
@@ -92,12 +93,13 @@
 #define ARROW 278
 #define DOTDOT 279
 #define ILLEGAL_TOKEN 280
-#define IMPLY 281
-#define NEQ 282
-#define EQ 283
-#define GTE 284
-#define LTE 285
-#define UMINUS 286
+#define EQV 281
+#define IMP 282
+#define NEQ 283
+#define EQ 284
+#define GTE 285
+#define LTE 286
+#define UMINUS 287
 
 
 
@@ -107,7 +109,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 312 "parser.yy"
+#line 314 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -124,7 +126,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 128 "parser.h"
+#line 130 "parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

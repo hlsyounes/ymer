@@ -301,13 +301,15 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 %token ARROW DOTDOT
 %token ILLEGAL_TOKEN
 
-%left IMPLY
-%left '&' '|'
-%left '!'
-%left '<' LTE GTE '>' EQ NEQ
+%left EQV
+%left IMP
+%left '|'
+%left '&'
+%left EQ NEQ
+%left '<' LTE GTE '>'
 %left '+' '-'
 %left '*' '/'
-%right UMINUS
+%right UMINUS '!'
 
 %union {
   size_t synch;
@@ -615,7 +617,7 @@ csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
                 { $$ = make_probabilistic($3, false, false, $5); }
             | 'P' '>' NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, true, false, $5); }
-            | csl_formula IMPLY csl_formula { $$ = new Implication($1, $3); }
+            | csl_formula IMP csl_formula { $$ = new Implication($1, $3); }
             | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
             | csl_formula '|' csl_formula { $$ = make_disjunction($1, $3); }
             | '!' csl_formula { $$ = new Negation($2); }
@@ -750,6 +752,9 @@ void ConstantExpressionEvaluator::DoVisitUnaryOperation(
     case UnaryOperator::NEGATE:
       value_ = -value_;
       break;
+    case UnaryOperator::NOT:
+      value_ = !value_;
+      break;
   }
 }
 
@@ -770,6 +775,36 @@ void ConstantExpressionEvaluator::DoVisitBinaryOperation(
       break;
     case BinaryOperator::DIVIDE:
       value_ = operand1 / value_;
+      break;
+    case BinaryOperator::AND:
+      value_ = operand1.value<bool>() && value_.value<bool>();
+      break;
+    case BinaryOperator::OR:
+      value_ = operand1.value<bool>() || value_.value<bool>();
+      break;
+    case BinaryOperator::IMPLY:
+      value_ = !operand1.value<bool>() || value_.value<bool>();
+      break;
+    case BinaryOperator::IFF:
+      value_ = operand1.value<bool>() == value_.value<bool>();
+      break;
+    case BinaryOperator::LESS:
+      value_ = operand1 < value_;
+      break;
+    case BinaryOperator::LESS_EQUAL:
+      value_ = operand1 <= value_;
+      break;
+    case BinaryOperator::GREATER_EQUAL:
+      value_ = operand1 >= value_;
+      break;
+    case BinaryOperator::GREATER:
+      value_ = operand1 > value_;
+      break;
+    case BinaryOperator::EQUAL:
+      value_ = operand1 == value_;
+      break;
+    case BinaryOperator::NOT_EQUAL:
+      value_ = operand1 != value_;
       break;
   }
 }
