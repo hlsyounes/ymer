@@ -87,21 +87,32 @@ std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 class CompiledAndProperty : public CompiledProperty {
  public:
   explicit CompiledAndProperty(
-      UniquePtrVector<const CompiledProperty>&& operands);
+      const CompiledExpression& optional_expr_operand,
+      UniquePtrVector<const CompiledProperty>&& other_operands);
 
   virtual ~CompiledAndProperty();
 
   static std::unique_ptr<const CompiledAndProperty> New(
-      UniquePtrVector<const CompiledProperty>&& operands);
+      const CompiledExpression& optional_expr_operand,
+      UniquePtrVector<const CompiledProperty>&& other_operands);
 
-  const UniquePtrVector<const CompiledProperty>& operands() const {
-    return operands_;
+  const bool has_expr_operand() const {
+    return !optional_expr_operand_.operations().empty();
+  }
+
+  const CompiledExpression& expr_operand() const {
+    return optional_expr_operand_;
+  }
+
+  const UniquePtrVector<const CompiledProperty>& other_operands() const {
+    return other_operands_;
   }
 
  private:
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
-  UniquePtrVector<const CompiledProperty> operands_;
+  CompiledExpression optional_expr_operand_;
+  UniquePtrVector<const CompiledProperty> other_operands_;
 };
 
 // A compiled NOT property.

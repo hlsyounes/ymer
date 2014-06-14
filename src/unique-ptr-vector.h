@@ -66,6 +66,7 @@ class UniquePtrVector {
   }
 
   size_type size() const { return elements_.size(); }
+  bool empty() const { return elements_.empty(); }
   Iterator begin() const { return Iterator(elements_.begin()); }
   Iterator end() const { return Iterator(elements_.end()); }
   T& operator[](int i) const { return *elements_[i]; }
