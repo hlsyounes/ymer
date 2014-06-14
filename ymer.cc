@@ -504,18 +504,28 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
 
 void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
   expr.operand().Accept(this);
-  if (type_ == Type::BOOL) {
-    errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
-                              " applied to ", Type::BOOL));
-  }
+  bool type_mismatch = false;
   switch (expr.op()) {
     case UnaryOperator::NEGATE:
       if (type_ == Type::DOUBLE) {
         operations_.push_back(Operation::MakeDNEG(dst_));
-      } else {
+      } else if (type_ == Type::INT) {
         operations_.push_back(Operation::MakeINEG(dst_));
+      } else {
+        type_mismatch = true;
       }
       break;
+    case UnaryOperator::NOT:
+      if (type_ == Type::BOOL) {
+        operations_.push_back(Operation::MakeNOT(dst_));
+      } else {
+        type_mismatch = true;
+      }
+      break;
+  }
+  if (type_mismatch) {
+    errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
+                              " applied to ", type_));
   }
 }
 
@@ -563,6 +573,10 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
       break;
     case BinaryOperator::DIVIDE:
       operations_.push_back(Operation::MakeDDIV(dst_, dst_ + 1));
+      break;
+    default:
+      // TODO(hlsyounes): implement.
+      LOG(FATAL) << "not implemented";
       break;
   }
   type_ = type1;

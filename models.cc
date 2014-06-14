@@ -1175,6 +1175,9 @@ void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
     case UnaryOperator::NEGATE:
       mtbdd_ = -mtbdd_;
       break;
+    case UnaryOperator::NOT:
+      mtbdd_ = ADD(!BDD(mtbdd_));
+      break;
   }
 }
 
@@ -1194,6 +1197,36 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
       break;
     case BinaryOperator::DIVIDE:
       mtbdd_ = operand1 / mtbdd_;
+      break;
+    case BinaryOperator::AND:
+      mtbdd_ = ADD(BDD(operand1) && BDD(mtbdd_));
+      break;
+    case BinaryOperator::OR:
+      mtbdd_ = ADD(BDD(operand1) || BDD(mtbdd_));
+      break;
+    case BinaryOperator::IMPLY:
+      mtbdd_ = ADD(!BDD(operand1) || BDD(mtbdd_));
+      break;
+    case BinaryOperator::IFF:
+      mtbdd_ = ADD(BDD(operand1) == BDD(mtbdd_));
+      break;
+    case BinaryOperator::LESS:
+      mtbdd_ = ADD(operand1 < mtbdd_);
+      break;
+    case BinaryOperator::LESS_EQUAL:
+      mtbdd_ = ADD(operand1 <= mtbdd_);
+      break;
+    case BinaryOperator::GREATER_EQUAL:
+      mtbdd_ = ADD(operand1 >= mtbdd_);
+      break;
+    case BinaryOperator::GREATER:
+      mtbdd_ = ADD(operand1 > mtbdd_);
+      break;
+    case BinaryOperator::EQUAL:
+      mtbdd_ = ADD(operand1 == mtbdd_);
+      break;
+    case BinaryOperator::NOT_EQUAL:
+      mtbdd_ = ADD(operand1 != mtbdd_);
       break;
   }
 }

@@ -135,7 +135,7 @@ class FunctionCall : public Expression {
 
 // Supported uniary operators.
 enum class UnaryOperator {
-  NEGATE
+  NEGATE, NOT
 };
 
 // Output operator for unary operators.
@@ -169,7 +169,8 @@ class UnaryOperation : public Expression {
 
 // Supported binary operators.
 enum class BinaryOperator {
-  PLUS, MINUS, MULTIPLY, DIVIDE
+  PLUS, MINUS, MULTIPLY, DIVIDE, AND, OR, IMPLY, IFF,
+  LESS, LESS_EQUAL, GREATER_EQUAL, GREATER, EQUAL, NOT_EQUAL
 };
 
 // Output operator for binary operators.

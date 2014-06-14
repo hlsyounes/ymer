@@ -50,15 +50,75 @@ class ExpressionPrinter : public ExpressionVisitor {
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
 
-  void CallAccept(const Expression& expr);
-
   std::ostream* os_;
-  std::set<BinaryOperator> need_parentheses_;
-  int level_;
+  int parent_precedence_;
 };
 
+int GetTernaryOperatorPrecedence() {
+  return 0;
+}
+
+int GetBinaryOperatorPrecedence(BinaryOperator op) {
+  switch (op) {
+    case BinaryOperator::IFF:
+      return 1;
+    case BinaryOperator::IMPLY:
+      return 2;
+    case BinaryOperator::OR:
+      return 3;
+    case BinaryOperator::AND:
+      return 4;
+    case BinaryOperator::EQUAL:
+    case BinaryOperator::NOT_EQUAL:
+      return 5;
+    case BinaryOperator::LESS:
+    case BinaryOperator::LESS_EQUAL:
+    case BinaryOperator::GREATER_EQUAL:
+    case BinaryOperator::GREATER:
+      return 6;
+    case BinaryOperator::PLUS:
+    case BinaryOperator::MINUS:
+      return 7;
+    case BinaryOperator::MULTIPLY:
+    case BinaryOperator::DIVIDE:
+      return 8;
+  }
+  LOG(FATAL) << "bad binary operator";
+}
+
+int GetUnaryOperatorPrecedence(UnaryOperator op) {
+  switch (op) {
+    case UnaryOperator::NEGATE:
+    case UnaryOperator::NOT:
+      return 9;
+  }
+  LOG(FATAL) << "bad unary operator";
+}
+
+int GetRightPrecedence(BinaryOperator op, int precedence) {
+  switch (op) {
+    case BinaryOperator::OR:
+    case BinaryOperator::AND:
+    case BinaryOperator::PLUS:
+    case BinaryOperator::MULTIPLY:
+      return precedence;
+    case BinaryOperator::IFF:
+    case BinaryOperator::IMPLY:
+    case BinaryOperator::EQUAL:
+    case BinaryOperator::NOT_EQUAL:
+    case BinaryOperator::LESS:
+    case BinaryOperator::LESS_EQUAL:
+    case BinaryOperator::GREATER_EQUAL:
+    case BinaryOperator::GREATER:
+    case BinaryOperator::MINUS:
+    case BinaryOperator::DIVIDE:
+      return precedence + 1;
+  }
+  LOG(FATAL) << "bad binary operator";
+}
+
 ExpressionPrinter::ExpressionPrinter(std::ostream* os)
-    : os_(os), level_(0) {
+    : os_(os), parent_precedence_(GetTernaryOperatorPrecedence()) {
 }
 
 void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
@@ -70,9 +130,9 @@ void ExpressionPrinter::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
-  std::set<BinaryOperator> need_parentheses;
-  std::swap(need_parentheses_, need_parentheses);
+  int precedence = GetTernaryOperatorPrecedence();
   *os_ << expr.function() << '(';
+  std::swap(parent_precedence_, precedence);
   bool first = true;
   for (const Expression& argument : expr.arguments()) {
     if (first) {
@@ -80,75 +140,53 @@ void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
     } else {
       *os_ << ", ";
     }
-    CallAccept(argument);
+    argument.Accept(this);
   }
+  std::swap(parent_precedence_, precedence);
   *os_ << ')';
-  std::swap(need_parentheses_, need_parentheses);
 }
 
 void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
-  std::set<BinaryOperator> need_parentheses;
-  std::swap(need_parentheses_, need_parentheses);
+  int precedence = GetUnaryOperatorPrecedence(expr.op());
   *os_ << expr.op();
-  need_parentheses_.insert(BinaryOperator::PLUS);
-  need_parentheses_.insert(BinaryOperator::MINUS);
-  need_parentheses_.insert(BinaryOperator::MULTIPLY);
-  need_parentheses_.insert(BinaryOperator::DIVIDE);
-  CallAccept(expr.operand());
-  std::swap(need_parentheses_, need_parentheses);
+  std::swap(parent_precedence_, precedence);
+  expr.operand().Accept(this);
+  std::swap(parent_precedence_, precedence);
 }
 
 void ExpressionPrinter::DoVisitBinaryOperation(const BinaryOperation& expr) {
-  std::set<BinaryOperator> need_parentheses;
-  std::swap(need_parentheses_, need_parentheses);
-  const bool outer = need_parentheses.find(expr.op()) != need_parentheses.end();
-  if (outer) {
+  int precedence = GetBinaryOperatorPrecedence(expr.op());
+  if (parent_precedence_ > precedence) {
     *os_ << '(';
   }
-  if (expr.op() == BinaryOperator::MULTIPLY
-      || expr.op() == BinaryOperator::DIVIDE) {
-    need_parentheses_.insert(BinaryOperator::PLUS);
-    need_parentheses_.insert(BinaryOperator::MINUS);
-  }
-  CallAccept(expr.operand1());
-  *os_ << expr.op();
-  need_parentheses_.clear();
-  if (expr.op() != BinaryOperator::PLUS) {
-    need_parentheses_.insert(BinaryOperator::PLUS);
-    need_parentheses_.insert(BinaryOperator::MINUS);
-  }
-  if (expr.op() == BinaryOperator::DIVIDE) {
-    need_parentheses_.insert(BinaryOperator::MULTIPLY);
-    need_parentheses_.insert(BinaryOperator::DIVIDE);
-  }
-  CallAccept(expr.operand2());
-  if (outer) {
+  std::swap(parent_precedence_, precedence);
+  expr.operand1().Accept(this);
+  std::swap(parent_precedence_, precedence);
+  *os_ << ' ' << expr.op() << ' ';
+  int right_precedence = GetRightPrecedence(expr.op(), precedence);
+  std::swap(parent_precedence_, right_precedence);
+  expr.operand2().Accept(this);
+  std::swap(parent_precedence_, right_precedence);
+  if (parent_precedence_ > precedence) {
     *os_ << ')';
   }
-  std::swap(need_parentheses_, need_parentheses);
 }
 
 void ExpressionPrinter::DoVisitConditional(const Conditional& expr) {
-  std::set<BinaryOperator> need_parentheses;
-  std::swap(need_parentheses_, need_parentheses);
-  if (level_ > 0) {
+  int precedence = GetTernaryOperatorPrecedence();
+  if (parent_precedence_ > precedence) {
     *os_ << '(';
   }
-  CallAccept(expr.condition());
+  std::swap(parent_precedence_, precedence);
+  expr.condition().Accept(this);
   *os_ << " ? ";
-  CallAccept(expr.if_branch());
+  expr.if_branch().Accept(this);
   *os_ << " : ";
-  CallAccept(expr.else_branch());
-  if (level_ > 0) {
+  expr.else_branch().Accept(this);
+  std::swap(parent_precedence_, precedence);
+  if (parent_precedence_ > precedence) {
     *os_ << ')';
   }
-  std::swap(need_parentheses_, need_parentheses);
-}
-
-void ExpressionPrinter::CallAccept(const Expression& expr) {
-  ++level_;
-  expr.Accept(this);
-  --level_;
 }
 
 }  // namespace
@@ -230,6 +268,8 @@ std::ostream& operator<<(std::ostream& os, UnaryOperator op) {
   switch (op) {
     case UnaryOperator::NEGATE:
       return os << '-';
+    case UnaryOperator::NOT:
+      return os << '!';
   }
   LOG(FATAL) << "bad unary operator";
 }
@@ -261,6 +301,26 @@ std::ostream& operator<<(std::ostream& os, BinaryOperator op) {
       return os << '*';
     case BinaryOperator::DIVIDE:
       return os << '/';
+    case BinaryOperator::AND:
+      return os << '&';
+    case BinaryOperator::OR:
+      return os << '|';
+    case BinaryOperator::IMPLY:
+      return os << "=>";
+    case BinaryOperator::IFF:
+      return os << "<=>";
+    case BinaryOperator::LESS:
+      return os << '<';
+    case BinaryOperator::LESS_EQUAL:
+      return os << "<=";
+    case BinaryOperator::GREATER_EQUAL:
+      return os << ">=";
+    case BinaryOperator::GREATER:
+      return os << '>';
+    case BinaryOperator::EQUAL:
+      return os << '=';
+    case BinaryOperator::NOT_EQUAL:
+      return os << "!=";
   }
   LOG(FATAL) << "bad binary operator";
 }

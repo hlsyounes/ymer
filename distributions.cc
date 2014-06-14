@@ -111,6 +111,9 @@ void ConstantExpressionEvaluator::DoVisitUnaryOperation(
     case UnaryOperator::NEGATE:
       value_ = -value_;
       break;
+    case UnaryOperator::NOT:
+      value_ = !value_;
+      break;
   }
 }
 
@@ -131,6 +134,36 @@ void ConstantExpressionEvaluator::DoVisitBinaryOperation(
       break;
     case BinaryOperator::DIVIDE:
       value_ = operand1 / value_;
+      break;
+    case BinaryOperator::AND:
+      value_ = operand1.value<bool>() && value_.value<bool>();
+      break;
+    case BinaryOperator::OR:
+      value_ = operand1.value<bool>() || value_.value<bool>();
+      break;
+    case BinaryOperator::IMPLY:
+      value_ = !operand1.value<bool>() || value_.value<bool>();
+      break;
+    case BinaryOperator::IFF:
+      value_ = operand1.value<bool>() == value_.value<bool>();
+      break;
+    case BinaryOperator::LESS:
+      value_ = operand1 < value_;
+      break;
+    case BinaryOperator::LESS_EQUAL:
+      value_ = operand1 <= value_;
+      break;
+    case BinaryOperator::GREATER_EQUAL:
+      value_ = operand1 >= value_;
+      break;
+    case BinaryOperator::GREATER:
+      value_ = operand1 > value_;
+      break;
+    case BinaryOperator::EQUAL:
+      value_ = operand1 == value_;
+      break;
+    case BinaryOperator::NOT_EQUAL:
+      value_ = operand1 != value_;
       break;
   }
 }
