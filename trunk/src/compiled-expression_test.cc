@@ -25,6 +25,28 @@
 
 namespace {
 
+FunctionCall MakeFunctionCall(Function function) {
+  return FunctionCall(function, UniquePtrVector<const Expression>());
+}
+
+template <typename T>
+FunctionCall MakeFunctionCall(Function function, T a) {
+  return FunctionCall(function, UniquePtrVector<const Expression>(
+      Literal::New(a)));
+}
+
+template <typename T, typename U>
+FunctionCall MakeFunctionCall(Function function, T a, U b) {
+  return FunctionCall(function, UniquePtrVector<const Expression>(
+      Literal::New(a), Literal::New(b)));
+}
+
+template <typename T, typename U, typename V>
+FunctionCall MakeFunctionCall(Function function, T a, U b, V c) {
+  return FunctionCall(function, UniquePtrVector<const Expression>(
+      Literal::New(a), Literal::New(b), Literal::New(c)));
+}
+
 TEST(MakeConjunctionTest, MakesConjunction) {
   const std::vector<Operation> operations1 = {
     Operation::MakeICONST(true, 0),
@@ -657,16 +679,455 @@ TEST(CompiledExpressionEvaluatorTest, EvaluatesMod) {
   EXPECT_EQ(42 % 17, evaluator.EvaluateIntExpression(expr2, {}));
 }
 
+TEST(CompileExpressionTest, IntLiteral) {
+  const CompileExpressionResult result1 =
+      CompileExpression(Literal(17), Type::INT, {});
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(17, 0)}), result1.expr);
+  const CompileExpressionResult result2 =
+      CompileExpression(Literal(17), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeI2D(0)}), result2.expr);
+  const CompileExpressionResult result3 =
+      CompileExpression(Literal(17), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found int"}),
+    result3.errors);
+}
+
+TEST(CompileExpressionTest, DoubleLiteral) {
+  const CompileExpressionResult result1 =
+      CompileExpression(Literal(0.5), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result1.errors);
+  const CompileExpressionResult result2 =
+      CompileExpression(Literal(0.5), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression({Operation::MakeDCONST(0.5, 0)}), result2.expr);
+  const CompileExpressionResult result3 =
+      CompileExpression(Literal(0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result3.errors);
+}
+
+TEST(CompileExpressionTest, BoolLiteral) {
+  const CompileExpressionResult result1 =
+      CompileExpression(Literal(true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result1.errors);
+  const CompileExpressionResult result2 =
+      CompileExpression(Literal(true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result2.errors);
+  const CompileExpressionResult result3 =
+      CompileExpression(Literal(true), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(1, 0)}), result3.expr);
+  const CompileExpressionResult result4 =
+      CompileExpression(Literal(false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(0, 0)}), result4.expr);
+}
+
+TEST(CompileExpressionTest, Identifier) {
+  std::map<std::string, IdentifierInfo> identifiers_by_name = {
+    {"a", IdentifierInfo::Variable(Type::INT, 0)},
+    {"b", IdentifierInfo::Variable(Type::BOOL, 1)},
+    {"c", IdentifierInfo::Constant(17)},
+    {"d", IdentifierInfo::Constant(false)},
+    {"e", IdentifierInfo::Variable(Type::DOUBLE, 2)},
+    {"f", IdentifierInfo::Constant(0.5)}
+  };
+
+  const CompileExpressionResult result1 =
+      CompileExpression(Identifier("a"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression({Operation::MakeILOAD(0, 0)}), result1.expr);
+  const CompileExpressionResult result2 =
+      CompileExpression(Identifier("a"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeILOAD(0, 0), Operation::MakeI2D(0)}), result2.expr);
+  const CompileExpressionResult result3 =
+      CompileExpression(Identifier("a"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found int"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 =
+      CompileExpression(Identifier("b"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result4.errors);
+  const CompileExpressionResult result5 =
+      CompileExpression(Identifier("b"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result5.errors);
+  const CompileExpressionResult result6 =
+      CompileExpression(Identifier("b"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression({Operation::MakeILOAD(1, 0)}), result6.expr);
+
+  const CompileExpressionResult result7 =
+      CompileExpression(Identifier("c"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(17, 0)}), result7.expr);
+  const CompileExpressionResult result8 =
+      CompileExpression(Identifier("c"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeI2D(0)}), result8.expr);
+  const CompileExpressionResult result9 =
+      CompileExpression(Identifier("c"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found int"}),
+    result9.errors);
+
+  const CompileExpressionResult result10 =
+      CompileExpression(Identifier("d"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result10.errors);
+  const CompileExpressionResult result11 =
+      CompileExpression(Identifier("d"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result11.errors);
+  const CompileExpressionResult result12 =
+      CompileExpression(Identifier("d"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(0, 0)}), result12.expr);
+
+  const CompileExpressionResult result13 =
+      CompileExpression(Identifier("e"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"double variables not supported"}),
+    result13.errors);
+  const CompileExpressionResult result14 =
+      CompileExpression(Identifier("e"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"double variables not supported"}),
+    result14.errors);
+  const CompileExpressionResult result15 =
+      CompileExpression(Identifier("e"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"double variables not supported"}),
+    result15.errors);
+
+  const CompileExpressionResult result16 =
+      CompileExpression(Identifier("f"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result16.errors);
+  const CompileExpressionResult result17 =
+      CompileExpression(Identifier("f"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(CompiledExpression({Operation::MakeDCONST(0.5, 0)}), result17.expr);
+  const CompileExpressionResult result18 =
+      CompileExpression(Identifier("f"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result18.errors);
+}
+
+TEST(CompileExpressionTest, MinFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::MIN, 17, 42, 4711), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIMIN(0, 1), Operation::MakeICONST(4711, 1),
+       Operation::MakeIMIN(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::MIN, 0.5, -17), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDMIN(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::MIN, true), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(1, 0)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::MIN), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"min applied to 0 arguments; expecting at least 1 argument"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::MIN, 0.5), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::MIN, 0.5, true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types double and bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, MaxFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::MAX, 17, 42, 4711), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIMAX(0, 1), Operation::MakeICONST(4711, 1),
+       Operation::MakeIMAX(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::MAX, 0.5, -17), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDMAX(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::MAX, true), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression({Operation::MakeICONST(1, 0)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::MAX), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"max applied to 0 arguments; expecting at least 1 argument"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::MAX, 0.5), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::MAX, 0.5, true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types double and bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, FloorFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR, 17), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeI2D(0),
+       Operation::MakeFLOOR(0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR, 0.5), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeFLOOR(0),
+       Operation::MakeI2D(0)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found int"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"floor applied to 0 arguments; expecting 1 argument"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR, 0.5, -17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"floor applied to 2 arguments; expecting 1 argument"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR, true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type double; found bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, CeilFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::CEIL, 17), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeI2D(0),
+       Operation::MakeCEIL(0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::CEIL, 0.5), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeCEIL(0),
+       Operation::MakeI2D(0)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::CEIL, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found int"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::CEIL), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"ceil applied to 0 arguments; expecting 1 argument"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::CEIL, 0.5, -17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"ceil applied to 2 arguments; expecting 1 argument"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::CEIL, true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type double; found bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, PowFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::POW, 17, 42), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result1.errors);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::POW, 0.5, 2), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(2, 1),
+       Operation::MakeI2D(1), Operation::MakePOW(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::POW, 0.5, 2), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::POW, 0.5), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"pow applied to 1 argument; expecting 2 arguments"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::POW, 0.5, 2, -17), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"pow applied to 3 arguments; expecting 2 arguments"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::POW, 17, true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type double; found bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeFunctionCall(Function::POW, true, 17), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type double; found bool"}),
+    result7.errors);
+}
+
+TEST(CompileExpressionTest, LogFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::LOG, 17, 42), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result1.errors);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::LOG, 0.5, 2), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(2, 1),
+       Operation::MakeI2D(1), Operation::MakeLOG(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::LOG, 0.5, 2), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::LOG, 0.5), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"log applied to 1 argument; expecting 2 arguments"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::LOG, 0.5, 2, -17), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"log applied to 3 arguments; expecting 2 arguments"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::LOG, 17, true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type double; found bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeFunctionCall(Function::LOG, true, 17), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type double; found bool"}),
+    result7.errors);
+}
+
+TEST(CompileExpressionTest, ModFunctionCall) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17, 42), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeMOD(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17, 42), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeMOD(0, 1), Operation::MakeI2D(0)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17, 42), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found int"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"mod applied to 1 argument; expecting 2 arguments"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17, 42, 4711), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"mod applied to 3 arguments; expecting 2 arguments"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17, true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type int; found bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 0.5, 17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting argument of type int; found double"}),
+    result7.errors);
+}
+
+TEST(CompileExpressionTest, UnaryOperation) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, BinaryOperation) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Conditional) {
+  // TODO(hlsyounes): implement.
+}
+
 TEST(OptimizeIntExpressionTest, Constant) {
   const CompiledExpression expr(
       { Operation::MakeICONST(17, 0) });
-  EXPECT_EQ(expr.operations(), OptimizeIntExpression(expr).operations());
+  EXPECT_EQ(expr, OptimizeIntExpression(expr));
 }
 
 TEST(OptimizeIntExpressionTest, Variable) {
   const CompiledExpression expr(
       { Operation::MakeILOAD(0, 0) });
-  EXPECT_EQ(expr.operations(), OptimizeIntExpression(expr).operations());
+  EXPECT_EQ(expr, OptimizeIntExpression(expr));
 }
 
 TEST(OptimizeIntExpressionTest, ConstantNegation) {
@@ -1330,7 +1791,7 @@ TEST(OptimizeIntExpressionTest, EliminatesDeadCode) {
 TEST(OptimizeDoubleExpressionTest, Constant) {
   const CompiledExpression expr(
       { Operation::MakeDCONST(0.5, 0) });
-  EXPECT_EQ(expr.operations(), OptimizeDoubleExpression(expr).operations());
+  EXPECT_EQ(expr, OptimizeDoubleExpression(expr));
 }
 
 TEST(OptimizeDoubleExpressionTest, ConstantConversion) {

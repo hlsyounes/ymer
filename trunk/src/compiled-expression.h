@@ -24,9 +24,13 @@
 #ifndef COMPILED_EXPRESSION_H_
 #define COMPILED_EXPRESSION_H_
 
+#include <map>
 #include <ostream>
 #include <utility>
 #include <vector>
+
+#include "expression.h"
+#include "typed-value.h"
 
 // Opcodes supported by the virtual machine used for evaluating compiled
 // expressions.
@@ -47,6 +51,8 @@ class Operation {
  public:
   // Put value into integer register dst.
   static Operation MakeICONST(int value, int dst);
+  // Put value into integer register dst.
+  static Operation MakeICONST(bool value, int dst);
   // Put value into double register dst.
   static Operation MakeDCONST(double value, int dst);
   // Put variable into integer register dst.
@@ -192,6 +198,10 @@ class CompiledExpression {
   std::vector<Operation> operations_;
 };
 
+// Comparison operators for compiled expressions.
+bool operator==(const CompiledExpression& e1, const CompiledExpression& e2);
+bool operator!=(const CompiledExpression& e1, const CompiledExpression& e2);
+
 // Output operator for compiled expressions.
 std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr);
 
@@ -224,6 +234,46 @@ class CompiledExpressionEvaluator {
   std::vector<int> iregs_;
   std::vector<double> dregs_;
 };
+
+// The result of an expression compilation.  On success, expr will hold the
+// compiled expression.  On error, expr will be an empty compiled expression and
+// errors will be populated with error messages.
+struct CompileExpressionResult {
+  CompileExpressionResult();
+
+  CompiledExpression expr;
+  std::vector<std::string> errors;
+};
+
+// Information for an identifier, used for expression compilation.  Can
+// represent either a variable or a constant.
+class IdentifierInfo {
+ public:
+  static IdentifierInfo Variable(Type type, int index);
+  static IdentifierInfo Constant(const TypedValue& value);
+
+  Type type() const { return type_; }
+  bool is_variable() const { return variable_index_ >= 0; }
+  int variable_index() const { return variable_index_; }
+  TypedValue constant_value() const { return constant_value_; }
+
+ private:
+  explicit IdentifierInfo(
+      Type type, int variable_index, const TypedValue& constant_value);
+
+  Type type_;
+  int variable_index_;
+  TypedValue constant_value_;
+};
+
+// Compiles the given expression, expecting it to be of the given type, and
+// using the given identifier name to info map to compile identifiers.  On
+// error, the result contains an empty compiled expression and the errors vector
+// will be populated with error messages.
+CompileExpressionResult CompileExpression(
+    const Expression& expr,
+    Type expected_type,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name);
 
 // Optimizes the given expression, assuming it evaluates to an integer in
 // register 0.

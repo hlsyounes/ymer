@@ -19,8 +19,8 @@
 
 #include "expression.h"
 
-#include "unique-ptr-vector.h"
 #include "strutil.h"
+#include "unique-ptr-vector.h"
 
 #include "gtest/gtest.h"
 

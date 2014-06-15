@@ -28,6 +28,8 @@
 #include <vector>
 #include <utility>
 
+#include "strutil.h"
+
 #include "glog/logging.h"
 
 std::ostream& operator<<(std::ostream& os, Opcode opcode) {
@@ -116,6 +118,10 @@ std::ostream& operator<<(std::ostream& os, Opcode opcode) {
 
 Operation Operation::MakeICONST(int value, int dst) {
   return Operation(Opcode::ICONST, value, dst);
+}
+
+Operation Operation::MakeICONST(bool value, int dst) {
+  return MakeICONST(value ? 1 : 0, dst);
 }
 
 Operation Operation::MakeDCONST(double value, int dst) {
@@ -376,11 +382,9 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
     case Opcode::POW:
     case Opcode::LOG:
     case Opcode::MOD:
-      os << ' ' << operation.ioperand1() << ' ' << operation.operand2();
-      break;
+      return os << ' ' << operation.ioperand1() << ' ' << operation.operand2();
     case Opcode::DCONST:
-      os << ' ' << operation.doperand1() << ' ' << operation.operand2();
-      break;
+      return os << ' ' << operation.doperand1() << ' ' << operation.operand2();
     case Opcode::I2D:
     case Opcode::INEG:
     case Opcode::DNEG:
@@ -388,12 +392,11 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
     case Opcode::GOTO:
     case Opcode::FLOOR:
     case Opcode::CEIL:
-      os << ' ' << operation.ioperand1();
-      break;
+      return os << ' ' << operation.ioperand1();
     case Opcode::NOP:
-      break;
+      return os;
   }
-  return os;
+  LOG(FATAL) << "bad opcode";
 }
 
 std::vector<Operation> MakeConjunction(
@@ -448,19 +451,20 @@ std::vector<Operation> MakeConjunction(
       case Opcode::DGT:
       case Opcode::NOP:
         operations.push_back(o);
-        break;
+        continue;
       case Opcode::IFFALSE:
         operations.push_back(
             Operation::MakeIFFALSE(o.ioperand1(), o.operand2() + pc_shift));
-        break;
+        continue;
       case Opcode::IFTRUE:
         operations.push_back(
             Operation::MakeIFTRUE(o.ioperand1(), o.operand2() + pc_shift));
-        break;
+        continue;
       case Opcode::GOTO:
         operations.push_back(Operation::MakeGOTO(o.ioperand1() + pc_shift));
-        break;
+        continue;
     }
+    LOG(FATAL) << "bad opcode";
   }
   return operations;
 }
@@ -468,6 +472,14 @@ std::vector<Operation> MakeConjunction(
 CompiledExpression::CompiledExpression(
     const std::vector<Operation>& operations)
     : operations_(operations) {
+}
+
+bool operator==(const CompiledExpression& e1, const CompiledExpression& e2) {
+  return e1.operations() == e2.operations();
+}
+
+bool operator!=(const CompiledExpression& e1, const CompiledExpression& e2) {
+  return !(e1 == e2);
 }
 
 std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr) {
@@ -488,25 +500,25 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::ICONST:
       case Opcode::ILOAD:
         max_ireg = std::max(max_ireg, o.operand2());
-        break;
+        continue;
       case Opcode::DCONST:
         max_dreg = std::max(max_dreg, o.operand2());
-        break;
+        continue;
       case Opcode::I2D:
       case Opcode::FLOOR:
       case Opcode::CEIL:
         max_ireg = std::max(max_ireg, o.ioperand1());
         max_dreg = std::max(max_dreg, o.ioperand1());
-        break;
+        continue;
       case Opcode::INEG:
       case Opcode::NOT:
       case Opcode::IFFALSE:
       case Opcode::IFTRUE:
         max_ireg = std::max(max_ireg, o.ioperand1());
-        break;
+        continue;
       case Opcode::DNEG:
         max_dreg = std::max(max_dreg, o.ioperand1());
-        break;
+        continue;
       case Opcode::IADD:
       case Opcode::ISUB:
       case Opcode::IMUL:
@@ -520,7 +532,7 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::IMAX:
       case Opcode::MOD:
         max_ireg = std::max({ max_ireg, o.ioperand1(), o.operand2() });
-        break;
+        continue;
       case Opcode::DADD:
       case Opcode::DSUB:
       case Opcode::DMUL:
@@ -530,7 +542,7 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::POW:
       case Opcode::LOG:
         max_dreg = std::max({ max_dreg, o.ioperand1(), o.operand2() });
-        break;
+        continue;
       case Opcode::DEQ:
       case Opcode::DNE:
       case Opcode::DLT:
@@ -539,11 +551,12 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::DGT:
         max_ireg = std::max(max_ireg, o.ioperand1());
         max_dreg = std::max({ max_dreg, o.ioperand1(), o.operand2() });
-        break;
+        continue;
       case Opcode::GOTO:
       case Opcode::NOP:
-        break;
+        continue;
     }
+    LOG(FATAL) << "bad opcode";
   }
   return { max_ireg + 1, max_dreg + 1 };
 }
@@ -572,129 +585,419 @@ void CompiledExpressionEvaluator::ExecuteOperations(
     switch (o.opcode()) {
       case Opcode::ICONST:
         iregs_[o.operand2()] = o.ioperand1();
-        break;
+        continue;
       case Opcode::DCONST:
         dregs_[o.operand2()] = o.doperand1();
-        break;
+        continue;
       case Opcode::ILOAD:
         iregs_[o.operand2()] = state[o.ioperand1()];
-        break;
+        continue;
       case Opcode::I2D:
         dregs_[o.ioperand1()] = iregs_[o.ioperand1()];
-        break;
+        continue;
       case Opcode::INEG:
         iregs_[o.ioperand1()] *= -1;
-        break;
+        continue;
       case Opcode::DNEG:
         dregs_[o.ioperand1()] *= -1.0;
-        break;
+        continue;
       case Opcode::NOT:
         iregs_[o.ioperand1()] = !iregs_[o.ioperand1()];
-        break;
+        continue;
       case Opcode::IADD:
         iregs_[o.ioperand1()] += iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DADD:
         dregs_[o.ioperand1()] += dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::ISUB:
         iregs_[o.ioperand1()] -= iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DSUB:
         dregs_[o.ioperand1()] -= dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::IMUL:
         iregs_[o.ioperand1()] *= iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DMUL:
         dregs_[o.ioperand1()] *= dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DDIV:
         dregs_[o.ioperand1()] /= dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::IEQ:
         iregs_[o.ioperand1()] = iregs_[o.ioperand1()] == iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DEQ:
         iregs_[o.ioperand1()] = dregs_[o.ioperand1()] == dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::INE:
         iregs_[o.ioperand1()] = iregs_[o.ioperand1()] != iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DNE:
         iregs_[o.ioperand1()] = dregs_[o.ioperand1()] != dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::ILT:
         iregs_[o.ioperand1()] = iregs_[o.ioperand1()] < iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DLT:
         iregs_[o.ioperand1()] = dregs_[o.ioperand1()] < dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::ILE:
         iregs_[o.ioperand1()] = iregs_[o.ioperand1()] <= iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DLE:
         iregs_[o.ioperand1()] = dregs_[o.ioperand1()] <= dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::IGE:
         iregs_[o.ioperand1()] = iregs_[o.ioperand1()] >= iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DGE:
         iregs_[o.ioperand1()] = dregs_[o.ioperand1()] >= dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::IGT:
         iregs_[o.ioperand1()] = iregs_[o.ioperand1()] > iregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::DGT:
         iregs_[o.ioperand1()] = dregs_[o.ioperand1()] > dregs_[o.operand2()];
-        break;
+        continue;
       case Opcode::IFFALSE:
         if (!iregs_[o.ioperand1()]) pc = o.operand2() - 1;
-        break;
+        continue;
       case Opcode::IFTRUE:
         if (iregs_[o.ioperand1()]) pc = o.operand2() - 1;
-        break;
+        continue;
       case Opcode::GOTO:
         pc = o.ioperand1() - 1;
-        break;
+        continue;
       case Opcode::NOP:
         // Do nothing.
-        break;
+        continue;
       case Opcode::IMIN:
         iregs_[o.ioperand1()] =
             std::min(iregs_[o.ioperand1()], iregs_[o.operand2()]);
-        break;
+        continue;
       case Opcode::DMIN:
         dregs_[o.ioperand1()] =
             std::min(dregs_[o.ioperand1()], dregs_[o.operand2()]);
-        break;
+        continue;
       case Opcode::IMAX:
         iregs_[o.ioperand1()] =
             std::max(iregs_[o.ioperand1()], iregs_[o.operand2()]);
-        break;
+        continue;
       case Opcode::DMAX:
         dregs_[o.ioperand1()] =
             std::max(dregs_[o.ioperand1()], dregs_[o.operand2()]);
-        break;
+        continue;
       case Opcode::FLOOR:
         iregs_[o.ioperand1()] = floor(dregs_[o.ioperand1()]);
-        break;
+        continue;
       case Opcode::CEIL:
         iregs_[o.ioperand1()] = ceil(dregs_[o.ioperand1()]);
-        break;
+        continue;
       case Opcode::POW:
         dregs_[o.ioperand1()] =
             pow(dregs_[o.ioperand1()], dregs_[o.operand2()]);
-        break;
+        continue;
       case Opcode::LOG:
         dregs_[o.ioperand1()] =
             log(dregs_[o.ioperand1()]) / log(dregs_[o.operand2()]);
-        break;
+        continue;
       case Opcode::MOD:
         iregs_[o.ioperand1()] %= iregs_[o.operand2()];
-        break;
+        continue;
     }
+    LOG(FATAL) << "bad opcode";
   }
+}
+
+namespace {
+
+class ExpressionCompiler : public ExpressionVisitor {
+ public:
+  explicit ExpressionCompiler(
+      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      std::vector<std::string>* errors);
+
+  std::vector<Operation> release_operations() { return std::move(operations_); }
+
+  Type type() const { return type_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
+
+  std::vector<Operation> operations_;
+  int dst_;
+  Type type_;
+  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  std::vector<std::string>* errors_;
+};
+
+ExpressionCompiler::ExpressionCompiler(
+    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    std::vector<std::string>* errors)
+    : dst_(0), identifiers_by_name_(identifiers_by_name), errors_(errors) {
+}
+
+void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
+  TypedValue value = expr.value();
+  type_ = value.type();
+  switch (value.type()) {
+    case Type::INT:
+      operations_.push_back(Operation::MakeICONST(value.value<int>(), dst_));
+      return;
+    case Type::DOUBLE:
+      operations_.push_back(Operation::MakeDCONST(value.value<double>(), dst_));
+      return;
+    case Type::BOOL:
+      operations_.push_back(Operation::MakeICONST(value.value<bool>(), dst_));
+      return;
+  }
+  LOG(FATAL) << "bad type";
+}
+
+void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
+  auto i = identifiers_by_name_->find(expr.name());
+  if (i == identifiers_by_name_->end()) {
+    errors_->push_back(StrCat(
+        "undefined identifier '", expr.name(), "' in expression"));
+    return;
+  }
+  const IdentifierInfo& info = i->second;
+  type_ = info.type();
+  switch (info.type()) {
+    case Type::INT:
+      if (info.is_variable()) {
+        operations_.push_back(
+            Operation::MakeILOAD(info.variable_index(), dst_));
+      } else {
+        operations_.push_back(
+            Operation::MakeICONST(info.constant_value().value<int>(), dst_));
+      }
+      return;
+    case Type::DOUBLE:
+      if (info.is_variable()) {
+        errors_->push_back("double variables not supported");
+      } else {
+        operations_.push_back(
+            Operation::MakeDCONST(info.constant_value().value<double>(), dst_));
+      }
+      return;
+    case Type::BOOL:
+      if (info.is_variable()) {
+        operations_.push_back(
+            Operation::MakeILOAD(info.variable_index(), dst_));
+      } else {
+        operations_.push_back(
+            Operation::MakeICONST(info.constant_value().value<bool>(), dst_));
+      }
+      return;
+  }
+  LOG(FATAL) << "bad type";
+}
+
+void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
+  const size_t n = expr.arguments().size();
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      errors_->push_back("unknown function call");
+      return;
+    case Function::MIN:
+    case Function::MAX:
+      if (n == 0) {
+        errors_->push_back(StrCat(
+            expr.function(),
+            " applied to 0 arguments; expecting at least 1 argument"));
+        return;
+      }
+      expr.arguments()[0].Accept(this);
+      if (!errors_->empty()) {
+        return;
+      }
+      for (size_t i = 1; i < n; ++i) {
+        Type type = type_;
+        ++dst_;
+        expr.arguments()[i].Accept(this);
+        --dst_;
+        if (!errors_->empty()) {
+          return;
+        }
+        if (type != type_) {
+          if (type == Type::BOOL || type_ == Type::BOOL) {
+            errors_->push_back(StrCat(
+                "type mismatch; incompatible argument types ", type, " and ",
+                type_));
+            return;
+          }
+          if (type != Type::DOUBLE && type_ == Type::DOUBLE) {
+            operations_.push_back(Operation::MakeI2D(dst_));
+          }
+          if (type == Type::DOUBLE && type_ != Type::DOUBLE) {
+            operations_.push_back(Operation::MakeI2D(dst_ + 1));
+            type_ = Type::DOUBLE;
+          }
+        }
+        if (type_ == Type::DOUBLE) {
+          if (expr.function() == Function::MIN) {
+            operations_.push_back(Operation::MakeDMIN(dst_, dst_ + 1));
+          } else {
+            operations_.push_back(Operation::MakeDMAX(dst_, dst_ + 1));
+          }
+        } else {
+          if (expr.function() == Function::MIN) {
+            operations_.push_back(Operation::MakeIMIN(dst_, dst_ + 1));
+          } else {
+            operations_.push_back(Operation::MakeIMAX(dst_, dst_ + 1));
+          }
+        }
+      }
+      return;
+    case Function::FLOOR:
+    case Function::CEIL:
+      if (n != 1) {
+        errors_->push_back(StrCat(
+            expr.function(),
+            " applied to ", n, " arguments; expecting 1 argument"));
+        return;
+      }
+      expr.arguments()[0].Accept(this);
+      if (!errors_->empty()) {
+        return;
+      }
+      if (type_ == Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; expecting argument of type double; found bool"));
+        return;
+      }
+      if (type_ != Type::DOUBLE) {
+        operations_.push_back(Operation::MakeI2D(dst_));
+      }
+      type_ = Type::INT;
+      if (expr.function() == Function::FLOOR) {
+        operations_.push_back(Operation::MakeFLOOR(dst_));
+      } else {
+        operations_.push_back(Operation::MakeCEIL(dst_));
+      }
+      return;
+    case Function::POW:
+    case Function::LOG:
+      if (n != 2) {
+        errors_->push_back(StrCat(
+            expr.function(), " applied to ", n, " argument",
+            (n == 1) ? "" : "s", "; expecting 2 arguments"));
+        return;
+      }
+      for (size_t i = 0; i < 2; ++i) {
+        dst_ = dst_ + i;
+        expr.arguments()[i].Accept(this);
+        dst_ = dst_ - i;
+        if (!errors_->empty()) {
+          return;
+        }
+        if (type_ == Type::BOOL) {
+          errors_->push_back(StrCat(
+              "type mismatch; expecting argument of type double; found bool"));
+          return;
+        }
+        if (type_ != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_ + i));
+        }
+      }
+      type_ = Type::DOUBLE;
+      if (expr.function() == Function::POW) {
+        operations_.push_back(Operation::MakePOW(dst_, dst_ + 1));
+      } else {
+        operations_.push_back(Operation::MakeLOG(dst_, dst_ + 1));
+      }
+      return;
+    case Function::MOD:
+      if (n != 2) {
+        errors_->push_back(StrCat(
+            expr.function(), " applied to ", n, " argument",
+            (n == 1) ? "" : "s", "; expecting 2 arguments"));
+        return;
+      }
+      for (size_t i = 0; i < 2; ++i) {
+        dst_ = dst_ + i;
+        expr.arguments()[i].Accept(this);
+        dst_ = dst_ - i;
+        if (!errors_->empty()) {
+          return;
+        }
+        if (type_ != Type::INT) {
+          errors_->push_back(StrCat(
+              "type mismatch; expecting argument of type int; found ", type_));
+          return;
+        }
+      }
+      operations_.push_back(Operation::MakeMOD(dst_, dst_ + 1));
+      return;
+  }
+  LOG(FATAL) << "bad function";
+}
+
+void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  // TODO(hlsyounes): implement.
+  errors_->push_back("not implemented");
+}
+
+void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
+  // TODO(hlsyounes): implement.
+  errors_->push_back("not implemented");
+}
+
+void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
+  // TODO(hlsyounes): implement.
+  errors_->push_back("not implemented");
+}
+
+}  // namespace
+
+CompileExpressionResult::CompileExpressionResult()
+    : expr({}) {
+}
+
+IdentifierInfo::IdentifierInfo(
+    Type type, int variable_index, const TypedValue& constant_value)
+    : type_(type), variable_index_(variable_index),
+      constant_value_(constant_value) {
+}
+
+IdentifierInfo IdentifierInfo::Variable(Type type, int index) {
+  return IdentifierInfo(type, index, false);
+}
+
+IdentifierInfo IdentifierInfo::Constant(const TypedValue& value) {
+  return IdentifierInfo(value.type(), -1, value);
+}
+
+CompileExpressionResult CompileExpression(
+    const Expression& expr,
+    Type expected_type,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+  CompileExpressionResult result;
+  ExpressionCompiler compiler(&identifiers_by_name, &result.errors);
+  expr.Accept(&compiler);
+  if (!result.errors.empty()) {
+    return result;
+  }
+  Type type = compiler.type();
+  std::vector<Operation> operations = compiler.release_operations();
+  if (type == Type::INT && expected_type == Type::DOUBLE) {
+    operations.push_back(Operation::MakeI2D(0));
+  } else if (type != expected_type) {
+    result.errors.push_back(StrCat(
+        "type mismatch; expecting expression of type ", expected_type,
+        "; found ", type));
+    return result;
+  }
+  result.expr = CompiledExpression(operations);
+  return result;
 }
 
 namespace {
@@ -1229,27 +1532,27 @@ std::vector<BasicBlock> MakeControlFlowGraph(
     switch (o.opcode()) {
       case Opcode::ICONST:
         block.SetIntValue(o.operand2(), o.ioperand1());
-        break;
+        continue;
       case Opcode::DCONST:
         block.SetDoubleValue(o.operand2(), o.doperand1());
-        break;
+        continue;
       case Opcode::ILOAD:
         block.SetIntDependency(o.operand2(), o);
-        break;
+        continue;
       case Opcode::INEG:
       case Opcode::NOT:
         block.AddUnaryIntOperation(o);
-        break;
+        continue;
       case Opcode::FLOOR:
       case Opcode::CEIL:
         block.AddUnaryIntFromDoubleOperation(o);
-        break;
+        continue;
       case Opcode::DNEG:
         block.AddUnaryDoubleOperation(o);
-        break;
+        continue;
       case Opcode::I2D:
         block.AddUnaryDoubleFromIntOperation(o);
-        break;
+        continue;
       case Opcode::IADD:
       case Opcode::ISUB:
       case Opcode::IMUL:
@@ -1263,7 +1566,7 @@ std::vector<BasicBlock> MakeControlFlowGraph(
       case Opcode::IMAX:
       case Opcode::MOD:
         block.AddBinaryIntOperation(o);
-        break;
+        continue;
       case Opcode::DADD:
       case Opcode::DSUB:
       case Opcode::DMUL:
@@ -1273,7 +1576,7 @@ std::vector<BasicBlock> MakeControlFlowGraph(
       case Opcode::POW:
       case Opcode::LOG:
         block.AddBinaryDoubleOperation(o);
-        break;
+        continue;
       case Opcode::DEQ:
       case Opcode::DNE:
       case Opcode::DLT:
@@ -1281,18 +1584,19 @@ std::vector<BasicBlock> MakeControlFlowGraph(
       case Opcode::DGE:
       case Opcode::DGT:
         block.AddBinaryIntFromDoubleOperation(o);
-        break;
+        continue;
       case Opcode::IFFALSE:
       case Opcode::IFTRUE:
         MaybeAddBranch(block_index, o, pc, &blocks, &block_starts);
-        break;
+        continue;
       case Opcode::GOTO:
         block.AddOperation(o);
         MaybeAddBlock(block_index, o.ioperand1(), &blocks, &block_starts);
-        break;
+        continue;
       case Opcode::NOP:
-        break;
+        continue;
     }
+    LOG(FATAL) << "bad opcode";
   }
   if (blocks[block_index].IsFallthrough()) {
     MaybeAddBlock(block_index, operations.size(), &blocks, &block_starts);
