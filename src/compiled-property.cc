@@ -88,16 +88,7 @@ void CompiledPropertyPrinter::DoVisitCompiledNotProperty(
 
 void CompiledPropertyPrinter::DoVisitCompiledProbabilisticProperty(
     const CompiledProbabilisticProperty& property) {
-  *os_ << "P ";
-  switch (property.op()) {
-    case CompiledProbabilisticOperator::GREATER_EQUAL:
-      *os_ << ">=";
-      break;
-    case CompiledProbabilisticOperator::GREATER:
-      *os_ << ">";
-      break;
-  }
-  *os_ << " " << property.threshold() << std::endl;
+  *os_ << "P " << property.op() << ' ' << property.threshold() << std::endl;
   property.path_property().Accept(this);
 }
 
@@ -191,6 +182,16 @@ std::unique_ptr<const CompiledNotProperty> CompiledNotProperty::New(
 
 void CompiledNotProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
   visitor->VisitCompiledNotProperty(*this);
+}
+
+std::ostream& operator<<(std::ostream& os, CompiledProbabilisticOperator op) {
+  switch (op) {
+    case CompiledProbabilisticOperator::GREATER_EQUAL:
+      return os << ">=";
+    case CompiledProbabilisticOperator::GREATER:
+      return os << '>';
+  }
+  LOG(FATAL) << "bad compiled probabilistic operator";
 }
 
 CompiledProbabilisticProperty::CompiledProbabilisticProperty(
