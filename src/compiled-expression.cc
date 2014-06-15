@@ -977,8 +977,78 @@ void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
 }
 
 void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
-  // TODO(hlsyounes): implement.
-  errors_->push_back("not implemented");
+  expr.operand1().Accept(this);
+  if (!errors_->empty()) {
+    return;
+  }
+  switch (expr.op()) {
+    case BinaryOperator::PLUS:
+    case BinaryOperator::MINUS:
+    case BinaryOperator::MULTIPLY:
+    case BinaryOperator::DIVIDE: {
+      if (type_ == Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; binary operator ", expr.op(), " applied to ",
+            type_));
+        return;
+      }
+      Type type = type_;
+      ++dst_;
+      expr.operand2().Accept(this);
+      --dst_;
+      if (!errors_->empty()) {
+        return;
+      }
+      if (type_ == Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; binary operator ", expr.op(), " applied to ",
+            type_));
+        return;
+      }
+      if (type != Type::DOUBLE
+          && (type_ == Type::DOUBLE || expr.op() == BinaryOperator::DIVIDE)) {
+        operations_.push_back(Operation::MakeI2D(dst_));
+        type = Type::DOUBLE;
+      }
+      if (type == Type::DOUBLE && type_ != Type::DOUBLE) {
+        operations_.push_back(Operation::MakeI2D(dst_ + 1));
+        type_ = Type::DOUBLE;
+      }
+      if (type_ == Type::DOUBLE) {
+        if (expr.op() == BinaryOperator::PLUS) {
+          operations_.push_back(Operation::MakeDADD(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::MINUS) {
+          operations_.push_back(Operation::MakeDSUB(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::MULTIPLY) {
+          operations_.push_back(Operation::MakeDMUL(dst_, dst_ + 1));
+        } else {
+          operations_.push_back(Operation::MakeDDIV(dst_, dst_ + 1));
+        }
+      } else {
+        if (expr.op() == BinaryOperator::PLUS) {
+          operations_.push_back(Operation::MakeIADD(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::MINUS) {
+          operations_.push_back(Operation::MakeISUB(dst_, dst_ + 1));
+        } else {
+          operations_.push_back(Operation::MakeIMUL(dst_, dst_ + 1));
+        }
+      }
+      return;
+    }
+    case BinaryOperator::AND:
+    case BinaryOperator::OR:
+    case BinaryOperator::IMPLY:
+    case BinaryOperator::IFF:
+    case BinaryOperator::LESS:
+    case BinaryOperator::LESS_EQUAL:
+    case BinaryOperator::GREATER_EQUAL:
+    case BinaryOperator::GREATER:
+    case BinaryOperator::EQUAL:
+    case BinaryOperator::NOT_EQUAL:
+      errors_->push_back("not implemented");
+      return;
+  }
+  LOG(FATAL) << "bad binary operator";
 }
 
 void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {

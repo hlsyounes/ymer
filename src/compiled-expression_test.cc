@@ -47,6 +47,11 @@ FunctionCall MakeFunctionCall(Function function, T a, U b, V c) {
       Literal::New(a), Literal::New(b), Literal::New(c)));
 }
 
+template <typename T, typename U>
+BinaryOperation MakeBinaryOperation(BinaryOperator op, T a, U b) {
+  return BinaryOperation(op, Literal::New(a), Literal::New(b));
+}
+
 template <typename T, typename U, typename V>
 Conditional MakeConditional(T a, U b, V c) {
   return Conditional(Literal::New(a), Literal::New(b), Literal::New(c));
@@ -1174,7 +1179,198 @@ TEST(CompileExpressionTest, LogicalNot) {
     result5.errors);
 }
 
-TEST(CompileExpressionTest, BinaryOperation) {
+TEST(CompileExpressionTest, Plus) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::PLUS, 17, 42), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIADD(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::PLUS, 0.5, -17), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDADD(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::PLUS, 0.5, 2.0), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDADD(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::PLUS, 0.5, 2), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::PLUS, 17, true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator + applied to bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::PLUS, true, 17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator + applied to bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, Minus) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MINUS, 17, 42), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeISUB(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MINUS, 0.5, -17), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDSUB(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MINUS, 0.5, 2.0), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDSUB(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MINUS, 0.5, 2), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MINUS, 17, true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator - applied to bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MINUS, true, 17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator - applied to bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, Multiply) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MULTIPLY, 17, 42), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIMUL(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MULTIPLY, 0.5, -17),
+      Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDMUL(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MULTIPLY, 0.5, 2.0),
+      Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDMUL(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MULTIPLY, 0.5, 2), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type bool; found double"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MULTIPLY, 17, true), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator * applied to bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::MULTIPLY, true, 17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator * applied to bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, Divide) {
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::DIVIDE, 17, 42), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeI2D(0), Operation::MakeI2D(1),
+       Operation::MakeDDIV(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, -17), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDDIV(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, 2.0), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDDIV(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, 2), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::DIVIDE, 17, true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator / applied to bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::DIVIDE, true, 17), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator / applied to bool"}),
+    result6.errors);
+}
+
+TEST(CompileExpressionTest, And) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Or) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Imply) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Iff) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Less) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, LessEqual) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, GreaterEqual) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Greater) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, Equal) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(CompileExpressionTest, NotEqual) {
   // TODO(hlsyounes): implement.
 }
 
