@@ -47,6 +47,11 @@ FunctionCall MakeFunctionCall(Function function, T a, U b, V c) {
       Literal::New(a), Literal::New(b), Literal::New(c)));
 }
 
+template <typename T, typename U, typename V>
+Conditional MakeConditional(T a, U b, V c) {
+  return Conditional(Literal::New(a), Literal::New(b), Literal::New(c));
+}
+
 TEST(MakeConjunctionTest, MakesConjunction) {
   const std::vector<Operation> operations1 = {
     Operation::MakeICONST(true, 0),
@@ -1115,7 +1120,51 @@ TEST(CompileExpressionTest, BinaryOperation) {
 }
 
 TEST(CompileExpressionTest, Conditional) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeConditional(true, 17, 42), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 5),
+       Operation::MakeICONST(17, 0), Operation::MakeNOP(),
+       Operation::MakeGOTO(6), Operation::MakeICONST(42, 0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeConditional(true, 0.5, 42), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 4),
+       Operation::MakeDCONST(0.5, 0), Operation::MakeGOTO(6),
+       Operation::MakeICONST(42, 0), Operation::MakeI2D(0)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeConditional(true, 17, 0.5), Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 5),
+       Operation::MakeICONST(17, 0), Operation::MakeI2D(0),
+       Operation::MakeGOTO(6), Operation::MakeDCONST(0.5, 0)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeConditional(true, false, true), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 4),
+       Operation::MakeICONST(0, 0), Operation::MakeGOTO(5),
+       Operation::MakeICONST(1, 0)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeConditional(4711, 17, 42), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting condition of type bool; found int"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeConditional(true, 0.5, true), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible branch types double and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeConditional(true, true, 17), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible branch types bool and int"}),
+    result7.errors);
 }
 
 TEST(OptimizeIntExpressionTest, Constant) {
