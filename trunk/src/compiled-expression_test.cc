@@ -1111,8 +1111,67 @@ TEST(CompileExpressionTest, ModFunctionCall) {
     result7.errors);
 }
 
-TEST(CompileExpressionTest, UnaryOperation) {
-  // TODO(hlsyounes): implement.
+TEST(CompileExpressionTest, Negation) {
+  const CompileExpressionResult result1 = CompileExpression(
+      UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)), Type::INT, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeINEG(0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)),
+      Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeINEG(0),
+       Operation::MakeI2D(0)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      UnaryOperation(UnaryOperator::NEGATE, Literal::New(0.5)),
+      Type::DOUBLE, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDNEG(0)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      UnaryOperation(UnaryOperator::NEGATE, Literal::New(true)), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; unary operator - applied to bool"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      UnaryOperation(UnaryOperator::NEGATE, Literal::New(0.5)), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found double"}),
+    result5.errors);
+}
+
+TEST(CompileExpressionTest, LogicalNot) {
+  const CompileExpressionResult result1 = CompileExpression(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(true)), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeNOT(0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(17)), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; unary operator ! applied to int"}),
+    result2.errors);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(0.5)), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; unary operator ! applied to double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(true)), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(true)), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result5.errors);
 }
 
 TEST(CompileExpressionTest, BinaryOperation) {
