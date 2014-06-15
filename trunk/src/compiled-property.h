@@ -139,6 +139,9 @@ enum class CompiledProbabilisticOperator {
   GREATER_EQUAL, GREATER
 };
 
+// Output operator for compiled probabilistic operators.
+std::ostream& operator<<(std::ostream& os, CompiledProbabilisticOperator op);
+
 // A compiled probabilistic property.
 class CompiledProbabilisticProperty : public CompiledProperty {
  public:
