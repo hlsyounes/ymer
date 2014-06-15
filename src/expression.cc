@@ -24,8 +24,8 @@
 #include <set>
 #include <string>
 
-#include "unique-ptr-vector.h"
 #include "typed-value.h"
+#include "unique-ptr-vector.h"
 
 #include "glog/logging.h"
 

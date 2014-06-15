@@ -54,7 +54,7 @@ class UniquePtrVector {
   UniquePtrVector() {}
   template <typename InputIterator,
             typename = typename std::enable_if<
-              !std::is_same<InputIterator, std::unique_ptr<T> >::value>::type>
+              std::is_object<typename InputIterator::value_type>::value>::type>
   explicit UniquePtrVector(InputIterator first, InputIterator last) {
     for (InputIterator i = first; i != last; ++i) {
       elements_.push_back(std::move(*i));
