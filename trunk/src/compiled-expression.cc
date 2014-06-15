@@ -952,8 +952,48 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
 }
 
 void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
-  // TODO(hlsyounes): implement.
-  errors_->push_back("not implemented");
+  expr.condition().Accept(this);
+  if (!errors_->empty()) {
+    return;
+  }
+  if (type_ != Type::BOOL) {
+    errors_->push_back(StrCat(
+        "type mismatch; expecting condition of type bool; found ", type_));
+    return;
+  }
+  const size_t iffalse_pos = operations_.size();
+  operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
+  expr.if_branch().Accept(this);
+  if (!errors_->empty()) {
+    return;
+  }
+  const Type type = type_;
+  const size_t i2d_pos = operations_.size();
+  if (type == Type::INT) {
+    operations_.push_back(Operation::MakeNOP());  // placeholder for I2D
+  }
+  const size_t goto_pos = operations_.size();
+  operations_.push_back(Operation::MakeNOP());  // placeholder for GOTO
+  operations_[iffalse_pos] = Operation::MakeIFFALSE(0, operations_.size());
+  expr.else_branch().Accept(this);
+  if (!errors_->empty()) {
+    return;
+  }
+  if (type != type_) {
+    if (type == Type::BOOL || type_ == Type::BOOL) {
+      errors_->push_back(StrCat(
+          "type mismatch; incompatible branch types ", type, " and ", type_));
+      return;
+    }
+    if (type != Type::DOUBLE && type_ == Type::DOUBLE) {
+      operations_[i2d_pos] = Operation::MakeI2D(dst_);
+    }
+    if (type == Type::DOUBLE && type_ != Type::DOUBLE) {
+      operations_.push_back(Operation::MakeI2D(dst_));
+      type_ = Type::DOUBLE;
+    }
+  }
+  operations_[goto_pos] = Operation::MakeGOTO(operations_.size());
 }
 
 }  // namespace
