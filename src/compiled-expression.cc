@@ -782,7 +782,7 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
       return;
     case Type::DOUBLE:
       if (info.is_variable()) {
-        errors_->push_back("double variables not supported");
+        errors_->push_back(StrCat(info.type(), " variables not supported"));
       } else {
         operations_.push_back(
             Operation::MakeDCONST(info.constant_value().value<double>(), dst_));
@@ -871,7 +871,8 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
       }
       if (type_ == Type::BOOL) {
         errors_->push_back(StrCat(
-            "type mismatch; expecting argument of type double; found bool"));
+            "type mismatch; expecting argument of type ", Type::DOUBLE,
+            "; found ", type_));
         return;
       }
       if (type_ != Type::DOUBLE) {
@@ -901,7 +902,8 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
         }
         if (type_ == Type::BOOL) {
           errors_->push_back(StrCat(
-              "type mismatch; expecting argument of type double; found bool"));
+              "type mismatch; expecting argument of type ", Type::DOUBLE,
+              "; found ", type_));
           return;
         }
         if (type_ != Type::DOUBLE) {
@@ -931,7 +933,8 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
         }
         if (type_ != Type::INT) {
           errors_->push_back(StrCat(
-              "type mismatch; expecting argument of type int; found ", type_));
+              "type mismatch; expecting argument of type ", Type::INT,
+              "; found ", type_));
           return;
         }
       }
@@ -942,8 +945,35 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
 }
 
 void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
-  // TODO(hlsyounes): implement.
-  errors_->push_back("not implemented");
+  expr.operand().Accept(this);
+  if (!errors_->empty()) {
+    return;
+  }
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      if (type_ == Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; unary operator ", expr.op(), " applied to ",
+            type_));
+        return;
+      }
+      if (type_ == Type::DOUBLE) {
+        operations_.push_back(Operation::MakeDNEG(dst_));
+      } else {
+        operations_.push_back(Operation::MakeINEG(dst_));
+      }
+      return;
+    case UnaryOperator::NOT:
+      if (type_ != Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; unary operator ", expr.op(), " applied to ",
+            type_));
+        return;
+      }
+      operations_.push_back(Operation::MakeNOT(dst_));
+      return;
+  }
+  LOG(FATAL) << "bad unary operator";
 }
 
 void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
