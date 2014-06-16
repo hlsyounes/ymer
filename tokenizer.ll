@@ -58,6 +58,7 @@ int MakeDoubleLiteral(YYSTYPE* lval, const char* s) {
 %}
 
 %option bison-bridge bison-locations never-interactive nounput noyywrap
+%option reentrant
 
 %%
 
