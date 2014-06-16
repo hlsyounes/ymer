@@ -23,11 +23,6 @@
 %{
 #include "formulas.h"
 
-struct Range {
-  const Expression* l;
-  const Expression* h;
-};
-
 #include "parser.h"
 
 #define YY_USER_INIT yylloc->first_line = yylloc->last_line = 1;

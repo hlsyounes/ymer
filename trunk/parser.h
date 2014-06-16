@@ -171,14 +171,13 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 344 "parser.yy"
+#line 336 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
   const PathFormula* path;
   const Distribution* dist;
   const Expression* expr;
-  Range range;
   int nat;
   const std::string* str;
   const TypedValue* num;
@@ -188,7 +187,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 192 "parser.h"
+#line 191 "parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
