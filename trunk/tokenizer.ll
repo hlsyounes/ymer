@@ -1,8 +1,6 @@
-/* -*-C++-*- */
-/*
- * Tokenizer.
- *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+/* -*-C++-*-
+ * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011--2014 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -20,113 +18,113 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: tokenizer.ll,v 2.1 2004-01-25 12:44:37 lorens Exp $
+ * Lexical analyzer for the PRISM language.
  */
 %{
-#include <config.h>
-#include "src/expression.h"
-#include "src/typed-value.h"
-#include <cstdlib>
-#include <stdexcept>
-#include <string>
+#include "formulas.h"
 
-struct StateFormula;
-struct PathFormula;
-struct Distribution;
-/* An integer range (duplicated from parser.yy). */
-struct Range { int l, h; };
+struct Range {
+  const Expression* l;
+  const Expression* h;
+};
 
 #include "parser.h"
 
+#define YY_USER_INIT yylloc->first_line = yylloc->last_line = 1;
 
-/* Current line number. */
-size_t line_number;
+namespace {
 
-/* Allocates a string containing the lowercase characters of the given
-   C string, and returns the given token. */
-static int make_string(const char* s, int token);
-/* Makes a number of the given string, and return the NUMBER token. */
-static int make_number(const char* s);
-
-%}
-
-%option never-interactive nounput noyywrap
-
-IDENT	[A-Za-z]([A-Za-z0-9_])*
-
-%%
-
-stochastic		return STOCHASTIC;
-ctmc                    return CTMC;
-const			return CONST_TOKEN;
-int                     return INT_TOKEN;
-double                  return DOUBLE;
-rate			return RATE;
-global			return GLOBAL;
-module			return MODULE;
-endmodule		return ENDMODULE;
-init			return INIT;
-rewards                 return REWARDS;
-endrewards              return ENDREWARDS;
-true			return TRUE_TOKEN;
-false			return FALSE_TOKEN;
-Exp			return EXP;
-func                    return FUNC;
-[WLPUX]			return yytext[0];
-{IDENT}\'		return make_string(yytext, PNAME);
-{IDENT}			return make_string(yytext, IDENTIFIER);
-\"{IDENT}\"             return LABEL_NAME;
-[0-9]*[./]?[0-9]+	return make_number(yytext);
-->			return ARROW;
-=>			return IMP;
-\<=>                    return EQV;
-\<=			return LTE;
->=			return GTE;
-!=			return NEQ;
-\.\.			return DOTDOT;
-[,;:\[\]=+\-*/<>!&|()]	return yytext[0];
-\/\/.*$			/* comment */
-[ \t\r]+		/* whitespace */
-\n			line_number++;
-.			return ILLEGAL_TOKEN;
-
-%%
-
-/* Allocates a string containing the lowercase characters of the given
-   C string, and returns the given token. */
-static int make_string(const char* s, int token) {
-  std::string* result = new std::string();
-  for (const char* p = s; *p != '\0'; p++) {
-    if (*p != '\'') {
-      *result += *p;
-    }
-  }
-  yylval.str = result;
+// Sets lval->str to a newly allocated string with content s, and returns token.
+int MakeString(YYSTYPE* lval, const char* s, int token) {
+  lval->str = new std::string(s);
   return token;
 }
 
-
-/* Makes a number of the given string, and return the NUMBER token. */
-static int make_number(const char* s) {
-  const char* si = s;
-  int numerator = 0;
-  for (; *si != '\0' && *si != '.' && *si != '/'; si++) {
-    numerator = 10*numerator + (*si - '0');
-  }
-  if (*si == '/') {
-    int denominator = 0;
-    for (si++; *si != '\0'; si++) {
-      denominator = 10*denominator + (*si - '0');
-    }
-    if (denominator == 0) {
-      throw std::invalid_argument("division by zero");
-    }
-    yylval.num =
-        new TypedValue(static_cast<double>(numerator) / denominator);
-  } else if (*si == '.') {
-    yylval.num = new TypedValue(atof(s));
-  } else {
-    yylval.num = new TypedValue(numerator);
-  }
+// Sets lval->num to a newly allocated TypedValue with the int value given by s,
+// and returns LITERAL.
+int MakeIntLiteral(YYSTYPE* lval, const char* s) {
+  lval->num = new TypedValue(atoi(s));
   return NUMBER;
 }
+
+// Sets lval->num to a newly allocated TypedValue with the double value given by
+// s, and returns NUMBER.
+int MakeDoubleLiteral(YYSTYPE* lval, const char* s) {
+  lval->num = new TypedValue(atof(s));
+  return NUMBER;
+}
+
+}  // namespace
+%}
+
+%option bison-bridge bison-locations never-interactive nounput noyywrap
+
+%%
+
+A                          return A;
+bool                       return BOOL_TOKEN;
+C                          return C;
+const                      return CONST;
+ctmc                       return CTMC_TOKEN;
+double                     return DOUBLE_TOKEN;
+dtmc                       return DTMC_TOKEN;
+Exp                        return EXP;
+E                          return E;
+endinit                    return ENDINIT;
+endmodule                  return ENDMODULE;
+endrewards                 return ENDREWARDS;
+endsystem                  return ENDSYSTEM;
+F                          return F;
+false                      return FALSE;
+formula                    return FORMULA;
+func                       return FUNC;
+G                          return G;
+global                     return GLOBAL;
+I                          return I;
+init                       return INIT;
+int                        return INT_TOKEN;
+L                          return L;
+label                      return LABEL;
+max                        return MAX_TOKEN;
+mdp                        return MDP_TOKEN;
+min                        return MIN_TOKEN;
+module                     return MODULE;
+nondeterministic           return NONDETERMINISTIC;
+Pmax                       return PMAX;
+Pmin                       return PMIN;
+P                          return P;
+probabilistic              return PROBABILISTIC;
+prob                       return PROB;
+Rmax                       return RMAX;
+Rmin                       return RMIN;
+R                          return R;
+rate                       return RATE;
+rewards                    return REWARDS;
+stochastic                 return STOCHASTIC;
+system                     return SYSTEM;
+S                          return S;
+true                       return TRUE;
+U                          return U;
+W                          return W;
+X                          return X;
+[A-Za-z][A-Za-z0-9_]*      return MakeString(yylval, yytext, IDENTIFIER);
+\"[A-Za-z][A-Za-z0-9_]*\"  return MakeString(yylval, yytext, LABEL_NAME);
+[0-9]+\.[0-9]+             return MakeDoubleLiteral(yylval, yytext);
+[0-9]+                     return MakeIntLiteral(yylval, yytext);
+->                         return ARROW;
+\'                         return PRIME;
+\<=>                       return EQV;
+=>                         return IMP;
+!=                         return NEQ;
+\<=                        return LEQ;
+>=                         return GEQ;
+\.\.                       return DOTDOT;
+\|\|\|                     return TRIPLE_BAR;
+\|\|                       return DOUBLE_BAR;
+\<-                        return BACK_ARROW;
+[;,[\]?:|&!=<>+\-*/(){}]   return yytext[0];
+\/\/.*$                    /* comment */
+[ \t\r]+                   /* whitespace */
+\n                         yylloc->last_line = ++yylloc->first_line;
+
+%%

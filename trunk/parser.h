@@ -37,69 +37,131 @@
    /* Put the tokens into the symbol table, so that GDB and other debuggers
       know about them.  */
    enum yytokentype {
-     STOCHASTIC = 258,
-     CTMC = 259,
-     CONST_TOKEN = 260,
-     INT_TOKEN = 261,
-     DOUBLE = 262,
-     RATE = 263,
-     GLOBAL = 264,
-     INIT = 265,
-     TRUE_TOKEN = 266,
-     FALSE_TOKEN = 267,
-     EXP = 268,
-     FUNC = 269,
-     REWARDS = 270,
-     ENDREWARDS = 271,
-     MODULE = 272,
-     ENDMODULE = 273,
-     PNAME = 274,
-     IDENTIFIER = 275,
-     LABEL_NAME = 276,
-     NUMBER = 277,
-     ARROW = 278,
-     DOTDOT = 279,
-     ILLEGAL_TOKEN = 280,
-     EQV = 281,
-     IMP = 282,
-     NEQ = 283,
-     EQ = 284,
-     GTE = 285,
-     LTE = 286,
-     UMINUS = 287
+     DTMC_TOKEN = 258,
+     CTMC_TOKEN = 259,
+     MDP_TOKEN = 260,
+     PROBABILISTIC = 261,
+     STOCHASTIC = 262,
+     NONDETERMINISTIC = 263,
+     CONST = 264,
+     INT_TOKEN = 265,
+     DOUBLE_TOKEN = 266,
+     BOOL_TOKEN = 267,
+     RATE = 268,
+     PROB = 269,
+     GLOBAL = 270,
+     DOTDOT = 271,
+     FORMULA = 272,
+     LABEL = 273,
+     INIT = 274,
+     ENDINIT = 275,
+     REWARDS = 276,
+     ENDREWARDS = 277,
+     MODULE = 278,
+     ENDMODULE = 279,
+     ARROW = 280,
+     PRIME = 281,
+     TRUE = 282,
+     FALSE = 283,
+     MAX_TOKEN = 284,
+     MIN_TOKEN = 285,
+     FUNC = 286,
+     IDENTIFIER = 287,
+     NUMBER = 288,
+     LABEL_NAME = 289,
+     SYSTEM = 290,
+     ENDSYSTEM = 291,
+     DOUBLE_BAR = 292,
+     TRIPLE_BAR = 293,
+     BACK_ARROW = 294,
+     A = 295,
+     C = 296,
+     E = 297,
+     F = 298,
+     G = 299,
+     I = 300,
+     PMAX = 301,
+     PMIN = 302,
+     P = 303,
+     RMAX = 304,
+     RMIN = 305,
+     R = 306,
+     S = 307,
+     U = 308,
+     W = 309,
+     X = 310,
+     EXP = 311,
+     L = 312,
+     EQV = 313,
+     IMP = 314,
+     NEQ = 315,
+     GEQ = 316,
+     LEQ = 317,
+     UMINUS = 318
    };
 #endif
 /* Tokens.  */
-#define STOCHASTIC 258
-#define CTMC 259
-#define CONST_TOKEN 260
-#define INT_TOKEN 261
-#define DOUBLE 262
-#define RATE 263
-#define GLOBAL 264
-#define INIT 265
-#define TRUE_TOKEN 266
-#define FALSE_TOKEN 267
-#define EXP 268
-#define FUNC 269
-#define REWARDS 270
-#define ENDREWARDS 271
-#define MODULE 272
-#define ENDMODULE 273
-#define PNAME 274
-#define IDENTIFIER 275
-#define LABEL_NAME 276
-#define NUMBER 277
-#define ARROW 278
-#define DOTDOT 279
-#define ILLEGAL_TOKEN 280
-#define EQV 281
-#define IMP 282
-#define NEQ 283
-#define EQ 284
-#define GTE 285
-#define LTE 286
-#define UMINUS 287
+#define DTMC_TOKEN 258
+#define CTMC_TOKEN 259
+#define MDP_TOKEN 260
+#define PROBABILISTIC 261
+#define STOCHASTIC 262
+#define NONDETERMINISTIC 263
+#define CONST 264
+#define INT_TOKEN 265
+#define DOUBLE_TOKEN 266
+#define BOOL_TOKEN 267
+#define RATE 268
+#define PROB 269
+#define GLOBAL 270
+#define DOTDOT 271
+#define FORMULA 272
+#define LABEL 273
+#define INIT 274
+#define ENDINIT 275
+#define REWARDS 276
+#define ENDREWARDS 277
+#define MODULE 278
+#define ENDMODULE 279
+#define ARROW 280
+#define PRIME 281
+#define TRUE 282
+#define FALSE 283
+#define MAX_TOKEN 284
+#define MIN_TOKEN 285
+#define FUNC 286
+#define IDENTIFIER 287
+#define NUMBER 288
+#define LABEL_NAME 289
+#define SYSTEM 290
+#define ENDSYSTEM 291
+#define DOUBLE_BAR 292
+#define TRIPLE_BAR 293
+#define BACK_ARROW 294
+#define A 295
+#define C 296
+#define E 297
+#define F 298
+#define G 299
+#define I 300
+#define PMAX 301
+#define PMIN 302
+#define P 303
+#define RMAX 304
+#define RMIN 305
+#define R 306
+#define S 307
+#define U 308
+#define W 309
+#define X 310
+#define EXP 311
+#define L 312
+#define EQV 313
+#define IMP 314
+#define NEQ 315
+#define GEQ 316
+#define LEQ 317
+#define UMINUS 318
 
 
 
@@ -109,7 +171,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 314 "parser.yy"
+#line 337 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -126,7 +188,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 130 "parser.h"
+#line 192 "parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -135,4 +197,18 @@ typedef union YYSTYPE
 
 extern YYSTYPE yylval;
 
+#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
+typedef struct YYLTYPE
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+} YYLTYPE;
+# define yyltype YYLTYPE /* obsolescent; will be withdrawn */
+# define YYLTYPE_IS_DECLARED 1
+# define YYLTYPE_IS_TRIVIAL 1
+#endif
+
+extern YYLTYPE yylloc;
 

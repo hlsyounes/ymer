@@ -33,21 +33,16 @@
 #include <set>
 #include <string>
 
-/* Workaround for bug in Bison 1.35 that disables stack growth. */
-#define YYLTYPE_IS_TRIVIAL 1
-
-
 /* An integer range. */
 struct Range {
   const Expression* l;
   const Expression* h;
 };
 
+#include "parser.h"
 
-/* The lexer. */
-extern int yylex();
-/* Current line number. */
-extern size_t line_number;
+// Lexical analyzer function.
+extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp);
 /* Name of current file. */
 extern std::string current_file;
 /* Constant overrides. */
@@ -96,10 +91,6 @@ static bool success = true;
 /* Clears all previously parsed declarations. */
 void clear_declarations();
 
-/* Outputs an error message. */
-static void yyerror(const std::string& s);
-/* Outputs a warning message. */
-static void yywarning(const std::string& s);
 /* Checks if undeclared variables were used. */
 static void check_undeclared();
 /* Returns the integer value of the given typed value, signaling an error if
@@ -170,6 +161,23 @@ static void prepare_model();
 static void compile_model();
 
 namespace {
+
+// Wrapper for lexical analyzer function.
+int yylex() {
+  return yylex(&yylval, &yylloc);
+}
+
+// Error reporting function.
+void yyerror(const std::string& msg) {
+  std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
+            << msg << std::endl;
+  success = false;
+}
+
+void yywarning(const std::string& msg) {
+  std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
+            << msg << std::endl;
+}
 
 template <typename T>
 std::unique_ptr<T> MakeUnique(T* ptr) {
@@ -288,27 +296,42 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 }
 
 }  // namespace
-
 %}
 
-%token STOCHASTIC CTMC
-%token CONST_TOKEN INT_TOKEN DOUBLE RATE GLOBAL INIT
-%token TRUE_TOKEN FALSE_TOKEN
-%token EXP FUNC
+%defines
+%locations
+%error-verbose
+
+%token DTMC_TOKEN CTMC_TOKEN MDP_TOKEN PROBABILISTIC STOCHASTIC NONDETERMINISTIC
+%token CONST INT_TOKEN DOUBLE_TOKEN BOOL_TOKEN RATE PROB
+%token GLOBAL DOTDOT
+%token FORMULA LABEL
+%token INIT ENDINIT
 %token REWARDS ENDREWARDS
 %token MODULE ENDMODULE
-%token PNAME IDENTIFIER LABEL_NAME NUMBER
-%token ARROW DOTDOT
-%token ILLEGAL_TOKEN
+%token ARROW PRIME
+%token TRUE FALSE
+%token MAX_TOKEN MIN_TOKEN FUNC
+%token IDENTIFIER NUMBER LABEL_NAME
+%token SYSTEM ENDSYSTEM
+%token DOUBLE_BAR TRIPLE_BAR BACK_ARROW
 
+%token A C
+%token E F G I
+%token PMAX PMIN P RMAX
+%token RMIN R S U W X EXP L
+
+%left DOUBLE_BAR TRIPLE_BAR
+%right '?' ':'
 %left EQV
 %left IMP
 %left '|'
 %left '&'
-%left EQ NEQ
-%left '<' LTE GTE '>'
+%left '=' NEQ
+%left '<' LEQ GEQ '>'
 %left '+' '-'
 %left '*' '/'
+%left '{'
 %right UMINUS '!'
 
 %union {
@@ -332,7 +355,7 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 %type <expr> expr rate_expr const_rate_expr const_expr csl_expr
 %type <range> range
 %type <nat> integer
-%type <str> PNAME IDENTIFIER
+%type <str> IDENTIFIER
 %type <num> NUMBER
 %type <function> function
 %type <arguments> arguments
@@ -341,7 +364,7 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 
 %%
 
-file : { success = true; line_number = 1; } model_or_properties
+file : { success = true; } model_or_properties
          { check_undeclared(); if (!success) YYERROR; }
      ;
 
@@ -357,7 +380,7 @@ model : model_type { prepare_model(); } declarations modules rewards
           { compile_model(); }
       ;
 
-model_type : STOCHASTIC | CTMC
+model_type : STOCHASTIC | CTMC_TOKEN
            ;
 
 /* ====================================================================== */
@@ -367,21 +390,21 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST_TOKEN IDENTIFIER ';'
+declaration : CONST IDENTIFIER ';'
                 { declare_constant($2, nullptr); }
-            | CONST_TOKEN IDENTIFIER '=' const_expr ';'
+            | CONST IDENTIFIER '=' const_expr ';'
                 { declare_constant($2, $4); }
-            | CONST_TOKEN INT_TOKEN IDENTIFIER ';'
+            | CONST INT_TOKEN IDENTIFIER ';'
                 { declare_constant($3, nullptr); }
-            | CONST_TOKEN INT_TOKEN IDENTIFIER '=' const_expr ';'
+            | CONST INT_TOKEN IDENTIFIER '=' const_expr ';'
                 { declare_constant($3, $5); }
             | RATE IDENTIFIER ';'
                 { declare_rate($2, nullptr); }
             | RATE IDENTIFIER '=' const_rate_expr ';'
                 { declare_rate($2, $4); }
-            | CONST_TOKEN DOUBLE IDENTIFIER ';'
+            | CONST DOUBLE_TOKEN IDENTIFIER ';'
                 { declare_rate($3, nullptr); }
-            | CONST_TOKEN DOUBLE IDENTIFIER '=' const_rate_expr ';'
+            | CONST DOUBLE_TOKEN IDENTIFIER '=' const_rate_expr ';'
                 { declare_rate($3, $5); }
             | GLOBAL IDENTIFIER ':' range ';'
                 { declare_variable($2, $4, nullptr); }
@@ -436,7 +459,7 @@ synchronization : '[' ']' { $$ = 0; }
                 | '[' IDENTIFIER ']' { $$ = synchronization_value($2); }
                 ;
 
-update : PNAME '=' expr { add_update($1, $3); }
+update : IDENTIFIER PRIME '=' expr { add_update($1, $4); }
        | update '&' update
        | '(' update ')'
        ;
@@ -473,20 +496,20 @@ transition_reward : '[' IDENTIFIER ']' formula ':' rate_expr ';'
 /* ====================================================================== */
 /* Formulas. */
 
-formula : TRUE_TOKEN { $$ = new Conjunction(); }
-        | FALSE_TOKEN { $$ = new Disjunction(); }
+formula : TRUE { $$ = new Conjunction(); }
+        | FALSE { $$ = new Disjunction(); }
         | formula '&' formula { $$ = make_conjunction($1, $3); }
         | formula '|' formula { $$ = make_disjunction($1, $3); }
         | '!' formula { $$ = new Negation($2); }
         | expr '<' expr
             { $$ = NewLessThan(MakeUnique($1), MakeUnique($3)); }
-        | expr LTE expr
+        | expr LEQ expr
             { $$ = NewLessThanOrEqual(MakeUnique($1), MakeUnique($3)); }
-        | expr GTE expr
+        | expr GEQ expr
             { $$ = NewGreaterThanOrEqual(MakeUnique($1), MakeUnique($3)); }
         | expr '>' expr
             { $$ = NewGreaterThan(MakeUnique($1), MakeUnique($3)); }
-        | expr '=' expr %prec EQ
+        | expr '=' expr
             { $$ = NewEquality(MakeUnique($1), MakeUnique($3)); }
         | expr NEQ expr
             { $$ = NewInequality(MakeUnique($1), MakeUnique($3)); }
@@ -501,11 +524,11 @@ distribution : rate_expr
                  { $$ = NewExponential(MakeUnique($1)); }
              | EXP '(' rate_expr ')'
                  { $$ = NewExponential(MakeUnique($3)); }
-             | 'W' '(' const_rate_expr ',' const_rate_expr ')'
+             | W '(' const_rate_expr ',' const_rate_expr ')'
                  { $$ = NewWeibull(MakeUnique($3), MakeUnique($5)); }
-             | 'L' '(' const_rate_expr ',' const_rate_expr ')'
+             | L '(' const_rate_expr ',' const_rate_expr ')'
                  { $$ = NewLognormal(MakeUnique($3), MakeUnique($5)); }
-             | 'U' '(' const_rate_expr ',' const_rate_expr ')'
+             | U '(' const_rate_expr ',' const_rate_expr ')'
                  { $$ = NewUniform(MakeUnique($3), MakeUnique($5)); }
              ;
 
@@ -607,15 +630,15 @@ properties : /* empty */
                { properties.push_back($2); }
            ;
 
-csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
-            | FALSE_TOKEN { $$ = new Disjunction(); }
-            | 'P' '<' NUMBER '[' path_formula ']'
+csl_formula : TRUE { $$ = new Conjunction(); }
+            | FALSE { $$ = new Disjunction(); }
+            | P '<' NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, true, true, $5); }
-            | 'P' LTE NUMBER '[' path_formula ']'
+            | P LEQ NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, false, true, $5); }
-            | 'P' GTE NUMBER '[' path_formula ']'
+            | P GEQ NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, false, false, $5); }
-            | 'P' '>' NUMBER '[' path_formula ']'
+            | P '>' NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, true, false, $5); }
             | csl_formula IMP csl_formula { $$ = new Implication($1, $3); }
             | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
@@ -623,13 +646,13 @@ csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
             | '!' csl_formula { $$ = new Negation($2); }
             | csl_expr '<' csl_expr
                 { $$ = NewLessThan(MakeUnique($1), MakeUnique($3)); }
-            | csl_expr LTE csl_expr
+            | csl_expr LEQ csl_expr
                 { $$ = NewLessThanOrEqual(MakeUnique($1), MakeUnique($3)); }
-            | csl_expr GTE csl_expr
+            | csl_expr GEQ csl_expr
                 { $$ = NewGreaterThanOrEqual(MakeUnique($1), MakeUnique($3)); }
             | csl_expr '>' csl_expr
                 { $$ = NewGreaterThan(MakeUnique($1), MakeUnique($3)); }
-            | csl_expr '=' csl_expr %prec EQ
+            | csl_expr '=' csl_expr
                 { $$ = NewEquality(MakeUnique($1), MakeUnique($3)); }
             | csl_expr NEQ csl_expr
                 { $$ = NewInequality(MakeUnique($1), MakeUnique($3)); }
@@ -637,11 +660,11 @@ csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
                 { $$ = $2; }
             ;
 
-path_formula : csl_formula 'U' LTE NUMBER csl_formula
+path_formula : csl_formula U LEQ NUMBER csl_formula
                  { $$ = make_until($1, $5, nullptr, $4); }
-             | csl_formula 'U' '[' NUMBER ',' NUMBER ']' csl_formula
+             | csl_formula U '[' NUMBER ',' NUMBER ']' csl_formula
                  { $$ = make_until($1, $8, $4, $6); }
-//             | 'X' csl_formula
+//             | X csl_formula
              ;
 
 csl_expr : integer
@@ -843,17 +866,6 @@ void clear_declarations() {
   constants.clear();
   constant_values.clear();
   variables.clear();
-}
-
-static void yyerror(const std::string& s) {
-  std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	    << std::endl;
-  success = false;
-}
-
-static void yywarning(const std::string& s) {
-  std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	    << std::endl;
 }
 
 static void check_undeclared() {
