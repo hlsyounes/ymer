@@ -878,12 +878,12 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
       if (type_ != Type::DOUBLE) {
         operations_.push_back(Operation::MakeI2D(dst_));
       }
-      type_ = Type::INT;
       if (expr.function() == Function::FLOOR) {
         operations_.push_back(Operation::MakeFLOOR(dst_));
       } else {
         operations_.push_back(Operation::MakeCEIL(dst_));
       }
+      type_ = Type::INT;
       return;
     case Function::POW:
     case Function::LOG:
@@ -910,12 +910,12 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
           operations_.push_back(Operation::MakeI2D(dst_ + i));
         }
       }
-      type_ = Type::DOUBLE;
       if (expr.function() == Function::POW) {
         operations_.push_back(Operation::MakePOW(dst_, dst_ + 1));
       } else {
         operations_.push_back(Operation::MakeLOG(dst_, dst_ + 1));
       }
+      type_ = Type::DOUBLE;
       return;
     case Function::MOD:
       if (n != 2) {
@@ -1038,15 +1038,106 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
     case BinaryOperator::AND:
     case BinaryOperator::OR:
     case BinaryOperator::IMPLY:
-    case BinaryOperator::IFF:
+    case BinaryOperator::IFF: {
+      if (type_ != Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; binary operator ", expr.op(), " applied to ",
+            type_));
+        return;
+      }
+      size_t jump_pos;
+      if (expr.op() == BinaryOperator::IFF) {
+        ++dst_;
+      } else {
+        if (expr.op() == BinaryOperator::IMPLY) {
+          operations_.push_back(Operation::MakeNOT(dst_));
+        }
+        jump_pos = operations_.size();
+        operations_.push_back(Operation::MakeNOP());  // placeholder for jump
+      }
+      expr.operand2().Accept(this);
+      if (expr.op() == BinaryOperator::IFF) {
+        --dst_;
+      }
+      if (!errors_->empty()) {
+        return;
+      }
+      if (type_ != Type::BOOL) {
+        errors_->push_back(StrCat(
+            "type mismatch; binary operator ", expr.op(), " applied to ",
+            type_));
+        return;
+      }
+      if (expr.op() == BinaryOperator::IFF) {
+        operations_.push_back(Operation::MakeIEQ(dst_, dst_ + 1));
+      } else if (expr.op() == BinaryOperator::AND) {
+        operations_[jump_pos] =
+            Operation::MakeIFFALSE(dst_, operations_.size());
+      } else {
+        operations_[jump_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
+      }
+      return;
+    }
     case BinaryOperator::LESS:
     case BinaryOperator::LESS_EQUAL:
     case BinaryOperator::GREATER_EQUAL:
     case BinaryOperator::GREATER:
     case BinaryOperator::EQUAL:
-    case BinaryOperator::NOT_EQUAL:
-      errors_->push_back("not implemented");
+    case BinaryOperator::NOT_EQUAL: {
+      const Type type = type_;
+      ++dst_;
+      expr.operand2().Accept(this);
+      --dst_;
+      if (!errors_->empty()) {
+        return;
+      }
+      if (type != type_) {
+        if (type == Type::BOOL || type_ == Type::BOOL) {
+          errors_->push_back(StrCat(
+              "type mismatch; incompatible argument types ", type, " and "
+              , type_));
+          return;
+        }
+        if (type != Type::DOUBLE && type_ == Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_));
+        }
+        if (type == Type::DOUBLE && type_ != Type::DOUBLE) {
+          operations_.push_back(Operation::MakeI2D(dst_ + 1));
+          type_ = Type::DOUBLE;
+        }
+      }
+      if (type_ == Type::DOUBLE) {
+        if (expr.op() == BinaryOperator::LESS) {
+          operations_.push_back(Operation::MakeDLT(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::LESS_EQUAL) {
+          operations_.push_back(Operation::MakeDLE(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::GREATER_EQUAL) {
+          operations_.push_back(Operation::MakeDGE(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::GREATER) {
+          operations_.push_back(Operation::MakeDGT(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::EQUAL) {
+          operations_.push_back(Operation::MakeDEQ(dst_, dst_ + 1));
+        } else {
+          operations_.push_back(Operation::MakeDNE(dst_, dst_ + 1));
+        }
+      } else {
+        if (expr.op() == BinaryOperator::LESS) {
+          operations_.push_back(Operation::MakeILT(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::LESS_EQUAL) {
+          operations_.push_back(Operation::MakeILE(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::GREATER_EQUAL) {
+          operations_.push_back(Operation::MakeIGE(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::GREATER) {
+          operations_.push_back(Operation::MakeIGT(dst_, dst_ + 1));
+        } else if (expr.op() == BinaryOperator::EQUAL) {
+          operations_.push_back(Operation::MakeIEQ(dst_, dst_ + 1));
+        } else {
+          operations_.push_back(Operation::MakeINE(dst_, dst_ + 1));
+        }
+      }
+      type_ = Type::BOOL;
       return;
+    }
   }
   LOG(FATAL) << "bad binary operator";
 }
@@ -1074,7 +1165,7 @@ void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
   }
   const size_t goto_pos = operations_.size();
   operations_.push_back(Operation::MakeNOP());  // placeholder for GOTO
-  operations_[iffalse_pos] = Operation::MakeIFFALSE(0, operations_.size());
+  operations_[iffalse_pos] = Operation::MakeIFFALSE(dst_, operations_.size());
   expr.else_branch().Accept(this);
   if (!errors_->empty()) {
     return;

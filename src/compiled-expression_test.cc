@@ -1335,43 +1335,412 @@ TEST(CompileExpressionTest, Divide) {
 }
 
 TEST(CompileExpressionTest, And) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::AND, true, false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 3),
+       Operation::MakeICONST(0, 0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::AND, 17, false), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator & applied to int"}),
+    result2.errors);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::AND, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator & applied to double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::AND, true, false), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::AND, true, false), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result5.errors);
 }
 
 TEST(CompileExpressionTest, Or) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::OR, true, false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeIFTRUE(0, 3),
+       Operation::MakeICONST(0, 0)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::OR, 17, false), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator | applied to int"}),
+    result2.errors);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::OR, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator | applied to double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::OR, true, false), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::OR, true, false), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result5.errors);
 }
 
 TEST(CompileExpressionTest, Imply) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IMPLY, true, false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeNOT(0),
+       Operation::MakeIFTRUE(0, 4), Operation::MakeICONST(0, 0)}),
+      result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IMPLY, 17, false), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator => applied to int"}),
+    result2.errors);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IMPLY, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator => applied to double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IMPLY, true, false), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IMPLY, true, false),
+      Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result5.errors);
 }
 
 TEST(CompileExpressionTest, Iff) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IFF, true, false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeIEQ(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IFF, 17, false), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator <=> applied to int"}),
+    result2.errors);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IFF, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; binary operator <=> applied to double"}),
+    result3.errors);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IFF, true, false), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result4.errors);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::IFF, true, false), Type::DOUBLE, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type double; found bool"}),
+    result5.errors);
 }
 
 TEST(CompileExpressionTest, Less) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, 17, 42), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeILT(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, 0.5, -17), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDLT(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, 0.5, 2.0), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDLT(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, true, false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeILT(0, 1)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, 0.5, 2), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, 17, true), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types int and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types bool and double"}),
+    result7.errors);
 }
 
 TEST(CompileExpressionTest, LessEqual) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 17, 42), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeILE(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 0.5, -17),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDLE(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 0.5, 2.0),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDLE(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, true, false),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeILE(0, 1)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 0.5, 2), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 17, true),
+      Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types int and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::LESS_EQUAL, true, 0.5),
+      Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types bool and double"}),
+    result7.errors);
 }
 
 TEST(CompileExpressionTest, GreaterEqual) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 17, 42),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIGE(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 0.5, -17),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDGE(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 0.5, 2.0),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDGE(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, true, false),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeIGE(0, 1)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 0.5, 2),
+      Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 17, true),
+      Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types int and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, true, 0.5),
+      Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types bool and double"}),
+    result7.errors);
 }
 
 TEST(CompileExpressionTest, Greater) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, 17, 42), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIGT(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, 0.5, -17), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDGT(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, 0.5, 2.0), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDGT(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, true, false),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeIGT(0, 1)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, 0.5, 2), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, 17, true), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types int and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::GREATER, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types bool and double"}),
+    result7.errors);
 }
 
 TEST(CompileExpressionTest, Equal) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, 17, 42), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIEQ(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, -17), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDEQ(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, 2.0), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDEQ(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, true, false), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeIEQ(0, 1)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, 2), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, 17, true), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types int and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::EQUAL, true, 0.5), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types bool and double"}),
+    result7.errors);
 }
 
 TEST(CompileExpressionTest, NotEqual) {
-  // TODO(hlsyounes): implement.
+  const CompileExpressionResult result1 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 17, 42), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeINE(0, 1)}), result1.expr);
+
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 0.5, -17), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
+       Operation::MakeI2D(1), Operation::MakeDNE(0, 1)}), result2.expr);
+
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 0.5, 2.0), Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(2.0, 1),
+       Operation::MakeDNE(0, 1)}), result3.expr);
+
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, true, false),
+      Type::BOOL, {});
+  EXPECT_EQ(CompiledExpression(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeINE(0, 1)}), result4.expr);
+
+  const CompileExpressionResult result5 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 0.5, 2), Type::INT, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; expecting expression of type int; found bool"}),
+    result5.errors);
+
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 17, true), Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types int and bool"}),
+    result6.errors);
+
+  const CompileExpressionResult result7 = CompileExpression(
+      MakeBinaryOperation(BinaryOperator::NOT_EQUAL, true, 0.5),
+      Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"type mismatch; incompatible argument types bool and double"}),
+    result7.errors);
 }
 
 TEST(CompileExpressionTest, Conditional) {
