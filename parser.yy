@@ -33,12 +33,6 @@
 #include <set>
 #include <string>
 
-/* An integer range. */
-struct Range {
-  const Expression* l;
-  const Expression* h;
-};
-
 #include "parser.h"
 
 // Lexical analyzer function.
@@ -102,9 +96,6 @@ static const Identifier* find_constant(const std::string* ident);
 static const Identifier* find_rate(const std::string* ident);
 /* Returns an identifier representing a rate constant or an integer variable. */
 static const Identifier* find_rate_or_variable(const std::string* ident);
-/* Returns a range with the given bounds, signaling an error if the
-   range is empty. */
-static Range make_range(const Expression* l, const Expression* h);
 /* Returns a literal expression. */
 static const Literal* make_literal(int n);
 /* Returns a literal expression. */
@@ -141,7 +132,8 @@ static void declare_rate(const std::string* ident,
                          const Expression* value_expr);
 /* Declares a variable. */
 static bool declare_variable(const std::string* ident,
-                             const Range& range,
+                             const Expression* low,
+                             const Expression* high,
                              const Expression* start,
                              bool delayed_addition = false);
 /* Adds a command to the current module. */
@@ -347,7 +339,6 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
   const PathFormula* path;
   const Distribution* dist;
   const Expression* expr;
-  Range range;
   int nat;
   const std::string* str;
   const TypedValue* num;
@@ -360,7 +351,6 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 %type <path> path_formula
 %type <dist> distribution
 %type <expr> expr rate_expr const_rate_expr const_expr csl_expr
-%type <range> range
 %type <nat> integer
 %type <str> IDENTIFIER
 %type <num> NUMBER
@@ -413,10 +403,11 @@ declaration : CONST IDENTIFIER ';'
                 { declare_rate($3, nullptr); }
             | CONST DOUBLE_TOKEN IDENTIFIER '=' const_rate_expr ';'
                 { declare_rate($3, $5); }
-            | GLOBAL IDENTIFIER ':' range ';'
-                { declare_variable($2, $4, nullptr); }
-            | GLOBAL IDENTIFIER ':' range INIT const_expr ';'
-                { declare_variable($2, $4, $6); }
+            | GLOBAL IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']' ';'
+                { declare_variable($2, $5, $7, nullptr); }
+            | GLOBAL IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']'
+                INIT const_expr ';'
+                { declare_variable($2, $5, $7, $10); }
             ;
 
 
@@ -449,9 +440,11 @@ variables : /* empty */
           | variables variable_decl
           ;
 
-variable_decl : IDENTIFIER ':' range ';' { declare_variable($1, $3, nullptr); }
-              | IDENTIFIER ':' range INIT const_expr ';'
-                  { declare_variable($1, $3, $5); }
+variable_decl : IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']' ';'
+                  { declare_variable($1, $4, $6, nullptr); }
+              | IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']'
+                  INIT const_expr ';'
+                  { declare_variable($1, $4, $6, $9); }
               ;
 
 commands : /* empty */
@@ -604,10 +597,7 @@ arguments : expr
 
 
 /* ====================================================================== */
-/* Ranges and integers. */
-
-range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
-      ;
+/* Integers. */
 
 const_expr : integer
                { $$ = make_literal($1); }
@@ -951,11 +941,6 @@ static const Identifier* find_rate_or_variable(const std::string* ident) {
   }
 }
 
-static Range make_range(const Expression* l, const Expression* h) {
-  Range r = { l, h };
-  return r;
-}
-
 static const Literal* make_literal(int n) {
   return new Literal(n);
 }
@@ -1168,7 +1153,8 @@ static void declare_rate(const std::string* ident,
 }
 
 static bool declare_variable(const std::string* ident,
-                             const Range& range,
+                             const Expression* low,
+                             const Expression* high,
                              const Expression* start,
                              bool delayed_addition) {
   bool declared = false;
@@ -1194,28 +1180,28 @@ static bool declare_variable(const std::string* ident,
     }
   }
   if (declared) {
-    int low =
-        EvaluateConstantExpression(*range.l, constant_values).value<int>();
-    int high =
-        EvaluateConstantExpression(*range.h, constant_values).value<int>();
+    int l =
+        EvaluateConstantExpression(*low, constant_values).value<int>();
+    int h =
+        EvaluateConstantExpression(*high, constant_values).value<int>();
     int s = ((start != nullptr)
              ? EvaluateConstantExpression(*start, constant_values).value<int>()
-             : low);
+             : l);
     variable_lows.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(range.l)));
+        std::make_pair(*ident, std::unique_ptr<const Expression>(low)));
     variable_highs.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(range.h)));
+        std::make_pair(*ident, std::unique_ptr<const Expression>(high)));
     variable_starts.insert(
         std::make_pair(*ident, std::unique_ptr<const Expression>(start)));
-    model->AddIntVariable(*ident, low, high, s);
+    model->AddIntVariable(*ident, l, h, s);
     if (!delayed_addition) {
       if (module != nullptr) {
 	module->add_variable(*ident);
       }
     }
   } else {
-    delete range.l;
-    delete range.h;
+    delete low;
+    delete high;
     delete start;
   }
   delete ident;
@@ -1645,9 +1631,8 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	  if (i->second != nullptr) {
 	    start = SubstituteIdentifiers(*i->second, c_subst);
 	  }
-	  Range r = { low.release(), high.release() };
-	  if (declare_variable(new std::string(si->second), r, start.release(),
-                               true)) {
+	  if (declare_variable(new std::string(si->second), low.release(),
+                               high.release(), start.release(), true)) {
 	    v_subst.insert(*si);
 	  }
 	}
