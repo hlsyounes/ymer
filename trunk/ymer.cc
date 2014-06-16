@@ -56,10 +56,21 @@
 #include <string>
 #include <utility>
 
-/* The parse function. */
-extern int yyparse();
-/* File to parse. */
-extern FILE* yyin;
+struct yy_buffer_state;
+
+// Init function for lexical analyzer (scanner).
+extern int yylex_init(void** scanner_ptr);
+// Destroy function for lexical analyzer (scanner).
+extern int yylex_destroy(void* scanner);
+// Creates a scanner buffer for the given file.
+extern yy_buffer_state* yy_create_buffer(FILE* file, int size, void* scanner);
+// Switches to the given scanner buffer.
+extern void yy_switch_to_buffer(yy_buffer_state* buf, void* scanner);
+// Deletes a scanner buffer.
+extern void yy_delete_buffer(yy_buffer_state* buf, void* scanner);
+// Parse function.
+extern int yyparse(void* scanner);
+
 /* Current model. */
 extern const Model* global_model;
 /* Parsed properties. */
@@ -219,19 +230,34 @@ bool parse_const_overrides(
   return true;
 }
 
+// Prepares a scanner to scan the given file.
+yy_buffer_state* PrepareFileScan(FILE* file, void* scanner) {
+  yy_buffer_state* buffer_state = yy_create_buffer(file, 32768, scanner);
+  yy_switch_to_buffer(buffer_state, scanner);
+  return buffer_state;
+}
+
 /* Parses the given file, and returns true on success. */
-bool read_file(const char* name) {
-  yyin = fopen(name, "r");
-  if (yyin == 0) {
-    std::cerr << PACKAGE << ':' << name << ": " << strerror(errno)
+bool read_file(const std::string& filename) {
+  FILE* file = (filename == "-") ? stdin : fopen(filename.c_str(), "r");
+  if (file == nullptr) {
+    std::cerr << PACKAGE << ':' << filename << ": " << strerror(errno)
 	      << std::endl;
     return false;
-  } else {
-    current_file = name;
-    bool success = (yyparse() == 0);
-    fclose(yyin);
-    return success;
   }
+  current_file = filename;
+
+  void* scanner;
+  yylex_init(&scanner);
+  yy_buffer_state* buffer_state = PrepareFileScan(file, scanner);
+  bool success = (yyparse(scanner) == 0);
+  yy_delete_buffer(buffer_state, scanner);
+  yylex_destroy(scanner);
+
+  if (file != stdin) {
+    fclose(file);
+  }
+  return success;
 }
 
 
@@ -1308,8 +1334,7 @@ int main(int argc, char* argv[]) {
       /*
        * No remaining command line argument, so read from standard input.
        */
-      yyin = stdin;
-      if (yyparse() != 0) {
+      if (!read_file("-")) {
 	return 1;
       }
     }

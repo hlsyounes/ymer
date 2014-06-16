@@ -88,7 +88,7 @@ struct Range {
 #include "parser.h"
 
 // Lexical analyzer function.
-extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp);
+extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
 /* Name of current file. */
 extern std::string current_file;
 /* Constant overrides. */
@@ -208,9 +208,9 @@ static void compile_model();
 
 namespace {
 
-// Wrapper for lexical analyzer function.
-int yylex() {
-  return yylex(&yylval, &yylloc);
+// Wrapper for lexical analyzer function called by generated code.
+int yylex(void* scanner) {
+  return yylex(&yylval, &yylloc, scanner);
 }
 
 // Error reporting function.
@@ -218,6 +218,11 @@ void yyerror(const std::string& msg) {
   std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
             << msg << std::endl;
   success = false;
+}
+
+// Wrapper for error reporting function called by generated code.
+void yyerror(void* scanner, const std::string& msg) {
+  yyerror(msg);
 }
 
 void yywarning(const std::string& msg) {
@@ -345,7 +350,7 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 
 
 /* Line 268 of yacc.c  */
-#line 349 "parser.cc"
+#line 354 "parser.cc"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -506,7 +511,7 @@ typedef union YYSTYPE
 {
 
 /* Line 293 of yacc.c  */
-#line 337 "parser.yy"
+#line 344 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -523,7 +528,7 @@ typedef union YYSTYPE
 
 
 /* Line 293 of yacc.c  */
-#line 527 "parser.cc"
+#line 532 "parser.cc"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -548,7 +553,7 @@ typedef struct YYLTYPE
 
 
 /* Line 343 of yacc.c  */
-#line 552 "parser.cc"
+#line 557 "parser.cc"
 
 #ifdef short
 # undef short
@@ -904,20 +909,20 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   367,   367,   367,   371,   372,   379,   379,   383,   383,
-     389,   390,   393,   395,   397,   399,   401,   403,   405,   407,
-     409,   411,   419,   420,   423,   423,   426,   430,   431,   434,
-     435,   438,   441,   442,   445,   446,   450,   451,   455,   454,
-     458,   459,   462,   463,   464,   471,   472,   475,   478,   479,
-     482,   483,   484,   487,   491,   499,   500,   501,   502,   503,
-     504,   506,   508,   510,   512,   514,   516,   523,   525,   527,
-     529,   531,   538,   540,   542,   544,   546,   548,   550,   552,
-     554,   558,   560,   562,   564,   566,   568,   570,   572,   576,
-     578,   580,   582,   584,   588,   592,   594,   602,   605,   607,
-     609,   611,   613,   615,   617,   621,   628,   629,   633,   634,
-     635,   637,   639,   641,   643,   644,   645,   646,   647,   649,
-     651,   653,   655,   657,   659,   663,   665,   670,   672,   674,
-     676,   678,   680,   682
+       0,   374,   374,   374,   378,   379,   386,   386,   390,   390,
+     396,   397,   400,   402,   404,   406,   408,   410,   412,   414,
+     416,   418,   426,   427,   430,   430,   433,   437,   438,   441,
+     442,   445,   448,   449,   452,   453,   457,   458,   462,   461,
+     465,   466,   469,   470,   471,   478,   479,   482,   485,   486,
+     489,   490,   491,   494,   498,   506,   507,   508,   509,   510,
+     511,   513,   515,   517,   519,   521,   523,   530,   532,   534,
+     536,   538,   545,   547,   549,   551,   553,   555,   557,   559,
+     561,   565,   567,   569,   571,   573,   575,   577,   579,   583,
+     585,   587,   589,   591,   595,   599,   601,   609,   612,   614,
+     616,   618,   620,   622,   624,   628,   635,   636,   640,   641,
+     642,   644,   646,   648,   650,   651,   652,   653,   654,   656,
+     658,   660,   662,   664,   666,   670,   672,   677,   679,   681,
+     683,   685,   687,   689
 };
 #endif
 
@@ -1278,7 +1283,7 @@ do								\
     }								\
   else								\
     {								\
-      yyerror (YY_("syntax error: cannot back up")); \
+      yyerror (scanner, YY_("syntax error: cannot back up")); \
       YYERROR;							\
     }								\
 while (YYID (0))
@@ -1335,7 +1340,7 @@ while (YYID (0))
 #ifdef YYLEX_PARAM
 # define YYLEX yylex (YYLEX_PARAM)
 #else
-# define YYLEX yylex ()
+# define YYLEX yylex (scanner)
 #endif
 
 /* Enable debugging if requested.  */
@@ -1358,7 +1363,7 @@ do {									  \
     {									  \
       YYFPRINTF (stderr, "%s ", Title);					  \
       yy_symbol_print (stderr,						  \
-		  Type, Value, Location); \
+		  Type, Value, Location, scanner); \
       YYFPRINTF (stderr, "\n");						  \
     }									  \
 } while (YYID (0))
@@ -1372,19 +1377,21 @@ do {									  \
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, void* scanner)
 #else
 static void
-yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp)
+yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp, scanner)
     FILE *yyoutput;
     int yytype;
     YYSTYPE const * const yyvaluep;
     YYLTYPE const * const yylocationp;
+    void* scanner;
 #endif
 {
   if (!yyvaluep)
     return;
   YYUSE (yylocationp);
+  YYUSE (scanner);
 # ifdef YYPRINT
   if (yytype < YYNTOKENS)
     YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
@@ -1406,14 +1413,15 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, void* scanner)
 #else
 static void
-yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp)
+yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp, scanner)
     FILE *yyoutput;
     int yytype;
     YYSTYPE const * const yyvaluep;
     YYLTYPE const * const yylocationp;
+    void* scanner;
 #endif
 {
   if (yytype < YYNTOKENS)
@@ -1423,7 +1431,7 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp)
 
   YY_LOCATION_PRINT (yyoutput, *yylocationp);
   YYFPRINTF (yyoutput, ": ");
-  yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp);
+  yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp, scanner);
   YYFPRINTF (yyoutput, ")");
 }
 
@@ -1466,13 +1474,14 @@ do {								\
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_reduce_print (YYSTYPE *yyvsp, YYLTYPE *yylsp, int yyrule)
+yy_reduce_print (YYSTYPE *yyvsp, YYLTYPE *yylsp, int yyrule, void* scanner)
 #else
 static void
-yy_reduce_print (yyvsp, yylsp, yyrule)
+yy_reduce_print (yyvsp, yylsp, yyrule, scanner)
     YYSTYPE *yyvsp;
     YYLTYPE *yylsp;
     int yyrule;
+    void* scanner;
 #endif
 {
   int yynrhs = yyr2[yyrule];
@@ -1486,7 +1495,7 @@ yy_reduce_print (yyvsp, yylsp, yyrule)
       YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
-		       , &(yylsp[(yyi + 1) - (yynrhs)])		       );
+		       , &(yylsp[(yyi + 1) - (yynrhs)])		       , scanner);
       YYFPRINTF (stderr, "\n");
     }
 }
@@ -1494,7 +1503,7 @@ yy_reduce_print (yyvsp, yylsp, yyrule)
 # define YY_REDUCE_PRINT(Rule)		\
 do {					\
   if (yydebug)				\
-    yy_reduce_print (yyvsp, yylsp, Rule); \
+    yy_reduce_print (yyvsp, yylsp, Rule, scanner); \
 } while (YYID (0))
 
 /* Nonzero means print parse trace.  It is left uninitialized so that
@@ -1771,18 +1780,20 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocationp)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocationp, void* scanner)
 #else
 static void
-yydestruct (yymsg, yytype, yyvaluep, yylocationp)
+yydestruct (yymsg, yytype, yyvaluep, yylocationp, scanner)
     const char *yymsg;
     int yytype;
     YYSTYPE *yyvaluep;
     YYLTYPE *yylocationp;
+    void* scanner;
 #endif
 {
   YYUSE (yyvaluep);
   YYUSE (yylocationp);
+  YYUSE (scanner);
 
   if (!yymsg)
     yymsg = "Deleting";
@@ -1793,11 +1804,11 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
       case 117: /* "arguments" */
 
 /* Line 1391 of yacc.c  */
-#line 363 "parser.yy"
+#line 370 "parser.yy"
 	{ delete (yyvaluep->arguments); };
 
 /* Line 1391 of yacc.c  */
-#line 1801 "parser.cc"
+#line 1812 "parser.cc"
 	break;
 
       default:
@@ -1815,7 +1826,7 @@ int yyparse ();
 #endif
 #else /* ! YYPARSE_PARAM */
 #if defined __STDC__ || defined __cplusplus
-int yyparse (void);
+int yyparse (void* scanner);
 #else
 int yyparse ();
 #endif
@@ -1853,11 +1864,11 @@ yyparse (YYPARSE_PARAM)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 int
-yyparse (void)
+yyparse (void* scanner)
 #else
 int
-yyparse ()
-
+yyparse (scanner)
+    void* scanner;
 #endif
 #endif
 {
@@ -2127,742 +2138,742 @@ yyreduce:
         case 2:
 
 /* Line 1806 of yacc.c  */
-#line 367 "parser.yy"
+#line 374 "parser.yy"
     { success = true; }
     break;
 
   case 3:
 
 /* Line 1806 of yacc.c  */
-#line 368 "parser.yy"
+#line 375 "parser.yy"
     { check_undeclared(); if (!success) YYERROR; }
     break;
 
   case 6:
 
 /* Line 1806 of yacc.c  */
-#line 379 "parser.yy"
+#line 386 "parser.yy"
     { prepare_model(); }
     break;
 
   case 7:
 
 /* Line 1806 of yacc.c  */
-#line 380 "parser.yy"
+#line 387 "parser.yy"
     { compile_model(); }
     break;
 
   case 12:
 
 /* Line 1806 of yacc.c  */
-#line 394 "parser.yy"
+#line 401 "parser.yy"
     { declare_constant((yyvsp[(2) - (3)].str), nullptr); }
     break;
 
   case 13:
 
 /* Line 1806 of yacc.c  */
-#line 396 "parser.yy"
+#line 403 "parser.yy"
     { declare_constant((yyvsp[(2) - (5)].str), (yyvsp[(4) - (5)].expr)); }
     break;
 
   case 14:
 
 /* Line 1806 of yacc.c  */
-#line 398 "parser.yy"
+#line 405 "parser.yy"
     { declare_constant((yyvsp[(3) - (4)].str), nullptr); }
     break;
 
   case 15:
 
 /* Line 1806 of yacc.c  */
-#line 400 "parser.yy"
+#line 407 "parser.yy"
     { declare_constant((yyvsp[(3) - (6)].str), (yyvsp[(5) - (6)].expr)); }
     break;
 
   case 16:
 
 /* Line 1806 of yacc.c  */
-#line 402 "parser.yy"
+#line 409 "parser.yy"
     { declare_rate((yyvsp[(2) - (3)].str), nullptr); }
     break;
 
   case 17:
 
 /* Line 1806 of yacc.c  */
-#line 404 "parser.yy"
+#line 411 "parser.yy"
     { declare_rate((yyvsp[(2) - (5)].str), (yyvsp[(4) - (5)].expr)); }
     break;
 
   case 18:
 
 /* Line 1806 of yacc.c  */
-#line 406 "parser.yy"
+#line 413 "parser.yy"
     { declare_rate((yyvsp[(3) - (4)].str), nullptr); }
     break;
 
   case 19:
 
 /* Line 1806 of yacc.c  */
-#line 408 "parser.yy"
+#line 415 "parser.yy"
     { declare_rate((yyvsp[(3) - (6)].str), (yyvsp[(5) - (6)].expr)); }
     break;
 
   case 20:
 
 /* Line 1806 of yacc.c  */
-#line 410 "parser.yy"
+#line 417 "parser.yy"
     { declare_variable((yyvsp[(2) - (5)].str), (yyvsp[(4) - (5)].range), nullptr); }
     break;
 
   case 21:
 
 /* Line 1806 of yacc.c  */
-#line 412 "parser.yy"
+#line 419 "parser.yy"
     { declare_variable((yyvsp[(2) - (7)].str), (yyvsp[(4) - (7)].range), (yyvsp[(6) - (7)].expr)); }
     break;
 
   case 24:
 
 /* Line 1806 of yacc.c  */
-#line 423 "parser.yy"
+#line 430 "parser.yy"
     { prepare_module((yyvsp[(2) - (2)].str)); }
     break;
 
   case 25:
 
 /* Line 1806 of yacc.c  */
-#line 425 "parser.yy"
+#line 432 "parser.yy"
     { add_module(); }
     break;
 
   case 26:
 
 /* Line 1806 of yacc.c  */
-#line 427 "parser.yy"
+#line 434 "parser.yy"
     { add_module((yyvsp[(2) - (8)].str), (yyvsp[(4) - (8)].str)); }
     break;
 
   case 31:
 
 /* Line 1806 of yacc.c  */
-#line 438 "parser.yy"
+#line 445 "parser.yy"
     { add_substitution((yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str)); }
     break;
 
   case 34:
 
 /* Line 1806 of yacc.c  */
-#line 445 "parser.yy"
+#line 452 "parser.yy"
     { declare_variable((yyvsp[(1) - (4)].str), (yyvsp[(3) - (4)].range), nullptr); }
     break;
 
   case 35:
 
 /* Line 1806 of yacc.c  */
-#line 447 "parser.yy"
+#line 454 "parser.yy"
     { declare_variable((yyvsp[(1) - (6)].str), (yyvsp[(3) - (6)].range), (yyvsp[(5) - (6)].expr)); }
     break;
 
   case 38:
 
 /* Line 1806 of yacc.c  */
-#line 455 "parser.yy"
+#line 462 "parser.yy"
     { prepare_command((yyvsp[(1) - (5)].synch), (yyvsp[(2) - (5)].formula), (yyvsp[(4) - (5)].dist)); }
     break;
 
   case 39:
 
 /* Line 1806 of yacc.c  */
-#line 455 "parser.yy"
+#line 462 "parser.yy"
     { add_command(); }
     break;
 
   case 40:
 
 /* Line 1806 of yacc.c  */
-#line 458 "parser.yy"
+#line 465 "parser.yy"
     { (yyval.synch) = 0; }
     break;
 
   case 41:
 
 /* Line 1806 of yacc.c  */
-#line 459 "parser.yy"
+#line 466 "parser.yy"
     { (yyval.synch) = synchronization_value((yyvsp[(2) - (3)].str)); }
     break;
 
   case 42:
 
 /* Line 1806 of yacc.c  */
-#line 462 "parser.yy"
+#line 469 "parser.yy"
     { add_update((yyvsp[(1) - (4)].str), (yyvsp[(4) - (4)].expr)); }
     break;
 
   case 53:
 
 /* Line 1806 of yacc.c  */
-#line 488 "parser.yy"
+#line 495 "parser.yy"
     { delete (yyvsp[(1) - (4)].formula); delete (yyvsp[(3) - (4)].expr); }
     break;
 
   case 54:
 
 /* Line 1806 of yacc.c  */
-#line 492 "parser.yy"
+#line 499 "parser.yy"
     { delete (yyvsp[(2) - (7)].str); delete (yyvsp[(4) - (7)].formula); delete (yyvsp[(6) - (7)].expr); }
     break;
 
   case 55:
 
 /* Line 1806 of yacc.c  */
-#line 499 "parser.yy"
+#line 506 "parser.yy"
     { (yyval.formula) = new Conjunction(); }
     break;
 
   case 56:
 
 /* Line 1806 of yacc.c  */
-#line 500 "parser.yy"
+#line 507 "parser.yy"
     { (yyval.formula) = new Disjunction(); }
     break;
 
   case 57:
 
 /* Line 1806 of yacc.c  */
-#line 501 "parser.yy"
+#line 508 "parser.yy"
     { (yyval.formula) = make_conjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 58:
 
 /* Line 1806 of yacc.c  */
-#line 502 "parser.yy"
+#line 509 "parser.yy"
     { (yyval.formula) = make_disjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 59:
 
 /* Line 1806 of yacc.c  */
-#line 503 "parser.yy"
+#line 510 "parser.yy"
     { (yyval.formula) = new Negation((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 60:
 
 /* Line 1806 of yacc.c  */
-#line 505 "parser.yy"
+#line 512 "parser.yy"
     { (yyval.formula) = NewLessThan(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 61:
 
 /* Line 1806 of yacc.c  */
-#line 507 "parser.yy"
+#line 514 "parser.yy"
     { (yyval.formula) = NewLessThanOrEqual(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 62:
 
 /* Line 1806 of yacc.c  */
-#line 509 "parser.yy"
+#line 516 "parser.yy"
     { (yyval.formula) = NewGreaterThanOrEqual(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 63:
 
 /* Line 1806 of yacc.c  */
-#line 511 "parser.yy"
+#line 518 "parser.yy"
     { (yyval.formula) = NewGreaterThan(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 64:
 
 /* Line 1806 of yacc.c  */
-#line 513 "parser.yy"
+#line 520 "parser.yy"
     { (yyval.formula) = NewEquality(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 65:
 
 /* Line 1806 of yacc.c  */
-#line 515 "parser.yy"
+#line 522 "parser.yy"
     { (yyval.formula) = NewInequality(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 66:
 
 /* Line 1806 of yacc.c  */
-#line 516 "parser.yy"
+#line 523 "parser.yy"
     { (yyval.formula) = (yyvsp[(2) - (3)].formula); }
     break;
 
   case 67:
 
 /* Line 1806 of yacc.c  */
-#line 524 "parser.yy"
+#line 531 "parser.yy"
     { (yyval.dist) = NewExponential(MakeUnique((yyvsp[(1) - (1)].expr))); }
     break;
 
   case 68:
 
 /* Line 1806 of yacc.c  */
-#line 526 "parser.yy"
+#line 533 "parser.yy"
     { (yyval.dist) = NewExponential(MakeUnique((yyvsp[(3) - (4)].expr))); }
     break;
 
   case 69:
 
 /* Line 1806 of yacc.c  */
-#line 528 "parser.yy"
+#line 535 "parser.yy"
     { (yyval.dist) = NewWeibull(MakeUnique((yyvsp[(3) - (6)].expr)), MakeUnique((yyvsp[(5) - (6)].expr))); }
     break;
 
   case 70:
 
 /* Line 1806 of yacc.c  */
-#line 530 "parser.yy"
+#line 537 "parser.yy"
     { (yyval.dist) = NewLognormal(MakeUnique((yyvsp[(3) - (6)].expr)), MakeUnique((yyvsp[(5) - (6)].expr))); }
     break;
 
   case 71:
 
 /* Line 1806 of yacc.c  */
-#line 532 "parser.yy"
+#line 539 "parser.yy"
     { (yyval.dist) = NewUniform(MakeUnique((yyvsp[(3) - (6)].expr)), MakeUnique((yyvsp[(5) - (6)].expr))); }
     break;
 
   case 72:
 
 /* Line 1806 of yacc.c  */
-#line 539 "parser.yy"
+#line 546 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 73:
 
 /* Line 1806 of yacc.c  */
-#line 541 "parser.yy"
+#line 548 "parser.yy"
     { (yyval.expr) = find_variable((yyvsp[(1) - (1)].str)); }
     break;
 
   case 74:
 
 /* Line 1806 of yacc.c  */
-#line 543 "parser.yy"
+#line 550 "parser.yy"
     { (yyval.expr) = NewFunctionCall((yyvsp[(1) - (4)].function), MakeUnique((yyvsp[(3) - (4)].arguments))); }
     break;
 
   case 75:
 
 /* Line 1806 of yacc.c  */
-#line 545 "parser.yy"
+#line 552 "parser.yy"
     { (yyval.expr) = NewFunctionCall((yyvsp[(3) - (6)].function), MakeUnique((yyvsp[(5) - (6)].arguments))); }
     break;
 
   case 76:
 
 /* Line 1806 of yacc.c  */
-#line 547 "parser.yy"
+#line 554 "parser.yy"
     { (yyval.expr) = NewNegate(MakeUnique((yyvsp[(2) - (2)].expr))); }
     break;
 
   case 77:
 
 /* Line 1806 of yacc.c  */
-#line 549 "parser.yy"
+#line 556 "parser.yy"
     { (yyval.expr) = NewPlus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 78:
 
 /* Line 1806 of yacc.c  */
-#line 551 "parser.yy"
+#line 558 "parser.yy"
     { (yyval.expr) = NewMinus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 79:
 
 /* Line 1806 of yacc.c  */
-#line 553 "parser.yy"
+#line 560 "parser.yy"
     { (yyval.expr) = NewMultiply(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 80:
 
 /* Line 1806 of yacc.c  */
-#line 555 "parser.yy"
+#line 562 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 81:
 
 /* Line 1806 of yacc.c  */
-#line 559 "parser.yy"
+#line 566 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].num)); }
     break;
 
   case 82:
 
 /* Line 1806 of yacc.c  */
-#line 561 "parser.yy"
+#line 568 "parser.yy"
     { (yyval.expr) = find_rate_or_variable((yyvsp[(1) - (1)].str)); }
     break;
 
   case 83:
 
 /* Line 1806 of yacc.c  */
-#line 563 "parser.yy"
+#line 570 "parser.yy"
     { (yyval.expr) = NewNegate(MakeUnique((yyvsp[(2) - (2)].expr))); }
     break;
 
   case 84:
 
 /* Line 1806 of yacc.c  */
-#line 565 "parser.yy"
+#line 572 "parser.yy"
     { (yyval.expr) = NewPlus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 85:
 
 /* Line 1806 of yacc.c  */
-#line 567 "parser.yy"
+#line 574 "parser.yy"
     { (yyval.expr) = NewMinus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 86:
 
 /* Line 1806 of yacc.c  */
-#line 569 "parser.yy"
+#line 576 "parser.yy"
     { (yyval.expr) = NewMultiply(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 87:
 
 /* Line 1806 of yacc.c  */
-#line 571 "parser.yy"
+#line 578 "parser.yy"
     { (yyval.expr) = NewDivide(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 88:
 
 /* Line 1806 of yacc.c  */
-#line 573 "parser.yy"
+#line 580 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 89:
 
 /* Line 1806 of yacc.c  */
-#line 577 "parser.yy"
+#line 584 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].num)); }
     break;
 
   case 90:
 
 /* Line 1806 of yacc.c  */
-#line 579 "parser.yy"
+#line 586 "parser.yy"
     { (yyval.expr) = find_rate((yyvsp[(1) - (1)].str)); }
     break;
 
   case 91:
 
 /* Line 1806 of yacc.c  */
-#line 581 "parser.yy"
+#line 588 "parser.yy"
     { (yyval.expr) = NewMultiply(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 92:
 
 /* Line 1806 of yacc.c  */
-#line 583 "parser.yy"
+#line 590 "parser.yy"
     { (yyval.expr) = NewDivide(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 93:
 
 /* Line 1806 of yacc.c  */
-#line 585 "parser.yy"
+#line 592 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 94:
 
 /* Line 1806 of yacc.c  */
-#line 589 "parser.yy"
+#line 596 "parser.yy"
     { (yyval.function) = MakeFunction(MakeUnique((yyvsp[(1) - (1)].str))); }
     break;
 
   case 95:
 
 /* Line 1806 of yacc.c  */
-#line 593 "parser.yy"
+#line 600 "parser.yy"
     { (yyval.arguments) = new UniquePtrVector<const Expression>(MakeUnique((yyvsp[(1) - (1)].expr))); }
     break;
 
   case 96:
 
 /* Line 1806 of yacc.c  */
-#line 595 "parser.yy"
+#line 602 "parser.yy"
     { (yyval.arguments) = (yyvsp[(1) - (3)].arguments); (yyval.arguments)->push_back(MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 97:
 
 /* Line 1806 of yacc.c  */
-#line 602 "parser.yy"
+#line 609 "parser.yy"
     { (yyval.range) = make_range((yyvsp[(2) - (5)].expr), (yyvsp[(4) - (5)].expr)); }
     break;
 
   case 98:
 
 /* Line 1806 of yacc.c  */
-#line 606 "parser.yy"
+#line 613 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 99:
 
 /* Line 1806 of yacc.c  */
-#line 608 "parser.yy"
+#line 615 "parser.yy"
     { (yyval.expr) = find_constant((yyvsp[(1) - (1)].str)); }
     break;
 
   case 100:
 
 /* Line 1806 of yacc.c  */
-#line 610 "parser.yy"
+#line 617 "parser.yy"
     { (yyval.expr) = NewNegate(MakeUnique((yyvsp[(2) - (2)].expr))); }
     break;
 
   case 101:
 
 /* Line 1806 of yacc.c  */
-#line 612 "parser.yy"
+#line 619 "parser.yy"
     { (yyval.expr) = NewPlus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 102:
 
 /* Line 1806 of yacc.c  */
-#line 614 "parser.yy"
+#line 621 "parser.yy"
     { (yyval.expr) = NewMinus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 103:
 
 /* Line 1806 of yacc.c  */
-#line 616 "parser.yy"
+#line 623 "parser.yy"
     { (yyval.expr) = NewMultiply(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 104:
 
 /* Line 1806 of yacc.c  */
-#line 618 "parser.yy"
+#line 625 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
   case 105:
 
 /* Line 1806 of yacc.c  */
-#line 621 "parser.yy"
+#line 628 "parser.yy"
     { (yyval.nat) = integer_value((yyvsp[(1) - (1)].num)); }
     break;
 
   case 107:
 
 /* Line 1806 of yacc.c  */
-#line 630 "parser.yy"
+#line 637 "parser.yy"
     { properties.push_back((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 108:
 
 /* Line 1806 of yacc.c  */
-#line 633 "parser.yy"
+#line 640 "parser.yy"
     { (yyval.formula) = new Conjunction(); }
     break;
 
   case 109:
 
 /* Line 1806 of yacc.c  */
-#line 634 "parser.yy"
+#line 641 "parser.yy"
     { (yyval.formula) = new Disjunction(); }
     break;
 
   case 110:
 
 /* Line 1806 of yacc.c  */
-#line 636 "parser.yy"
+#line 643 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, true, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 111:
 
 /* Line 1806 of yacc.c  */
-#line 638 "parser.yy"
+#line 645 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, true, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 112:
 
 /* Line 1806 of yacc.c  */
-#line 640 "parser.yy"
+#line 647 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), false, false, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 113:
 
 /* Line 1806 of yacc.c  */
-#line 642 "parser.yy"
+#line 649 "parser.yy"
     { (yyval.formula) = make_probabilistic((yyvsp[(3) - (6)].num), true, false, (yyvsp[(5) - (6)].path)); }
     break;
 
   case 114:
 
 /* Line 1806 of yacc.c  */
-#line 643 "parser.yy"
+#line 650 "parser.yy"
     { (yyval.formula) = new Implication((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 115:
 
 /* Line 1806 of yacc.c  */
-#line 644 "parser.yy"
+#line 651 "parser.yy"
     { (yyval.formula) = make_conjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 116:
 
 /* Line 1806 of yacc.c  */
-#line 645 "parser.yy"
+#line 652 "parser.yy"
     { (yyval.formula) = make_disjunction((yyvsp[(1) - (3)].formula), (yyvsp[(3) - (3)].formula)); }
     break;
 
   case 117:
 
 /* Line 1806 of yacc.c  */
-#line 646 "parser.yy"
+#line 653 "parser.yy"
     { (yyval.formula) = new Negation((yyvsp[(2) - (2)].formula)); }
     break;
 
   case 118:
 
 /* Line 1806 of yacc.c  */
-#line 648 "parser.yy"
+#line 655 "parser.yy"
     { (yyval.formula) = NewLessThan(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 119:
 
 /* Line 1806 of yacc.c  */
-#line 650 "parser.yy"
+#line 657 "parser.yy"
     { (yyval.formula) = NewLessThanOrEqual(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 120:
 
 /* Line 1806 of yacc.c  */
-#line 652 "parser.yy"
+#line 659 "parser.yy"
     { (yyval.formula) = NewGreaterThanOrEqual(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 121:
 
 /* Line 1806 of yacc.c  */
-#line 654 "parser.yy"
+#line 661 "parser.yy"
     { (yyval.formula) = NewGreaterThan(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 122:
 
 /* Line 1806 of yacc.c  */
-#line 656 "parser.yy"
+#line 663 "parser.yy"
     { (yyval.formula) = NewEquality(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 123:
 
 /* Line 1806 of yacc.c  */
-#line 658 "parser.yy"
+#line 665 "parser.yy"
     { (yyval.formula) = NewInequality(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 124:
 
 /* Line 1806 of yacc.c  */
-#line 660 "parser.yy"
+#line 667 "parser.yy"
     { (yyval.formula) = (yyvsp[(2) - (3)].formula); }
     break;
 
   case 125:
 
 /* Line 1806 of yacc.c  */
-#line 664 "parser.yy"
+#line 671 "parser.yy"
     { (yyval.path) = make_until((yyvsp[(1) - (5)].formula), (yyvsp[(5) - (5)].formula), nullptr, (yyvsp[(4) - (5)].num)); }
     break;
 
   case 126:
 
 /* Line 1806 of yacc.c  */
-#line 666 "parser.yy"
+#line 673 "parser.yy"
     { (yyval.path) = make_until((yyvsp[(1) - (8)].formula), (yyvsp[(8) - (8)].formula), (yyvsp[(4) - (8)].num), (yyvsp[(6) - (8)].num)); }
     break;
 
   case 127:
 
 /* Line 1806 of yacc.c  */
-#line 671 "parser.yy"
+#line 678 "parser.yy"
     { (yyval.expr) = make_literal((yyvsp[(1) - (1)].nat)); }
     break;
 
   case 128:
 
 /* Line 1806 of yacc.c  */
-#line 673 "parser.yy"
+#line 680 "parser.yy"
     { (yyval.expr) = value_or_variable((yyvsp[(1) - (1)].str)); }
     break;
 
   case 129:
 
 /* Line 1806 of yacc.c  */
-#line 675 "parser.yy"
+#line 682 "parser.yy"
     { (yyval.expr) = NewNegate(MakeUnique((yyvsp[(2) - (2)].expr))); }
     break;
 
   case 130:
 
 /* Line 1806 of yacc.c  */
-#line 677 "parser.yy"
+#line 684 "parser.yy"
     { (yyval.expr) = NewPlus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 131:
 
 /* Line 1806 of yacc.c  */
-#line 679 "parser.yy"
+#line 686 "parser.yy"
     { (yyval.expr) = NewMinus(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 132:
 
 /* Line 1806 of yacc.c  */
-#line 681 "parser.yy"
+#line 688 "parser.yy"
     { (yyval.expr) = NewMultiply(MakeUnique((yyvsp[(1) - (3)].expr)), MakeUnique((yyvsp[(3) - (3)].expr))); }
     break;
 
   case 133:
 
 /* Line 1806 of yacc.c  */
-#line 683 "parser.yy"
+#line 690 "parser.yy"
     { (yyval.expr) = (yyvsp[(2) - (3)].expr); }
     break;
 
 
 
 /* Line 1806 of yacc.c  */
-#line 2866 "parser.cc"
+#line 2877 "parser.cc"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2913,7 +2924,7 @@ yyerrlab:
     {
       ++yynerrs;
 #if ! YYERROR_VERBOSE
-      yyerror (YY_("syntax error"));
+      yyerror (scanner, YY_("syntax error"));
 #else
 # define YYSYNTAX_ERROR yysyntax_error (&yymsg_alloc, &yymsg, \
                                         yyssp, yytoken)
@@ -2940,7 +2951,7 @@ yyerrlab:
                 yymsgp = yymsg;
               }
           }
-        yyerror (yymsgp);
+        yyerror (scanner, yymsgp);
         if (yysyntax_error_status == 2)
           goto yyexhaustedlab;
       }
@@ -2964,7 +2975,7 @@ yyerrlab:
       else
 	{
 	  yydestruct ("Error: discarding",
-		      yytoken, &yylval, &yylloc);
+		      yytoken, &yylval, &yylloc, scanner);
 	  yychar = YYEMPTY;
 	}
     }
@@ -3021,7 +3032,7 @@ yyerrlab1:
 
       yyerror_range[1] = *yylsp;
       yydestruct ("Error: popping",
-		  yystos[yystate], yyvsp, yylsp);
+		  yystos[yystate], yyvsp, yylsp, scanner);
       YYPOPSTACK (1);
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -3061,7 +3072,7 @@ yyabortlab:
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
 yyexhaustedlab:
-  yyerror (YY_("memory exhausted"));
+  yyerror (scanner, YY_("memory exhausted"));
   yyresult = 2;
   /* Fall through.  */
 #endif
@@ -3073,7 +3084,7 @@ yyreturn:
          user semantic actions for why this is necessary.  */
       yytoken = YYTRANSLATE (yychar);
       yydestruct ("Cleanup: discarding lookahead",
-                  yytoken, &yylval, &yylloc);
+                  yytoken, &yylval, &yylloc, scanner);
     }
   /* Do not reclaim the symbols of the rule which action triggered
      this YYABORT or YYACCEPT.  */
@@ -3082,7 +3093,7 @@ yyreturn:
   while (yyssp != yyss)
     {
       yydestruct ("Cleanup: popping",
-		  yystos[*yyssp], yyvsp, yylsp);
+		  yystos[*yyssp], yyvsp, yylsp, scanner);
       YYPOPSTACK (1);
     }
 #ifndef yyoverflow
@@ -3100,7 +3111,7 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 686 "parser.yy"
+#line 693 "parser.yy"
 
 
 namespace {

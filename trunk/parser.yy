@@ -42,7 +42,7 @@ struct Range {
 #include "parser.h"
 
 // Lexical analyzer function.
-extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp);
+extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
 /* Name of current file. */
 extern std::string current_file;
 /* Constant overrides. */
@@ -162,9 +162,9 @@ static void compile_model();
 
 namespace {
 
-// Wrapper for lexical analyzer function.
-int yylex() {
-  return yylex(&yylval, &yylloc);
+// Wrapper for lexical analyzer function called by generated code.
+int yylex(void* scanner) {
+  return yylex(&yylval, &yylloc, scanner);
 }
 
 // Error reporting function.
@@ -172,6 +172,11 @@ void yyerror(const std::string& msg) {
   std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
             << msg << std::endl;
   success = false;
+}
+
+// Wrapper for error reporting function called by generated code.
+void yyerror(void* scanner, const std::string& msg) {
+  yyerror(msg);
 }
 
 void yywarning(const std::string& msg) {
@@ -300,6 +305,8 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 
 %defines
 %locations
+%lex-param {void* scanner}
+%parse-param {void* scanner}
 %error-verbose
 
 %token DTMC_TOKEN CTMC_TOKEN MDP_TOKEN PROBABILISTIC STOCHASTIC NONDETERMINISTIC
