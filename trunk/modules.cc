@@ -38,15 +38,14 @@ Update::Update(const std::string& variable,
 /* Command */
 
 /* Constructs a command. */
-Command::Command(size_t synch, const StateFormula* guard,
+Command::Command(size_t synch, std::unique_ptr<const Expression>&& guard,
 		 const Distribution* delay)
-  : synch_(synch), guard_(guard), delay_(delay) {
+    : synch_(synch), guard_(std::move(guard)), delay_(delay) {
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  delete guard_;
   delete delay_;
   for (const Update* update : updates()) {
     delete update;

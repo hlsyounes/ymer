@@ -35,17 +35,17 @@ int MakeString(YYSTYPE* lval, const char* s, int token) {
   return token;
 }
 
-// Sets lval->num to a newly allocated TypedValue with the int value given by s,
-// and returns LITERAL.
+// Sets lval->number to a newly allocated TypedValue with the int value given by
+// s, and returns LITERAL.
 int MakeIntLiteral(YYSTYPE* lval, const char* s) {
-  lval->num = new TypedValue(atoi(s));
+  lval->number = new TypedValue(atoi(s));
   return NUMBER;
 }
 
-// Sets lval->num to a newly allocated TypedValue with the double value given by
-// s, and returns NUMBER.
+// Sets lval->number to a newly allocated TypedValue with the double value given
+// by s, and returns NUMBER.
 int MakeDoubleLiteral(YYSTYPE* lval, const char* s) {
-  lval->num = new TypedValue(atof(s));
+  lval->number = new TypedValue(atof(s));
   return NUMBER;
 }
 
@@ -109,8 +109,8 @@ X                          return X;
 [0-9]+                     return MakeIntLiteral(yylval, yytext);
 ->                         return ARROW;
 \'                         return PRIME;
-\<=>                       return EQV;
-=>                         return IMP;
+\<=>                       return IFF_TOKEN;
+=>                         return IMPLY_TOKEN;
 !=                         return NEQ;
 \<=                        return LEQ;
 >=                         return GEQ;

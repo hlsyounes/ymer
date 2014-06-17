@@ -30,7 +30,6 @@
 
 #include "src/expression.h"
 
-struct StateFormula;
 struct Distribution;
 
 
@@ -66,7 +65,8 @@ private:
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, const StateFormula* guard, const Distribution* delay);
+  Command(size_t synch, std::unique_ptr<const Expression>&& guard,
+          const Distribution* delay);
 
   /* Deletes this command. */
   ~Command();
@@ -79,7 +79,7 @@ struct Command {
   size_t synch() const { return synch_; }
 
   /* Returns the guard for this command. */
-  const StateFormula& guard() const { return *guard_; }
+  const Expression& guard() const { return *guard_; }
 
   /* Returns the delay distribution for this command. */
   const Distribution& delay() const { return *delay_; }
@@ -96,7 +96,7 @@ private:
      no synchronization. */
   size_t synch_;
   /* The guard for this command. */
-  const StateFormula* guard_;
+  std::unique_ptr<const Expression> guard_;
   /* The rate for this command. */
   const Distribution* delay_;
   /* The updates for this command. */

@@ -607,17 +607,17 @@ int MakeString(YYSTYPE* lval, const char* s, int token) {
   return token;
 }
 
-// Sets lval->num to a newly allocated TypedValue with the int value given by s,
-// and returns LITERAL.
+// Sets lval->number to a newly allocated TypedValue with the int value given by
+// s, and returns LITERAL.
 int MakeIntLiteral(YYSTYPE* lval, const char* s) {
-  lval->num = new TypedValue(atoi(s));
+  lval->number = new TypedValue(atoi(s));
   return NUMBER;
 }
 
-// Sets lval->num to a newly allocated TypedValue with the double value given by
-// s, and returns NUMBER.
+// Sets lval->number to a newly allocated TypedValue with the double value given
+// by s, and returns NUMBER.
 int MakeDoubleLiteral(YYSTYPE* lval, const char* s) {
-  lval->num = new TypedValue(atof(s));
+  lval->number = new TypedValue(atof(s));
   return NUMBER;
 }
 
@@ -1215,12 +1215,12 @@ return PRIME;
 case 53:
 YY_RULE_SETUP
 #line 112 "tokenizer.ll"
-return EQV;
+return IFF_TOKEN;
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
 #line 113 "tokenizer.ll"
-return IMP;
+return IMPLY_TOKEN;
 	YY_BREAK
 case 55:
 YY_RULE_SETUP

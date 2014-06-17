@@ -783,23 +783,21 @@ CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
-  ExpressionCompiler compiler(&variables_by_name, errors);
-  expr.Accept(&compiler);
-  std::vector<Operation> operations = compiler.release_operations();
-  Type type = compiler.type();
-  if (type == Type::INT && expected_type == Type::DOUBLE) {
-    operations.push_back(Operation::MakeI2D(0));
-    type = Type::DOUBLE;
+  std::map<std::string, IdentifierInfo> identifiers_by_name;
+  for (const auto& entry : variables_by_name) {
+    identifiers_by_name.insert(
+        {entry.first, IdentifierInfo::Variable(Type::INT, entry.second)});
   }
-  if (type != expected_type) {
-    errors->push_back(StrCat("type mismatch; expecting expression of type ",
-                             expected_type, "; found ", type));
+  CompileExpressionResult result = CompileExpression(expr, expected_type,
+                                                     identifiers_by_name);
+  if (!result.errors.empty()) {
+    errors->insert(errors->end(), result.errors.begin(), result.errors.end());
     return CompiledExpression({});
   }
   if (expected_type == Type::DOUBLE) {
-    return OptimizeDoubleExpression(CompiledExpression(operations));
+    return OptimizeDoubleExpression(result.expr);
   } else {
-    return OptimizeIntExpression(CompiledExpression(operations));
+    return OptimizeIntExpression(result.expr);
   }
 }
 
@@ -936,7 +934,8 @@ CompiledCommand CompileCommand(
     const std::map<std::string, int>& variables_by_name,
     std::vector<std::string>* errors) {
   return CompiledCommand(
-      CompileAndOptimizeExpression(command.guard(), variables_by_name, errors),
+      CompileAndOptimizeExpression(command.guard(), Type::BOOL,
+                                   variables_by_name, errors),
       { CompileOutcome(command.delay(), command.updates(),
                        variables_by_name, errors) });
 }
