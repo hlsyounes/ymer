@@ -31,6 +31,7 @@
 #include "src/ddutil.h"
 
 struct PHData;
+struct StateFormula;
 
 // A parsed variable.
 class ParsedVariable {

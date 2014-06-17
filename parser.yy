@@ -139,7 +139,8 @@ static bool declare_variable(const std::string* ident,
 /* Adds a command to the current module. */
 static void add_command();
 /* Prepares a command for parsing. */
-static void prepare_command(int synch, const StateFormula* guard,
+static void prepare_command(int synch,
+                            std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
@@ -181,20 +182,20 @@ std::unique_ptr<T> MakeUnique(T* ptr) {
   return std::unique_ptr<T>(ptr);
 }
 
-Function MakeFunction(std::unique_ptr<const std::string>&& name) {
-  if (*name == "min") {
+Function MakeFunction(const std::string& name) {
+  if (name == "min") {
     return Function::MIN;
-  } else if (*name == "max") {
+  } else if (name == "max") {
     return Function::MAX;
-  } else if (*name == "floor") {
+  } else if (name == "floor") {
     return Function::FLOOR;
-  } else if (*name == "ceil") {
+  } else if (name == "ceil") {
     return Function::CEIL;
-  } else if (*name == "pow") {
+  } else if (name == "pow") {
     return Function::POW;
-  } else if (*name == "log") {
+  } else if (name == "log") {
     return Function::LOG;
-  } else if (*name == "mod") {
+  } else if (name == "mod") {
     return Function::MOD;
   } else {
     yyerror("unknown function");
@@ -202,44 +203,101 @@ Function MakeFunction(std::unique_ptr<const std::string>&& name) {
   }
 }
 
-const FunctionCall* NewFunctionCall(
-    Function function,
-    std::unique_ptr<UniquePtrVector<const Expression>>&& arguments) {
-  return FunctionCall::New(function, std::move(*arguments)).release();
+const UnaryOperation* NewNegate(std::unique_ptr<const Expression>&& operand) {
+  return new UnaryOperation(UnaryOperator::NEGATE, std::move(operand));
 }
 
-const UnaryOperation* NewNegate(std::unique_ptr<const Expression>&& operand) {
-  return UnaryOperation::New(UnaryOperator::NEGATE, std::move(operand))
-      .release();
+const UnaryOperation* NewNot(std::unique_ptr<const Expression>&& operand) {
+  return new UnaryOperation(UnaryOperator::NOT, std::move(operand));
 }
 
 const BinaryOperation* NewPlus(std::unique_ptr<const Expression>&& operand1,
                                std::unique_ptr<const Expression>&& operand2) {
-  return BinaryOperation::New(BinaryOperator::PLUS,
-                              std::move(operand1), std::move(operand2))
-      .release();
+  return new BinaryOperation(BinaryOperator::PLUS,
+                             std::move(operand1), std::move(operand2));
 }
 
 const BinaryOperation* NewMinus(std::unique_ptr<const Expression>&& operand1,
                                 std::unique_ptr<const Expression>&& operand2) {
-  return BinaryOperation::New(BinaryOperator::MINUS,
-                              std::move(operand1), std::move(operand2))
-      .release();
+  return new BinaryOperation(BinaryOperator::MINUS,
+                             std::move(operand1), std::move(operand2));
 }
 
 const BinaryOperation* NewMultiply(
     std::unique_ptr<const Expression>&& operand1,
     std::unique_ptr<const Expression>&& operand2) {
-  return BinaryOperation::New(BinaryOperator::MULTIPLY,
-                              std::move(operand1), std::move(operand2))
-      .release();
+  return new BinaryOperation(BinaryOperator::MULTIPLY,
+                             std::move(operand1), std::move(operand2));
 }
 
 const BinaryOperation* NewDivide(std::unique_ptr<const Expression>&& operand1,
                                  std::unique_ptr<const Expression>&& operand2) {
-  return BinaryOperation::New(BinaryOperator::DIVIDE,
-                              std::move(operand1), std::move(operand2))
-      .release();
+  return new BinaryOperation(BinaryOperator::DIVIDE,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewAnd(std::unique_ptr<const Expression>&& operand1,
+                              std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::AND,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewOr(std::unique_ptr<const Expression>&& operand1,
+                             std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::OR,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewImply(std::unique_ptr<const Expression>&& operand1,
+                                std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::IMPLY,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewIff(std::unique_ptr<const Expression>&& operand1,
+                              std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::IFF,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewLess(std::unique_ptr<const Expression>&& operand1,
+                               std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::LESS,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewLessEqual(
+    std::unique_ptr<const Expression>&& operand1,
+    std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::LESS_EQUAL,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewGreaterEqual(
+    std::unique_ptr<const Expression>&& operand1,
+    std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::GREATER_EQUAL,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewGreater(
+    std::unique_ptr<const Expression>&& operand1,
+    std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::GREATER,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewEqual(std::unique_ptr<const Expression>&& operand1,
+                                std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::EQUAL,
+                             std::move(operand1), std::move(operand2));
+}
+
+const BinaryOperation* NewNotEqual(
+    std::unique_ptr<const Expression>&& operand1,
+    std::unique_ptr<const Expression>&& operand2) {
+  return new BinaryOperation(BinaryOperator::NOT_EQUAL,
+                             std::move(operand1), std::move(operand2));
 }
 
 LessThan* NewLessThan(std::unique_ptr<const Expression>&& expr1,
@@ -322,8 +380,8 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 
 %left DOUBLE_BAR TRIPLE_BAR
 %right '?' ':'
-%left EQV
-%left IMP
+%left IFF_TOKEN
+%left IMPLY_TOKEN
 %left '|'
 %left '&'
 %left '=' NEQ
@@ -341,22 +399,24 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
   const Expression* expr;
   int nat;
   const std::string* str;
-  const TypedValue* num;
+  const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
 }
 
 %type <synch> synchronization
-%type <formula> formula csl_formula
+%type <formula> csl_formula
 %type <path> path_formula
 %type <dist> distribution
 %type <expr> expr rate_expr const_rate_expr const_expr csl_expr
 %type <nat> integer
 %type <str> IDENTIFIER
-%type <num> NUMBER
+%type <number> NUMBER
 %type <function> function
 %type <arguments> arguments
 
+%destructor { delete $$; } <expr>
+%destructor { delete $$; } <number>
 %destructor { delete $$; } <arguments>
 
 %%
@@ -451,8 +511,9 @@ commands : /* empty */
          | commands command
          ;
 
-command : synchronization formula ARROW distribution ':'
-            { prepare_command($1, $2, $4); } update ';' { add_command(); }
+command : synchronization expr ARROW distribution ':'
+            { prepare_command($1, MakeUnique($2), $4); } update ';'
+            { add_command(); }
         ;
 
 synchronization : '[' ']' { $$ = 0; }
@@ -484,37 +545,13 @@ reward_rules : /* empty */
              | reward_rules transition_reward
              ;
 
-state_reward : formula ':' rate_expr ';'
+state_reward : expr ':' rate_expr ';'
                  { delete $1; delete $3; }
              ;
 
-transition_reward : '[' IDENTIFIER ']' formula ':' rate_expr ';'
+transition_reward : '[' IDENTIFIER ']' expr ':' rate_expr ';'
                       { delete $2; delete $4; delete $6; }
                   ;
-
-
-/* ====================================================================== */
-/* Formulas. */
-
-formula : TRUE { $$ = new Conjunction(); }
-        | FALSE { $$ = new Disjunction(); }
-        | formula '&' formula { $$ = make_conjunction($1, $3); }
-        | formula '|' formula { $$ = make_disjunction($1, $3); }
-        | '!' formula { $$ = new Negation($2); }
-        | expr '<' expr
-            { $$ = NewLessThan(MakeUnique($1), MakeUnique($3)); }
-        | expr LEQ expr
-            { $$ = NewLessThanOrEqual(MakeUnique($1), MakeUnique($3)); }
-        | expr GEQ expr
-            { $$ = NewGreaterThanOrEqual(MakeUnique($1), MakeUnique($3)); }
-        | expr '>' expr
-            { $$ = NewGreaterThan(MakeUnique($1), MakeUnique($3)); }
-        | expr '=' expr
-            { $$ = NewEquality(MakeUnique($1), MakeUnique($3)); }
-        | expr NEQ expr
-            { $$ = NewInequality(MakeUnique($1), MakeUnique($3)); }
-        | '(' formula ')' { $$ = $2; }
-        ;
 
 
 /* ====================================================================== */
@@ -535,22 +572,50 @@ distribution : rate_expr
 /* ====================================================================== */
 /* Expressions. */
 
-expr : integer
-         { $$ = make_literal($1); }
+expr : NUMBER
+         { $$ = new Literal(*$1); delete $1; }
+     | TRUE
+         { $$ = new Literal(true); }
+     | FALSE
+         { $$ = new Literal(true); }
      | IDENTIFIER
          { $$ = find_variable($1); }
      | function '(' arguments ')'
-         { $$ = NewFunctionCall($1, MakeUnique($3)); }
+         { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
      | FUNC '(' function ',' arguments ')'
-         { $$ = NewFunctionCall($3, MakeUnique($5)); }
+         { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
      | '-' expr %prec UMINUS
          { $$ = NewNegate(MakeUnique($2)); }
+     | '!' expr
+         { $$ = NewNot(MakeUnique($2)); }
      | expr '+' expr
          { $$ = NewPlus(MakeUnique($1), MakeUnique($3)); }
      | expr '-' expr
          { $$ = NewMinus(MakeUnique($1), MakeUnique($3)); }
      | expr '*' expr
          { $$ = NewMultiply(MakeUnique($1), MakeUnique($3)); }
+     | expr '/' expr
+         { $$ = NewDivide(MakeUnique($1), MakeUnique($3)); }
+     | expr '&' expr
+         { $$ = NewAnd(MakeUnique($1), MakeUnique($3)); }
+     | expr '|' expr
+         { $$ = NewOr(MakeUnique($1), MakeUnique($3)); }
+     | expr IMPLY_TOKEN expr
+         { $$ = NewImply(MakeUnique($1), MakeUnique($3)); }
+     | expr IFF_TOKEN expr
+         { $$ = NewIff(MakeUnique($1), MakeUnique($3)); }
+     | expr '<' expr
+         { $$ = NewLess(MakeUnique($1), MakeUnique($3)); }
+     | expr LEQ expr
+         { $$ = NewLessEqual(MakeUnique($1), MakeUnique($3)); }
+     | expr GEQ expr
+         { $$ = NewGreaterEqual(MakeUnique($1), MakeUnique($3)); }
+     | expr '>' expr
+         { $$ = NewGreater(MakeUnique($1), MakeUnique($3)); }
+     | expr '=' expr
+         { $$ = NewEqual(MakeUnique($1), MakeUnique($3)); }
+     | expr NEQ expr
+         { $$ = NewNotEqual(MakeUnique($1), MakeUnique($3)); }
      | '(' expr ')'
          { $$ = $2; }
      ;
@@ -586,7 +651,7 @@ const_rate_expr : NUMBER
                 ;
 
 function : IDENTIFIER
-             { $$ = MakeFunction(MakeUnique($1)); }
+               { $$ = MakeFunction(*$1); delete $1; }
          ;
 
 arguments : expr
@@ -637,7 +702,8 @@ csl_formula : TRUE { $$ = new Conjunction(); }
                 { $$ = make_probabilistic($3, false, false, $5); }
             | P '>' NUMBER '[' path_formula ']'
                 { $$ = make_probabilistic($3, true, false, $5); }
-            | csl_formula IMP csl_formula { $$ = new Implication($1, $3); }
+            | csl_formula IMPLY_TOKEN csl_formula
+                { $$ = new Implication($1, $3); }
             | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
             | csl_formula '|' csl_formula { $$ = make_disjunction($1, $3); }
             | '!' csl_formula { $$ = new Negation($2); }
@@ -1216,9 +1282,10 @@ static void add_command() {
 
 
 /* Prepares a command for parsing. */
-static void prepare_command(int synch, const StateFormula* guard,
+static void prepare_command(int synch,
+                            std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay) {
-  command = new Command(synch, guard, delay);
+  command = new Command(synch, std::move(guard), delay);
 }
 
 namespace {

@@ -92,8 +92,8 @@
      X = 310,
      EXP = 311,
      L = 312,
-     EQV = 313,
-     IMP = 314,
+     IFF_TOKEN = 313,
+     IMPLY_TOKEN = 314,
      NEQ = 315,
      GEQ = 316,
      LEQ = 317,
@@ -156,8 +156,8 @@
 #define X 310
 #define EXP 311
 #define L 312
-#define EQV 313
-#define IMP 314
+#define IFF_TOKEN 313
+#define IMPLY_TOKEN 314
 #define NEQ 315
 #define GEQ 316
 #define LEQ 317
@@ -171,7 +171,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 336 "parser.yy"
+#line 394 "parser.yy"
 
   size_t synch;
   StateFormula* formula;
@@ -180,7 +180,7 @@ typedef union YYSTYPE
   const Expression* expr;
   int nat;
   const std::string* str;
-  const TypedValue* num;
+  const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
 
