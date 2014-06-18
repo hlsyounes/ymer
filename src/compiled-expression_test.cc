@@ -1791,6 +1791,18 @@ TEST(CompileExpressionTest, Conditional) {
     result7.errors);
 }
 
+TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
+  const ProbabilityThresholdOperation expr(
+      ProbabilityThresholdOperator::LESS, 0.25,
+      UntilProperty::New(0, std::numeric_limits<double>::infinity(),
+                         Literal::New(true), Identifier::New("a")));
+  const CompileExpressionResult result =
+      CompileExpression(expr, Type::BOOL, {});
+  EXPECT_EQ(std::vector<std::string>(
+    {"unexpected probability threshold operation in expression"}),
+    result.errors);
+}
+
 TEST(OptimizeIntExpressionTest, Constant) {
   const CompiledExpression expr(
       { Operation::MakeICONST(17, 0) });

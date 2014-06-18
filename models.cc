@@ -342,6 +342,8 @@ class ExpressionCopier : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   std::unique_ptr<const Expression> expr_;
 };
@@ -422,6 +424,11 @@ void ExpressionCopier::DoVisitConditional(const Conditional& expr) {
   expr.else_branch().Accept(this);
   expr_ = Conditional::New(std::move(condition),
                            std::move(if_branch), release_expr());
+}
+
+void ExpressionCopier::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 }  // namespace
@@ -957,6 +964,8 @@ class ExpressionCompiler : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   const DecisionDiagramManager* manager_;
   const std::map<std::string, VariableProperties>* variable_properties_;
@@ -1099,6 +1108,11 @@ void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
   ADD if_branch = mtbdd_;
   expr.else_branch().Accept(this);
   mtbdd_ = Ite(condition, if_branch, mtbdd_);
+}
+
+void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 }  // namespace

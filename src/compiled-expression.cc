@@ -730,6 +730,8 @@ class ExpressionCompiler : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   std::vector<Operation> operations_;
   int dst_;
@@ -1185,6 +1187,12 @@ void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
     }
   }
   operations_[goto_pos] = Operation::MakeGOTO(operations_.size());
+}
+
+void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  errors_->push_back(
+      "unexpected probability threshold operation in expression");
 }
 
 }  // namespace

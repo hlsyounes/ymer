@@ -41,6 +41,8 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   TypedValue value_;
 };
@@ -175,6 +177,11 @@ void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
   } else {
     expr.else_branch().Accept(this);
   }
+}
+
+void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "expecting constant expression";
 }
 
 TypedValue EvaluateConstantExpression(const Expression& expr) {

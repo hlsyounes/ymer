@@ -57,13 +57,38 @@ private:
 // Output operator for expressions.
 std::ostream& operator<<(std::ostream& os, const Expression& e);
 
+class PathPropertyVisitor;
+
+// Abstract base class for path properties.
+//
+// This class supports the visitor pattern.  Example usage:
+//
+//   class ConcretePathPropertyVisitor : public PathPropertyVisitor {
+//     ...
+//   };
+//
+//   const PathProperty* path_property = ...;
+//   ConcretePathPropertyVisitor visitor;
+//   path_property->Accept(&visitor);
+//
+class PathProperty {
+ public:
+  virtual ~PathProperty();
+
+  void Accept(PathPropertyVisitor* visitor) const;
+
+ private:
+  virtual void DoAccept(PathPropertyVisitor* visitor) const = 0;
+};
+
+// Output operator for path properties.
+std::ostream& operator<<(std::ostream& os, const PathProperty& p);
+
 // A literal expression.
 class Literal : public Expression {
  public:
   // Constructs a literal that represents the given value.
   explicit Literal(const TypedValue& value);
-
-  virtual ~Literal();
 
   // Factory method for literals.
   static std::unique_ptr<const Literal> New(const TypedValue& value);
@@ -82,8 +107,6 @@ class Identifier : public Expression {
  public:
   // Constructs an identifier with the given name.
   explicit Identifier(const std::string& name);
-
-  virtual ~Identifier();
 
   // Factory method for identifiers.
   static std::unique_ptr<const Identifier> New(const std::string& name);
@@ -111,8 +134,6 @@ class FunctionCall : public Expression {
   // Constructs a function call for the given function with the given arguments.
   explicit FunctionCall(Function function,
                         UniquePtrVector<const Expression>&& arguments);
-
-  virtual ~FunctionCall();
 
   // Factory method for function calls.
   static std::unique_ptr<const FunctionCall> New(
@@ -148,8 +169,6 @@ class UnaryOperation : public Expression {
   explicit UnaryOperation(UnaryOperator op,
                           std::unique_ptr<const Expression>&& operand);
 
-  virtual ~UnaryOperation();
-
   // Factory method for unary operations.
   static std::unique_ptr<const UnaryOperation> New(
       UnaryOperator op, std::unique_ptr<const Expression>&& operand);
@@ -184,8 +203,6 @@ class BinaryOperation : public Expression {
                            std::unique_ptr<const Expression>&& operand1,
                            std::unique_ptr<const Expression>&& operand2);
 
-  virtual ~BinaryOperation();
-
   // Factory method for binary operations.
   static std::unique_ptr<const BinaryOperation> New(
       BinaryOperator op,
@@ -217,8 +234,6 @@ class Conditional : public Expression {
                        std::unique_ptr<const Expression>&& if_branch,
                        std::unique_ptr<const Expression>&& else_branch);
 
-  virtual ~Conditional();
-
   // Factory method for conditional expressions.
   static std::unique_ptr<const Conditional> New(
       std::unique_ptr<const Expression>&& condition,
@@ -242,6 +257,80 @@ class Conditional : public Expression {
   std::unique_ptr<const Expression> else_branch_;
 };
 
+// Supported operators for probability threshold operations.
+enum class ProbabilityThresholdOperator {
+  LESS, LESS_EQUAL, GREATER_EQUAL, GREATER
+};
+
+// Output operator for probability threshold operators.
+std::ostream& operator<<(std::ostream& os, ProbabilityThresholdOperator op);
+
+// A probability threshold operation.
+class ProbabilityThresholdOperation : public Expression {
+ public:
+  // Constructs a probability threshold expression with the given operator,
+  // threshold, and path property.
+  explicit ProbabilityThresholdOperation(
+      ProbabilityThresholdOperator op, double threshold,
+      std::unique_ptr<const PathProperty>&& path_property);
+
+  // Factory method for probability threshold operations.
+  static std::unique_ptr<const ProbabilityThresholdOperation> New(
+      ProbabilityThresholdOperator op, double threshold,
+      std::unique_ptr<const PathProperty>&& path_property);
+
+  // Returns the operator for this probability threshold operation.
+  ProbabilityThresholdOperator op() const { return op_; }
+
+  // Returns the threshold for this probability threshold operation.
+  double threshold() const { return threshold_; }
+
+  const PathProperty& path_property() const { return *path_property_; }
+
+ private:
+  virtual void DoAccept(ExpressionVisitor* visitor) const;
+
+  ProbabilityThresholdOperator op_;
+  double threshold_;
+  std::unique_ptr<const PathProperty> path_property_;
+};
+
+// An until path property.
+class UntilProperty : public PathProperty {
+ public:
+  // Constructs an until path property with the given time range, pre-, and
+  // post-condition expressions.
+  explicit UntilProperty(double min_time, double max_time,
+                         std::unique_ptr<const Expression>&& pre_expr,
+                         std::unique_ptr<const Expression>&& post_expr);
+
+  // Factory method for until path properties.
+  static std::unique_ptr<const UntilProperty> New(
+      double min_time, double max_time,
+      std::unique_ptr<const Expression>&& pre_expr,
+      std::unique_ptr<const Expression>&& post_expr);
+
+  // Returns the min time for this until path property.
+  double min_time() const { return min_time_; }
+
+  // Returns the max time for this until path property.
+  double max_time() const { return max_time_; }
+
+  // Returns the precondition expression for this until path property.
+  const Expression& pre_expr() const { return *pre_expr_; }
+
+  // Returns the post-condition expression for this until path property.
+  const Expression& post_expr() const { return *post_expr_; }
+
+ private:
+  virtual void DoAccept(PathPropertyVisitor* visitor) const;
+
+  double min_time_;
+  double max_time_;
+  std::unique_ptr<const Expression> pre_expr_;
+  std::unique_ptr<const Expression> post_expr_;
+};
+
 // Abstract base class for expression visitors.
 class ExpressionVisitor {
  public:
@@ -251,6 +340,8 @@ class ExpressionVisitor {
   void VisitUnaryOperation(const UnaryOperation& expr);
   void VisitBinaryOperation(const BinaryOperation& expr);
   void VisitConditional(const Conditional& expr);
+  void VisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
  protected:
   ~ExpressionVisitor();
@@ -262,6 +353,20 @@ class ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr) = 0;
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr) = 0;
   virtual void DoVisitConditional(const Conditional& expr) = 0;
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) = 0;
+};
+
+// Abstract base class for path property visitors.
+class PathPropertyVisitor {
+ public:
+  void VisitUntilProperty(const UntilProperty& path_property);
+
+ protected:
+  ~PathPropertyVisitor();
+
+ private:
+  virtual void DoVisitUntilProperty(const UntilProperty& path_property) = 0;
 };
 
 #endif  // EXPRESSION_H_

@@ -764,6 +764,8 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
   TypedValue value_;
@@ -902,6 +904,11 @@ void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
   } else {
     expr.else_branch().Accept(this);
   }
+}
+
+void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not a constant expression";
 }
 
 TypedValue EvaluateConstantExpression(
@@ -1311,6 +1318,8 @@ class ExpressionIdentifierSubstituter : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   std::map<std::string, std::string> substitutions_;
   std::unique_ptr<const Expression> expr_;
@@ -1499,6 +1508,11 @@ void ExpressionIdentifierSubstituter::DoVisitConditional(
   expr.else_branch().Accept(this);
   expr_ = Conditional::New(std::move(condition),
                            std::move(if_branch), release_expr());
+}
+
+void ExpressionIdentifierSubstituter::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 StateFormulaIdentifierSubstituter::StateFormulaIdentifierSubstituter(

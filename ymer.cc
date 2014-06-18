@@ -322,6 +322,8 @@ class ExpressionCompiler
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
   virtual void DoVisitConjunction(const Conjunction& formula);
   virtual void DoVisitDisjunction(const Disjunction& formula);
   virtual void DoVisitNegation(const Negation& formula);
@@ -643,6 +645,11 @@ void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
                      Operation::MakeGOTO(operations_.size()));
   operations_[iffalse_pos] = Operation::MakeIFFALSE(dst_, if_end + 1);
   type_ = if_type;
+}
+
+void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 void ExpressionCompiler::DoVisitConjunction(const Conjunction& formula) {
