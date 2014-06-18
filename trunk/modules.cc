@@ -21,7 +21,6 @@
  */
 #include "modules.h"
 #include "distributions.h"
-#include "formulas.h"
 #include "src/expression.h"
 
 /* ====================================================================== */
@@ -122,6 +121,8 @@ class ExpressionConstantSubstituter : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
 
   const std::map<std::string, TypedValue>* constant_values_;
   std::unique_ptr<const Expression> expr_;
@@ -135,62 +136,28 @@ std::unique_ptr<const Expression> SubstituteConstants(
   return substituter.release_expr();
 }
 
-class StateFormulaConstantSubstituter : public StateFormulaVisitor {
+class PathPropertyConstantSubstituter : public PathPropertyVisitor {
  public:
-  explicit StateFormulaConstantSubstituter(
+  explicit PathPropertyConstantSubstituter(
       const std::map<std::string, TypedValue>* constant_values);
 
-  ~StateFormulaConstantSubstituter();
-
-  const StateFormula* release_formula();
-
- private:
-  virtual void DoVisitConjunction(const Conjunction& formula);
-  virtual void DoVisitDisjunction(const Disjunction& formula);
-  virtual void DoVisitNegation(const Negation& formula);
-  virtual void DoVisitImplication(const Implication& formula);
-  virtual void DoVisitProbabilistic(const Probabilistic& formula);
-  virtual void DoVisitComparison(const Comparison& formula);
-
-  const std::map<std::string, TypedValue>* constant_values_;
-  const StateFormula* formula_;
-};
-
-const StateFormula* SubstituteConstants(
-    const StateFormula& formula,
-    const std::map<std::string, TypedValue>& constant_values) {
-  StateFormulaConstantSubstituter substituter(&constant_values);
-  formula.Accept(&substituter);
-  return substituter.release_formula();
-}
-
-class PathFormulaConstantSubstituter : public PathFormulaVisitor {
- public:
-  explicit PathFormulaConstantSubstituter(
-      const std::map<std::string, TypedValue>* constant_values);
-
-  ~PathFormulaConstantSubstituter();
-
-  const PathFormula* release_formula();
+  std::unique_ptr<const PathProperty> release_path_property() {
+    return std::move(path_property_);
+  }
 
  private:
-  virtual void DoVisitUntil(const Until& formula);
+  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
 
   const std::map<std::string, TypedValue>* constant_values_;
-  const PathFormula* formula_;
+  std::unique_ptr<const PathProperty> path_property_;
 };
 
-const PathFormula* SubstituteConstants(
-    const PathFormula& formula,
+std::unique_ptr<const PathProperty> SubstituteConstants(
+    const PathProperty& path_property,
     const std::map<std::string, TypedValue>& constant_values) {
-  PathFormulaConstantSubstituter substituter(&constant_values);
-  formula.Accept(&substituter);
-  return substituter.release_formula();
-}
-
-StateFormulaConstantSubstituter::StateFormulaConstantSubstituter(
-    const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), formula_(NULL) {
+  PathPropertyConstantSubstituter substituter(&constant_values);
+  path_property.Accept(&substituter);
+  return substituter.release_path_property();
 }
 
 class DistributionConstantSubstituter : public DistributionVisitor {
@@ -295,111 +262,24 @@ void ExpressionConstantSubstituter::DoVisitConditional(
                            std::move(if_branch), release_expr());
 }
 
-StateFormulaConstantSubstituter::~StateFormulaConstantSubstituter() {
-  delete formula_;
+void ExpressionConstantSubstituter::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  expr_ = ProbabilityThresholdOperation::New(
+      expr.op(), expr.threshold(),
+      SubstituteConstants(expr.path_property(), *constant_values_));
 }
 
-const StateFormula* StateFormulaConstantSubstituter::release_formula() {
-  const StateFormula* formula = formula_;
-  formula_ = NULL;
-  return formula;
-}
-
-void StateFormulaConstantSubstituter::DoVisitConjunction(
-    const Conjunction& formula) {
-  Conjunction* subst_conj = new Conjunction();
-  for (const StateFormula* conjunct : formula.conjuncts()) {
-    conjunct->Accept(this);
-    subst_conj->add_conjunct(release_formula());
-  }
-  formula_ = subst_conj;
-}
-
-void StateFormulaConstantSubstituter::DoVisitDisjunction(
-    const Disjunction& formula) {
-  Disjunction* subst_disj = new Disjunction();
-  for (const StateFormula* disjunct : formula.disjuncts()) {
-    disjunct->Accept(this);
-    subst_disj->add_disjunct(release_formula());
-  }
-  formula_ = subst_disj;
-}
-
-void StateFormulaConstantSubstituter::DoVisitNegation(const Negation& formula) {
-  formula.negand().Accept(this);
-  formula_ = new Negation(release_formula());
-}
-
-void StateFormulaConstantSubstituter::DoVisitImplication(
-    const Implication& formula) {
-  formula.antecedent().Accept(this);
-  const StateFormula* antecedent = release_formula();
-  formula.consequent().Accept(this);
-  formula_ = new Implication(antecedent, release_formula());
-}
-
-void StateFormulaConstantSubstituter::DoVisitProbabilistic(
-    const Probabilistic& formula) {
-  formula_ = new Probabilistic(
-      formula.threshold(), formula.strict(),
-      SubstituteConstants(formula.formula(), *constant_values_));
-}
-
-void StateFormulaConstantSubstituter::DoVisitComparison(
-    const Comparison& formula) {
-  switch (formula.op()) {
-    case Comparison::LESS:
-      formula_ = new LessThan(
-          SubstituteConstants(formula.expr1(), *constant_values_),
-          SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::LESS_EQUAL:
-      formula_ = new LessThanOrEqual(
-          SubstituteConstants(formula.expr1(), *constant_values_),
-          SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::GREATER_EQUAL:
-      formula_ = new GreaterThanOrEqual(
-          SubstituteConstants(formula.expr1(), *constant_values_),
-          SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::GREATER:
-      formula_ = new GreaterThan(
-          SubstituteConstants(formula.expr1(), *constant_values_),
-          SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::EQUAL:
-      formula_ = new Equality(
-          SubstituteConstants(formula.expr1(), *constant_values_),
-          SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-    case Comparison::NOT_EQUAL:
-      formula_ = new Inequality(
-          SubstituteConstants(formula.expr1(), *constant_values_),
-          SubstituteConstants(formula.expr2(), *constant_values_));
-      break;
-  }
-}
-
-PathFormulaConstantSubstituter::PathFormulaConstantSubstituter(
+PathPropertyConstantSubstituter::PathPropertyConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), formula_(NULL) {
+    : constant_values_(constant_values) {
 }
 
-PathFormulaConstantSubstituter::~PathFormulaConstantSubstituter() {
-  delete formula_;
-}
-
-const PathFormula* PathFormulaConstantSubstituter::release_formula() {
-  const PathFormula* formula = formula_;
-  formula_ = NULL;
-  return formula;
-}
-
-void PathFormulaConstantSubstituter::DoVisitUntil(const Until& formula) {
-  formula_ = new Until(SubstituteConstants(formula.pre(), *constant_values_),
-                       SubstituteConstants(formula.post(), *constant_values_),
-                       formula.min_time(), formula.max_time());
+void PathPropertyConstantSubstituter::DoVisitUntilProperty(
+    const UntilProperty& path_property) {
+  path_property_ = UntilProperty::New(
+      path_property.min_time(), path_property.max_time(),
+      SubstituteConstants(path_property.pre_expr(), *constant_values_),
+      SubstituteConstants(path_property.post_expr(), *constant_values_));
 }
 
 DistributionConstantSubstituter::DistributionConstantSubstituter(

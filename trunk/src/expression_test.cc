@@ -690,4 +690,27 @@ TEST(ConditionalTest, OutputConditional) {
             StrCat(expr1));
 }
 
+TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
+  const ProbabilityThresholdOperation expr1(
+      ProbabilityThresholdOperator::LESS, 0.25,
+      UntilProperty::New(0, std::numeric_limits<double>::infinity(),
+                         Literal::New(true), Identifier::New("a")));
+  const ProbabilityThresholdOperation expr2(
+      ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
+      UntilProperty::New(0.5, 17,
+                         Literal::New(true), Identifier::New("b")));
+  const ProbabilityThresholdOperation expr3(
+      ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
+      UntilProperty::New(0, 42,
+                         Identifier::New("c"), Identifier::New("d")));
+  const ProbabilityThresholdOperation expr4(
+      ProbabilityThresholdOperator::GREATER, 1,
+      UntilProperty::New(4711, std::numeric_limits<double>::infinity(),
+                         Literal::New(false), Literal::New(true)));
+  EXPECT_EQ("P<0.25[ true U a ];P<=0.5[ true U[0.5,17] b ]",
+            StrCat(expr1, ';', expr2));
+  EXPECT_EQ("P>=0.75[ c U<=42 d ];P>1[ false U>=4711 true ]",
+            StrCat(expr3, ';', expr4));
+}
+
 }  // namespace

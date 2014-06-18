@@ -19,6 +19,7 @@
 
 #include "expression.h"
 
+#include <limits>
 #include <memory>
 #include <ostream>
 #include <set>
@@ -29,18 +30,13 @@
 
 #include "glog/logging.h"
 
-Expression::~Expression() = default;
-
-void Expression::Accept(ExpressionVisitor* visitor) const {
-  DoAccept(visitor);
-}
-
 namespace {
 
-// An expression visitor that prints an expression to an output stream.
-class ExpressionPrinter : public ExpressionVisitor {
+// An expression and path property visitor that prints an expression or path
+// property to an output stream.
+class Printer : public ExpressionVisitor, public PathPropertyVisitor {
  public:
-  explicit ExpressionPrinter(std::ostream* os);
+  explicit Printer(std::ostream* os);
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
@@ -49,6 +45,9 @@ class ExpressionPrinter : public ExpressionVisitor {
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
   virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
+  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
 
   std::ostream* os_;
   int parent_precedence_;
@@ -117,21 +116,21 @@ int GetRightPrecedence(BinaryOperator op, int precedence) {
   LOG(FATAL) << "bad binary operator";
 }
 
-ExpressionPrinter::ExpressionPrinter(std::ostream* os)
+Printer::Printer(std::ostream* os)
     : os_(os), parent_precedence_(GetTernaryOperatorPrecedence()) {
 }
 
-void ExpressionPrinter::DoVisitLiteral(const Literal& expr) {
+void Printer::DoVisitLiteral(const Literal& expr) {
   *os_ << expr.value();
 }
 
-void ExpressionPrinter::DoVisitIdentifier(const Identifier& expr) {
+void Printer::DoVisitIdentifier(const Identifier& expr) {
   *os_ << expr.name();
 }
 
-void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
-  int precedence = GetTernaryOperatorPrecedence();
+void Printer::DoVisitFunctionCall(const FunctionCall& expr) {
   *os_ << expr.function() << '(';
+  int precedence = GetTernaryOperatorPrecedence();
   std::swap(parent_precedence_, precedence);
   bool first = true;
   for (const Expression& argument : expr.arguments()) {
@@ -146,7 +145,7 @@ void ExpressionPrinter::DoVisitFunctionCall(const FunctionCall& expr) {
   *os_ << ')';
 }
 
-void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
+void Printer::DoVisitUnaryOperation(const UnaryOperation& expr) {
   int precedence = GetUnaryOperatorPrecedence(expr.op());
   *os_ << expr.op();
   std::swap(parent_precedence_, precedence);
@@ -154,7 +153,7 @@ void ExpressionPrinter::DoVisitUnaryOperation(const UnaryOperation& expr) {
   std::swap(parent_precedence_, precedence);
 }
 
-void ExpressionPrinter::DoVisitBinaryOperation(const BinaryOperation& expr) {
+void Printer::DoVisitBinaryOperation(const BinaryOperation& expr) {
   int precedence = GetBinaryOperatorPrecedence(expr.op());
   if (parent_precedence_ > precedence) {
     *os_ << '(';
@@ -172,7 +171,7 @@ void ExpressionPrinter::DoVisitBinaryOperation(const BinaryOperation& expr) {
   }
 }
 
-void ExpressionPrinter::DoVisitConditional(const Conditional& expr) {
+void Printer::DoVisitConditional(const Conditional& expr) {
   int precedence = GetTernaryOperatorPrecedence();
   if (parent_precedence_ > precedence) {
     *os_ << '(';
@@ -189,10 +188,59 @@ void ExpressionPrinter::DoVisitConditional(const Conditional& expr) {
   }
 }
 
+void Printer::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  *os_ << 'P' << expr.op() << expr.threshold() << "[ ";
+  int precedence = GetTernaryOperatorPrecedence();
+  std::swap(parent_precedence_, precedence);
+  expr.path_property().Accept(this);
+  std::swap(parent_precedence_, precedence);
+  *os_ << " ]";
+}
+
+void Printer::DoVisitUntilProperty(const UntilProperty& path_property) {
+  int precedence = GetTernaryOperatorPrecedence();
+  std::swap(parent_precedence_, precedence);
+  path_property.pre_expr().Accept(this);
+  *os_ << " U";
+  const bool has_lower_bound = (path_property.min_time() > 0);
+  const bool has_upper_bound =
+      (path_property.max_time() < std::numeric_limits<double>::infinity());
+  if (has_lower_bound && has_upper_bound) {
+    *os_ << '[' << path_property.min_time() << ',' << path_property.max_time()
+         << ']';
+  } else if (has_lower_bound) {
+    *os_ << ">=" << path_property.min_time();
+  } else if (has_upper_bound) {
+    *os_ << "<=" << path_property.max_time();
+  }
+  *os_ << ' ';
+  path_property.post_expr().Accept(this);
+  std::swap(parent_precedence_, precedence);
+}
+
 }  // namespace
 
+Expression::~Expression() = default;
+
+void Expression::Accept(ExpressionVisitor* visitor) const {
+  DoAccept(visitor);
+}
+
 std::ostream& operator<<(std::ostream& os, const Expression& e) {
-  ExpressionPrinter printer(&os);
+  Printer printer(&os);
+  e.Accept(&printer);
+  return os;
+}
+
+PathProperty::~PathProperty() = default;
+
+void PathProperty::Accept(PathPropertyVisitor* visitor) const {
+  DoAccept(visitor);
+}
+
+std::ostream& operator<<(std::ostream& os, const PathProperty& e) {
+  Printer printer(&os);
   e.Accept(&printer);
   return os;
 }
@@ -200,8 +248,6 @@ std::ostream& operator<<(std::ostream& os, const Expression& e) {
 Literal::Literal(const TypedValue& value)
     : value_(value) {
 }
-
-Literal::~Literal() = default;
 
 std::unique_ptr<const Literal> Literal::New(const TypedValue& value) {
   return std::unique_ptr<const Literal>(new Literal(value));
@@ -214,8 +260,6 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
 Identifier::Identifier(const std::string& name)
     : name_(name) {
 }
-
-Identifier::~Identifier() = default;
 
 std::unique_ptr<const Identifier> Identifier::New(const std::string& name) {
   return std::unique_ptr<const Identifier>(new Identifier(name));
@@ -252,8 +296,6 @@ FunctionCall::FunctionCall(Function function,
     : function_(function), arguments_(std::move(arguments)) {
 }
 
-FunctionCall::~FunctionCall() = default;
-
 std::unique_ptr<const FunctionCall> FunctionCall::New(
     Function function, UniquePtrVector<const Expression>&& arguments) {
   return std::unique_ptr<const FunctionCall>(new FunctionCall(
@@ -278,8 +320,6 @@ UnaryOperation::UnaryOperation(UnaryOperator op,
                                std::unique_ptr<const Expression>&& operand)
     : op_(op), operand_(std::move(operand)) {
 }
-
-UnaryOperation::~UnaryOperation() = default;
 
 std::unique_ptr<const UnaryOperation> UnaryOperation::New(
     UnaryOperator op, std::unique_ptr<const Expression>&& operand) {
@@ -331,8 +371,6 @@ BinaryOperation::BinaryOperation(BinaryOperator op,
     : op_(op), operand1_(std::move(operand1)), operand2_(std::move(operand2)) {
 }
 
-BinaryOperation::~BinaryOperation() = default;
-
 std::unique_ptr<const BinaryOperation> BinaryOperation::New(
     BinaryOperator op,
     std::unique_ptr<const Expression>&& operand1,
@@ -352,8 +390,6 @@ Conditional::Conditional(std::unique_ptr<const Expression>&& condition,
       if_branch_(std::move(if_branch)), else_branch_(std::move(else_branch)) {
 }
 
-Conditional::~Conditional() = default;
-
 std::unique_ptr<const Conditional> Conditional::New(
     std::unique_ptr<const Expression>&& condition,
     std::unique_ptr<const Expression>&& if_branch,
@@ -364,6 +400,58 @@ std::unique_ptr<const Conditional> Conditional::New(
 
 void Conditional::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitConditional(*this);
+}
+
+std::ostream& operator<<(std::ostream& os, ProbabilityThresholdOperator op) {
+  switch (op) {
+    case ProbabilityThresholdOperator::LESS:
+      return os << '<';
+    case ProbabilityThresholdOperator::LESS_EQUAL:
+      return os << "<=";
+    case ProbabilityThresholdOperator::GREATER_EQUAL:
+      return os << ">=";
+    case ProbabilityThresholdOperator::GREATER:
+      return os << '>';
+  }
+  LOG(FATAL) << "bad probability threshold operator";
+}
+
+ProbabilityThresholdOperation::ProbabilityThresholdOperation(
+    ProbabilityThresholdOperator op, double threshold,
+    std::unique_ptr<const PathProperty>&& path_property)
+    : op_(op), threshold_(threshold), path_property_(std::move(path_property)) {
+}
+
+std::unique_ptr<const ProbabilityThresholdOperation>
+ProbabilityThresholdOperation::New(
+    ProbabilityThresholdOperator op, double threshold,
+    std::unique_ptr<const PathProperty>&& path_property) {
+  return std::unique_ptr<const ProbabilityThresholdOperation>(
+      new ProbabilityThresholdOperation(op, threshold,
+                                        std::move(path_property)));
+}
+
+void ProbabilityThresholdOperation::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitProbabilityThresholdOperation(*this);
+}
+
+UntilProperty::UntilProperty(double min_time, double max_time,
+                             std::unique_ptr<const Expression>&& pre_expr,
+                             std::unique_ptr<const Expression>&& post_expr)
+    : min_time_(min_time), max_time_(max_time), pre_expr_(std::move(pre_expr)),
+      post_expr_(std::move(post_expr)) {
+}
+
+std::unique_ptr<const UntilProperty> UntilProperty::New(
+    double min_time, double max_time,
+    std::unique_ptr<const Expression>&& pre_expr,
+    std::unique_ptr<const Expression>&& post_expr) {
+  return std::unique_ptr<const UntilProperty>(new UntilProperty(
+      min_time, max_time, std::move(pre_expr), std::move(post_expr)));
+}
+
+void UntilProperty::DoAccept(PathPropertyVisitor* visitor) const {
+  visitor->VisitUntilProperty(*this);
 }
 
 ExpressionVisitor::~ExpressionVisitor() = default;
@@ -390,4 +478,16 @@ void ExpressionVisitor::VisitBinaryOperation(const BinaryOperation& expr) {
 
 void ExpressionVisitor::VisitConditional(const Conditional& expr) {
   DoVisitConditional(expr);
+}
+
+void ExpressionVisitor::VisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  DoVisitProbabilityThresholdOperation(expr);
+}
+
+PathPropertyVisitor::~PathPropertyVisitor() = default;
+
+void PathPropertyVisitor::VisitUntilProperty(
+    const UntilProperty& path_property) {
+  DoVisitUntilProperty(path_property);
 }
