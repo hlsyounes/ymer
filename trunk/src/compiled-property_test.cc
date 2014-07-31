@@ -38,10 +38,10 @@ CompiledExpression UnoptimizedCompiledExpression() {
  });
 }
 
-std::unique_ptr<const CompiledProbabilisticProperty>
-NewCompiledProbabilisticProperty(int base_variable) {
-  return CompiledProbabilisticProperty::New(
-      CompiledProbabilisticOperator::GREATER, 0.25,
+std::unique_ptr<const CompiledProbabilityThresholdOperation>
+NewCompiledProbabilityThresholdOperation(int base_variable) {
+  return CompiledProbabilityThresholdOperation::New(
+      CompiledProbabilityThresholdOperator::GREATER, 0.25,
       CompiledUntilProperty::New(
           17, 42,
           NewCompiledExpressionProperty(base_variable),
@@ -66,8 +66,8 @@ TEST(OptimizePropertyTest, OptimizesEmptyAnd) {
 TEST(OptimizePropertyTest, OptimizesExpressionConjunct) {
   const CompiledAndProperty property = CompiledAndProperty(
       UnoptimizedCompiledExpression(),
-      MakeConjuncts(NewCompiledProbabilisticProperty(0),
-                    NewCompiledProbabilisticProperty(2)));
+      MakeConjuncts(NewCompiledProbabilityThresholdOperation(0),
+                    NewCompiledProbabilityThresholdOperation(2)));
   const std::string expected =
       "AND of 3 operands\n"
       "operand 0:\n"
@@ -98,7 +98,7 @@ TEST(OptimizePropertyTest, OptimizesLogicOperators) {
   EXPECT_EQ(expected1, StrCat(*OptimizeProperty(property1)));
   const CompiledNotProperty property2 = CompiledNotProperty(
       CompiledNotProperty::New(
-          NewCompiledProbabilisticProperty(0)));
+          NewCompiledProbabilityThresholdOperation(0)));
   const std::string expected2 =
       "P > 0.25\n"
       "UNTIL [17, 42]\n"
@@ -117,7 +117,7 @@ TEST(OptimizePropertyTest, OptimizesLogicOperators) {
                       CompiledExpression({}),
                       MakeConjuncts(
                           CompiledNotProperty::New(
-                              NewCompiledProbabilisticProperty(1)),
+                              NewCompiledProbabilityThresholdOperation(1)),
                           NewCompiledExpressionProperty(3)))))));
   const std::string expected3 =
       "AND of 2 operands\n"

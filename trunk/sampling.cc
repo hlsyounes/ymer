@@ -53,15 +53,14 @@ void PrintProgress(int n) {
   }
 }
 
-class CompiledPropertySamplingVerifier
+class SamplingVerifier
     : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
  public:
-  CompiledPropertySamplingVerifier(const Model* model,
-                                   const DecisionDiagramModel* dd_model,
-                                   const ModelCheckingParams& params,
-                                   CompiledExpressionEvaluator* evaluator,
-                                   const State* state, int probabilistic_level,
-                                   ModelCheckingStats* stats);
+  SamplingVerifier(const Model* model, const DecisionDiagramModel* dd_model,
+                   const ModelCheckingParams& params,
+                   CompiledExpressionEvaluator* evaluator,
+                   const State* state, int probabilistic_level,
+                   ModelCheckingStats* stats);
 
   bool result() const { return result_; }
 
@@ -70,12 +69,12 @@ class CompiledPropertySamplingVerifier
  private:
   virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
   virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilisticProperty(
-      const CompiledProbabilisticProperty& property);
+  virtual void DoVisitCompiledProbabilityThresholdOperation(
+      const CompiledProbabilityThresholdOperation& property);
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
   virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& property);
+      const CompiledUntilProperty& path_property);
 
   bool VerifyHelper(const CompiledProperty& property, const BDD* ddf);
 
@@ -96,9 +95,8 @@ class CompiledPropertySamplingVerifier
   short next_client_id_;
 };
 
-CompiledPropertySamplingVerifier::CompiledPropertySamplingVerifier(
-    const Model* model,
-    const DecisionDiagramModel* dd_model,
+SamplingVerifier::SamplingVerifier(
+    const Model* model, const DecisionDiagramModel* dd_model,
     const ModelCheckingParams& params,
     CompiledExpressionEvaluator* evaluator,
     const State* state, int probabilistic_level,
@@ -109,7 +107,7 @@ CompiledPropertySamplingVerifier::CompiledPropertySamplingVerifier(
       next_client_id_(1) {
 }
 
-void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
+void SamplingVerifier::DoVisitCompiledAndProperty(
     const CompiledAndProperty& property) {
   result_ = true;
   if (property.has_expr_operand()) {
@@ -129,7 +127,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledAndProperty(
   }
 }
 
-void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
+void SamplingVerifier::DoVisitCompiledNotProperty(
     const CompiledNotProperty& property) {
   std::swap(params_.alpha, params_.beta);
   property.operand().Accept(this);
@@ -137,8 +135,8 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledNotProperty(
   std::swap(params_.alpha, params_.beta);
 }
 
-void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
-    const CompiledProbabilisticProperty& property) {
+void SamplingVerifier::DoVisitCompiledProbabilityThresholdOperation(
+    const CompiledProbabilityThresholdOperation& property) {
   ++probabilistic_level_;
   double nested_error = 0.0;
   if (dd_model_ == nullptr && property.path_property().is_probabilistic()) {
@@ -196,10 +194,10 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
       stats_->sample_size.AddObservation(estimator.count());
     }
     switch (property.op()) {
-      case CompiledProbabilisticOperator::GREATER_EQUAL:
+      case CompiledProbabilityThresholdOperator::GREATER_EQUAL:
         result_ = estimator.value() >= theta;
         break;
-      case CompiledProbabilisticOperator::GREATER:
+      case CompiledProbabilityThresholdOperator::GREATER:
         result_ = estimator.value() > theta;
         break;
     }
@@ -428,7 +426,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledProbabilisticProperty(
   --probabilistic_level_;
 }
 
-void CompiledPropertySamplingVerifier::DoVisitCompiledExpressionProperty(
+void SamplingVerifier::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
   result_ = evaluator_->EvaluateIntExpression(property.expr(),
                                               state_->values());
@@ -450,29 +448,29 @@ BDD StateBdd(const DecisionDiagramModel& dd_model, const Model& model,
   return dds;
 }
 
-void CompiledPropertySamplingVerifier::DoVisitCompiledUntilProperty(
-    const CompiledUntilProperty& property) {
+void SamplingVerifier::DoVisitCompiledUntilProperty(
+    const CompiledUntilProperty& path_property) {
   const BDD* dd1 = nullptr;
   const BDD* dd2 = nullptr;
   auto cached_dds = dd_cache_.end();
   if (dd_model_ != nullptr) {
     // Mixed engine.
-    cached_dds = dd_cache_.find(property.index());
+    cached_dds = dd_cache_.find(path_property.index());
     if (cached_dds == dd_cache_.end()) {
-      BDD dd1 = Verify(
-          property.formula().pre(), *dd_model_, false, false, params_.epsilon);
-      BDD dd2 = Verify(
-          property.formula().post(), *dd_model_, false, false, params_.epsilon);
-      cached_dds =
-          dd_cache_.insert({property.index(), std::make_pair(dd1, dd2)}).first;
+      BDD dd1 = Verify(path_property.formula().pre(), *dd_model_, false, false,
+          params_.epsilon);
+      BDD dd2 = Verify(path_property.formula().post(), *dd_model_, false, false,
+                       params_.epsilon);
+      cached_dds = dd_cache_.insert(
+          {path_property.index(), std::make_pair(dd1, dd2)}).first;
     }
     dd1 = &cached_dds->second.first;
     dd2 = &cached_dds->second.second;
   }
   double t = 0.0;
   State curr_state = *state_;
-  const double t_min = property.min_time();
-  const double t_max = property.max_time();
+  const double t_min = path_property.min_time();
+  const double t_max = path_property.max_time();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
   while (!done && path_length < params_.max_path_length) {
@@ -484,18 +482,19 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledUntilProperty(
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);
     if (t_min <= t) {
-      if (VerifyHelper(property.post(), dd2)) {
+      if (VerifyHelper(path_property.post_property(), dd2)) {
         result = true;
         done = true;
-      } else if (!VerifyHelper(property.pre(), dd1)) {
+      } else if (!VerifyHelper(path_property.pre_property(), dd1)) {
         result = false;
         done = true;
       }
     } else {
-      if (!VerifyHelper(property.pre(), dd1)) {
+      if (!VerifyHelper(path_property.pre_property(), dd1)) {
         result = false;
         done = true;
-      } else if (t_min < next_t && VerifyHelper(property.post(), dd2)) {
+      } else if (t_min < next_t
+                 && VerifyHelper(path_property.post_property(), dd2)) {
         t = t_min;
         result = true;
         done = true;
@@ -530,7 +529,7 @@ void CompiledPropertySamplingVerifier::DoVisitCompiledUntilProperty(
   result_ = result;
 }
 
-bool CompiledPropertySamplingVerifier::VerifyHelper(
+bool SamplingVerifier::VerifyHelper(
     const CompiledProperty& property, const BDD* ddf) {
   if (dd_model_ != nullptr) {
     BDD sol = *ddf && StateBdd(*dd_model_, *model_, state_->values());
@@ -541,7 +540,7 @@ bool CompiledPropertySamplingVerifier::VerifyHelper(
   }
 }
 
-int CompiledPropertySamplingVerifier::GetSampleCacheSize() const {
+int SamplingVerifier::GetSampleCacheSize() const {
   int sample_cache_size = 0;
   for (const auto& cache : sample_cache_) {
     sample_cache_size += cache.second.size();
@@ -556,8 +555,8 @@ bool Verify(const CompiledProperty& property,
             const ModelCheckingParams& params,
             CompiledExpressionEvaluator* evaluator, const State& state,
             ModelCheckingStats* stats) {
-  CompiledPropertySamplingVerifier verifier(&model, dd_model, params,
-                                            evaluator, &state, 0, stats);
+  SamplingVerifier verifier(
+      &model, dd_model, params, evaluator, &state, 0, stats);
   property.Accept(&verifier);
   stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
   return verifier.result();
@@ -568,8 +567,8 @@ bool GetObservation(const CompiledPathProperty& property,
                     const ModelCheckingParams& params,
                     CompiledExpressionEvaluator* evaluator, const State& state,
                     ModelCheckingStats* stats) {
-  CompiledPropertySamplingVerifier verifier(&model, dd_model, params,
-                                            evaluator, &state, 1, stats);
+  SamplingVerifier verifier(
+      &model, dd_model, params, evaluator, &state, 1, stats);
   property.Accept(&verifier);
   stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
   return verifier.result();

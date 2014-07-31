@@ -90,8 +90,6 @@ class CompiledAndProperty : public CompiledProperty {
       const CompiledExpression& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
-  virtual ~CompiledAndProperty();
-
   static std::unique_ptr<const CompiledAndProperty> New(
       const CompiledExpression& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
@@ -121,8 +119,6 @@ class CompiledNotProperty : public CompiledProperty {
   explicit CompiledNotProperty(
       std::unique_ptr<const CompiledProperty>&& operand);
 
-  virtual ~CompiledNotProperty();
-
   static std::unique_ptr<const CompiledNotProperty> New(
       std::unique_ptr<const CompiledProperty>&& operand);
 
@@ -134,29 +130,28 @@ class CompiledNotProperty : public CompiledProperty {
   std::unique_ptr<const CompiledProperty> operand_;
 };
 
-// Supported operators for compiled probabilistic properties.
-enum class CompiledProbabilisticOperator {
+// Supported operators for compiled probabability threshold operations.
+enum class CompiledProbabilityThresholdOperator {
   GREATER_EQUAL, GREATER
 };
 
-// Output operator for compiled probabilistic operators.
-std::ostream& operator<<(std::ostream& os, CompiledProbabilisticOperator op);
+// Output operator for compiled probability threshold operators.
+std::ostream& operator<<(std::ostream& os,
+                         CompiledProbabilityThresholdOperator op);
 
-// A compiled probabilistic property.
-class CompiledProbabilisticProperty : public CompiledProperty {
+// A compiled probability threshold operation.
+class CompiledProbabilityThresholdOperation : public CompiledProperty {
  public:
-  explicit CompiledProbabilisticProperty(
-      CompiledProbabilisticOperator op, double threshold,
+  explicit CompiledProbabilityThresholdOperation(
+      CompiledProbabilityThresholdOperator op, double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
-  virtual ~CompiledProbabilisticProperty();
-
-  static std::unique_ptr<const CompiledProbabilisticProperty> New(
-      CompiledProbabilisticOperator op,
+  static std::unique_ptr<const CompiledProbabilityThresholdOperation> New(
+      CompiledProbabilityThresholdOperator op,
       double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
-  CompiledProbabilisticOperator op() const { return op_; }
+  CompiledProbabilityThresholdOperator op() const { return op_; }
 
   double threshold() const { return threshold_; }
 
@@ -165,7 +160,7 @@ class CompiledProbabilisticProperty : public CompiledProperty {
  private:
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
-  CompiledProbabilisticOperator op_;
+  CompiledProbabilityThresholdOperator op_;
   double threshold_;
   std::unique_ptr<const CompiledPathProperty> path_property_;
 };
@@ -174,8 +169,6 @@ class CompiledProbabilisticProperty : public CompiledProperty {
 class CompiledExpressionProperty : public CompiledProperty {
  public:
   explicit CompiledExpressionProperty(const CompiledExpression& expr);
-
-  virtual ~CompiledExpressionProperty();
 
   static std::unique_ptr<const CompiledExpressionProperty> New(
       const CompiledExpression& expr);
@@ -200,21 +193,19 @@ class CompiledUntilProperty : public CompiledPathProperty {
                                  int index, const std::string& string,
                                  const Until* formula);
 
-  virtual ~CompiledUntilProperty();
-
   static std::unique_ptr<const CompiledUntilProperty> New(
       double min_time, double max_time,
-      std::unique_ptr<const CompiledProperty>&& pre,
-      std::unique_ptr<const CompiledProperty>&& post,
+      std::unique_ptr<const CompiledProperty>&& pre_property,
+      std::unique_ptr<const CompiledProperty>&& post_property,
       int index, const std::string& string, const Until* formula);
 
   double min_time() const { return min_time_; }
 
   double max_time() const { return max_time_; }
 
-  const CompiledProperty& pre() const { return *pre_; }
+  const CompiledProperty& pre_property() const { return *pre_property_; }
 
-  const CompiledProperty& post() const { return *post_; }
+  const CompiledProperty& post_property() const { return *post_property_; }
 
   const Until& formula() const { return *formula_; }
   const Until* formula_ptr() const { return formula_; }
@@ -224,8 +215,8 @@ class CompiledUntilProperty : public CompiledPathProperty {
 
   double min_time_;
   double max_time_;
-  std::unique_ptr<const CompiledProperty> pre_;
-  std::unique_ptr<const CompiledProperty> post_;
+  std::unique_ptr<const CompiledProperty> pre_property_;
+  std::unique_ptr<const CompiledProperty> post_property_;
   const Until* formula_;
 };
 
@@ -234,8 +225,8 @@ class CompiledPropertyVisitor {
  public:
   void VisitCompiledAndProperty(const CompiledAndProperty& property);
   void VisitCompiledNotProperty(const CompiledNotProperty& property);
-  void VisitCompiledProbabilisticProperty(
-      const CompiledProbabilisticProperty& property);
+  void VisitCompiledProbabilityThresholdOperation(
+      const CompiledProbabilityThresholdOperation& property);
   void VisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
 
@@ -247,8 +238,8 @@ class CompiledPropertyVisitor {
       const CompiledAndProperty& property) = 0;
   virtual void DoVisitCompiledNotProperty(
       const CompiledNotProperty& property) = 0;
-  virtual void DoVisitCompiledProbabilisticProperty(
-      const CompiledProbabilisticProperty& property) = 0;
+  virtual void DoVisitCompiledProbabilityThresholdOperation(
+      const CompiledProbabilityThresholdOperation& property) = 0;
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) = 0;
 };
@@ -256,15 +247,46 @@ class CompiledPropertyVisitor {
 // Abstract base class for compiled path property visitors.
 class CompiledPathPropertyVisitor {
  public:
-  void VisitCompiledUntilProperty(const CompiledUntilProperty& property);
+  void VisitCompiledUntilProperty(const CompiledUntilProperty& path_property);
 
  protected:
   ~CompiledPathPropertyVisitor();
 
  private:
   virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& property) = 0;
+      const CompiledUntilProperty& path_property) = 0;
 };
+
+// The result of a property expression compilation.  On success, property will
+// hold the compiled property.  On error, property will be null and errors will
+// be populated with error messages.
+struct CompilePropertyResult {
+  std::unique_ptr<const CompiledProperty> property;
+  std::vector<std::string> errors;
+};
+
+// Compiles the given expression property, expecting it to be of type bool, and
+// using the given identifier name to info map to compile identifiers.  On
+// error, the result contains a null compiled property and the errors vector
+// will be populated with error messages.
+CompilePropertyResult CompileProperty(
+    const Expression& expr,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name);
+
+// The result of a path property compilation on success, path_property will hold
+// the compiled path propetty.  On error, path_property will be null and errors
+// will be populated with error message.
+struct CompilePathPropertyResult {
+  std::unique_ptr<const CompiledPathProperty> property;
+  std::vector<std::string> errors;
+};
+
+// Compiles the given path property, using the given identifier name to info map
+// to compile identifiers.  On error, the result contains a null compiled path
+// property and the errors vector will be populated with error messages.
+CompilePathPropertyResult CompilePathProperty(
+    const PathProperty& path_property,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name);
 
 // Optimizes the given property.
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
@@ -272,6 +294,6 @@ std::unique_ptr<const CompiledProperty> OptimizeProperty(
 
 // Optimizes the given path property.
 std::unique_ptr<const CompiledPathProperty> OptimizePathProperty(
-    const CompiledPathProperty& property);
+    const CompiledPathProperty& path_property);
 
 #endif  // COMPILED_PROPERTY_H_
