@@ -1092,12 +1092,12 @@ void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
       CompilePathProperty(formula.formula(), *variables_by_name_,
                           &next_path_property_index_, errors_);
   if (!formula.strict()) {
-    property_ = CompiledProbabilisticProperty::New(
-        CompiledProbabilisticOperator::GREATER_EQUAL,
+    property_ = CompiledProbabilityThresholdOperation::New(
+        CompiledProbabilityThresholdOperator::GREATER_EQUAL,
         formula.threshold().value<double>(), std::move(path_property));
   } else {
-    property_ = CompiledProbabilisticProperty::New(
-        CompiledProbabilisticOperator::GREATER,
+    property_ = CompiledProbabilityThresholdOperation::New(
+        CompiledProbabilityThresholdOperator::GREATER,
         formula.threshold().value<double>(), std::move(path_property));
   }
 }

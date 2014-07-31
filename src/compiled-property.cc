@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "strutil.h"
 #include "unique-ptr-vector.h"
 
 #include "glog/logging.h"
@@ -48,12 +49,12 @@ class CompiledPropertyPrinter
  private:
   virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
   virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilisticProperty(
-      const CompiledProbabilisticProperty& property);
+  virtual void DoVisitCompiledProbabilityThresholdOperation(
+      const CompiledProbabilityThresholdOperation& property);
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
   virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& property);
+      const CompiledUntilProperty& path_property);
 
   std::ostream* os_;
 };
@@ -86,8 +87,8 @@ void CompiledPropertyPrinter::DoVisitCompiledNotProperty(
   property.operand().Accept(this);
 }
 
-void CompiledPropertyPrinter::DoVisitCompiledProbabilisticProperty(
-    const CompiledProbabilisticProperty& property) {
+void CompiledPropertyPrinter::DoVisitCompiledProbabilityThresholdOperation(
+    const CompiledProbabilityThresholdOperation& property) {
   *os_ << "P " << property.op() << ' ' << property.threshold() << std::endl;
   property.path_property().Accept(this);
 }
@@ -98,12 +99,13 @@ void CompiledPropertyPrinter::DoVisitCompiledExpressionProperty(
 }
 
 void CompiledPropertyPrinter::DoVisitCompiledUntilProperty(
-    const CompiledUntilProperty& property) {
-  *os_ << "UNTIL [" << property.min_time() << ", " << property.max_time() << "]"
+    const CompiledUntilProperty& path_property) {
+  *os_ << "UNTIL [" << path_property.min_time() << ", "
+       << path_property.max_time() << "]"
        << std::endl << "pre:" << std::endl;
-  property.pre().Accept(this);
+  path_property.pre_property().Accept(this);
   *os_ << std::endl << "post:" << std::endl;
-  property.post().Accept(this);
+  path_property.post_property().Accept(this);
 }
 
 }  // namespace
@@ -153,8 +155,6 @@ CompiledAndProperty::CompiledAndProperty(
       other_operands_(std::move(other_operands)) {
 }
 
-CompiledAndProperty::~CompiledAndProperty() = default;
-
 std::unique_ptr<const CompiledAndProperty> CompiledAndProperty::New(
     const CompiledExpression& optional_expr_operand,
     UniquePtrVector<const CompiledProperty>&& other_operands) {
@@ -172,8 +172,6 @@ CompiledNotProperty::CompiledNotProperty(
       operand_(std::move(operand)) {
 }
 
-CompiledNotProperty::~CompiledNotProperty() = default;
-
 std::unique_ptr<const CompiledNotProperty> CompiledNotProperty::New(
     std::unique_ptr<const CompiledProperty>&& operand) {
   return std::unique_ptr<const CompiledNotProperty>(
@@ -184,46 +182,43 @@ void CompiledNotProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
   visitor->VisitCompiledNotProperty(*this);
 }
 
-std::ostream& operator<<(std::ostream& os, CompiledProbabilisticOperator op) {
+std::ostream& operator<<(std::ostream& os,
+                         CompiledProbabilityThresholdOperator op) {
   switch (op) {
-    case CompiledProbabilisticOperator::GREATER_EQUAL:
+    case CompiledProbabilityThresholdOperator::GREATER_EQUAL:
       return os << ">=";
-    case CompiledProbabilisticOperator::GREATER:
+    case CompiledProbabilityThresholdOperator::GREATER:
       return os << '>';
   }
-  LOG(FATAL) << "bad compiled probabilistic operator";
+  LOG(FATAL) << "bad compiled probability threshold operator";
 }
 
-CompiledProbabilisticProperty::CompiledProbabilisticProperty(
-    CompiledProbabilisticOperator op, double threshold,
+CompiledProbabilityThresholdOperation::CompiledProbabilityThresholdOperation(
+    CompiledProbabilityThresholdOperator op, double threshold,
     std::unique_ptr<const CompiledPathProperty>&& path_property)
     : CompiledProperty(true),
       op_(op), threshold_(threshold), path_property_(std::move(path_property)) {
 }
 
-CompiledProbabilisticProperty::~CompiledProbabilisticProperty() = default;
-
-std::unique_ptr<const CompiledProbabilisticProperty>
-CompiledProbabilisticProperty::New(
-    CompiledProbabilisticOperator op,
+std::unique_ptr<const CompiledProbabilityThresholdOperation>
+CompiledProbabilityThresholdOperation::New(
+    CompiledProbabilityThresholdOperator op,
     double threshold,
     std::unique_ptr<const CompiledPathProperty>&& path_property) {
-  return std::unique_ptr<const CompiledProbabilisticProperty>(
-      new CompiledProbabilisticProperty(op, threshold,
-                                        std::move(path_property)));
+  return std::unique_ptr<const CompiledProbabilityThresholdOperation>(
+      new CompiledProbabilityThresholdOperation(op, threshold,
+                                                std::move(path_property)));
 }
 
-void CompiledProbabilisticProperty::DoAccept(
+void CompiledProbabilityThresholdOperation::DoAccept(
     CompiledPropertyVisitor* visitor) const {
-  visitor->VisitCompiledProbabilisticProperty(*this);
+  visitor->VisitCompiledProbabilityThresholdOperation(*this);
 }
 
 CompiledExpressionProperty::CompiledExpressionProperty(
     const CompiledExpression& expr)
     : CompiledProperty(false), expr_(expr) {
 }
-
-CompiledExpressionProperty::~CompiledExpressionProperty() = default;
 
 std::unique_ptr<const CompiledExpressionProperty>
 CompiledExpressionProperty::New(const CompiledExpression& expr) {
@@ -238,25 +233,26 @@ void CompiledExpressionProperty::DoAccept(
 
 CompiledUntilProperty::CompiledUntilProperty(
     double min_time, double max_time,
-    std::unique_ptr<const CompiledProperty>&& pre,
-    std::unique_ptr<const CompiledProperty>&& post,
+    std::unique_ptr<const CompiledProperty>&& pre_property,
+    std::unique_ptr<const CompiledProperty>&& post_property,
     int index, const std::string& string, const Until* formula)
     : CompiledPathProperty(
-          index, pre->is_probabilistic() || post->is_probabilistic(), string),
-      min_time_(min_time), max_time_(max_time), pre_(std::move(pre)),
-      post_(std::move(post)), formula_(formula) {
+          index,
+          pre_property->is_probabilistic() || post_property->is_probabilistic(),
+          string),
+      min_time_(min_time), max_time_(max_time),
+      pre_property_(std::move(pre_property)),
+      post_property_(std::move(post_property)), formula_(formula) {
 }
-
-CompiledUntilProperty::~CompiledUntilProperty() = default;
 
 std::unique_ptr<const CompiledUntilProperty> CompiledUntilProperty::New(
     double min_time, double max_time,
-    std::unique_ptr<const CompiledProperty>&& pre,
-    std::unique_ptr<const CompiledProperty>&& post,
+    std::unique_ptr<const CompiledProperty>&& pre_property,
+    std::unique_ptr<const CompiledProperty>&& post_property,
     int index, const std::string& string, const Until* formula) {
   return std::unique_ptr<const CompiledUntilProperty>(new CompiledUntilProperty(
-      min_time, max_time, std::move(pre), std::move(post), index, string,
-      formula));
+      min_time, max_time, std::move(pre_property), std::move(post_property),
+      index, string, formula));
 }
 
 void CompiledUntilProperty::DoAccept(
@@ -276,9 +272,9 @@ void CompiledPropertyVisitor::VisitCompiledNotProperty(
   DoVisitCompiledNotProperty(property);
 }
 
-void CompiledPropertyVisitor::VisitCompiledProbabilisticProperty(
-    const CompiledProbabilisticProperty& property) {
-  DoVisitCompiledProbabilisticProperty(property);
+void CompiledPropertyVisitor::VisitCompiledProbabilityThresholdOperation(
+    const CompiledProbabilityThresholdOperation& property) {
+  DoVisitCompiledProbabilityThresholdOperation(property);
 }
 
 void CompiledPropertyVisitor::VisitCompiledExpressionProperty(
@@ -289,8 +285,94 @@ void CompiledPropertyVisitor::VisitCompiledExpressionProperty(
 CompiledPathPropertyVisitor::~CompiledPathPropertyVisitor() = default;
 
 void CompiledPathPropertyVisitor::VisitCompiledUntilProperty(
-    const CompiledUntilProperty& property) {
-  DoVisitCompiledUntilProperty(property);
+    const CompiledUntilProperty& path_property) {
+  DoVisitCompiledUntilProperty(path_property);
+}
+
+namespace {
+
+class PropertyCompiler : public ExpressionVisitor {
+ public:
+  PropertyCompiler(
+      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      std::vector<std::string>* errors);
+
+  std::unique_ptr<const CompiledProperty> release_property() {
+    return std::move(property_);
+  }
+
+  Type type() const { return type_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
+
+  std::unique_ptr<const CompiledProperty> property_;
+  Type type_;
+  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  std::vector<std::string>* errors_;
+};
+
+PropertyCompiler::PropertyCompiler(
+    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    std::vector<std::string>* errors)
+    : identifiers_by_name_(identifiers_by_name), errors_(errors) {
+}
+
+void PropertyCompiler::DoVisitLiteral(const Literal& expr) {
+  errors_->push_back("not implemented");
+}
+
+void PropertyCompiler::DoVisitIdentifier(const Identifier& expr) {
+  errors_->push_back("not implemented");
+}
+
+void PropertyCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
+  errors_->push_back("not implemented");
+}
+
+void PropertyCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  errors_->push_back("not implemented");
+}
+
+void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
+  errors_->push_back("not implemented");
+}
+
+void PropertyCompiler::DoVisitConditional(const Conditional& expr) {
+  errors_->push_back("not implemented");
+}
+
+void PropertyCompiler::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  errors_->push_back("not implemented");
+}
+
+}  // namespace
+
+CompilePropertyResult CompileProperty(
+    const Expression& expr,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+  CompilePropertyResult result;
+  PropertyCompiler compiler(&identifiers_by_name, &result.errors);
+  expr.Accept(&compiler);
+  if (!result.errors.empty()) {
+    return std::move(result);
+  }
+  if (compiler.type() != Type::BOOL) {
+    result.errors.push_back(StrCat(
+        "type mispatch; expecting property of type ", Type::BOOL, "; found ",
+        compiler.type()));
+    return std::move(result);
+  }
+  result.property = compiler.release_property();
+  return std::move(result);
 }
 
 namespace {
@@ -301,7 +383,7 @@ class OptimizerState {
   OptimizerState(OptimizerState&& state);
   explicit OptimizerState(const std::vector<Operation>& operations);
   explicit OptimizerState(
-      std::unique_ptr<const CompiledProbabilisticProperty>&& property);
+      std::unique_ptr<const CompiledProbabilityThresholdOperation>&& property);
 
   void Negate();
   void ConjunctionWith(OptimizerState&& state);
@@ -331,7 +413,7 @@ OptimizerState::OptimizerState(const std::vector<Operation>& operations)
 }
 
 OptimizerState::OptimizerState(
-    std::unique_ptr<const CompiledProbabilisticProperty>&& property)
+    std::unique_ptr<const CompiledProbabilityThresholdOperation>&& property)
     : is_negated_(false) {
   conjuncts_.push_back(std::move(property));
 }
@@ -397,8 +479,8 @@ class CompiledPropertyOptimizer : public CompiledPropertyVisitor {
  private:
   virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
   virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilisticProperty(
-      const CompiledProbabilisticProperty& property);
+  virtual void DoVisitCompiledProbabilityThresholdOperation(
+      const CompiledProbabilityThresholdOperation& property);
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
 
@@ -429,18 +511,18 @@ void CompiledPropertyOptimizer::DoVisitCompiledNotProperty(
   state_.Negate();
 }
 
-void CompiledPropertyOptimizer::DoVisitCompiledProbabilisticProperty(
-    const CompiledProbabilisticProperty& property) {
-  if (property.op() == CompiledProbabilisticOperator::GREATER_EQUAL
+void CompiledPropertyOptimizer::DoVisitCompiledProbabilityThresholdOperation(
+    const CompiledProbabilityThresholdOperation& property) {
+  if (property.op() == CompiledProbabilityThresholdOperator::GREATER_EQUAL
       && property.threshold() <= 0) {
     // Probability is always >= 0, so replace with TRUE.
     state_ = OptimizerState({Operation::MakeICONST(true, 0)});
-  } else if (property.op() == CompiledProbabilisticOperator::GREATER
+  } else if (property.op() == CompiledProbabilityThresholdOperator::GREATER
              && property.threshold() >= 1) {
     // Probability is never > 1, so replace with FALSE.
     state_ = OptimizerState({Operation::MakeICONST(false, 0)});
   } else {
-    state_ = OptimizerState(CompiledProbabilisticProperty::New(
+    state_ = OptimizerState(CompiledProbabilityThresholdOperation::New(
         property.op(), property.threshold(),
         OptimizePathProperty(property.path_property())));
   }
@@ -453,26 +535,28 @@ void CompiledPropertyOptimizer::DoVisitCompiledExpressionProperty(
 
 class CompiledPathPropertyOptimizer : public CompiledPathPropertyVisitor {
  public:
-  std::unique_ptr<const CompiledPathProperty> release_property();
+  std::unique_ptr<const CompiledPathProperty> release_path_property();
 
  private:
   virtual void DoVisitCompiledUntilProperty(
       const CompiledUntilProperty& property);
 
-  std::unique_ptr<const CompiledPathProperty> property_;
+  std::unique_ptr<const CompiledPathProperty> path_property_;
 };
 
 std::unique_ptr<const CompiledPathProperty>
-CompiledPathPropertyOptimizer::release_property() {
-  return std::move(property_);
+CompiledPathPropertyOptimizer::release_path_property() {
+  return std::move(path_property_);
 }
 
 void CompiledPathPropertyOptimizer::DoVisitCompiledUntilProperty(
-    const CompiledUntilProperty& property) {
-  property_ = CompiledUntilProperty::New(
-      property.min_time(), property.max_time(),
-      OptimizeProperty(property.pre()), OptimizeProperty(property.post()),
-      property.index(), property.string(), property.formula_ptr());
+    const CompiledUntilProperty& path_property) {
+  path_property_ = CompiledUntilProperty::New(
+      path_property.min_time(), path_property.max_time(),
+      OptimizeProperty(path_property.pre_property()),
+      OptimizeProperty(path_property.post_property()),
+      path_property.index(), path_property.string(),
+      path_property.formula_ptr());
 }
 
 }  // namespace
@@ -485,8 +569,8 @@ std::unique_ptr<const CompiledProperty> OptimizeProperty(
 }
 
 std::unique_ptr<const CompiledPathProperty> OptimizePathProperty(
-    const CompiledPathProperty& property) {
+    const CompiledPathProperty& path_property) {
   CompiledPathPropertyOptimizer optimizer;
-  property.Accept(&optimizer);
-  return optimizer.release_property();
+  path_property.Accept(&optimizer);
+  return optimizer.release_path_property();
 }
