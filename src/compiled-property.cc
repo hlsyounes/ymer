@@ -307,6 +307,50 @@ void CompiledPathPropertyVisitor::VisitCompiledUntilProperty(
 
 namespace {
 
+class CompilerState {
+ public:
+  CompilerState();
+  explicit CompilerState(std::unique_ptr<const CompiledProperty>&& property);
+  explicit CompilerState(const Expression* expr);
+
+  std::unique_ptr<const CompiledProperty> ReleaseProperty(
+      const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+      std::vector<std::string>* errors);
+
+ private:
+  std::unique_ptr<const CompiledProperty> property_;
+  const Expression* expr_;
+};
+
+CompilerState::CompilerState()
+    : expr_(nullptr) {
+}
+
+CompilerState::CompilerState(
+    std::unique_ptr<const CompiledProperty>&& property)
+    : property_(std::move(property)), expr_(nullptr) {
+}
+
+CompilerState::CompilerState(const Expression* expr)
+    : expr_(expr) {
+}
+
+std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    std::vector<std::string>* errors) {
+  if (property_ == nullptr) {
+    CHECK(expr_);
+    CompileExpressionResult result =
+        CompileExpression(*expr_, Type::BOOL, identifiers_by_name);
+    if (result.errors.empty()) {
+      property_ = CompiledExpressionProperty::New(result.expr);
+    } else {
+      errors->insert(errors->end(), result.errors.begin(), result.errors.end());
+    }
+  }
+  return std::move(property_);
+}
+
 class PropertyCompiler : public ExpressionVisitor {
  public:
   PropertyCompiler(
@@ -314,10 +358,8 @@ class PropertyCompiler : public ExpressionVisitor {
       std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledProperty> release_property() {
-    return std::move(property_);
+    return state_.ReleaseProperty(*identifiers_by_name_, errors_);
   }
-
-  Type type() const { return type_; }
 
  private:
   virtual void DoVisitLiteral(const Literal& expr);
@@ -329,8 +371,7 @@ class PropertyCompiler : public ExpressionVisitor {
   virtual void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr);
 
-  std::unique_ptr<const CompiledProperty> property_;
-  Type type_;
+  CompilerState state_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   std::vector<std::string>* errors_;
 };
@@ -342,11 +383,11 @@ PropertyCompiler::PropertyCompiler(
 }
 
 void PropertyCompiler::DoVisitLiteral(const Literal& expr) {
-  errors_->push_back("not implemented");
+  state_ = CompilerState(&expr);
 }
 
 void PropertyCompiler::DoVisitIdentifier(const Identifier& expr) {
-  errors_->push_back("not implemented");
+  state_ = CompilerState(&expr);
 }
 
 void PropertyCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -378,16 +419,9 @@ CompilePropertyResult CompileProperty(
   CompilePropertyResult result;
   PropertyCompiler compiler(&identifiers_by_name, &result.errors);
   expr.Accept(&compiler);
-  if (!result.errors.empty()) {
-    return std::move(result);
+  if (result.errors.empty()) {
+    result.property = compiler.release_property();
   }
-  if (compiler.type() != Type::BOOL) {
-    result.errors.push_back(StrCat(
-        "type mispatch; expecting property of type ", Type::BOOL, "; found ",
-        compiler.type()));
-    return std::move(result);
-  }
-  result.property = compiler.release_property();
   return std::move(result);
 }
 
