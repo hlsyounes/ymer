@@ -832,6 +832,23 @@ TEST(CompileExpressionTest, Identifier) {
   EXPECT_EQ(std::vector<std::string>(
     {"type mismatch; expecting expression of type bool; found double"}),
     result18.errors);
+
+  const CompileExpressionResult result19 =
+      CompileExpression(Identifier("g"), Type::INT, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"undefined identifier 'g' in expression"}),
+    result19.errors);
+  const CompileExpressionResult result20 =
+      CompileExpression(Identifier("g"), Type::BOOL, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"undefined identifier 'g' in expression"}),
+    result20.errors);
+
+  const CompileExpressionResult result21 =
+      CompileExpression(Identifier("g"), Type::DOUBLE, identifiers_by_name);
+  EXPECT_EQ(std::vector<std::string>(
+    {"undefined identifier 'g' in expression"}),
+    result21.errors);
 }
 
 TEST(CompileExpressionTest, MinFunctionCall) {

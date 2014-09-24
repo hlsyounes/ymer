@@ -189,7 +189,7 @@ class SingleSamplingBernoulliTester : public BernoulliTester {
 
 // A BernoulliTester based on Wald's Sequential Probability Ratio Test.
 //
-// Respects error bounds alpha and beta.  Does not allow theta0 = theta1.
+// Respects error bounds alpha and beta.  Does not allow theta0 == theta1.
 class SprtBernoulliTester : public BernoulliTester {
  public:
   SprtBernoulliTester(double theta0, double theta1, double alpha, double beta);
