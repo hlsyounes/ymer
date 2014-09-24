@@ -67,10 +67,11 @@ class SamplingVerifier
   int GetSampleCacheSize() const;
 
  private:
-  virtual void DoVisitCompiledAndProperty(const CompiledAndProperty& property);
+  virtual void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property);
   virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdOperation(
-      const CompiledProbabilityThresholdOperation& property);
+  virtual void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property);
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
   virtual void DoVisitCompiledUntilProperty(
@@ -107,23 +108,70 @@ SamplingVerifier::SamplingVerifier(
       next_client_id_(1) {
 }
 
-void SamplingVerifier::DoVisitCompiledAndProperty(
-    const CompiledAndProperty& property) {
-  result_ = true;
-  if (property.has_expr_operand()) {
-    result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
-                                                state_->values());
-  }
-  if (result_ == true && !property.other_operands().empty()) {
-    double alpha = params_.alpha / property.other_operands().size();
-    std::swap(params_.alpha, alpha);
-    for (const CompiledProperty& operand : property.other_operands()) {
-      operand.Accept(this);
-      if (result_ == false) {
-        break;
+void SamplingVerifier::DoVisitCompiledNaryProperty(
+    const CompiledNaryProperty& property) {
+  switch (property.op()) {
+    case CompiledNaryOperator::AND:
+      result_ = true;
+      if (property.has_expr_operand()) {
+        result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
+                                                    state_->values());
       }
+      if (result_ == true && !property.other_operands().empty()) {
+        double alpha = params_.alpha / property.other_operands().size();
+        std::swap(params_.alpha, alpha);
+        for (const CompiledProperty& operand : property.other_operands()) {
+          operand.Accept(this);
+          if (result_ == false) {
+            break;
+          }
+        }
+        std::swap(params_.alpha, alpha);
+      }
+      break;
+    case CompiledNaryOperator::OR:
+      result_ = false;
+      if (property.has_expr_operand()) {
+        result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
+                                                    state_->values());
+      }
+      if (result_ == false && !property.other_operands().empty()) {
+        double beta = params_.beta / property.other_operands().size();
+        std::swap(params_.beta, beta);
+        for (const CompiledProperty& operand : property.other_operands()) {
+          operand.Accept(this);
+          if (result_ == true) {
+            break;
+          }
+        }
+        std::swap(params_.beta, beta);
+      }
+      break;
+    case CompiledNaryOperator::IFF: {
+      bool has_result = false;
+      if (property.has_expr_operand()) {
+        result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
+                                                    state_->values());
+        has_result = true;
+      }
+      double alpha = std::min(params_.alpha, params_.beta)
+          / property.other_operands().size();
+      double beta = std::min(params_.alpha, params_.beta)
+          / property.other_operands().size();
+      std::swap(params_.alpha, alpha);
+      std::swap(params_.beta, beta);
+      for (const CompiledProperty& operand : property.other_operands()) {
+        bool prev_result = result_;
+        operand.Accept(this);
+        if (has_result) {
+          result_ = prev_result == result_;
+        }
+        has_result = true;
+      }
+      std::swap(params_.beta, beta);
+      std::swap(params_.alpha, alpha);
+      break;
     }
-    std::swap(params_.alpha, alpha);
   }
 }
 
@@ -135,8 +183,8 @@ void SamplingVerifier::DoVisitCompiledNotProperty(
   std::swap(params_.alpha, params_.beta);
 }
 
-void SamplingVerifier::DoVisitCompiledProbabilityThresholdOperation(
-    const CompiledProbabilityThresholdOperation& property) {
+void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
+    const CompiledProbabilityThresholdProperty& property) {
   ++probabilistic_level_;
   double nested_error = 0.0;
   if (dd_model_ == nullptr && property.path_property().is_probabilistic()) {

@@ -97,29 +97,6 @@ double gsl_sf_coupling_9j(int two_ja, int two_jb, int two_jc,
                           );
 
 
-/* INCORRECT version of 6j Symbols:
- * This function actually calculates
- *              / ja jb je \
- *              \ jd jc jf /
- * It represents the original implementation,
- * which had the above permutation of the
- * arguments. This was wrong and confusing,
- * and I had to fix it. Sorry for the trouble.
- * [GJ] Tue Nov 26 12:53:39 MST 2002
- *
- * exceptions: GSL_EDOM, GSL_EOVRFLW
- */
-#ifndef GSL_DISABLE_DEPRECATED
-int gsl_sf_coupling_6j_INCORRECT_e(int two_ja, int two_jb, int two_jc,
-                                   int two_jd, int two_je, int two_jf,
-                                   gsl_sf_result * result
-                                   );
-double gsl_sf_coupling_6j_INCORRECT(int two_ja, int two_jb, int two_jc,
-                                    int two_jd, int two_je, int two_jf
-                                    );
-#endif /* !GSL_DISABLE_DEPRECATED */
-
-
 __END_DECLS
 
 #endif /* __GSL_SF_COUPLING_H__ */
