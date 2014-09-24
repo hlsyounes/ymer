@@ -83,18 +83,30 @@ class CompiledPathProperty {
 // Output operator for compiled path properties.
 std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 
-// A compiled AND property.
-class CompiledAndProperty : public CompiledProperty {
+// Supported operators for compiled n-ary logic operator property.
+enum class CompiledNaryOperator {
+  AND, OR, IFF
+};
+
+// Output operator for compiled  n-ary logic operators.
+std::ostream& operator<<(std::ostream& os, CompiledNaryOperator op);
+
+// A compiled n-ary logic operator property.
+class CompiledNaryProperty : public CompiledProperty {
  public:
-  explicit CompiledAndProperty(
+  explicit CompiledNaryProperty(
+      CompiledNaryOperator op,
       const CompiledExpression& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
-  static std::unique_ptr<const CompiledAndProperty> New(
+  static std::unique_ptr<const CompiledNaryProperty> New(
+      CompiledNaryOperator op,
       const CompiledExpression& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
-  const bool has_expr_operand() const {
+  CompiledNaryOperator op() const { return op_; }
+
+  bool has_expr_operand() const {
     return !optional_expr_operand_.operations().empty();
   }
 
@@ -109,11 +121,12 @@ class CompiledAndProperty : public CompiledProperty {
  private:
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
+  CompiledNaryOperator op_;
   CompiledExpression optional_expr_operand_;
   UniquePtrVector<const CompiledProperty> other_operands_;
 };
 
-// A compiled NOT property.
+// A compiled logic negation property.
 class CompiledNotProperty : public CompiledProperty {
  public:
   explicit CompiledNotProperty(
@@ -139,14 +152,14 @@ enum class CompiledProbabilityThresholdOperator {
 std::ostream& operator<<(std::ostream& os,
                          CompiledProbabilityThresholdOperator op);
 
-// A compiled probability threshold operation.
-class CompiledProbabilityThresholdOperation : public CompiledProperty {
+// A compiled probability threshold property
+class CompiledProbabilityThresholdProperty : public CompiledProperty {
  public:
-  explicit CompiledProbabilityThresholdOperation(
+  explicit CompiledProbabilityThresholdProperty(
       CompiledProbabilityThresholdOperator op, double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
-  static std::unique_ptr<const CompiledProbabilityThresholdOperation> New(
+  static std::unique_ptr<const CompiledProbabilityThresholdProperty> New(
       CompiledProbabilityThresholdOperator op,
       double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
@@ -223,10 +236,10 @@ class CompiledUntilProperty : public CompiledPathProperty {
 // Abstract base class for compiled property visitors.
 class CompiledPropertyVisitor {
  public:
-  void VisitCompiledAndProperty(const CompiledAndProperty& property);
+  void VisitCompiledNaryProperty(const CompiledNaryProperty& property);
   void VisitCompiledNotProperty(const CompiledNotProperty& property);
-  void VisitCompiledProbabilityThresholdOperation(
-      const CompiledProbabilityThresholdOperation& property);
+  void VisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property);
   void VisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
 
@@ -234,12 +247,12 @@ class CompiledPropertyVisitor {
   ~CompiledPropertyVisitor();
 
  private:
-  virtual void DoVisitCompiledAndProperty(
-      const CompiledAndProperty& property) = 0;
+  virtual void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) = 0;
   virtual void DoVisitCompiledNotProperty(
       const CompiledNotProperty& property) = 0;
-  virtual void DoVisitCompiledProbabilityThresholdOperation(
-      const CompiledProbabilityThresholdOperation& property) = 0;
+  virtual void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) = 0;
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) = 0;
 };

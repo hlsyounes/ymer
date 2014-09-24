@@ -30,10 +30,10 @@ AC_SUBST(GSL_LT_CBLAS_VERSION)
 
 case "$VERSION" in
     *+)
-        AC_DEFINE(RELEASED,0)
+        AC_DEFINE(RELEASED,0,[Defined if this is an official release])
         ;;
     *)
-        AC_DEFINE(RELEASED,1)
+        AC_DEFINE(RELEASED,1,[Defined if this is an official release])
         ;;
 esac
 AC_SUBST(RELEASED)      
@@ -81,7 +81,7 @@ double foo (double x) { return x + 1.0 ; };]], [[  foo(1.0)  ]])],[ac_cv_c_exter
 ])
 
 if test "$ac_cv_c_extern_inline" != no ; then
-  AC_DEFINE(HAVE_INLINE,1)
+  AC_DEFINE(HAVE_INLINE,1,[Define if you have inline])
   AC_SUBST(HAVE_INLINE)
 fi
 
@@ -116,7 +116,11 @@ ac_cv_decl_exit_success_and_failure=no)
 )
 
 if test "$ac_cv_decl_exit_success_and_failure" = yes ; then
-  AC_DEFINE(HAVE_EXIT_SUCCESS_AND_FAILURE)
+  AC_DEFINE(HAVE_EXIT_SUCCESS_AND_FAILURE,1,
+  [Define if you have ansi EXIT_SUCCESS and EXIT_FAILURE in stdlib.h])
+else
+  AC_DEFINE(EXIT_SUCCESS,0,[Use 0 for EXIT_SUCCESS if we don't have it])
+  AC_DEFINE(EXIT_FAILURE,1,[Use 1 for EXIT_FAILURE if we don't have it])
 fi ;
 
 dnl Use alternate libm if specified by user
@@ -130,17 +134,27 @@ AC_CHECK_DECLS(feenableexcept,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
 AC_CHECK_DECLS(fesettrapenable,,,[#define _GNU_SOURCE 1
 #include <fenv.h>]) 
-AC_CHECK_DECLS(hypot,,,[#include <math.h>]) 
-AC_CHECK_DECLS(expm1,,,[#include <math.h>])
-AC_CHECK_DECLS(acosh,,,[#include <math.h>])
-AC_CHECK_DECLS(asinh,,,[#include <math.h>])
-AC_CHECK_DECLS(atanh,,,[#include <math.h>])
-AC_CHECK_DECLS(ldexp,,,[#include <math.h>])
-AC_CHECK_DECLS(frexp,,,[#include <math.h>])
-AC_CHECK_DECLS(isinf,,,[#include <math.h>])
-AC_CHECK_DECLS(finite,,,[#include <math.h>])
+AC_CHECK_DECLS(hypot,,[AC_DEFINE([hypot],[gsl_hypot],[hypot])],
+[#include <math.h>]) 
+AC_CHECK_DECLS(expm1,,[AC_DEFINE([expm1],[gsl_expm1],[expm1])],
+[#include <math.h>])
+AC_CHECK_DECLS(acosh,,[AC_DEFINE([acosh],[gsl_acosh],[acosh])],
+[#include <math.h>])
+AC_CHECK_DECLS(asinh,,[AC_DEFINE([asinh],[gsl_asinh],[asinh])],
+[#include <math.h>])
+AC_CHECK_DECLS(atanh,,[AC_DEFINE([atanh],[gsl_atanh],[atanh])],
+[#include <math.h>])
+AC_CHECK_DECLS(ldexp,,[AC_DEFINE([ldexp],[gsl_ldexp],[ldexp])],
+[#include <math.h>])
+AC_CHECK_DECLS(frexp,,[AC_DEFINE([frexp],[gsl_frexp],[frexp])],
+[#include <math.h>])
+AC_CHECK_DECLS(isinf,,[AC_DEFINE([isinf],[gsl_isinf],[isinf])],
+[#include <math.h>])
+AC_CHECK_DECLS(finite,,[AC_DEFINE([finite],[gsl_finite],[finite])],
+[#include <math.h>])
 AC_CHECK_DECLS(isfinite,,,[#include <math.h>])
-AC_CHECK_DECLS(isnan,,,[#include <math.h>])
+AC_CHECK_DECLS(isnan,,[AC_DEFINE([isnan],[gsl_isnan],[isnan])],
+[#include <math.h>])
 
 dnl OpenBSD has a broken implementation of log1p.
 case "$host" in
@@ -148,7 +162,8 @@ case "$host" in
        AC_MSG_RESULT([avoiding OpenBSD system log1p - using gsl version])
        ;;
     *)
-        AC_CHECK_DECLS(log1p,,,[#include <math.h>])
+        AC_CHECK_DECLS(log1p,,[AC_DEFINE([log1p],[gsl_log1p],[log1p])],
+        [#include <math.h>])
        ;;
 esac
 
@@ -165,7 +180,8 @@ if (x == 5678) {exit (0);} else {exit(1); };
 }]])],[ac_cv_func_printf_longdouble="yes"],[ac_cv_func_printf_longdouble="no"],[ac_cv_func_printf_longdouble="no"])])
 
 if test "$ac_cv_func_printf_longdouble" != no; then
-  AC_DEFINE(HAVE_PRINTF_LONGDOUBLE,1)
+  AC_DEFINE(HAVE_PRINTF_LONGDOUBLE,1,
+  [Define this if printf can handle %Lf for long double])
   AC_SUBST(HAVE_PRINTF_LONGDOUBLE)
 fi
 
@@ -199,8 +215,13 @@ esac
 ])
 
 if test $ac_cv_c_extended_fp != "no" ; then
-    AC_DEFINE(HAVE_EXTENDED_PRECISION_REGISTERS,1)
+    AC_DEFINE(HAVE_EXTENDED_PRECISION_REGISTERS,1,
+    [Define if you have extended precision registers])
     AC_SUBST(HAVE_EXTENDED_PRECISION_REGISTERS)
+    AC_DEFINE([GSL_COERCE_DBL(x)],[(gsl_coerce_double(x))],
+    [Double-precision rounding function])
+else
+    AC_DEFINE([GSL_COERCE_DBL(x)],[(x)],[Double-precision rounding function])
 fi
 
 AC_CACHE_CHECK([for IEEE arithmetic interface type], ac_cv_c_ieee_interface,
@@ -339,7 +360,8 @@ int main (void)
 ])
 
 if test "$ac_cv_c_ieee_comparisons" != no ; then
-  AC_DEFINE(HAVE_IEEE_COMPARISONS,1)
+  AC_DEFINE(HAVE_IEEE_COMPARISONS,1,
+  [Define this if IEEE comparisons work correctly (e.g. Nan != Nan)])
   AC_SUBST(HAVE_IEEE_COMPARISONS)
 fi
 
@@ -360,7 +382,8 @@ int main (void)
 ])
 
 if test "$ac_cv_c_ieee_denormals" != no ; then
-  AC_DEFINE(HAVE_IEEE_DENORMALS,1)
+  AC_DEFINE(HAVE_IEEE_DENORMALS,1,
+  [Define this if IEEE denormalized numbers are available])
   AC_SUBST(HAVE_IEEE_DENORMALS)
 fi
 

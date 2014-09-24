@@ -10,7 +10,7 @@ AC_INIT(glog, 0.3.2, opensource@google.com)
 # (for sanity checking)
 AC_CONFIG_SRCDIR(README)
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 AM_CONFIG_HEADER(src/config.h)
 
 AC_LANG(C++)

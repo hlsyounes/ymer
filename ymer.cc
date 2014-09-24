@@ -1055,8 +1055,8 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
     property_ = CompiledExpressionProperty::New(CompiledExpression(
         CompiledExpression({Operation::MakeICONST(1, 0)})));
   } else {
-    property_ = CompiledAndProperty::New(CompiledExpression({}),
-                                         std::move(operands));
+    property_ = CompiledNaryProperty::New(
+        CompiledNaryOperator::AND, CompiledExpression({}), std::move(operands));
   }
 }
 
@@ -1068,8 +1068,13 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
     operand.Accept(this);
     operands.push_back(CompiledNotProperty::New(std::move(property_)));
   }
-  property_ = CompiledNotProperty::New(CompiledAndProperty::New(
-      CompiledExpression({}), std::move(operands)));
+  if (operands.empty()) {
+    property_ = CompiledExpressionProperty::New(CompiledExpression(
+        CompiledExpression({Operation::MakeICONST(0, 0)})));
+  } else {
+    property_ = CompiledNaryProperty::New(
+        CompiledNaryOperator::OR, CompiledExpression({}), std::move(operands));
+  }
 }
 
 void PropertyCompiler::DoVisitNegation(const Negation& formula) {
@@ -1080,11 +1085,11 @@ void PropertyCompiler::DoVisitNegation(const Negation& formula) {
 void PropertyCompiler::DoVisitImplication(const Implication& formula) {
   UniquePtrVector<const CompiledProperty> operands;
   formula.antecedent().Accept(this);
-  operands.push_back(std::move(property_));
-  formula.consequent().Accept(this);
   operands.push_back(CompiledNotProperty::New(std::move(property_)));
-  property_ = CompiledNotProperty::New(CompiledAndProperty::New(
-      CompiledExpression({}), std::move(operands)));
+  formula.consequent().Accept(this);
+  operands.push_back(std::move(property_));
+  property_ = CompiledNaryProperty::New(
+      CompiledNaryOperator::OR, CompiledExpression({}), std::move(operands));
 }
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
@@ -1092,11 +1097,11 @@ void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
       CompilePathProperty(formula.formula(), *variables_by_name_,
                           &next_path_property_index_, errors_);
   if (!formula.strict()) {
-    property_ = CompiledProbabilityThresholdOperation::New(
+    property_ = CompiledProbabilityThresholdProperty::New(
         CompiledProbabilityThresholdOperator::GREATER_EQUAL,
         formula.threshold().value<double>(), std::move(path_property));
   } else {
-    property_ = CompiledProbabilityThresholdOperation::New(
+    property_ = CompiledProbabilityThresholdProperty::New(
         CompiledProbabilityThresholdOperator::GREATER,
         formula.threshold().value<double>(), std::move(path_property));
   }
@@ -1146,7 +1151,11 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const StateFormula& property,
     const CompiledModel& model,
     std::vector<std::string>* errors) {
+#if 0
   return OptimizeProperty(*CompileProperty(property, model, errors));
+#else
+  return CompileProperty(property, model, errors);
+#endif
 }
 
 std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
@@ -1166,7 +1175,11 @@ std::unique_ptr<const CompiledPathProperty> OptimizeAndCompilePathProperty(
     const PathFormula& property,
     const CompiledModel& model,
     std::vector<std::string>* errors) {
+#if 0
   return OptimizePathProperty(*CompilePathProperty(property, model, errors));
+#else
+  return CompilePathProperty(property, model, errors);
+#endif
 }
 
 }  // namespace

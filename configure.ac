@@ -23,7 +23,7 @@ AC_PREREQ(2.57)
 AC_INIT(Ymer, 3.0.6, hlsyounes@gmail.com)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(ymer.cc)
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 AM_CONFIG_HEADER(config.h)
 
 # Checks for programs.
