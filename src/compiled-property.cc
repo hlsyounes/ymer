@@ -313,6 +313,8 @@ class CompilerState {
   explicit CompilerState(std::unique_ptr<const CompiledProperty>&& property);
   explicit CompilerState(const Expression* expr);
 
+  bool has_expr() const { return expr_ != nullptr; }
+
   std::unique_ptr<const CompiledProperty> ReleaseProperty(
       const std::map<std::string, IdentifierInfo>& identifiers_by_name,
       std::vector<std::string>* errors);
@@ -338,15 +340,12 @@ CompilerState::CompilerState(const Expression* expr)
 std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
-  if (property_ == nullptr) {
+  if (has_expr()) {
     CHECK(expr_);
     CompileExpressionResult result =
         CompileExpression(*expr_, Type::BOOL, identifiers_by_name);
-    if (result.errors.empty()) {
-      property_ = CompiledExpressionProperty::New(result.expr);
-    } else {
-      errors->insert(errors->end(), result.errors.begin(), result.errors.end());
-    }
+    property_ = CompiledExpressionProperty::New(result.expr);
+    errors->insert(errors->end(), result.errors.begin(), result.errors.end());
   }
   return std::move(property_);
 }
@@ -395,7 +394,22 @@ void PropertyCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
 }
 
 void PropertyCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
-  errors_->push_back("not implemented");
+  expr.operand().Accept(this);
+  if (state_.has_expr()) {
+    state_ = CompilerState(&expr);
+    return;
+  }
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      errors_->push_back(StrCat(
+          "type mismatch; unary operator ", expr.op(), "applied to ",
+          Type::BOOL));
+      return;
+    case UnaryOperator::NOT:
+      state_ = CompilerState(CompiledNotProperty::New(release_property()));
+      return;
+  }
+  LOG(FATAL) << "bad unary operator";
 }
 
 void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
@@ -408,7 +422,38 @@ void PropertyCompiler::DoVisitConditional(const Conditional& expr) {
 
 void PropertyCompiler::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
-  errors_->push_back("not implemented");
+  CompilePathPropertyResult result =
+      CompilePathProperty(expr.path_property(), *identifiers_by_name_);
+  errors_->insert(errors_->end(), result.errors.begin(), result.errors.end());
+  switch (expr.op()) {
+    case ProbabilityThresholdOperator::LESS:
+      state_ = CompilerState(CompiledNotProperty::New(
+          CompiledProbabilityThresholdProperty::New(
+              CompiledProbabilityThresholdOperator::GREATER_EQUAL,
+              expr.threshold(),
+              std::move(result.path_property))));
+      return;
+    case ProbabilityThresholdOperator::LESS_EQUAL:
+      state_ = CompilerState(CompiledNotProperty::New(
+          CompiledProbabilityThresholdProperty::New(
+              CompiledProbabilityThresholdOperator::GREATER,
+              expr.threshold(),
+              std::move(result.path_property))));
+      return;
+    case ProbabilityThresholdOperator::GREATER_EQUAL:
+      state_ = CompilerState(CompiledProbabilityThresholdProperty::New(
+          CompiledProbabilityThresholdOperator::GREATER_EQUAL,
+          expr.threshold(),
+          std::move(result.path_property)));
+      return;
+    case ProbabilityThresholdOperator::GREATER:
+      state_ = CompilerState(CompiledProbabilityThresholdProperty::New(
+          CompiledProbabilityThresholdOperator::GREATER,
+          expr.threshold(),
+          std::move(result.path_property)));
+      return;
+  }
+  LOG(FATAL) << "bad probability threshold operator";
 }
 
 }  // namespace
@@ -419,9 +464,50 @@ CompilePropertyResult CompileProperty(
   CompilePropertyResult result;
   PropertyCompiler compiler(&identifiers_by_name, &result.errors);
   expr.Accept(&compiler);
-  if (result.errors.empty()) {
-    result.property = compiler.release_property();
+  result.property = compiler.release_property();
+  return std::move(result);
+}
+
+namespace {
+
+class PathPropertyCompiler : public PathPropertyVisitor {
+ public:
+  PathPropertyCompiler(
+      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      std::vector<std::string>* errors);
+
+  std::unique_ptr<const CompiledPathProperty> release_path_property() {
+    return std::move(path_property_);
   }
+
+ private:
+  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
+
+  std::unique_ptr<const CompiledPathProperty> path_property_;
+  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  std::vector<std::string>* errors_;
+};
+
+PathPropertyCompiler::PathPropertyCompiler(
+    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    std::vector<std::string>* errors)
+    : identifiers_by_name_(identifiers_by_name), errors_(errors) {
+}
+
+void PathPropertyCompiler::DoVisitUntilProperty(
+    const UntilProperty& path_property) {
+  errors_->push_back("not implemented");
+}
+
+}  // namespace
+
+CompilePathPropertyResult CompilePathProperty(
+    const PathProperty& path_property,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+  CompilePathPropertyResult result;
+  PathPropertyCompiler compiler(&identifiers_by_name, &result.errors);
+  path_property.Accept(&compiler);
+  result.path_property = compiler.release_path_property();
   return std::move(result);
 }
 
