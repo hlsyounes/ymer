@@ -290,7 +290,7 @@ CompilePropertyResult CompileProperty(
 // the compiled path propetty.  On error, path_property will be null and errors
 // will be populated with error message.
 struct CompilePathPropertyResult {
-  std::unique_ptr<const CompiledPathProperty> property;
+  std::unique_ptr<const CompiledPathProperty> path_property;
   std::vector<std::string> errors;
 };
 
