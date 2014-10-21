@@ -25,6 +25,7 @@
 
 namespace {
 
+#if 0
 std::unique_ptr<const CompiledExpressionProperty>
 NewCompiledExpressionProperty(int variable) {
   return CompiledExpressionProperty::New(
@@ -48,6 +49,7 @@ NewCompiledProbabilityThresholdProperty(int base_variable) {
           NewCompiledExpressionProperty(base_variable + 1),
           0, "don't care", nullptr));
 }
+#endif
 
 UniquePtrVector<const CompiledProperty> MakeConjuncts(
     std::unique_ptr<const CompiledProperty> operand1,
@@ -57,20 +59,25 @@ UniquePtrVector<const CompiledProperty> MakeConjuncts(
 }
 
 TEST(CompilePropertyTest, Literal) {
-  const CompilePropertyResult result1 = CompileProperty(Literal(true), {});
+  const DecisionDiagramManager dd_manager(0);
+  const CompilePropertyResult result1 =
+      CompileProperty(Literal(true), {}, dd_manager);
   const std::string expected1 = "0: ICONST 1 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
-  const CompilePropertyResult result2 = CompileProperty(Literal(17), {});
+  const CompilePropertyResult result2 =
+      CompileProperty(Literal(17), {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"type mismatch; expecting expression of type bool; found int"}),
     result2.errors);
-  const CompilePropertyResult result3 = CompileProperty(Literal(0.5), {});
+  const CompilePropertyResult result3 =
+      CompileProperty(Literal(0.5), {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"type mismatch; expecting expression of type bool; found double"}),
     result3.errors);
 }
 
 TEST(CompilePropertyTest, Identifier) {
+  const DecisionDiagramManager dd_manager(2);
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
     {"a", IdentifierInfo::Variable(Type::INT, 0)},
     {"b", IdentifierInfo::Variable(Type::BOOL, 1)},
@@ -81,35 +88,35 @@ TEST(CompilePropertyTest, Identifier) {
   };
 
   const CompilePropertyResult result1 =
-      CompileProperty(Identifier("a"), identifiers_by_name);
+      CompileProperty(Identifier("a"), identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"type mismatch; expecting expression of type bool; found int"}),
     result1.errors);
   const CompilePropertyResult result2 =
-      CompileProperty(Identifier("b"), identifiers_by_name);
+      CompileProperty(Identifier("b"), identifiers_by_name, dd_manager);
   const std::string expected2 = "0: ILOAD 1 0";
   EXPECT_EQ(expected2, StrCat(*result2.property));
   const CompilePropertyResult result3 =
-      CompileProperty(Identifier("c"), identifiers_by_name);
+      CompileProperty(Identifier("c"), identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"type mismatch; expecting expression of type bool; found int"}),
     result3.errors);
   const CompilePropertyResult result4 =
-      CompileProperty(Identifier("d"), identifiers_by_name);
+      CompileProperty(Identifier("d"), identifiers_by_name, dd_manager);
   const std::string expected4 = "0: ICONST 0 0";
   EXPECT_EQ(expected4, StrCat(*result4.property));
   const CompilePropertyResult result5 =
-      CompileProperty(Identifier("e"), identifiers_by_name);
+      CompileProperty(Identifier("e"), identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"double variables not supported"}),
     result5.errors);
   const CompilePropertyResult result6 =
-      CompileProperty(Identifier("f"), identifiers_by_name);
+      CompileProperty(Identifier("f"), identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"type mismatch; expecting expression of type bool; found double"}),
     result6.errors);
   const CompilePropertyResult result7 =
-      CompileProperty(Identifier("g"), identifiers_by_name);
+      CompileProperty(Identifier("g"), identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
     {"undefined identifier 'g' in expression"}),
     result7.errors);

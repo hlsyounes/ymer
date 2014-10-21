@@ -26,6 +26,7 @@
 #include <memory>
 
 #include "compiled-expression.h"
+#include "ddutil.h"
 #include "unique-ptr-vector.h"
 
 class CompiledPropertyVisitor;
@@ -88,7 +89,7 @@ enum class CompiledNaryOperator {
   AND, OR, IFF
 };
 
-// Output operator for compiled  n-ary logic operators.
+// Output operator for compiled n-ary logic operators.
 std::ostream& operator<<(std::ostream& os, CompiledNaryOperator op);
 
 // A compiled n-ary logic operator property.
@@ -181,17 +182,21 @@ class CompiledProbabilityThresholdProperty : public CompiledProperty {
 // A compiled expression property.
 class CompiledExpressionProperty : public CompiledProperty {
  public:
-  explicit CompiledExpressionProperty(const CompiledExpression& expr);
+  explicit CompiledExpressionProperty(
+      const CompiledExpression& expr, const BDD& bdd);
 
   static std::unique_ptr<const CompiledExpressionProperty> New(
-      const CompiledExpression& expr);
+      const CompiledExpression& expr, const BDD& bdd);
 
   const CompiledExpression& expr() const { return expr_; }
+
+  const BDD& bdd() const { return bdd_; }
 
  private:
   virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
 
   CompiledExpression expr_;
+  BDD bdd_;
 };
 
 // TODO(hlsyounes): get rid of dependency on Until class.
@@ -284,7 +289,8 @@ struct CompilePropertyResult {
 // will be populated with error messages.
 CompilePropertyResult CompileProperty(
     const Expression& expr,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name);
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const DecisionDiagramManager& dd_manager);
 
 // The result of a path property compilation on success, path_property will hold
 // the compiled path propetty.  On error, path_property will be null and errors
