@@ -146,7 +146,7 @@ noinst_LTLIBRARIES += src/libcompiled-property.la
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
-    src/libunique-ptr-vector.la glog/libglog.la
+    src/libddutil.la src/libunique-ptr-vector.la glog/libglog.la
 
 #
 # Ymer binaries.

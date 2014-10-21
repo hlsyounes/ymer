@@ -967,9 +967,12 @@ CompiledModel CompileModel(const Model& model,
 
 class PropertyCompiler : public StateFormulaVisitor {
  public:
-  PropertyCompiler(const std::map<std::string, int>* variables_by_name,
-                   int next_path_property_index,
-                   std::vector<std::string>* errors);
+  PropertyCompiler(
+      const std::map<std::string, int>* variables_by_name,
+      const DecisionDiagramManager* dd_manager,
+      const std::map<std::string, VariableProperties>* variable_properties,
+      int next_path_property_index,
+      std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledProperty> release_property() {
     return std::move(property_);
@@ -987,6 +990,8 @@ class PropertyCompiler : public StateFormulaVisitor {
 
   std::unique_ptr<const CompiledProperty> property_;
   const std::map<std::string, int>* variables_by_name_;
+  const DecisionDiagramManager* dd_manager_;
+  const std::map<std::string, VariableProperties>* variable_properties_;
   int next_path_property_index_;
   std::vector<std::string>* errors_;
 };
@@ -994,9 +999,13 @@ class PropertyCompiler : public StateFormulaVisitor {
 std::unique_ptr<const CompiledProperty> CompileProperty(
     const StateFormula& property,
     const std::map<std::string, int>& variables_by_name,
+    const DecisionDiagramManager& dd_manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
     int* next_path_property_index,
     std::vector<std::string>* errors) {
-  PropertyCompiler compiler(&variables_by_name, *next_path_property_index,
+  PropertyCompiler compiler(&variables_by_name, &dd_manager,
+                            &variable_properties,
+                            *next_path_property_index,
                             errors);
   property.Accept(&compiler);
   *next_path_property_index = compiler.next_path_property_index();
@@ -1005,8 +1014,11 @@ std::unique_ptr<const CompiledProperty> CompileProperty(
 
 class PathPropertyCompiler : public PathFormulaVisitor {
  public:
-  PathPropertyCompiler(const std::map<std::string, int>* variables_by_name,
-                       int next_index, std::vector<std::string>* errors);
+  PathPropertyCompiler(
+      const std::map<std::string, int>* variables_by_name,
+      const DecisionDiagramManager* dd_manager,
+      const std::map<std::string, VariableProperties>* variable_properties,
+      int next_index, std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledPathProperty> release_path_property() {
     return std::move(path_property_);
@@ -1019,15 +1031,21 @@ class PathPropertyCompiler : public PathFormulaVisitor {
 
   std::unique_ptr<const CompiledPathProperty> path_property_;
   const std::map<std::string, int>* variables_by_name_;
+  const DecisionDiagramManager* dd_manager_;
+  const std::map<std::string, VariableProperties>* variable_properties_;
   int next_index_;
   std::vector<std::string>* errors_;
 };
 
 std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
     const PathFormula& path_property,
-    const std::map<std::string, int> variables_by_name, int* next_index,
+    const std::map<std::string, int>& variables_by_name,
+    const DecisionDiagramManager& dd_manager,
+    const std::map<std::string, VariableProperties>& variable_properties,
+    int* next_index,
     std::vector<std::string>* errors) {
-  PathPropertyCompiler compiler(&variables_by_name, *next_index, errors);
+  PathPropertyCompiler compiler(&variables_by_name, &dd_manager,
+                                &variable_properties, *next_index, errors);
   path_property.Accept(&compiler);
   *next_index = compiler.next_index();
   return compiler.release_path_property();
@@ -1035,9 +1053,12 @@ std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
 
 PropertyCompiler::PropertyCompiler(
     const std::map<std::string, int>* variables_by_name,
+    const DecisionDiagramManager* dd_manager,
+    const std::map<std::string, VariableProperties>* variable_properties,
     int next_path_property_index,
     std::vector<std::string>* errors)
-    : variables_by_name_(variables_by_name),
+    : variables_by_name_(variables_by_name), dd_manager_(dd_manager),
+      variable_properties_(variable_properties),
       next_path_property_index_(next_path_property_index), errors_(errors) {
   CHECK(variables_by_name);
   CHECK(errors);
@@ -1052,8 +1073,9 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
     operands.push_back(std::move(property_));
   }
   if (operands.empty()) {
-    property_ = CompiledExpressionProperty::New(CompiledExpression(
-        CompiledExpression({Operation::MakeICONST(1, 0)})));
+    property_ = CompiledExpressionProperty::New(
+        CompiledExpression(CompiledExpression({Operation::MakeICONST(1, 0)})),
+        dd_manager_->GetConstant(true));
   } else {
     property_ = CompiledNaryProperty::New(
         CompiledNaryOperator::AND, CompiledExpression({}), std::move(operands));
@@ -1069,8 +1091,9 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
     operands.push_back(CompiledNotProperty::New(std::move(property_)));
   }
   if (operands.empty()) {
-    property_ = CompiledExpressionProperty::New(CompiledExpression(
-        CompiledExpression({Operation::MakeICONST(0, 0)})));
+    property_ = CompiledExpressionProperty::New(
+        CompiledExpression(CompiledExpression({Operation::MakeICONST(0, 0)})),
+        dd_manager_->GetConstant(false));
   } else {
     property_ = CompiledNaryProperty::New(
         CompiledNaryOperator::OR, CompiledExpression({}), std::move(operands));
@@ -1095,6 +1118,7 @@ void PropertyCompiler::DoVisitImplication(const Implication& formula) {
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
   std::unique_ptr<const CompiledPathProperty> path_property =
       CompilePathProperty(formula.formula(), *variables_by_name_,
+                          *dd_manager_, *variable_properties_,
                           &next_path_property_index_, errors_);
   if (!formula.strict()) {
     property_ = CompiledProbabilityThresholdProperty::New(
@@ -1110,13 +1134,18 @@ void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
 void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
   CompiledExpression compiled_expr =
       CompileExpression(formula, *variables_by_name_, errors_);
-  property_ = CompiledExpressionProperty::New(compiled_expr);
+  property_ = CompiledExpressionProperty::New(
+      compiled_expr, bdd(*dd_manager_, *variable_properties_, formula));
 }
 
 PathPropertyCompiler::PathPropertyCompiler(
-    const std::map<std::string, int>* variables_by_name, int next_index,
+    const std::map<std::string, int>* variables_by_name,
+    const DecisionDiagramManager* dd_manager,
+    const std::map<std::string, VariableProperties>* variable_properties,
+    int next_index,
     std::vector<std::string>* errors)
-    : variables_by_name_(variables_by_name), next_index_(next_index),
+    : variables_by_name_(variables_by_name), dd_manager_(dd_manager),
+      variable_properties_(variable_properties), next_index_(next_index),
       errors_(errors) {
   CHECK(variables_by_name);
   CHECK(errors);
@@ -1126,9 +1155,11 @@ void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
   int index = next_index_;
   ++next_index_;
   std::unique_ptr<const CompiledProperty> pre = CompileProperty(
-      formula.pre(), *variables_by_name_, &next_index_, errors_);
+      formula.pre(), *variables_by_name_, *dd_manager_, *variable_properties_,
+      &next_index_, errors_);
   std::unique_ptr<const CompiledProperty> post = CompileProperty(
-      formula.post(), *variables_by_name_, &next_index_, errors_);
+      formula.post(), *variables_by_name_, *dd_manager_, *variable_properties_,
+      &next_index_, errors_);
   path_property_ = CompiledUntilProperty::New(
       formula.min_time().value<double>(), formula.max_time().value<double>(),
       std::move(pre), std::move(post), index, StrCat(formula), &formula);
@@ -1137,48 +1168,65 @@ void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
 std::unique_ptr<const CompiledProperty> CompileProperty(
     const StateFormula& property,
     const CompiledModel& model,
+    const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
   std::map<std::string, int> variables_by_name;
+  std::map<std::string, VariableProperties> variable_properties;
+  int low_bit = 0;
   for (const CompiledVariable& v : model.variables()) {
     variables_by_name.insert({ v.name(), variables_by_name.size() });
+    const int num_bits = Log2(v.max_value() - v.min_value()) + 1;
+    VariableProperties p(v.min_value(), low_bit, low_bit + num_bits - 1);
+    variable_properties.insert({ v.name(), p });
+    low_bit += num_bits;
   }
   int next_path_property_index = 0;
-  return CompileProperty(property, variables_by_name, &next_path_property_index,
+  return CompileProperty(property, variables_by_name, dd_manager,
+                         variable_properties, &next_path_property_index,
                          errors);
 }
 
 std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const StateFormula& property,
     const CompiledModel& model,
+    const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
 #if 0
   return OptimizeProperty(*CompileProperty(property, model, errors));
 #else
-  return CompileProperty(property, model, errors);
+  return CompileProperty(property, model, dd_manager, errors);
 #endif
 }
 
 std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
     const PathFormula& property,
     const CompiledModel& model,
+    const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
   std::map<std::string, int> variables_by_name;
+  std::map<std::string, VariableProperties> variable_properties;
+  int low_bit = 0;
   for (const CompiledVariable& v : model.variables()) {
     variables_by_name.insert({ v.name(), variables_by_name.size() });
+    const int num_bits = Log2(v.max_value() - v.min_value()) + 1;
+    VariableProperties p(v.min_value(), low_bit, low_bit + num_bits - 1);
+    variable_properties.insert({ v.name(), p });
+    low_bit += num_bits;
   }
   int next_index = 0;
-  return CompilePathProperty(property, variables_by_name,
-                             &next_index, errors);
+  return CompilePathProperty(property, variables_by_name, dd_manager,
+                             variable_properties, &next_index, errors);
 }
 
 std::unique_ptr<const CompiledPathProperty> OptimizeAndCompilePathProperty(
     const PathFormula& property,
     const CompiledModel& model,
+    const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
 #if 0
   return OptimizePathProperty(*CompilePathProperty(property, model, errors));
 #else
-  return CompilePathProperty(property, model, errors);
+  return CompilePathProperty(property, model, dd_manager, errors);
 #endif
 }
 
@@ -1365,6 +1413,7 @@ int main(int argc, char* argv[]) {
     VLOG(2) << *global_model;
     std::vector<std::string> errors;
     const CompiledModel compiled_model = CompileModel(*global_model, &errors);
+    DecisionDiagramManager dd_man(2*compiled_model.NumBits());
     if (!errors.empty()) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ": " << error << std::endl;
@@ -1474,7 +1523,7 @@ int main(int argc, char* argv[]) {
                 nested_params.alpha = 0;
                 nested_params.beta = 0;
                 property = OptimizeAndCompilePathProperty(
-                    *pf, compiled_model, &errors);
+                    *pf, compiled_model, dd_man, &errors);
 	      }
 	      to = &timeout;
 	      VLOG(1) << "Sampling started for property " << smsg.value;
@@ -1548,7 +1597,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(**fi, compiled_model, &errors);
+            CompileAndOptimizeProperty(**fi, compiled_model, dd_man, &errors);
 	current_property = fi - properties.begin();
 	size_t accepts = 0;
         ModelCheckingStats stats;
@@ -1640,7 +1689,6 @@ int main(int argc, char* argv[]) {
       }
     } else if (engine == HYBRID_ENGINE) {
       std::cout << "Hybrid engine: epsilon=" << params.epsilon << std::endl;
-      DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -1720,7 +1768,6 @@ int main(int argc, char* argv[]) {
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", epsilon=" << params.epsilon << ", seed=" << seed
                 << std::endl;
-      DecisionDiagramManager dd_man(2*compiled_model.NumBits());
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -1764,7 +1811,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(**fi, compiled_model, &errors);
+            CompileAndOptimizeProperty(**fi, compiled_model, dd_man, &errors);
 	size_t accepts = 0;
         ModelCheckingStats stats;
 	for (size_t i = 0; i < trials; i++) {

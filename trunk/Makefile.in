@@ -232,8 +232,8 @@ am_src_libcompiled_model_la_OBJECTS = src/compiled-model.lo
 src_libcompiled_model_la_OBJECTS =  \
 	$(am_src_libcompiled_model_la_OBJECTS)
 src_libcompiled_property_la_DEPENDENCIES =  \
-	src/libcompiled-expression.la src/libunique-ptr-vector.la \
-	glog/libglog.la
+	src/libcompiled-expression.la src/libddutil.la \
+	src/libunique-ptr-vector.la glog/libglog.la
 am_src_libcompiled_property_la_OBJECTS = src/compiled-property.lo
 src_libcompiled_property_la_OBJECTS =  \
 	$(am_src_libcompiled_property_la_OBJECTS)
@@ -973,7 +973,7 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
-    src/libunique-ptr-vector.la glog/libglog.la
+    src/libddutil.la src/libunique-ptr-vector.la glog/libglog.la
 
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \

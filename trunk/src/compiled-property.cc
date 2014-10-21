@@ -232,14 +232,15 @@ void CompiledProbabilityThresholdProperty::DoAccept(
 }
 
 CompiledExpressionProperty::CompiledExpressionProperty(
-    const CompiledExpression& expr)
-    : CompiledProperty(false), expr_(expr) {
+    const CompiledExpression& expr, const BDD& bdd)
+    : CompiledProperty(false), expr_(expr), bdd_(bdd) {
 }
 
 std::unique_ptr<const CompiledExpressionProperty>
-CompiledExpressionProperty::New(const CompiledExpression& expr) {
+CompiledExpressionProperty::New(
+    const CompiledExpression& expr, const BDD& bdd) {
   return std::unique_ptr<const CompiledExpressionProperty>(
-      new CompiledExpressionProperty(expr));
+      new CompiledExpressionProperty(expr, bdd));
 }
 
 void CompiledExpressionProperty::DoAccept(
@@ -307,6 +308,12 @@ void CompiledPathPropertyVisitor::VisitCompiledUntilProperty(
 
 namespace {
 
+BDD ExpressionToBdd(const DecisionDiagramManager& dd_manager,
+                    const Expression& expr) {
+  // TODO(hlsyounes): implement.
+  return dd_manager.GetConstant(true);
+}
+
 class CompilerState {
  public:
   CompilerState();
@@ -317,6 +324,7 @@ class CompilerState {
 
   std::unique_ptr<const CompiledProperty> ReleaseProperty(
       const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+      const DecisionDiagramManager& dd_manager,
       std::vector<std::string>* errors);
 
  private:
@@ -339,12 +347,16 @@ CompilerState::CompilerState(const Expression* expr)
 
 std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
   if (has_expr()) {
     CHECK(expr_);
     CompileExpressionResult result =
         CompileExpression(*expr_, Type::BOOL, identifiers_by_name);
-    property_ = CompiledExpressionProperty::New(result.expr);
+    const BDD bdd = result.errors.empty()
+        ? ExpressionToBdd(dd_manager, *expr_)
+        : dd_manager.GetConstant(false);
+    property_ = CompiledExpressionProperty::New(result.expr, bdd);
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
   }
   return std::move(property_);
@@ -354,10 +366,11 @@ class PropertyCompiler : public ExpressionVisitor {
  public:
   PropertyCompiler(
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      const DecisionDiagramManager* dd_manager,
       std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledProperty> release_property() {
-    return state_.ReleaseProperty(*identifiers_by_name_, errors_);
+    return state_.ReleaseProperty(*identifiers_by_name_, *dd_manager_, errors_);
   }
 
  private:
@@ -372,13 +385,16 @@ class PropertyCompiler : public ExpressionVisitor {
 
   CompilerState state_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  const DecisionDiagramManager* dd_manager_;
   std::vector<std::string>* errors_;
 };
 
 PropertyCompiler::PropertyCompiler(
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    const DecisionDiagramManager* dd_manager,
     std::vector<std::string>* errors)
-    : identifiers_by_name_(identifiers_by_name), errors_(errors) {
+    : identifiers_by_name_(identifiers_by_name), dd_manager_(dd_manager),
+      errors_(errors) {
 }
 
 void PropertyCompiler::DoVisitLiteral(const Literal& expr) {
@@ -460,9 +476,10 @@ void PropertyCompiler::DoVisitProbabilityThresholdOperation(
 
 CompilePropertyResult CompileProperty(
     const Expression& expr,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const DecisionDiagramManager& dd_manager) {
   CompilePropertyResult result;
-  PropertyCompiler compiler(&identifiers_by_name, &result.errors);
+  PropertyCompiler compiler(&identifiers_by_name, &dd_manager, &result.errors);
   expr.Accept(&compiler);
   result.property = compiler.release_property();
   return std::move(result);
