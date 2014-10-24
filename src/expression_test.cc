@@ -125,28 +125,24 @@ TEST(FunctionCallTest, OutputMod) {
 TEST(UnaryOperationTest, OutputNegation) {
   const UnaryOperation expr1(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(BinaryOperator::PLUS,
-                           Literal::New(17),
-                           UnaryOperation::New(UnaryOperator::NEGATE,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::PLUS, Literal::New(17),
+          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
   const UnaryOperation expr2(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(BinaryOperator::MINUS,
-                           Literal::New(17),
-                           UnaryOperation::New(UnaryOperator::NEGATE,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::MINUS, Literal::New(17),
+          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
   const UnaryOperation expr3(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(BinaryOperator::MULTIPLY,
-                           Literal::New(17),
-                           UnaryOperation::New(UnaryOperator::NEGATE,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::MULTIPLY, Literal::New(17),
+          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
   const UnaryOperation expr4(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(BinaryOperator::DIVIDE,
-                           Literal::New(17),
-                           UnaryOperation::New(UnaryOperator::NEGATE,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::DIVIDE, Literal::New(17),
+          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
   EXPECT_EQ("-(17 + -b);-(17 - -b);-(17 * -b);-(17 / -b)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -154,195 +150,171 @@ TEST(UnaryOperationTest, OutputNegation) {
 TEST(UnaryOperationTest, OutputLogicalNot) {
   const UnaryOperation expr1(
       UnaryOperator::NOT,
-      BinaryOperation::New(BinaryOperator::AND,
-                           Literal::New(true),
-                           UnaryOperation::New(UnaryOperator::NOT,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::AND, Literal::New(true),
+          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
   const UnaryOperation expr2(
       UnaryOperator::NOT,
-      BinaryOperation::New(BinaryOperator::OR,
-                           Literal::New(true),
-                           UnaryOperation::New(UnaryOperator::NOT,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::OR, Literal::New(true),
+          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
   const UnaryOperation expr3(
       UnaryOperator::NOT,
-      BinaryOperation::New(BinaryOperator::IMPLY,
-                           Literal::New(true),
-                           UnaryOperation::New(UnaryOperator::NOT,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::IMPLY, Literal::New(true),
+          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
   const UnaryOperation expr4(
       UnaryOperator::NOT,
-      BinaryOperation::New(BinaryOperator::IFF,
-                           Literal::New(true),
-                           UnaryOperation::New(UnaryOperator::NOT,
-                                               Identifier::New("b"))));
+      BinaryOperation::New(
+          BinaryOperator::IFF, Literal::New(true),
+          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
   EXPECT_EQ("!(true & !b);!(true | !b);!(true => !b);!(true <=> !b)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputAddition) {
-  const BinaryOperation expr1(BinaryOperator::PLUS,
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::PLUS,
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::PLUS,
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::PLUS,
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::PLUS,
+      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::PLUS,
+      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::PLUS,
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::PLUS,
+      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("17 + b + c - d;17 - b + c * d;17 * b + c / d;17 / b + c + d",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputSubtraction) {
-  const BinaryOperation expr1(BinaryOperator::MINUS,
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::MINUS,
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::MINUS,
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::MINUS,
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::MINUS,
+      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::MINUS,
+      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::MINUS,
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::MINUS,
+      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("17 + b - (c - d);17 - b - c * d;17 * b - c / d;17 / b - (c + d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputMultiplication) {
-  const BinaryOperation expr1(BinaryOperator::MULTIPLY,
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::MULTIPLY,
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::MULTIPLY,
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::MULTIPLY,
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::MULTIPLY,
+      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::MULTIPLY,
+      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::MULTIPLY,
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::MULTIPLY,
+      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ(
       "(17 + b) * (c - d);(17 - b) * c * d;17 * b * c / d;17 / b * (c + d)",
       StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputDivision) {
-  const BinaryOperation expr1(BinaryOperator::DIVIDE,
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::DIVIDE,
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::DIVIDE,
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::DIVIDE,
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::DIVIDE,
+      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::DIVIDE,
+      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::DIVIDE,
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::DIVIDE,
+      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ(
       "(17 + b) / (c - d);(17 - b) / (c * d);17 * b / (c / d);17 / b / (c + d)",
       StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputAnd) {
-  const BinaryOperation expr1(BinaryOperator::AND,
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::AND,
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::AND,
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::AND,
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::AND,
+      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::AND,
+      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::AND,
+      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::AND,
+      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("true & b & (c | d);(true | b) & (c => d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("(true => b) & (c <=> d);(true <=> b) & c & d",
@@ -350,69 +322,60 @@ TEST(BinaryOperationTest, OutputAnd) {
 }
 
 TEST(BinaryOperationTest, OutputOr) {
-  const BinaryOperation expr1(BinaryOperator::OR,
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::OR,
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::OR,
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::OR,
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  EXPECT_EQ("true & b | c | d;true | b | (c => d)",
-            StrCat(expr1, ';', expr2));
+  const BinaryOperation expr1(
+      BinaryOperator::OR,
+      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::OR,
+      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::OR,
+      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::OR,
+      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
+                           Identifier::New("d")));
+  EXPECT_EQ("true & b | c | d;true | b | (c => d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("(true => b) | (c <=> d);(true <=> b) | c & d",
             StrCat(expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputImply) {
-  const BinaryOperation expr1(BinaryOperator::IMPLY,
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::IMPLY,
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::IMPLY,
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::IMPLY,
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::IMPLY,
+      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::IMPLY,
+      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::IMPLY,
+      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::IMPLY,
+      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("true & b => c | d;true | b => (c => d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("true => b => (c <=> d);(true <=> b) => c & d",
@@ -420,34 +383,30 @@ TEST(BinaryOperationTest, OutputImply) {
 }
 
 TEST(BinaryOperationTest, OutputIff) {
-  const BinaryOperation expr1(BinaryOperator::IFF,
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::IFF,
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::IFF,
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::IFF,
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Literal::New(true),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::IFF,
+      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::IFF,
+      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::IFF,
+      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::IFF,
+      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("true & b <=> c | d;true | b <=> c => d",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("true => b <=> (c <=> d);true <=> b <=> c & d",
@@ -455,105 +414,89 @@ TEST(BinaryOperationTest, OutputIff) {
 }
 
 TEST(BinaryOperationTest, OutputLess) {
-  const BinaryOperation expr1(BinaryOperator::LESS,
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::LESS,
-                              BinaryOperation::New(
-                                  BinaryOperator::GREATER_EQUAL,
-                                  Literal::New(17),
-                                  Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::EQUAL,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::LESS,
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::LESS,
-                              BinaryOperation::New(BinaryOperator::GREATER,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::NOT_EQUAL,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  EXPECT_EQ("17 + b < c * d;17 >= b < (c = d)",
-            StrCat(expr1, ';', expr2));
-  EXPECT_EQ("17 - b < c / d;17 > b < (c != d)",
-            StrCat(expr3, ';', expr4));
+  const BinaryOperation expr1(
+      BinaryOperator::LESS,
+      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::LESS,
+      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::LESS,
+      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::LESS,
+      BinaryOperation::New(BinaryOperator::GREATER, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
+  EXPECT_EQ("17 + b < c * d;17 >= b < (c = d)", StrCat(expr1, ';', expr2));
+  EXPECT_EQ("17 - b < c / d;17 > b < (c != d)", StrCat(expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputLessEqual) {
-  const BinaryOperation expr1(BinaryOperator::LESS_EQUAL,
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::LESS_EQUAL,
-                              BinaryOperation::New(BinaryOperator::GREATER,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::NOT_EQUAL,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::LESS_EQUAL,
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Literal::New(false),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::LESS_EQUAL,
-                              BinaryOperation::New(BinaryOperator::EQUAL,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::LESS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  EXPECT_EQ("17 - b <= c / d;17 > b <= (c != d)",
-            StrCat(expr1, ';', expr2));
+  const BinaryOperation expr1(
+      BinaryOperator::LESS_EQUAL,
+      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::LESS_EQUAL,
+      BinaryOperation::New(BinaryOperator::GREATER, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::LESS_EQUAL,
+      BinaryOperation::New(BinaryOperator::AND, Literal::New(false),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::LESS_EQUAL,
+      BinaryOperation::New(BinaryOperator::EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::LESS, Identifier::New("c"),
+                           Identifier::New("d")));
+  EXPECT_EQ("17 - b <= c / d;17 > b <= (c != d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("(false & b) <= (c | d);(17 = b) <= (c < d)",
             StrCat(expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputGreaterEqual) {
-  const BinaryOperation expr1(BinaryOperator::GREATER_EQUAL,
-                              BinaryOperation::New(BinaryOperator::AND,
-                                                   Literal::New(false),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::OR,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::GREATER_EQUAL,
-                              BinaryOperation::New(BinaryOperator::EQUAL,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::LESS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::GREATER_EQUAL,
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Literal::New(false),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::GREATER_EQUAL,
-                              BinaryOperation::New(BinaryOperator::NOT_EQUAL,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::LESS_EQUAL,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::GREATER_EQUAL,
+      BinaryOperation::New(BinaryOperator::AND, Literal::New(false),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::GREATER_EQUAL,
+      BinaryOperation::New(BinaryOperator::EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::LESS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::GREATER_EQUAL,
+      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(false),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::GREATER_EQUAL,
+      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("(false & b) >= (c | d);(17 = b) >= (c < d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("(false => b) >= (c <=> d);(17 != b) >= (c <= d)",
@@ -561,129 +504,107 @@ TEST(BinaryOperationTest, OutputGreaterEqual) {
 }
 
 TEST(BinaryOperationTest, OutputGreater) {
-  const BinaryOperation expr1(BinaryOperator::GREATER,
-                              BinaryOperation::New(BinaryOperator::IMPLY,
-                                                   Literal::New(false),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::IFF,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::GREATER,
-                              BinaryOperation::New(BinaryOperator::NOT_EQUAL,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::LESS_EQUAL,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::GREATER,
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::GREATER,
-                              BinaryOperation::New(BinaryOperator::LESS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(
-                                  BinaryOperator::GREATER_EQUAL,
-                                  Identifier::New("c"),
-                                  Identifier::New("d")));
+  const BinaryOperation expr1(
+      BinaryOperator::GREATER,
+      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(false),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::GREATER,
+      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::GREATER,
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::GREATER,
+      BinaryOperation::New(BinaryOperator::LESS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
   EXPECT_EQ("(false => b) > (c <=> d);(17 != b) > (c <= d)",
             StrCat(expr1, ';', expr2));
-  EXPECT_EQ("17 * b > c + d;17 < b > (c >= d)",
-            StrCat(expr3, ';', expr4));
+  EXPECT_EQ("17 * b > c + d;17 < b > (c >= d)", StrCat(expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputEqual) {
-  const BinaryOperation expr1(BinaryOperator::EQUAL,
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::EQUAL,
-                              BinaryOperation::New(BinaryOperator::LESS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(
-                                  BinaryOperator::GREATER_EQUAL,
-                                  Identifier::New("c"),
-                                  Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::EQUAL,
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::EQUAL,
-                              BinaryOperation::New(BinaryOperator::LESS_EQUAL,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::GREATER,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  EXPECT_EQ("17 * b = c + d;17 < b = c >= d",
-            StrCat(expr1, ';', expr2));
-  EXPECT_EQ("17 / b = c - d;17 <= b = c > d",
-            StrCat(expr3, ';', expr4));
+  const BinaryOperation expr1(
+      BinaryOperator::EQUAL,
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::EQUAL,
+      BinaryOperation::New(BinaryOperator::LESS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::EQUAL,
+      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::EQUAL,
+      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::GREATER, Identifier::New("c"),
+                           Identifier::New("d")));
+  EXPECT_EQ("17 * b = c + d;17 < b = c >= d", StrCat(expr1, ';', expr2));
+  EXPECT_EQ("17 / b = c - d;17 <= b = c > d", StrCat(expr3, ';', expr4));
 }
 
 TEST(BinaryOperationTest, OutputNotEqual) {
-  const BinaryOperation expr1(BinaryOperator::NOT_EQUAL,
-                              BinaryOperation::New(BinaryOperator::DIVIDE,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MINUS,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr2(BinaryOperator::NOT_EQUAL,
-                              BinaryOperation::New(BinaryOperator::LESS_EQUAL,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::GREATER,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr3(BinaryOperator::NOT_EQUAL,
-                              BinaryOperation::New(BinaryOperator::PLUS,
-                                                   Literal::New(17),
-                                                   Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::MULTIPLY,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  const BinaryOperation expr4(BinaryOperator::NOT_EQUAL,
-                              BinaryOperation::New(
-                                  BinaryOperator::GREATER_EQUAL,
-                                  Literal::New(17),
-                                  Identifier::New("b")),
-                              BinaryOperation::New(BinaryOperator::EQUAL,
-                                                   Identifier::New("c"),
-                                                   Identifier::New("d")));
-  EXPECT_EQ("17 / b != c - d;17 <= b != c > d",
-            StrCat(expr1, ';', expr2));
-  EXPECT_EQ("17 + b != c * d;17 >= b != (c = d)",
-            StrCat(expr3, ';', expr4));
+  const BinaryOperation expr1(
+      BinaryOperator::NOT_EQUAL,
+      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr2(
+      BinaryOperator::NOT_EQUAL,
+      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::GREATER, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr3(
+      BinaryOperator::NOT_EQUAL,
+      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
+                           Identifier::New("d")));
+  const BinaryOperation expr4(
+      BinaryOperator::NOT_EQUAL,
+      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Literal::New(17),
+                           Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("c"),
+                           Identifier::New("d")));
+  EXPECT_EQ("17 / b != c - d;17 <= b != c > d", StrCat(expr1, ';', expr2));
+  EXPECT_EQ("17 + b != c * d;17 >= b != (c = d)", StrCat(expr3, ';', expr4));
 }
 
 TEST(ConditionalTest, OutputConditional) {
   const Conditional expr1(
       Literal::New(true),
-      Conditional::New(BinaryOperation::New(BinaryOperator::PLUS,
-                                            Identifier::New("a"),
-                                            Identifier::New("b")),
-                       UnaryOperation::New(
-                           UnaryOperator::NEGATE,
-                           FunctionCall::New(
-                               Function::CEIL,
-                               MakeArguments(Identifier::New("c")))),
-                       Identifier::New("d")),
+      Conditional::New(
+          BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("a"),
+                               Identifier::New("b")),
+          UnaryOperation::New(
+              UnaryOperator::NEGATE,
+              FunctionCall::New(Function::CEIL,
+                                MakeArguments(Identifier::New("c")))),
+          Identifier::New("d")),
       BinaryOperation::New(
           BinaryOperator::PLUS,
-          Conditional::New(Literal::New(false),
-                           Identifier::New("e"),
+          Conditional::New(Literal::New(false), Identifier::New("e"),
                            Identifier::New("f")),
           Literal::New(42)));
   EXPECT_EQ("true ? a + b ? -ceil(c) : d : (false ? e : f) + 42",
@@ -697,12 +618,10 @@ TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
                          Literal::New(true), Identifier::New("a")));
   const ProbabilityThresholdOperation expr2(
       ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
-      UntilProperty::New(0.5, 17,
-                         Literal::New(true), Identifier::New("b")));
+      UntilProperty::New(0.5, 17, Literal::New(true), Identifier::New("b")));
   const ProbabilityThresholdOperation expr3(
       ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
-      UntilProperty::New(0, 42,
-                         Identifier::New("c"), Identifier::New("d")));
+      UntilProperty::New(0, 42, Identifier::New("c"), Identifier::New("d")));
   const ProbabilityThresholdOperation expr4(
       ProbabilityThresholdOperator::GREATER, 1,
       UntilProperty::New(4711, std::numeric_limits<double>::infinity(),

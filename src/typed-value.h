@@ -36,22 +36,27 @@ std::ostream& operator<<(std::ostream& os, Type type);
 class TypedValue {
  public:
   // Constructs a typed value.
-  TypedValue(int i) : type_(Type::INT) { value_.i = i; }
-  TypedValue(double d) : type_(Type::DOUBLE) { value_.d = d; }
-  TypedValue(bool b) : type_(Type::BOOL) { value_.b = b; }
+  TypedValue(int i) : type_(Type::INT), value_(i) {}
+  TypedValue(double d) : type_(Type::DOUBLE), value_(d) {}
+  TypedValue(bool b) : type_(Type::BOOL), value_(b) {}
 
   // Avoid implicit conversion from pointer through TypedValue(bool).
-  template <typename T> TypedValue(T*) = delete;
+  template <typename T>
+  TypedValue(T*) = delete;
 
   // Returns the type.
   Type type() const { return type_; }
 
   // Returns the value, converted to the given type.
-  template <typename T> T value() const;
+  template <typename T>
+  T value() const;
 
  private:
   Type type_;
-  union {
+  union Value {
+    Value(int value) : i(value) {}
+    Value(double value) : d(value) {}
+    Value(bool value) : b(value) {}
     int i;
     double d;
     bool b;

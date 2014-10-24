@@ -156,13 +156,9 @@ TEST(TypedValueTest, Ceil) {
   EXPECT_EQ(-2, ceil(TypedValue(-2.3)));
 }
 
-TEST(TypedValueTest, Pow) {
-  EXPECT_EQ(32, pow(TypedValue(2), TypedValue(5)));
-}
+TEST(TypedValueTest, Pow) { EXPECT_EQ(32, pow(TypedValue(2), TypedValue(5))); }
 
-TEST(TypedValueTest, Log) {
-  EXPECT_EQ(0, log(TypedValue(1)));
-}
+TEST(TypedValueTest, Log) { EXPECT_EQ(0, log(TypedValue(1))); }
 
 TEST(TypedValueTest, Output) {
   const TypedValue a(17), b(0.5), c(true);

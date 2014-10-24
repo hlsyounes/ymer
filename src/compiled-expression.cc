@@ -232,13 +232,9 @@ Operation Operation::MakeIFTRUE(int src, int pc) {
   return Operation(Opcode::IFTRUE, src, pc);
 }
 
-Operation Operation::MakeGOTO(int pc) {
-  return Operation(Opcode::GOTO, pc);
-}
+Operation Operation::MakeGOTO(int pc) { return Operation(Opcode::GOTO, pc); }
 
-Operation Operation::MakeNOP() {
-  return Operation(Opcode::NOP);
-}
+Operation Operation::MakeNOP() { return Operation(Opcode::NOP); }
 
 Operation Operation::MakeIMIN(int src1_dst, int src2) {
   return Operation(Opcode::IMIN, src1_dst, src2);
@@ -286,14 +282,11 @@ Operation::Operation(Opcode opcode, double operand1, int operand2)
   operand1_.d = operand1;
 }
 
-Operation::Operation(Opcode opcode, int operand)
-    : opcode_(opcode) {
+Operation::Operation(Opcode opcode, int operand) : opcode_(opcode) {
   operand1_.i = operand;
 }
 
-Operation::Operation(Opcode opcode)
-    : opcode_(opcode) {
-}
+Operation::Operation(Opcode opcode) : opcode_(opcode) {}
 
 bool operator==(const Operation& left, const Operation& right) {
   if (left.opcode() != right.opcode()) {
@@ -330,11 +323,11 @@ bool operator==(const Operation& left, const Operation& right) {
     case Opcode::POW:
     case Opcode::LOG:
     case Opcode::MOD:
-      return left.ioperand1() == right.ioperand1()
-          && left.operand2() == right.operand2();
+      return left.ioperand1() == right.ioperand1() &&
+             left.operand2() == right.operand2();
     case Opcode::DCONST:
-      return left.doperand1() == right.doperand1()
-          && left.operand2() == right.operand2();
+      return left.doperand1() == right.doperand1() &&
+             left.operand2() == right.operand2();
     case Opcode::I2D:
     case Opcode::INEG:
     case Opcode::DNEG:
@@ -469,10 +462,8 @@ std::vector<Operation> MakeConjunction(
   return operations;
 }
 
-CompiledExpression::CompiledExpression(
-    const std::vector<Operation>& operations)
-    : operations_(operations) {
-}
+CompiledExpression::CompiledExpression(const std::vector<Operation>& operations)
+    : operations_(operations) {}
 
 bool operator==(const CompiledExpression& e1, const CompiledExpression& e2) {
   return e1.operations() == e2.operations();
@@ -531,7 +522,7 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::IMIN:
       case Opcode::IMAX:
       case Opcode::MOD:
-        max_ireg = std::max({ max_ireg, o.ioperand1(), o.operand2() });
+        max_ireg = std::max({max_ireg, o.ioperand1(), o.operand2()});
         continue;
       case Opcode::DADD:
       case Opcode::DSUB:
@@ -541,7 +532,7 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::DMAX:
       case Opcode::POW:
       case Opcode::LOG:
-        max_dreg = std::max({ max_dreg, o.ioperand1(), o.operand2() });
+        max_dreg = std::max({max_dreg, o.ioperand1(), o.operand2()});
         continue;
       case Opcode::DEQ:
       case Opcode::DNE:
@@ -550,7 +541,7 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
       case Opcode::DGE:
       case Opcode::DGT:
         max_ireg = std::max(max_ireg, o.ioperand1());
-        max_dreg = std::max({ max_dreg, o.ioperand1(), o.operand2() });
+        max_dreg = std::max({max_dreg, o.ioperand1(), o.operand2()});
         continue;
       case Opcode::GOTO:
       case Opcode::NOP:
@@ -558,13 +549,12 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
     }
     LOG(FATAL) << "bad opcode";
   }
-  return { max_ireg + 1, max_dreg + 1 };
+  return {max_ireg + 1, max_dreg + 1};
 }
 
-CompiledExpressionEvaluator::CompiledExpressionEvaluator(
-    int num_iregs, int num_dregs)
-    : iregs_(num_iregs), dregs_(num_dregs) {
-}
+CompiledExpressionEvaluator::CompiledExpressionEvaluator(int num_iregs,
+                                                         int num_dregs)
+    : iregs_(num_iregs), dregs_(num_dregs) {}
 
 int CompiledExpressionEvaluator::EvaluateIntExpression(
     const CompiledExpression& expr, const std::vector<int>& state) {
@@ -743,8 +733,7 @@ class ExpressionCompiler : public ExpressionVisitor {
 ExpressionCompiler::ExpressionCompiler(
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     std::vector<std::string>* errors)
-    : dst_(0), identifiers_by_name_(identifiers_by_name), errors_(errors) {
-}
+    : dst_(0), identifiers_by_name_(identifiers_by_name), errors_(errors) {}
 
 void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
   TypedValue value = expr.value();
@@ -766,8 +755,8 @@ void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
 void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   auto i = identifiers_by_name_->find(expr.name());
   if (i == identifiers_by_name_->end()) {
-    errors_->push_back(StrCat(
-        "undefined identifier '", expr.name(), "' in expression"));
+    errors_->push_back(
+        StrCat("undefined identifier '", expr.name(), "' in expression"));
     return;
   }
   const IdentifierInfo& info = i->second;
@@ -812,9 +801,9 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
     case Function::MIN:
     case Function::MAX:
       if (n == 0) {
-        errors_->push_back(StrCat(
-            expr.function(),
-            " applied to 0 arguments; expecting at least 1 argument"));
+        errors_->push_back(
+            StrCat(expr.function(),
+                   " applied to 0 arguments; expecting at least 1 argument"));
         return;
       }
       expr.arguments()[0].Accept(this);
@@ -831,9 +820,9 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
         }
         if (type != type_) {
           if (type == Type::BOOL || type_ == Type::BOOL) {
-            errors_->push_back(StrCat(
-                "type mismatch; incompatible argument types ", type, " and ",
-                type_));
+            errors_->push_back(
+                StrCat("type mismatch; incompatible argument types ", type,
+                       " and ", type_));
             return;
           }
           if (type != Type::DOUBLE && type_ == Type::DOUBLE) {
@@ -862,9 +851,8 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
     case Function::FLOOR:
     case Function::CEIL:
       if (n != 1) {
-        errors_->push_back(StrCat(
-            expr.function(),
-            " applied to ", n, " arguments; expecting 1 argument"));
+        errors_->push_back(StrCat(expr.function(), " applied to ", n,
+                                  " arguments; expecting 1 argument"));
         return;
       }
       expr.arguments()[0].Accept(this);
@@ -872,9 +860,8 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
         return;
       }
       if (type_ == Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; expecting argument of type ", Type::DOUBLE,
-            "; found ", type_));
+        errors_->push_back(StrCat("type mismatch; expecting argument of type ",
+                                  Type::DOUBLE, "; found ", type_));
         return;
       }
       if (type_ != Type::DOUBLE) {
@@ -890,9 +877,9 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
     case Function::POW:
     case Function::LOG:
       if (n != 2) {
-        errors_->push_back(StrCat(
-            expr.function(), " applied to ", n, " argument",
-            (n == 1) ? "" : "s", "; expecting 2 arguments"));
+        errors_->push_back(StrCat(expr.function(), " applied to ", n,
+                                  " argument", (n == 1) ? "" : "s",
+                                  "; expecting 2 arguments"));
         return;
       }
       for (size_t i = 0; i < 2; ++i) {
@@ -903,9 +890,9 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
           return;
         }
         if (type_ == Type::BOOL) {
-          errors_->push_back(StrCat(
-              "type mismatch; expecting argument of type ", Type::DOUBLE,
-              "; found ", type_));
+          errors_->push_back(
+              StrCat("type mismatch; expecting argument of type ", Type::DOUBLE,
+                     "; found ", type_));
           return;
         }
         if (type_ != Type::DOUBLE) {
@@ -921,9 +908,9 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
       return;
     case Function::MOD:
       if (n != 2) {
-        errors_->push_back(StrCat(
-            expr.function(), " applied to ", n, " argument",
-            (n == 1) ? "" : "s", "; expecting 2 arguments"));
+        errors_->push_back(StrCat(expr.function(), " applied to ", n,
+                                  " argument", (n == 1) ? "" : "s",
+                                  "; expecting 2 arguments"));
         return;
       }
       for (size_t i = 0; i < 2; ++i) {
@@ -934,9 +921,9 @@ void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
           return;
         }
         if (type_ != Type::INT) {
-          errors_->push_back(StrCat(
-              "type mismatch; expecting argument of type ", Type::INT,
-              "; found ", type_));
+          errors_->push_back(
+              StrCat("type mismatch; expecting argument of type ", Type::INT,
+                     "; found ", type_));
           return;
         }
       }
@@ -954,9 +941,8 @@ void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
   switch (expr.op()) {
     case UnaryOperator::NEGATE:
       if (type_ == Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; unary operator ", expr.op(), " applied to ",
-            type_));
+        errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
+                                  " applied to ", type_));
         return;
       }
       if (type_ == Type::DOUBLE) {
@@ -967,9 +953,8 @@ void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
       return;
     case UnaryOperator::NOT:
       if (type_ != Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; unary operator ", expr.op(), " applied to ",
-            type_));
+        errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
+                                  " applied to ", type_));
         return;
       }
       operations_.push_back(Operation::MakeNOT(dst_));
@@ -989,9 +974,8 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
     case BinaryOperator::MULTIPLY:
     case BinaryOperator::DIVIDE: {
       if (type_ == Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; binary operator ", expr.op(), " applied to ",
-            type_));
+        errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
+                                  " applied to ", type_));
         return;
       }
       Type type = type_;
@@ -1002,13 +986,12 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
         return;
       }
       if (type_ == Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; binary operator ", expr.op(), " applied to ",
-            type_));
+        errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
+                                  " applied to ", type_));
         return;
       }
-      if (type != Type::DOUBLE
-          && (type_ == Type::DOUBLE || expr.op() == BinaryOperator::DIVIDE)) {
+      if (type != Type::DOUBLE &&
+          (type_ == Type::DOUBLE || expr.op() == BinaryOperator::DIVIDE)) {
         operations_.push_back(Operation::MakeI2D(dst_));
         type = Type::DOUBLE;
       }
@@ -1042,9 +1025,8 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
     case BinaryOperator::IMPLY:
     case BinaryOperator::IFF: {
       if (type_ != Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; binary operator ", expr.op(), " applied to ",
-            type_));
+        errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
+                                  " applied to ", type_));
         return;
       }
       size_t jump_pos;
@@ -1065,9 +1047,8 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
         return;
       }
       if (type_ != Type::BOOL) {
-        errors_->push_back(StrCat(
-            "type mismatch; binary operator ", expr.op(), " applied to ",
-            type_));
+        errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
+                                  " applied to ", type_));
         return;
       }
       if (expr.op() == BinaryOperator::IFF) {
@@ -1095,9 +1076,9 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
       }
       if (type != type_) {
         if (type == Type::BOOL || type_ == Type::BOOL) {
-          errors_->push_back(StrCat(
-              "type mismatch; incompatible argument types ", type, " and "
-              , type_));
+          errors_->push_back(
+              StrCat("type mismatch; incompatible argument types ", type,
+                     " and ", type_));
           return;
         }
         if (type != Type::DOUBLE && type_ == Type::DOUBLE) {
@@ -1174,8 +1155,8 @@ void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
   }
   if (type != type_) {
     if (type == Type::BOOL || type_ == Type::BOOL) {
-      errors_->push_back(StrCat(
-          "type mismatch; incompatible branch types ", type, " and ", type_));
+      errors_->push_back(StrCat("type mismatch; incompatible branch types ",
+                                type, " and ", type_));
       return;
     }
     if (type != Type::DOUBLE && type_ == Type::DOUBLE) {
@@ -1197,15 +1178,13 @@ void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
 
 }  // namespace
 
-CompileExpressionResult::CompileExpressionResult()
-    : expr({}) {
-}
+CompileExpressionResult::CompileExpressionResult() : expr({}) {}
 
-IdentifierInfo::IdentifierInfo(
-    Type type, int variable_index, const TypedValue& constant_value)
-    : type_(type), variable_index_(variable_index),
-      constant_value_(constant_value) {
-}
+IdentifierInfo::IdentifierInfo(Type type, int variable_index,
+                               const TypedValue& constant_value)
+    : type_(type),
+      variable_index_(variable_index),
+      constant_value_(constant_value) {}
 
 IdentifierInfo IdentifierInfo::Variable(Type type, int index) {
   return IdentifierInfo(type, index, false);
@@ -1216,8 +1195,7 @@ IdentifierInfo IdentifierInfo::Constant(const TypedValue& value) {
 }
 
 CompileExpressionResult CompileExpression(
-    const Expression& expr,
-    Type expected_type,
+    const Expression& expr, Type expected_type,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
   CompileExpressionResult result;
   ExpressionCompiler compiler(&identifiers_by_name, &result.errors);
@@ -1230,9 +1208,9 @@ CompileExpressionResult CompileExpression(
   if (type == Type::INT && expected_type == Type::DOUBLE) {
     operations.push_back(Operation::MakeI2D(0));
   } else if (type != expected_type) {
-    result.errors.push_back(StrCat(
-        "type mismatch; expecting expression of type ", expected_type,
-        "; found ", type));
+    result.errors.push_back(
+        StrCat("type mismatch; expecting expression of type ", expected_type,
+               "; found ", type));
     return result;
   }
   result.expr = CompiledExpression(operations);
@@ -1250,8 +1228,8 @@ struct OperationIndex {
 };
 
 bool operator<(const OperationIndex& left, const OperationIndex& right) {
-  return left.block < right.block
-      || (left.block == right.block && left.operation < right.operation);
+  return left.block < right.block ||
+         (left.block == right.block && left.operation < right.operation);
 }
 
 // The state of a register in a basic block of a control flow graph.
@@ -1276,8 +1254,7 @@ class RegisterState {
 
 template <typename T>
 RegisterState<T>::RegisterState()
-    : has_value_(false) {
-}
+    : has_value_(false) {}
 
 template <typename T>
 void RegisterState<T>::SetValue(T value, const OperationIndex& dependency) {
@@ -1301,8 +1278,8 @@ void RegisterState<T>::AddDependencies(
 template <typename T>
 void RegisterState<T>::MergeWith(const RegisterState<T>& other_state) {
   if (has_value_) {
-    if ((other_state.has_value_ && value_ != other_state.value_)
-        || (!other_state.has_value_ && other_state.dependencies_.empty())) {
+    if ((other_state.has_value_ && value_ != other_state.value_) ||
+        (!other_state.has_value_ && other_state.dependencies_.empty())) {
       has_value_ = false;
     }
   } else if (other_state.has_value_ && dependencies_.empty()) {
@@ -1368,12 +1345,9 @@ class BasicBlock {
 };
 
 BasicBlock::BasicBlock(size_t index, bool is_dead)
-    : index_(index), is_dead_(is_dead) {
-}
+    : index_(index), is_dead_(is_dead) {}
 
-void BasicBlock::SetDead(bool is_dead) {
-  is_dead_ = is_dead;
-}
+void BasicBlock::SetDead(bool is_dead) { is_dead_ = is_dead; }
 
 void BasicBlock::SetIntValue(size_t r, int value) {
   int_states_[r].SetValue(value, {index_, operations_.size()});
@@ -1390,9 +1364,7 @@ void BasicBlock::SetDoubleValue(size_t r, double value) {
   operations_.push_back(Operation::MakeDCONST(value, r));
 }
 
-void BasicBlock::AddOperation(const Operation& o) {
-  operations_.push_back(o);
-}
+void BasicBlock::AddOperation(const Operation& o) { operations_.push_back(o); }
 
 void BasicBlock::AddUnaryIntOperation(const Operation& o) {
   const int* value = GetIntValue(o.ioperand1());
@@ -1603,8 +1575,8 @@ void BasicBlock::SetDoubleDependency(size_t r, const Operation& o) {
 }
 
 void BasicBlock::AddIntDependency(size_t r, const Operation& o) {
-  if ((o.opcode() == Opcode::INEG || o.opcode() == Opcode::NOT)
-      && !operations_.empty() && operations_.back() == o) {
+  if ((o.opcode() == Opcode::INEG || o.opcode() == Opcode::NOT) &&
+      !operations_.empty() && operations_.back() == o) {
     operations_.back() = Operation::MakeNOP();
   } else {
     int_states_[r].AddDependencies({{index_, operations_.size()}});
@@ -1612,10 +1584,9 @@ void BasicBlock::AddIntDependency(size_t r, const Operation& o) {
   }
 }
 
-
 void BasicBlock::AddDoubleDependency(size_t r, const Operation& o) {
-  if (o.opcode() == Opcode::DNEG
-      && !operations_.empty() && operations_.back() == o) {
+  if (o.opcode() == Opcode::DNEG && !operations_.empty() &&
+      operations_.back() == o) {
     operations_.back() = Operation::MakeNOP();
   } else {
     double_states_[r].AddDependencies({{index_, operations_.size()}});
@@ -1623,8 +1594,7 @@ void BasicBlock::AddDoubleDependency(size_t r, const Operation& o) {
   }
 }
 
-void BasicBlock::AddIntDependenciesFromIntDependencies(size_t r,
-                                                       size_t src_r) {
+void BasicBlock::AddIntDependenciesFromIntDependencies(size_t r, size_t src_r) {
   int_states_[r].AddDependencies(int_states_[src_r].dependencies());
 }
 
@@ -1738,8 +1708,8 @@ void MaybeAddBranch(size_t block_index, const Operation& o, size_t pc,
     block.AddOperation(o);
     MaybeAddBlock(block_index, pc + 1, blocks, block_starts);
     MaybeAddBlock(block_index, o.operand2(), blocks, block_starts);
-  } else if ((o.opcode() == Opcode::IFFALSE && !*value)
-             || (o.opcode() == Opcode::IFTRUE && *value)) {
+  } else if ((o.opcode() == Opcode::IFFALSE && !*value) ||
+             (o.opcode() == Opcode::IFTRUE && *value)) {
     block.AddOperation(Operation::MakeGOTO(o.operand2()));
     MaybeAddDeadBlock(block_index, pc + 1, blocks, block_starts);
     MaybeAddBlock(block_index, o.operand2(), blocks, block_starts);
