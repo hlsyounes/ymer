@@ -100,9 +100,7 @@ int operator%(const TypedValue& v1, const TypedValue& v2) {
   return v1.value<int>() % v2.value<int>();
 }
 
-bool operator!(const TypedValue& v) {
-  return !v.value<bool>();
-}
+bool operator!(const TypedValue& v) { return !v.value<bool>(); }
 
 int floor(const TypedValue& v) {
   return static_cast<int>(floor(v.value<double>()));
@@ -116,9 +114,7 @@ double pow(const TypedValue& v1, const TypedValue& v2) {
   return pow(v1.value<double>(), v2.value<double>());
 }
 
-double log(const TypedValue& v) {
-  return log(v.value<double>());
-}
+double log(const TypedValue& v) { return log(v.value<double>()); }
 
 std::ostream& operator<<(std::ostream& os, const TypedValue& v) {
   switch (v.type()) {

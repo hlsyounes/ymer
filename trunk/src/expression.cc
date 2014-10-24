@@ -53,9 +53,7 @@ class Printer : public ExpressionVisitor, public PathPropertyVisitor {
   int parent_precedence_;
 };
 
-int GetTernaryOperatorPrecedence() {
-  return 0;
-}
+int GetTernaryOperatorPrecedence() { return 0; }
 
 int GetBinaryOperatorPrecedence(BinaryOperator op) {
   switch (op) {
@@ -117,16 +115,11 @@ int GetRightPrecedence(BinaryOperator op, int precedence) {
 }
 
 Printer::Printer(std::ostream* os)
-    : os_(os), parent_precedence_(GetTernaryOperatorPrecedence()) {
-}
+    : os_(os), parent_precedence_(GetTernaryOperatorPrecedence()) {}
 
-void Printer::DoVisitLiteral(const Literal& expr) {
-  *os_ << expr.value();
-}
+void Printer::DoVisitLiteral(const Literal& expr) { *os_ << expr.value(); }
 
-void Printer::DoVisitIdentifier(const Identifier& expr) {
-  *os_ << expr.name();
-}
+void Printer::DoVisitIdentifier(const Identifier& expr) { *os_ << expr.name(); }
 
 void Printer::DoVisitFunctionCall(const FunctionCall& expr) {
   *os_ << expr.function() << '(';
@@ -223,9 +216,7 @@ void Printer::DoVisitUntilProperty(const UntilProperty& path_property) {
 
 Expression::~Expression() = default;
 
-void Expression::Accept(ExpressionVisitor* visitor) const {
-  DoAccept(visitor);
-}
+void Expression::Accept(ExpressionVisitor* visitor) const { DoAccept(visitor); }
 
 std::ostream& operator<<(std::ostream& os, const Expression& e) {
   Printer printer(&os);
@@ -245,9 +236,7 @@ std::ostream& operator<<(std::ostream& os, const PathProperty& e) {
   return os;
 }
 
-Literal::Literal(const TypedValue& value)
-    : value_(value) {
-}
+Literal::Literal(const TypedValue& value) : value_(value) {}
 
 std::unique_ptr<const Literal> Literal::New(const TypedValue& value) {
   return std::unique_ptr<const Literal>(new Literal(value));
@@ -257,9 +246,7 @@ void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
 }
 
-Identifier::Identifier(const std::string& name)
-    : name_(name) {
-}
+Identifier::Identifier(const std::string& name) : name_(name) {}
 
 std::unique_ptr<const Identifier> Identifier::New(const std::string& name) {
   return std::unique_ptr<const Identifier>(new Identifier(name));
@@ -293,13 +280,12 @@ std::ostream& operator<<(std::ostream& os, Function function) {
 
 FunctionCall::FunctionCall(Function function,
                            UniquePtrVector<const Expression>&& arguments)
-    : function_(function), arguments_(std::move(arguments)) {
-}
+    : function_(function), arguments_(std::move(arguments)) {}
 
 std::unique_ptr<const FunctionCall> FunctionCall::New(
     Function function, UniquePtrVector<const Expression>&& arguments) {
-  return std::unique_ptr<const FunctionCall>(new FunctionCall(
-      function, std::move(arguments)));
+  return std::unique_ptr<const FunctionCall>(
+      new FunctionCall(function, std::move(arguments)));
 }
 
 void FunctionCall::DoAccept(ExpressionVisitor* visitor) const {
@@ -318,13 +304,12 @@ std::ostream& operator<<(std::ostream& os, UnaryOperator op) {
 
 UnaryOperation::UnaryOperation(UnaryOperator op,
                                std::unique_ptr<const Expression>&& operand)
-    : op_(op), operand_(std::move(operand)) {
-}
+    : op_(op), operand_(std::move(operand)) {}
 
 std::unique_ptr<const UnaryOperation> UnaryOperation::New(
     UnaryOperator op, std::unique_ptr<const Expression>&& operand) {
-  return std::unique_ptr<const UnaryOperation>(new UnaryOperation(
-      op, std::move(operand)));
+  return std::unique_ptr<const UnaryOperation>(
+      new UnaryOperation(op, std::move(operand)));
 }
 
 void UnaryOperation::DoAccept(ExpressionVisitor* visitor) const {
@@ -368,15 +353,13 @@ std::ostream& operator<<(std::ostream& os, BinaryOperator op) {
 BinaryOperation::BinaryOperation(BinaryOperator op,
                                  std::unique_ptr<const Expression>&& operand1,
                                  std::unique_ptr<const Expression>&& operand2)
-    : op_(op), operand1_(std::move(operand1)), operand2_(std::move(operand2)) {
-}
+    : op_(op), operand1_(std::move(operand1)), operand2_(std::move(operand2)) {}
 
 std::unique_ptr<const BinaryOperation> BinaryOperation::New(
-    BinaryOperator op,
-    std::unique_ptr<const Expression>&& operand1,
+    BinaryOperator op, std::unique_ptr<const Expression>&& operand1,
     std::unique_ptr<const Expression>&& operand2) {
-  return std::unique_ptr<const BinaryOperation>(new BinaryOperation(
-      op, std::move(operand1), std::move(operand2)));
+  return std::unique_ptr<const BinaryOperation>(
+      new BinaryOperation(op, std::move(operand1), std::move(operand2)));
 }
 
 void BinaryOperation::DoAccept(ExpressionVisitor* visitor) const {
@@ -387,8 +370,8 @@ Conditional::Conditional(std::unique_ptr<const Expression>&& condition,
                          std::unique_ptr<const Expression>&& if_branch,
                          std::unique_ptr<const Expression>&& else_branch)
     : condition_(std::move(condition)),
-      if_branch_(std::move(if_branch)), else_branch_(std::move(else_branch)) {
-}
+      if_branch_(std::move(if_branch)),
+      else_branch_(std::move(else_branch)) {}
 
 std::unique_ptr<const Conditional> Conditional::New(
     std::unique_ptr<const Expression>&& condition,
@@ -419,8 +402,9 @@ std::ostream& operator<<(std::ostream& os, ProbabilityThresholdOperator op) {
 ProbabilityThresholdOperation::ProbabilityThresholdOperation(
     ProbabilityThresholdOperator op, double threshold,
     std::unique_ptr<const PathProperty>&& path_property)
-    : op_(op), threshold_(threshold), path_property_(std::move(path_property)) {
-}
+    : op_(op),
+      threshold_(threshold),
+      path_property_(std::move(path_property)) {}
 
 std::unique_ptr<const ProbabilityThresholdOperation>
 ProbabilityThresholdOperation::New(
@@ -438,9 +422,10 @@ void ProbabilityThresholdOperation::DoAccept(ExpressionVisitor* visitor) const {
 UntilProperty::UntilProperty(double min_time, double max_time,
                              std::unique_ptr<const Expression>&& pre_expr,
                              std::unique_ptr<const Expression>&& post_expr)
-    : min_time_(min_time), max_time_(max_time), pre_expr_(std::move(pre_expr)),
-      post_expr_(std::move(post_expr)) {
-}
+    : min_time_(min_time),
+      max_time_(max_time),
+      pre_expr_(std::move(pre_expr)),
+      post_expr_(std::move(post_expr)) {}
 
 std::unique_ptr<const UntilProperty> UntilProperty::New(
     double min_time, double max_time,

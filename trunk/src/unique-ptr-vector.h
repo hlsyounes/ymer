@@ -38,8 +38,15 @@ class UniquePtrVector {
     bool operator==(const Iterator& rhs) const { return i_ == rhs.i_; }
     bool operator!=(const Iterator& rhs) const { return i_ != rhs.i_; }
     T& operator*() const { return **i_; }
-    Iterator& operator++() { ++i_; return *this; }
-    Iterator& operator++(int) { Iterator tmp(*this); ++i_; return tmp; }
+    Iterator& operator++() {
+      ++i_;
+      return *this;
+    }
+    Iterator& operator++(int) {
+      Iterator tmp(*this);
+      ++i_;
+      return tmp;
+    }
 
    private:
     explicit Iterator(
@@ -53,8 +60,8 @@ class UniquePtrVector {
 
   UniquePtrVector() {}
   template <typename InputIterator,
-            typename = typename std::enable_if<
-              std::is_object<typename InputIterator::value_type>::value>::type>
+            typename = typename std::enable_if<std::is_object<
+                typename InputIterator::value_type>::value>::type>
   explicit UniquePtrVector(InputIterator first, InputIterator last) {
     for (InputIterator i = first; i != last; ++i) {
       elements_.push_back(std::move(*i));

@@ -50,7 +50,7 @@ class Expression {
 
   void Accept(ExpressionVisitor* visitor) const;
 
-private:
+ private:
   virtual void DoAccept(ExpressionVisitor* visitor) const = 0;
 };
 
@@ -96,7 +96,7 @@ class Literal : public Expression {
   // Returns the value of this literal.
   const TypedValue& value() const { return value_; }
 
-private:
+ private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
   TypedValue value_;
@@ -114,16 +114,14 @@ class Identifier : public Expression {
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
 
-private:
+ private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
   std::string name_;
 };
 
 // Supported functions.
-enum class Function {
-  UNKNOWN, MIN, MAX, FLOOR, CEIL, POW, LOG, MOD
-};
+enum class Function { UNKNOWN, MIN, MAX, FLOOR, CEIL, POW, LOG, MOD };
 
 // Output operator for functions.
 std::ostream& operator<<(std::ostream& os, Function function);
@@ -155,9 +153,7 @@ class FunctionCall : public Expression {
 };
 
 // Supported uniary operators.
-enum class UnaryOperator {
-  NEGATE, NOT
-};
+enum class UnaryOperator { NEGATE, NOT };
 
 // Output operator for unary operators.
 std::ostream& operator<<(std::ostream& os, UnaryOperator op);
@@ -188,8 +184,20 @@ class UnaryOperation : public Expression {
 
 // Supported binary operators.
 enum class BinaryOperator {
-  PLUS, MINUS, MULTIPLY, DIVIDE, AND, OR, IMPLY, IFF,
-  LESS, LESS_EQUAL, GREATER_EQUAL, GREATER, EQUAL, NOT_EQUAL
+  PLUS,
+  MINUS,
+  MULTIPLY,
+  DIVIDE,
+  AND,
+  OR,
+  IMPLY,
+  IFF,
+  LESS,
+  LESS_EQUAL,
+  GREATER_EQUAL,
+  GREATER,
+  EQUAL,
+  NOT_EQUAL
 };
 
 // Output operator for binary operators.
@@ -205,8 +213,7 @@ class BinaryOperation : public Expression {
 
   // Factory method for binary operations.
   static std::unique_ptr<const BinaryOperation> New(
-      BinaryOperator op,
-      std::unique_ptr<const Expression>&& operand1,
+      BinaryOperator op, std::unique_ptr<const Expression>&& operand1,
       std::unique_ptr<const Expression>&& operand2);
 
   // Returns the operator for this binary operation.
@@ -218,7 +225,7 @@ class BinaryOperation : public Expression {
   // Returns the second operand for this binary operation.
   const Expression& operand2() const { return *operand2_; }
 
-private:
+ private:
   virtual void DoAccept(ExpressionVisitor* visitor) const;
 
   BinaryOperator op_;
@@ -259,7 +266,10 @@ class Conditional : public Expression {
 
 // Supported operators for probability threshold operations.
 enum class ProbabilityThresholdOperator {
-  LESS, LESS_EQUAL, GREATER_EQUAL, GREATER
+  LESS,
+  LESS_EQUAL,
+  GREATER_EQUAL,
+  GREATER
 };
 
 // Output operator for probability threshold operators.

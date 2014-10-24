@@ -35,12 +35,45 @@
 // Opcodes supported by the virtual machine used for evaluating compiled
 // expressions.
 enum class Opcode {
-  ICONST, DCONST, ILOAD, I2D,
-  INEG, DNEG, NOT,
-  IADD, DADD, ISUB, DSUB, IMUL, DMUL, DDIV,
-  IEQ, DEQ, INE, DNE, ILT, DLT, ILE, DLE, IGE, DGE, IGT, DGT,
-  IFFALSE, IFTRUE, GOTO, NOP,
-  IMIN, DMIN, IMAX, DMAX, FLOOR, CEIL, POW, LOG, MOD
+  ICONST,
+  DCONST,
+  ILOAD,
+  I2D,
+  INEG,
+  DNEG,
+  NOT,
+  IADD,
+  DADD,
+  ISUB,
+  DSUB,
+  IMUL,
+  DMUL,
+  DDIV,
+  IEQ,
+  DEQ,
+  INE,
+  DNE,
+  ILT,
+  DLT,
+  ILE,
+  DLE,
+  IGE,
+  DGE,
+  IGT,
+  DGT,
+  IFFALSE,
+  IFTRUE,
+  GOTO,
+  NOP,
+  IMIN,
+  DMIN,
+  IMAX,
+  DMAX,
+  FLOOR,
+  CEIL,
+  POW,
+  LOG,
+  MOD
 };
 
 // Output operator for opcodes.
@@ -168,7 +201,10 @@ class Operation {
   Operation(Opcode opcode, double operand1, int operand2);
 
   Opcode opcode_;
-  union { int i; double d; } operand1_;
+  union {
+    int i;
+    double d;
+  } operand1_;
   int operand2_;
 };
 
@@ -258,8 +294,8 @@ class IdentifierInfo {
   TypedValue constant_value() const { return constant_value_; }
 
  private:
-  explicit IdentifierInfo(
-      Type type, int variable_index, const TypedValue& constant_value);
+  explicit IdentifierInfo(Type type, int variable_index,
+                          const TypedValue& constant_value);
 
   Type type_;
   int variable_index_;
@@ -271,8 +307,7 @@ class IdentifierInfo {
 // error, the result contains an empty compiled expression and the errors vector
 // will be populated with error messages.
 CompileExpressionResult CompileExpression(
-    const Expression& expr,
-    Type expected_type,
+    const Expression& expr, Type expected_type,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name);
 
 // Optimizes the given expression, assuming it evaluates to an integer in
