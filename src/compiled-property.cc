@@ -163,19 +163,22 @@ bool HasOneProbabilistic(
 CompiledNaryProperty::CompiledNaryProperty(
     CompiledNaryOperator op,
     const CompiledExpression& optional_expr_operand,
+    const BDD& expr_operand_bdd,
     UniquePtrVector<const CompiledProperty>&& other_operands)
     : CompiledProperty(HasOneProbabilistic(other_operands)),
       op_(op),
       optional_expr_operand_(optional_expr_operand),
+      expr_operand_bdd_(expr_operand_bdd),
       other_operands_(std::move(other_operands)) {
 }
 
 std::unique_ptr<const CompiledNaryProperty> CompiledNaryProperty::New(
     CompiledNaryOperator op,
     const CompiledExpression& optional_expr_operand,
+    const BDD& expr_operand_bdd,
     UniquePtrVector<const CompiledProperty>&& other_operands) {
   return std::unique_ptr<const CompiledNaryProperty>(new CompiledNaryProperty(
-      op, optional_expr_operand, std::move(other_operands)));
+      op, optional_expr_operand, expr_operand_bdd, std::move(other_operands)));
 }
 
 void CompiledNaryProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
@@ -252,24 +255,24 @@ CompiledUntilProperty::CompiledUntilProperty(
     double min_time, double max_time,
     std::unique_ptr<const CompiledProperty>&& pre_property,
     std::unique_ptr<const CompiledProperty>&& post_property,
-    int index, const std::string& string, const Until* formula)
+    int index, const std::string& string)
     : CompiledPathProperty(
           index,
           pre_property->is_probabilistic() || post_property->is_probabilistic(),
           string),
       min_time_(min_time), max_time_(max_time),
       pre_property_(std::move(pre_property)),
-      post_property_(std::move(post_property)), formula_(formula) {
+      post_property_(std::move(post_property)) {
 }
 
 std::unique_ptr<const CompiledUntilProperty> CompiledUntilProperty::New(
     double min_time, double max_time,
     std::unique_ptr<const CompiledProperty>&& pre_property,
     std::unique_ptr<const CompiledProperty>&& post_property,
-    int index, const std::string& string, const Until* formula) {
+    int index, const std::string& string) {
   return std::unique_ptr<const CompiledUntilProperty>(new CompiledUntilProperty(
       min_time, max_time, std::move(pre_property), std::move(post_property),
-      index, string, formula));
+      index, string));
 }
 
 void CompiledUntilProperty::DoAccept(
@@ -713,8 +716,7 @@ void CompiledPathPropertyOptimizer::DoVisitCompiledUntilProperty(
       path_property.min_time(), path_property.max_time(),
       OptimizeProperty(path_property.pre_property()),
       OptimizeProperty(path_property.post_property()),
-      path_property.index(), path_property.string(),
-      path_property.formula_ptr());
+      path_property.index(), path_property.string());
 }
 
 }  // namespace

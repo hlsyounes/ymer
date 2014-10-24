@@ -22,36 +22,44 @@
  */
 
 #include "formulas.h"
-#include "models.h"
-#include "hybrid.h"
-#include "cudd.h"
+
 #include <float.h>
+
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 
+#include "models.h"
+#include "hybrid.h"
+#include "src/compiled-property.h"
+
+#include "cudd.h"
+
 namespace {
 
-class SymbolicVerifier : public StateFormulaVisitor, public PathFormulaVisitor {
+class SymbolicVerifier
+    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
  public:
   explicit SymbolicVerifier(const DecisionDiagramModel* dd_model,
-                            bool estimate, bool top_level_formula,
+                            bool estimate, bool top_level_property,
                             double epsilon);
 
   BDD result() const { return result_; }
 
  private:
-  virtual void DoVisitConjunction(const Conjunction& formula);
-  virtual void DoVisitDisjunction(const Disjunction& formula);
-  virtual void DoVisitNegation(const Negation& formula);
-  virtual void DoVisitImplication(const Implication& formula);
-  virtual void DoVisitProbabilistic(const Probabilistic& formula);
-  virtual void DoVisitComparison(const Comparison& formula);
-  virtual void DoVisitUntil(const Until& formula);
+  virtual void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property);
+  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
+  virtual void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property);
+  virtual void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property);
+  virtual void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property);
 
   const DecisionDiagramModel* dd_model_;
   bool estimate_;
-  bool top_level_formula_;
+  bool top_level_property_;
   double epsilon_;
   double threshold_;
   bool strict_;
@@ -59,53 +67,75 @@ class SymbolicVerifier : public StateFormulaVisitor, public PathFormulaVisitor {
 };
 
 SymbolicVerifier::SymbolicVerifier(const DecisionDiagramModel* dd_model,
-                                   bool estimate, bool top_level_formula,
+                                   bool estimate, bool top_level_property,
                                    double epsilon)
     : dd_model_(dd_model), estimate_(estimate),
-      top_level_formula_(top_level_formula), epsilon_(epsilon),
+      top_level_property_(top_level_property), epsilon_(epsilon),
       result_(dd_model->manager().GetConstant(false)) {
 }
 
-void SymbolicVerifier::DoVisitConjunction(const Conjunction& formula) {
-  BDD result = dd_model_->reachable_states();
-  for (const StateFormula* conjunct : formula.conjuncts()) {
-    conjunct->Accept(this);
-    result = result_ && result;
+void SymbolicVerifier::DoVisitCompiledNaryProperty(
+    const CompiledNaryProperty& property) {
+  switch (property.op()) {
+    case CompiledNaryOperator::AND: {
+      BDD result = dd_model_->manager().GetConstant(true);
+      if (property.has_expr_operand()) {
+        result = property.expr_operand_bdd() && result;
+      }
+      for (const CompiledProperty& operand : property.other_operands()) {
+        operand.Accept(this);
+        result = result_ && result;
+      }
+      result_ = result;
+      break;
+    }
+    case CompiledNaryOperator::OR: {
+      BDD result = dd_model_->manager().GetConstant(false);
+      if (property.has_expr_operand()) {
+        result = property.expr_operand_bdd() || result;
+      }
+      for (const CompiledProperty& operand : property.other_operands()) {
+        operand.Accept(this);
+        result = result_ || result;
+      }
+      result_ = result;
+      break;
+    }
+    case CompiledNaryOperator::IFF: {
+      BDD result = dd_model_->manager().GetConstant(false);
+      bool has_result = false;
+      if (property.has_expr_operand()) {
+        result = property.expr_operand_bdd();
+        has_result = true;
+      }
+      for (const CompiledProperty& operand : property.other_operands()) {
+        operand.Accept(this);
+        result = has_result ? result == result_ : result_;
+        has_result = true;
+      }
+      result_ = result;
+      break;
+    }
   }
-  result_ = result;
+  result_ = dd_model_->reachable_states() && result_;
 }
 
-void SymbolicVerifier::DoVisitDisjunction(const Disjunction& formula) {
-  BDD result = dd_model_->manager().GetConstant(false);
-  for (const StateFormula* disjunct : formula.disjuncts()) {
-    disjunct->Accept(this);
-    result = result_ || result;
-  }
-  result_ = dd_model_->reachable_states() && result;
-}
-
-void SymbolicVerifier::DoVisitNegation(const Negation& formula) {
-  formula.negand().Accept(this);
+void SymbolicVerifier::DoVisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  property.operand().Accept(this);
   result_ = dd_model_->reachable_states() && !result_;
 }
 
-void SymbolicVerifier::DoVisitImplication(const Implication& formula) {
-  formula.antecedent().Accept(this);
-  BDD result1 = result_;
-  formula.consequent().Accept(this);
-  result_ = dd_model_->reachable_states() && (!result1 || result_);
+void SymbolicVerifier::DoVisitCompiledProbabilityThresholdProperty(
+    const CompiledProbabilityThresholdProperty& property) {
+  threshold_ = property.threshold();
+  strict_ = property.op() == CompiledProbabilityThresholdOperator::GREATER;
+  property.path_property().Accept(this);
 }
 
-void SymbolicVerifier::DoVisitProbabilistic(const Probabilistic& formula) {
-  threshold_ = formula.threshold().value<double>();
-  strict_ = formula.strict();
-  formula.formula().Accept(this);
-}
-
-void SymbolicVerifier::DoVisitComparison(const Comparison& formula) {
-  result_ =
-      bdd(dd_model_->manager(), dd_model_->variable_properties(), formula);
-  result_ = result_ && dd_model_->reachable_states();
+void SymbolicVerifier::DoVisitCompiledExpressionProperty(
+    const CompiledExpressionProperty& property) {
+  result_ = dd_model_->reachable_states() && property.bdd();
 }
 
 // Recursive component of mtbdd_to_double_vector.
@@ -351,7 +381,8 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
   weight_sum += weights[s - left];
 }
 
-void SymbolicVerifier::DoVisitUntil(const Until& formula) {
+void SymbolicVerifier::DoVisitCompiledUntilProperty(
+    const CompiledUntilProperty& path_property) {
   /*
    * Detect trivial cases.
    */
@@ -366,33 +397,33 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   }
 
   /*
-   * Verify postcondition formula.
+   * Verify postcondition property.
    */
   bool estimate = false;
-  bool top_level_formula = false;
+  bool top_level_property = false;
   std::swap(estimate_, estimate);
-  std::swap(top_level_formula_, top_level_formula);
-  formula.post().Accept(this);
+  std::swap(top_level_property_, top_level_property);
+  path_property.post_property().Accept(this);
   BDD dd2 = result_;
   std::swap(estimate_, estimate);
-  std::swap(top_level_formula_, top_level_formula);
-  if (formula.max_time() == 0) {
+  std::swap(top_level_property_, top_level_property);
+  if (path_property.max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
     result_ = dd2;
     return;
   }
 
   /*
-   * Verify precondition formula.
+   * Verify precondition property.
    */
   std::swap(estimate_, estimate);
-  std::swap(top_level_formula_, top_level_formula);
-  formula.pre().Accept(this);
+  std::swap(top_level_property_, top_level_property);
+  path_property.pre_property().Accept(this);
   BDD dd1 = result_;
   std::swap(estimate_, estimate);
-  std::swap(top_level_formula_, top_level_formula);
+  std::swap(top_level_property_, top_level_property);
 
-  if (formula.min_time() > 0) {
+  if (path_property.min_time() > 0) {
     // TODO(hlsyounes): implement support for interval time bounds.
     throw std::invalid_argument("interval time bounds not supported");
   }
@@ -411,7 +442,7 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   /* Transient analysis. */
 
   /* Time limit. */
-  double time = formula.max_time().value<double>();
+  double time = path_property.max_time();
   /* ODD for model. */
   ODDNode* odd = dd_model_->odd();
   /* Number of states. */
@@ -420,23 +451,23 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   /*
    * Build HDD for matrix.
    */
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << "Building hybrid MTBDD matrix...";
   }
   ADD ddR = dd_model_->rate_matrix() * ADD(maybe);
   HDDMatrix* hddm = build_hdd_matrix(dd_model_->manager(), ddR, odd);
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << hddm->num_nodes << " nodes." << std::endl;
   }
 
   /*
    * Add sparse bits.
    */
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << "Adding sparse bits...";
   }
   add_sparse_bits(hddm);
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
               << std::endl;
   }
@@ -470,7 +501,7 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
    */
   double* soln = mtbdd_to_double_vector(dd_model_->manager(), ADD(dd2), odd);
   double* soln2 = new double[nstates];
-  int init = top_level_formula_ ? dd_model_->initial_state_index() : -1;
+  int init = top_level_property_ ? dd_model_->initial_state_index() : -1;
   std::vector<double> sum((init >= 0) ? 1 : nstates, 0);
 
   /*
@@ -479,13 +510,13 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   int left, right;
   double* weights;
   double weight_sum;
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << "Uniformization: " << max_diag << "*" << time << " = "
               << (max_diag*time) << std::endl;
   }
   fox_glynn_weighter(left, right, weights, weight_sum,
 		     1.01*max_diag*time, epsilon_);
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << "Fox-Glynn: left = " << left << ", right = " << right
               << std::endl;
   }
@@ -493,14 +524,14 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   /*
    * Iterations before left bound to update vector.
    */
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << "Computing probabilities";
   }
   int iters;
   bool done = false;
   bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
-    if (top_level_formula_) {
+    if (top_level_property_) {
       if (iters % 1000 == 0) {
         std::cout << ':';
       } else if (iters % 100 == 0) {
@@ -553,7 +584,7 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
    * Accumulate weights.
    */
   for (; iters <= right && !done; iters++) {
-    if (top_level_formula_) {
+    if (top_level_property_) {
       if (iters % 1000 == 0) {
         std::cout << ':';
       } else if (iters % 100 == 0) {
@@ -649,15 +680,16 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
   if (iters > right) {
     iters = right;
   }
-  if (top_level_formula_) {
+  if (top_level_property_) {
     std::cout << ' ' << iters << " iterations." << std::endl;
   }
   if (estimate_) {
     std::cout.precision(10);
-    std::cout << "Pr[" << formula << "] = " << sum[0] << std::endl;
+    std::cout << "Pr[" << path_property.string() << "] = " << sum[0]
+              << std::endl;
     std::cout.precision(6);
   }
-  if (steady && top_level_formula_) {
+  if (steady && top_level_property_) {
     std::cout << "Steady state detected." << std::endl;
   }
   /*
@@ -687,9 +719,10 @@ void SymbolicVerifier::DoVisitUntil(const Until& formula) {
 
 }  // namespace
 
-BDD Verify(const StateFormula& property, const DecisionDiagramModel& dd_model,
-           bool estimate, bool top_level_formula, double epsilon) {
-  SymbolicVerifier verifier(&dd_model, estimate, top_level_formula, epsilon);
+BDD Verify(const CompiledProperty& property,
+           const DecisionDiagramModel& dd_model,
+           bool estimate, bool top_level_property, double epsilon) {
+  SymbolicVerifier verifier(&dd_model, estimate, top_level_property, epsilon);
   property.Accept(&verifier);
   return verifier.result();
 }

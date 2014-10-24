@@ -543,8 +543,9 @@ bool Verify(const CompiledProperty& property,
             CompiledExpressionEvaluator* evaluator, const State& state,
             ModelCheckingStats* stats);
 
-BDD Verify(const StateFormula& property, const DecisionDiagramModel& dd_model,
-           bool estimate, bool top_level_formula, double epsilon);
+BDD Verify(const CompiledProperty& property,
+           const DecisionDiagramModel& dd_model,
+           bool estimate, bool top_level_property, double epsilon);
 
 bool GetObservation(const CompiledPathProperty& property,
                     const Model& model, const DecisionDiagramModel* dd_model,

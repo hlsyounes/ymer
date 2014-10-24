@@ -1078,7 +1078,8 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
         dd_manager_->GetConstant(true));
   } else {
     property_ = CompiledNaryProperty::New(
-        CompiledNaryOperator::AND, CompiledExpression({}), std::move(operands));
+        CompiledNaryOperator::AND, CompiledExpression({}),
+        dd_manager_->GetConstant(false), std::move(operands));
   }
 }
 
@@ -1096,7 +1097,8 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
         dd_manager_->GetConstant(false));
   } else {
     property_ = CompiledNaryProperty::New(
-        CompiledNaryOperator::OR, CompiledExpression({}), std::move(operands));
+        CompiledNaryOperator::OR, CompiledExpression({}),
+        dd_manager_->GetConstant(false), std::move(operands));
   }
 }
 
@@ -1112,7 +1114,8 @@ void PropertyCompiler::DoVisitImplication(const Implication& formula) {
   formula.consequent().Accept(this);
   operands.push_back(std::move(property_));
   property_ = CompiledNaryProperty::New(
-      CompiledNaryOperator::OR, CompiledExpression({}), std::move(operands));
+      CompiledNaryOperator::OR, CompiledExpression({}),
+      dd_manager_->GetConstant(false), std::move(operands));
 }
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
@@ -1162,7 +1165,7 @@ void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
       &next_index_, errors_);
   path_property_ = CompiledUntilProperty::New(
       formula.min_time().value<double>(), formula.max_time().value<double>(),
-      std::move(pre), std::move(post), index, StrCat(formula), &formula);
+      std::move(pre), std::move(post), index, StrCat(formula));
 }
 
 std::unique_ptr<const CompiledProperty> CompileProperty(
@@ -1724,6 +1727,8 @@ int main(int argc, char* argv[]) {
       for (auto fi = properties.begin(); fi != properties.end(); fi++) {
 	std::cout << std::endl << "Model checking " << **fi << " ..."
 		  << std::endl;
+        std::unique_ptr<const CompiledProperty> property =
+            CompileAndOptimizeProperty(**fi, compiled_model, dd_man, &errors);
 	double total_time = 0.0;
 	bool accepted = false;
 	for (size_t i = 0; i < trials; i++) {
@@ -1736,7 +1741,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = Verify(**fi, dd_model, estimate, true, params.epsilon);
+	  BDD ddf = Verify(*property, dd_model, estimate, true, params.epsilon);
 	  BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
