@@ -98,11 +98,13 @@ class CompiledNaryProperty : public CompiledProperty {
   explicit CompiledNaryProperty(
       CompiledNaryOperator op,
       const CompiledExpression& optional_expr_operand,
+      const BDD& expr_operand_bdd,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
   static std::unique_ptr<const CompiledNaryProperty> New(
       CompiledNaryOperator op,
       const CompiledExpression& optional_expr_operand,
+      const BDD& expr_operand_bdd,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
   CompiledNaryOperator op() const { return op_; }
@@ -115,6 +117,8 @@ class CompiledNaryProperty : public CompiledProperty {
     return optional_expr_operand_;
   }
 
+  const BDD& expr_operand_bdd() const { return expr_operand_bdd_; }
+
   const UniquePtrVector<const CompiledProperty>& other_operands() const {
     return other_operands_;
   }
@@ -124,6 +128,7 @@ class CompiledNaryProperty : public CompiledProperty {
 
   CompiledNaryOperator op_;
   CompiledExpression optional_expr_operand_;
+  BDD expr_operand_bdd_;
   UniquePtrVector<const CompiledProperty> other_operands_;
 };
 
@@ -199,23 +204,19 @@ class CompiledExpressionProperty : public CompiledProperty {
   BDD bdd_;
 };
 
-// TODO(hlsyounes): get rid of dependency on Until class.
-class Until;
-
 // A compiled until property.
 class CompiledUntilProperty : public CompiledPathProperty {
  public:
   explicit CompiledUntilProperty(double min_time, double max_time,
                                  std::unique_ptr<const CompiledProperty>&& pre,
                                  std::unique_ptr<const CompiledProperty>&& post,
-                                 int index, const std::string& string,
-                                 const Until* formula);
+                                 int index, const std::string& string);
 
   static std::unique_ptr<const CompiledUntilProperty> New(
       double min_time, double max_time,
       std::unique_ptr<const CompiledProperty>&& pre_property,
       std::unique_ptr<const CompiledProperty>&& post_property,
-      int index, const std::string& string, const Until* formula);
+      int index, const std::string& string);
 
   double min_time() const { return min_time_; }
 
@@ -225,9 +226,6 @@ class CompiledUntilProperty : public CompiledPathProperty {
 
   const CompiledProperty& post_property() const { return *post_property_; }
 
-  const Until& formula() const { return *formula_; }
-  const Until* formula_ptr() const { return formula_; }
-
  private:
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const;
 
@@ -235,7 +233,6 @@ class CompiledUntilProperty : public CompiledPathProperty {
   double max_time_;
   std::unique_ptr<const CompiledProperty> pre_property_;
   std::unique_ptr<const CompiledProperty> post_property_;
-  const Until* formula_;
 };
 
 // Abstract base class for compiled property visitors.

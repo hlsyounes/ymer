@@ -505,9 +505,9 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     // Mixed engine.
     cached_dds = dd_cache_.find(path_property.index());
     if (cached_dds == dd_cache_.end()) {
-      BDD dd1 = Verify(path_property.formula().pre(), *dd_model_, false, false,
+      BDD dd1 = Verify(path_property.pre_property(), *dd_model_, false, false,
           params_.epsilon);
-      BDD dd2 = Verify(path_property.formula().post(), *dd_model_, false, false,
+      BDD dd2 = Verify(path_property.post_property(), *dd_model_, false, false,
                        params_.epsilon);
       cached_dds = dd_cache_.insert(
           {path_property.index(), std::make_pair(dd1, dd2)}).first;
