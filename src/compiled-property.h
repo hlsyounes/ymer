@@ -85,9 +85,7 @@ class CompiledPathProperty {
 std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 
 // Supported operators for compiled n-ary logic operator property.
-enum class CompiledNaryOperator {
-  AND, OR, IFF
-};
+enum class CompiledNaryOperator { AND, OR, IFF };
 
 // Output operator for compiled n-ary logic operators.
 std::ostream& operator<<(std::ostream& os, CompiledNaryOperator op);
@@ -96,14 +94,12 @@ std::ostream& operator<<(std::ostream& os, CompiledNaryOperator op);
 class CompiledNaryProperty : public CompiledProperty {
  public:
   explicit CompiledNaryProperty(
-      CompiledNaryOperator op,
-      const CompiledExpression& optional_expr_operand,
+      CompiledNaryOperator op, const CompiledExpression& optional_expr_operand,
       const BDD& expr_operand_bdd,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
   static std::unique_ptr<const CompiledNaryProperty> New(
-      CompiledNaryOperator op,
-      const CompiledExpression& optional_expr_operand,
+      CompiledNaryOperator op, const CompiledExpression& optional_expr_operand,
       const BDD& expr_operand_bdd,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
@@ -150,9 +146,7 @@ class CompiledNotProperty : public CompiledProperty {
 };
 
 // Supported operators for compiled probabability threshold operations.
-enum class CompiledProbabilityThresholdOperator {
-  GREATER_EQUAL, GREATER
-};
+enum class CompiledProbabilityThresholdOperator { GREATER_EQUAL, GREATER };
 
 // Output operator for compiled probability threshold operators.
 std::ostream& operator<<(std::ostream& os,
@@ -166,8 +160,7 @@ class CompiledProbabilityThresholdProperty : public CompiledProperty {
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
   static std::unique_ptr<const CompiledProbabilityThresholdProperty> New(
-      CompiledProbabilityThresholdOperator op,
-      double threshold,
+      CompiledProbabilityThresholdOperator op, double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
   CompiledProbabilityThresholdOperator op() const { return op_; }
@@ -187,8 +180,8 @@ class CompiledProbabilityThresholdProperty : public CompiledProperty {
 // A compiled expression property.
 class CompiledExpressionProperty : public CompiledProperty {
  public:
-  explicit CompiledExpressionProperty(
-      const CompiledExpression& expr, const BDD& bdd);
+  explicit CompiledExpressionProperty(const CompiledExpression& expr,
+                                      const BDD& bdd);
 
   static std::unique_ptr<const CompiledExpressionProperty> New(
       const CompiledExpression& expr, const BDD& bdd);
@@ -215,8 +208,8 @@ class CompiledUntilProperty : public CompiledPathProperty {
   static std::unique_ptr<const CompiledUntilProperty> New(
       double min_time, double max_time,
       std::unique_ptr<const CompiledProperty>&& pre_property,
-      std::unique_ptr<const CompiledProperty>&& post_property,
-      int index, const std::string& string);
+      std::unique_ptr<const CompiledProperty>&& post_property, int index,
+      const std::string& string);
 
   double min_time() const { return min_time_; }
 
