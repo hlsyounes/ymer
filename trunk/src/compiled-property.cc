@@ -370,6 +370,8 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
   virtual void DoVisitUntilProperty(const UntilProperty& path_property);
 
   CompilerState state_;
+  int next_path_property_index_;
+  std::unique_ptr<const CompiledPathProperty> path_property_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   const DecisionDiagramManager* dd_manager_;
   std::vector<std::string>* errors_;
@@ -422,31 +424,29 @@ void PropertyCompiler::DoVisitConditional(const Conditional& expr) {
 
 void PropertyCompiler::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
-  CompilePathPropertyResult result =
-      CompilePathProperty(expr.path_property(), *identifiers_by_name_);
-  errors_->insert(errors_->end(), result.errors.begin(), result.errors.end());
+  expr.path_property().Accept(this);
   switch (expr.op()) {
     case ProbabilityThresholdOperator::LESS:
       state_ = CompilerState(
           CompiledNotProperty::New(CompiledProbabilityThresholdProperty::New(
               CompiledProbabilityThresholdOperator::GREATER_EQUAL,
-              expr.threshold(), std::move(result.path_property))));
+              expr.threshold(), std::move(path_property_))));
       return;
     case ProbabilityThresholdOperator::LESS_EQUAL:
       state_ = CompilerState(
           CompiledNotProperty::New(CompiledProbabilityThresholdProperty::New(
               CompiledProbabilityThresholdOperator::GREATER, expr.threshold(),
-              std::move(result.path_property))));
+              std::move(path_property_))));
       return;
     case ProbabilityThresholdOperator::GREATER_EQUAL:
       state_ = CompilerState(CompiledProbabilityThresholdProperty::New(
           CompiledProbabilityThresholdOperator::GREATER_EQUAL, expr.threshold(),
-          std::move(result.path_property)));
+          std::move(path_property_)));
       return;
     case ProbabilityThresholdOperator::GREATER:
       state_ = CompilerState(CompiledProbabilityThresholdProperty::New(
           CompiledProbabilityThresholdOperator::GREATER, expr.threshold(),
-          std::move(result.path_property)));
+          std::move(path_property_)));
       return;
   }
   LOG(FATAL) << "bad probability threshold operator";
@@ -454,7 +454,16 @@ void PropertyCompiler::DoVisitProbabilityThresholdOperation(
 
 void PropertyCompiler::DoVisitUntilProperty(
     const UntilProperty& path_property) {
-  errors_->push_back("not implemented");
+  const double min_time = path_property.min_time();
+  const double max_time = path_property.max_time();
+  const int index = next_path_property_index_;
+  ++next_path_property_index_;
+  path_property.pre_expr().Accept(this);
+  std::unique_ptr<const CompiledProperty>&& pre_property = release_property();
+  path_property.post_expr().Accept(this);
+  path_property_ = CompiledUntilProperty::New(
+      min_time, max_time, std::move(pre_property), release_property(), index,
+      StrCat(path_property));
 }
 
 }  // namespace
@@ -467,48 +476,6 @@ CompilePropertyResult CompileProperty(
   PropertyCompiler compiler(&identifiers_by_name, &dd_manager, &result.errors);
   expr.Accept(&compiler);
   result.property = compiler.release_property();
-  return std::move(result);
-}
-
-namespace {
-
-class PathPropertyCompiler : public PathPropertyVisitor {
- public:
-  PathPropertyCompiler(
-      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
-      std::vector<std::string>* errors);
-
-  std::unique_ptr<const CompiledPathProperty> release_path_property() {
-    return std::move(path_property_);
-  }
-
- private:
-  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
-
-  std::unique_ptr<const CompiledPathProperty> path_property_;
-  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
-  std::vector<std::string>* errors_;
-};
-
-PathPropertyCompiler::PathPropertyCompiler(
-    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
-    std::vector<std::string>* errors)
-    : identifiers_by_name_(identifiers_by_name), errors_(errors) {}
-
-void PathPropertyCompiler::DoVisitUntilProperty(
-    const UntilProperty& path_property) {
-  errors_->push_back("not implemented");
-}
-
-}  // namespace
-
-CompilePathPropertyResult CompilePathProperty(
-    const PathProperty& path_property,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
-  CompilePathPropertyResult result;
-  PathPropertyCompiler compiler(&identifiers_by_name, &result.errors);
-  path_property.Accept(&compiler);
-  result.path_property = compiler.release_path_property();
   return std::move(result);
 }
 
@@ -709,17 +676,6 @@ std::unique_ptr<const CompiledProperty> OptimizeProperty(
   CompiledPropertyOptimizer optimizer;
   property.Accept(&optimizer);
   return optimizer.release_property();
-#else
-  return nullptr;
-#endif
-}
-
-std::unique_ptr<const CompiledPathProperty> OptimizePathProperty(
-    const CompiledPathProperty& path_property) {
-#if 0
-  CompiledPathPropertyOptimizer optimizer;
-  path_property.Accept(&optimizer);
-  return optimizer.release_path_property();
 #else
   return nullptr;
 #endif

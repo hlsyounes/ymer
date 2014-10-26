@@ -282,27 +282,8 @@ CompilePropertyResult CompileProperty(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const DecisionDiagramManager& dd_manager);
 
-// The result of a path property compilation on success, path_property will hold
-// the compiled path propetty.  On error, path_property will be null and errors
-// will be populated with error message.
-struct CompilePathPropertyResult {
-  std::unique_ptr<const CompiledPathProperty> path_property;
-  std::vector<std::string> errors;
-};
-
-// Compiles the given path property, using the given identifier name to info map
-// to compile identifiers.  On error, the result contains a null compiled path
-// property and the errors vector will be populated with error messages.
-CompilePathPropertyResult CompilePathProperty(
-    const PathProperty& path_property,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name);
-
 // Optimizes the given property.
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
     const CompiledProperty& property);
-
-// Optimizes the given path property.
-std::unique_ptr<const CompiledPathProperty> OptimizePathProperty(
-    const CompiledPathProperty& path_property);
 
 #endif  // COMPILED_PROPERTY_H_

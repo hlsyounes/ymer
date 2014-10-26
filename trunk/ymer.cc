@@ -260,51 +260,6 @@ bool read_file(const std::string& filename) {
   return success;
 }
 
-
-/* Extracts a path formula from the given state formula. */
-bool extract_path_formula(const PathFormula*& pf, double& theta,
-			  const StateFormula& f) {
-  const Conjunction* cf = dynamic_cast<const Conjunction*>(&f);
-  if (cf != 0) {
-    for (const StateFormula* conjunct : cf->conjuncts()) {
-      if (!extract_path_formula(pf, theta, *conjunct)) {
-	return false;
-      }
-    }
-    return true;
-  }
-  const Disjunction* df = dynamic_cast<const Disjunction*>(&f);
-  if (df != 0) {
-    for (const StateFormula* disjunct : df->disjuncts()) {
-      if (!extract_path_formula(pf, theta, *disjunct)) {
-	return false;
-      }
-    }
-    return true;
-  }
-  const Negation* nf = dynamic_cast<const Negation*>(&f);
-  if (nf != 0) {
-    return extract_path_formula(pf, theta, nf->negand());
-  }
-  const Implication* wf = dynamic_cast<const Implication*>(&f);
-  if (wf != 0) {
-    return (extract_path_formula(pf, theta, wf->antecedent())
-	    && extract_path_formula(pf, theta, wf->consequent()));
-  }
-  const Probabilistic* qf = dynamic_cast<const Probabilistic*>(&f);
-  if (qf != 0) {
-    if (pf == 0) {
-      pf = &qf->formula();
-      theta = qf->threshold().value<double>();
-      return true;
-    } else {
-      pf = 0;
-      return false;
-    }
-  }
-  return true;
-}
-
 class ExpressionCompiler
     : public ExpressionVisitor, public StateFormulaVisitor {
  public:
@@ -1201,36 +1156,55 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
 #endif
 }
 
-std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
-    const PathFormula& property,
-    const CompiledModel& model,
-    const DecisionDiagramManager& dd_manager,
-    std::vector<std::string>* errors) {
-  std::map<std::string, int> variables_by_name;
-  std::map<std::string, VariableProperties> variable_properties;
-  int low_bit = 0;
-  for (const CompiledVariable& v : model.variables()) {
-    variables_by_name.insert({ v.name(), variables_by_name.size() });
-    const int num_bits = Log2(v.max_value() - v.min_value()) + 1;
-    VariableProperties p(v.min_value(), low_bit, low_bit + num_bits - 1);
-    variable_properties.insert({ v.name(), p });
-    low_bit += num_bits;
-  }
-  int next_index = 0;
-  return CompilePathProperty(property, variables_by_name, dd_manager,
-                             variable_properties, &next_index, errors);
+namespace {
+
+class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
+ public:
+  const CompiledPathProperty* PathProperty();
+
+ private:
+  virtual void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property);
+  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
+  virtual void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property);
+  virtual void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property);
+
+  std::vector<const CompiledPathProperty*> path_properties_;
+};
+
+const CompiledPathProperty* CompiledPathPropertyExtractor::PathProperty() {
+  return path_properties_.size() == 1 ? path_properties_[0] : nullptr;
 }
 
-std::unique_ptr<const CompiledPathProperty> OptimizeAndCompilePathProperty(
-    const PathFormula& property,
-    const CompiledModel& model,
-    const DecisionDiagramManager& dd_manager,
-    std::vector<std::string>* errors) {
-#if 0
-  return OptimizePathProperty(*CompilePathProperty(property, model, errors));
-#else
-  return CompilePathProperty(property, model, dd_manager, errors);
-#endif
+void CompiledPathPropertyExtractor::DoVisitCompiledNaryProperty(
+    const CompiledNaryProperty& property) {
+  for (const CompiledProperty& operand : property.other_operands()) {
+    operand.Accept(this);
+  }
+}
+
+void CompiledPathPropertyExtractor::DoVisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  property.operand().Accept(this);
+}
+
+void CompiledPathPropertyExtractor::DoVisitCompiledProbabilityThresholdProperty(
+    const CompiledProbabilityThresholdProperty& property) {
+  path_properties_.push_back(&property.path_property());
+}
+
+void CompiledPathPropertyExtractor::DoVisitCompiledExpressionProperty(
+    const CompiledExpressionProperty& property) {}
+
+}  // namespace
+
+const CompiledPathProperty* ExtractPathProperty(
+    const CompiledProperty& property) {
+  CompiledPathPropertyExtractor extractor;
+  property.Accept(&extractor);
+  return extractor.PathProperty();
 }
 
 }  // namespace
@@ -1471,8 +1445,13 @@ int main(int argc, char* argv[]) {
         CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
 	const State init_state(&compiled_model, &evaluator, &sampler);
-	const PathFormula* pf = 0;
-        std::unique_ptr<const CompiledPathProperty> property;
+        std::vector<std::unique_ptr<const CompiledProperty>>
+            compiled_properties;
+        for (const StateFormula* property : properties) {
+          compiled_properties.push_back(CompileAndOptimizeProperty(
+              *property, compiled_model, dd_man, &errors));
+        }
+        const CompiledPathProperty* path_property = nullptr;
         ModelCheckingParams nested_params = params;
 	timeval timeout;
 	timeval* to = 0;
@@ -1487,13 +1466,13 @@ int main(int argc, char* argv[]) {
 	    perror(PACKAGE);
 	    exit(-1);
 	  } else if (result == 0) {
-	    if (pf != 0) {
+	    if (path_property) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-	      msg.value = GetObservation(*property, *global_model, nullptr,
-                                         nested_params, &evaluator, init_state,
-                                         &stats);
-	      VLOG(2) << "Sending sample " << msg.value;
+              msg.value =
+                  GetObservation(*path_property, *global_model, nullptr,
+                                 nested_params, &evaluator, init_state, &stats);
+              VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
 		perror(PACKAGE);
@@ -1513,21 +1492,18 @@ int main(int argc, char* argv[]) {
 	      return 0;
 	    }
 	    if (smsg.id == ServerMsg::START) {
-	      double theta;
-	      if (!extract_path_formula(pf, theta, *properties[smsg.value])) {
-		std::cerr << PACKAGE << ": multiple path formulae"
+              path_property =
+                  ExtractPathProperty(*compiled_properties[smsg.value]);
+              if (path_property == nullptr) {
+		std::cerr << PACKAGE << ": zero or multiple path formulae"
 			  << std::endl;
 		return 1;
 	      }
-	      if (pf != 0) {
-                // Since we currently do not support distributed sampling for
-                // properties with nested probabilistic operators, we can just
-                // set the nested error bounds to 0.
-                nested_params.alpha = 0;
-                nested_params.beta = 0;
-                property = OptimizeAndCompilePathProperty(
-                    *pf, compiled_model, dd_man, &errors);
-	      }
+              // Since we currently do not support distributed sampling for
+              // properties with nested probabilistic operators, we can just
+              // set the nested error bounds to 0.
+              nested_params.alpha = 0;
+              nested_params.beta = 0;
 	      to = &timeout;
 	      VLOG(1) << "Sampling started for property " << smsg.value;
 	    } else if (smsg.id == ServerMsg::STOP) {
