@@ -98,8 +98,9 @@ void CompiledPropertyPrinter::DoVisitCompiledExpressionProperty(
 
 void CompiledPropertyPrinter::DoVisitCompiledUntilProperty(
     const CompiledUntilProperty& path_property) {
-  *os_ << "UNTIL [" << path_property.min_time() << ", "
-       << path_property.max_time() << "]" << std::endl << "pre:" << std::endl;
+  *os_ << path_property.index() << ": UNTIL [" << path_property.min_time()
+       << ", " << path_property.max_time() << "]" << std::endl
+       << "pre:" << std::endl;
   path_property.pre_property().Accept(this);
   *os_ << std::endl << "post:" << std::endl;
   path_property.post_property().Accept(this);
@@ -380,7 +381,8 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
 PropertyCompiler::PropertyCompiler(
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const DecisionDiagramManager* dd_manager, std::vector<std::string>* errors)
-    : identifiers_by_name_(identifiers_by_name),
+    : next_path_property_index_(0),
+      identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager),
       errors_(errors) {}
 
