@@ -421,7 +421,7 @@ void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
 }
 
 void PropertyCompiler::DoVisitConditional(const Conditional& expr) {
-  errors_->push_back("not implemented");
+  state_ = CompilerState(&expr);
 }
 
 void PropertyCompiler::DoVisitProbabilityThresholdOperation(
