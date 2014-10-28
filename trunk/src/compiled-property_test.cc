@@ -79,7 +79,7 @@ TEST(CompilePropertyTest, Literal) {
 }
 
 TEST(CompilePropertyTest, Identifier) {
-  const DecisionDiagramManager dd_manager(2);
+  const DecisionDiagramManager dd_manager(4);
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::INT, 0)},
       {"b", IdentifierInfo::Variable(Type::BOOL, 1)},
@@ -149,6 +149,43 @@ TEST(CompilePropertyTest, FunctionCall) {
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result3.errors);
+}
+
+TEST(CompilePropertyTest, UnaryOperation) {
+  const DecisionDiagramManager dd_manager(2);
+  const CompilePropertyResult result1 = CompileProperty(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(false)), {}, dd_manager);
+  const std::string expected1 =
+      "0: ICONST 0 0\n"
+      "1: NOT 0";
+  EXPECT_EQ(expected1, StrCat(*result1.property));
+  const CompilePropertyResult result2 = CompileProperty(
+      UnaryOperation(UnaryOperator::NOT,
+                     ProbabilityThresholdOperation::New(
+                         ProbabilityThresholdOperator::GREATER, 0.25,
+                         UntilProperty::New(17, 42, Literal::New(true),
+                                            Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected2 =
+      "NOT of:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected2, StrCat(*result2.property));
+  const CompilePropertyResult result3 = CompileProperty(
+      UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)), {}, dd_manager);
+  EXPECT_EQ(
+      std::vector<std::string>(
+          {"type mismatch; expecting expression of type bool; found int"}),
+      result3.errors);
+  const CompilePropertyResult result4 = CompileProperty(
+      UnaryOperation(UnaryOperator::NOT, Literal::New(0.5)), {}, dd_manager);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; unary operator ! applied to double"}),
+            result4.errors);
 }
 
 #if 0
