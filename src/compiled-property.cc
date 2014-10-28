@@ -427,6 +427,10 @@ void PropertyCompiler::DoVisitConditional(const Conditional& expr) {
 void PropertyCompiler::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
   expr.path_property().Accept(this);
+  if (expr.threshold() < 0 || expr.threshold() > 1) {
+    errors_->push_back(
+        StrCat("threshold ", expr.threshold(), " is not a probability"));
+  }
   switch (expr.op()) {
     case ProbabilityThresholdOperator::LESS:
       state_ = CompilerState(
@@ -458,6 +462,9 @@ void PropertyCompiler::DoVisitUntilProperty(
     const UntilProperty& path_property) {
   const double min_time = path_property.min_time();
   const double max_time = path_property.max_time();
+  if (min_time > max_time) {
+    errors_->push_back(StrCat("bad time range; ", min_time, " > ", max_time));
+  }
   const int index = next_path_property_index_;
   ++next_path_property_index_;
   path_property.pre_expr().Accept(this);
