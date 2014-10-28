@@ -188,6 +188,37 @@ TEST(CompilePropertyTest, UnaryOperation) {
             result4.errors);
 }
 
+TEST(CompilePropertyTest, Conditional) {
+  const DecisionDiagramManager dd_manager(0);
+  const CompilePropertyResult result1 = CompileProperty(
+      Conditional(Literal::New(true), Literal::New(false), Literal::New(true)),
+      {}, dd_manager);
+  const std::string expected1 =
+      "0: ICONST 1 0\n"
+      "1: IFFALSE 0 4\n"
+      "2: ICONST 0 0\n"
+      "3: GOTO 5\n"
+      "4: ICONST 1 0";
+  EXPECT_EQ(expected1, StrCat(*result1.property));
+  const CompilePropertyResult result2 = CompileProperty(
+      Conditional(Literal::New(true), Literal::New(17), Literal::New(42)),
+      {}, dd_manager);
+  EXPECT_EQ(
+      std::vector<std::string>(
+          {"type mismatch; expecting expression of type bool; found int"}),
+      result2.errors);
+  const CompilePropertyResult result3 = CompileProperty(
+      Conditional(ProbabilityThresholdOperation::New(
+                      ProbabilityThresholdOperator::GREATER, 0.25,
+                      UntilProperty::New(17, 42, Literal::New(true),
+                                         Identifier::New("a"))),
+                  Literal::New(false), Literal::New(true)),
+      {}, dd_manager);
+  EXPECT_EQ(std::vector<std::string>(
+                {"unexpected probability threshold operation in expression"}),
+            result3.errors);
+}
+
 TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const DecisionDiagramManager dd_manager(2);
   const CompilePropertyResult result1 = CompileProperty(
