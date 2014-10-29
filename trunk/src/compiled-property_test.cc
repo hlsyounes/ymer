@@ -188,6 +188,220 @@ TEST(CompilePropertyTest, UnaryOperation) {
             result4.errors);
 }
 
+TEST(CompilePropertyTest, BinaryOperation) {
+  const DecisionDiagramManager dd_manager(2);
+  const CompilePropertyResult result1 = CompileProperty(
+      BinaryOperation(BinaryOperator::AND, Literal::New(false),
+                      Identifier::New("a")),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected1 =
+      "0: ICONST 0 0\n"
+      "1: IFFALSE 0 3\n"
+      "2: ILOAD 0 0";
+  EXPECT_EQ(expected1, StrCat(*result1.property));
+  const CompilePropertyResult result2 = CompileProperty(
+      BinaryOperation(BinaryOperator::AND, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected2 =
+      "AND of 2 operands:\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected2, StrCat(*result2.property));
+  const CompilePropertyResult result3 = CompileProperty(
+      BinaryOperation(BinaryOperator::OR, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected3 =
+      "OR of 2 operands:\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected3, StrCat(*result3.property));
+  const CompilePropertyResult result4 = CompileProperty(
+      BinaryOperation(BinaryOperator::IMPLY, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected4 =
+      "OR of 2 operands:\n"
+      "operand 0:\n"
+      "NOT of:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected4, StrCat(*result4.property));
+  const CompilePropertyResult result5 = CompileProperty(
+      BinaryOperation(BinaryOperator::IFF, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected5 =
+      "IFF of 2 operands:\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected5, StrCat(*result5.property));
+  const CompilePropertyResult result6 = CompileProperty(
+      BinaryOperation(BinaryOperator::LESS, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected6 =
+      "AND of 2 operands:\n"
+      "operand 0:\n"
+      "NOT of:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected6, StrCat(*result6.property));
+  const CompilePropertyResult result7 = CompileProperty(
+      BinaryOperation(BinaryOperator::LESS_EQUAL, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  EXPECT_EQ(expected4, StrCat(*result7.property));
+  const CompilePropertyResult result8 = CompileProperty(
+      BinaryOperation(BinaryOperator::GREATER_EQUAL, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected8 =
+      "OR of 2 operands:\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "NOT of:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected8, StrCat(*result8.property));
+  const CompilePropertyResult result9 = CompileProperty(
+      BinaryOperation(BinaryOperator::GREATER, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected9 =
+      "AND of 2 operands:\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "NOT of:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected9, StrCat(*result9.property));
+  const CompilePropertyResult result10 = CompileProperty(
+      BinaryOperation(BinaryOperator::EQUAL, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  EXPECT_EQ(expected5, StrCat(*result10.property));
+  const CompilePropertyResult result11 = CompileProperty(
+      BinaryOperation(BinaryOperator::NOT_EQUAL, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  const std::string expected11 =
+      "NOT of:\n"
+      "IFF of 2 operands:\n"
+      "operand 0:\n"
+      "0: ICONST 0 0\n"
+      "operand 1:\n"
+      "P > 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected11, StrCat(*result11.property));
+  const CompilePropertyResult result12 = CompileProperty(
+      BinaryOperation(BinaryOperator::PLUS, Literal::New(17), Literal::New(42)),
+      {}, dd_manager);
+  EXPECT_EQ(
+      std::vector<std::string>(
+          {"type mismatch; expecting expression of type bool; found int"}),
+      result12.errors);
+  const CompilePropertyResult result13 = CompileProperty(
+      BinaryOperation(BinaryOperator::PLUS, Literal::New(false),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; binary operator + applied to bool"}),
+            result13.errors);
+  const CompilePropertyResult result14 = CompileProperty(
+      BinaryOperation(BinaryOperator::AND, Literal::New(17),
+                      ProbabilityThresholdOperation::New(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          UntilProperty::New(17, 42, Literal::New(true),
+                                             Identifier::New("a")))),
+      {{"a", IdentifierInfo::Variable(Type::BOOL, 0)}}, dd_manager);
+  EXPECT_EQ(
+      std::vector<std::string>(
+          {"type mismatch; expecting expression of type bool; found int"}),
+      result14.errors);
+}
+
 TEST(CompilePropertyTest, Conditional) {
   const DecisionDiagramManager dd_manager(0);
   const CompilePropertyResult result1 = CompileProperty(

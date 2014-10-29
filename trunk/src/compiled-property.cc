@@ -65,7 +65,7 @@ void CompiledPropertyPrinter::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
   const size_t operand_count =
       property.other_operands().size() + (property.has_expr_operand() ? 1 : 0);
-  *os_ << property.op() << " of " << operand_count << " operands";
+  *os_ << property.op() << " of " << operand_count << " operands:";
   int operand_index = 0;
   if (property.has_expr_operand()) {
     *os_ << std::endl << "operand " << operand_index << ':' << std::endl
@@ -355,8 +355,13 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
       const DecisionDiagramManager* dd_manager,
       std::vector<std::string>* errors);
 
+  std::unique_ptr<const CompiledProperty> release_property(
+      CompilerState* state) {
+    return state->ReleaseProperty(*identifiers_by_name_, *dd_manager_, errors_);
+  }
+
   std::unique_ptr<const CompiledProperty> release_property() {
-    return state_.ReleaseProperty(*identifiers_by_name_, *dd_manager_, errors_);
+    return release_property(&state_);
   }
 
  private:
@@ -417,7 +422,85 @@ void PropertyCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
 }
 
 void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
-  errors_->push_back("not implemented");
+  expr.operand1().Accept(this);
+  CompilerState state1 = std::move(state_);
+  expr.operand2().Accept(this);
+  if (state1.has_expr() && state_.has_expr()) {
+    state_ = CompilerState(&expr);
+    return;
+  }
+  switch (expr.op()) {
+    case BinaryOperator::PLUS:
+    case BinaryOperator::MINUS:
+    case BinaryOperator::MULTIPLY:
+    case BinaryOperator::DIVIDE:
+      errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
+                                " applied to ", Type::BOOL));
+      return;
+    case BinaryOperator::AND:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::AND, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(release_property(&state1),
+                                                  release_property())));
+      return;
+    case BinaryOperator::OR:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::OR, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(release_property(&state1),
+                                                  release_property())));
+      return;
+    case BinaryOperator::IMPLY:
+    case BinaryOperator::LESS_EQUAL:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::OR, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(
+              CompiledNotProperty::New(release_property(&state1)),
+              release_property())));
+      return;
+    case BinaryOperator::IFF:
+    case BinaryOperator::EQUAL:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::IFF, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(release_property(&state1),
+                                                  release_property())));
+      return;
+    case BinaryOperator::LESS:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::AND, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(
+              CompiledNotProperty::New(release_property(&state1)),
+              release_property())));
+      return;
+    case BinaryOperator::GREATER_EQUAL:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::OR, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(
+              release_property(&state1),
+              CompiledNotProperty::New(release_property()))));
+      return;
+    case BinaryOperator::GREATER:
+      state_ = CompilerState(CompiledNaryProperty::New(
+          CompiledNaryOperator::AND, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(
+              release_property(&state1),
+              CompiledNotProperty::New(release_property()))));
+      return;
+    case BinaryOperator::NOT_EQUAL:
+      state_ = CompilerState(CompiledNotProperty::New(CompiledNaryProperty::New(
+          CompiledNaryOperator::IFF, CompiledExpression({}),
+          dd_manager_->GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(release_property(&state1),
+                                                  release_property()))));
+      return;
+  }
+  LOG(FATAL) << "bad binary operator";
 }
 
 void PropertyCompiler::DoVisitConditional(const Conditional& expr) {
