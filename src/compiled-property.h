@@ -120,7 +120,7 @@ class CompiledNaryProperty : public CompiledProperty {
   }
 
  private:
-  virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
+  void DoAccept(CompiledPropertyVisitor* visitor) const override;
 
   CompiledNaryOperator op_;
   CompiledExpression optional_expr_operand_;
@@ -140,7 +140,7 @@ class CompiledNotProperty : public CompiledProperty {
   const CompiledProperty& operand() const { return *operand_; }
 
  private:
-  virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
+  void DoAccept(CompiledPropertyVisitor* visitor) const override;
 
   std::unique_ptr<const CompiledProperty> operand_;
 };
@@ -170,7 +170,7 @@ class CompiledProbabilityThresholdProperty : public CompiledProperty {
   const CompiledPathProperty& path_property() const { return *path_property_; }
 
  private:
-  virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
+  void DoAccept(CompiledPropertyVisitor* visitor) const override;
 
   CompiledProbabilityThresholdOperator op_;
   double threshold_;
@@ -191,7 +191,7 @@ class CompiledExpressionProperty : public CompiledProperty {
   const BDD& bdd() const { return bdd_; }
 
  private:
-  virtual void DoAccept(CompiledPropertyVisitor* visitor) const;
+  void DoAccept(CompiledPropertyVisitor* visitor) const override;
 
   CompiledExpression expr_;
   BDD bdd_;
@@ -220,7 +220,7 @@ class CompiledUntilProperty : public CompiledPathProperty {
   const CompiledProperty& post_property() const { return *post_property_; }
 
  private:
-  virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const;
+  void DoAccept(CompiledPathPropertyVisitor* visitor) const override;
 
   double min_time_;
   double max_time_;
