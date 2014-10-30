@@ -97,7 +97,7 @@ class Literal : public Expression {
   const TypedValue& value() const { return value_; }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   TypedValue value_;
 };
@@ -115,7 +115,7 @@ class Identifier : public Expression {
   const std::string& name() const { return name_; }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   std::string name_;
 };
@@ -146,7 +146,7 @@ class FunctionCall : public Expression {
   }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   Function function_;
   UniquePtrVector<const Expression> arguments_;
@@ -176,7 +176,7 @@ class UnaryOperation : public Expression {
   const Expression& operand() const { return *operand_; }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   UnaryOperator op_;
   std::unique_ptr<const Expression> operand_;
@@ -226,7 +226,7 @@ class BinaryOperation : public Expression {
   const Expression& operand2() const { return *operand2_; }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   BinaryOperator op_;
   std::unique_ptr<const Expression> operand1_;
@@ -257,7 +257,7 @@ class Conditional : public Expression {
   const Expression& else_branch() const { return *else_branch_; }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   std::unique_ptr<const Expression> condition_;
   std::unique_ptr<const Expression> if_branch_;
@@ -298,7 +298,7 @@ class ProbabilityThresholdOperation : public Expression {
   const PathProperty& path_property() const { return *path_property_; }
 
  private:
-  virtual void DoAccept(ExpressionVisitor* visitor) const;
+  void DoAccept(ExpressionVisitor* visitor) const override;
 
   ProbabilityThresholdOperator op_;
   double threshold_;
@@ -333,7 +333,7 @@ class UntilProperty : public PathProperty {
   const Expression& post_expr() const { return *post_expr_; }
 
  private:
-  virtual void DoAccept(PathPropertyVisitor* visitor) const;
+  void DoAccept(PathPropertyVisitor* visitor) const override;
 
   double min_time_;
   double max_time_;
