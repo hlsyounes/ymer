@@ -1180,18 +1180,22 @@ void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
 
 CompileExpressionResult::CompileExpressionResult() : expr({}) {}
 
-IdentifierInfo::IdentifierInfo(Type type, int variable_index,
-                               const TypedValue& constant_value)
+IdentifierInfo::IdentifierInfo(Type type, int variable_index, int low_bit,
+                               int high_bit, const TypedValue& value)
     : type_(type),
       variable_index_(variable_index),
-      constant_value_(constant_value) {}
+      low_bit_(low_bit),
+      high_bit_(high_bit),
+      value_(value) {}
 
-IdentifierInfo IdentifierInfo::Variable(Type type, int index) {
-  return IdentifierInfo(type, index, false);
+IdentifierInfo IdentifierInfo::Variable(Type type, int index, int low_bit,
+                                        int high_bit,
+                                        const TypedValue& min_value) {
+  return IdentifierInfo(type, index, low_bit, high_bit, min_value);
 }
 
 IdentifierInfo IdentifierInfo::Constant(const TypedValue& value) {
-  return IdentifierInfo(value.type(), -1, value);
+  return IdentifierInfo(value.type(), -1, -1, -1, value);
 }
 
 CompileExpressionResult CompileExpression(

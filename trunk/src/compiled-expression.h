@@ -285,21 +285,27 @@ struct CompileExpressionResult {
 // represent either a variable or a constant.
 class IdentifierInfo {
  public:
-  static IdentifierInfo Variable(Type type, int index);
+  static IdentifierInfo Variable(Type type, int index, int low_bit,
+                                 int high_bit, const TypedValue& min_value);
   static IdentifierInfo Constant(const TypedValue& value);
 
   Type type() const { return type_; }
   bool is_variable() const { return variable_index_ >= 0; }
   int variable_index() const { return variable_index_; }
-  TypedValue constant_value() const { return constant_value_; }
+  int low_bit() const { return low_bit_; }
+  int high_bit() const { return high_bit_; }
+  TypedValue min_value() const { return value_; }
+  TypedValue constant_value() const { return value_; }
 
  private:
-  explicit IdentifierInfo(Type type, int variable_index,
-                          const TypedValue& constant_value);
+  explicit IdentifierInfo(Type type, int variable_index, int low_bit,
+                          int high_bit, const TypedValue& value);
 
   Type type_;
   int variable_index_;
-  TypedValue constant_value_;
+  int low_bit_;
+  int high_bit_;
+  TypedValue value_;
 };
 
 // Compiles the given expression, expecting it to be of the given type, and

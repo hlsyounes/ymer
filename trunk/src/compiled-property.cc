@@ -355,16 +355,19 @@ void ExpressionToBddConverter::DoVisitIdentifier(const Identifier& expr) {
   if (info.type() == Type::BOOL) {
     has_bdd_ = true;
     if (info.is_variable()) {
-      // TODO(hlsyounes): implement.
-      bdd_ = dd_manager_->GetConstant(false);
+      bdd_ = dd_manager_->GetBddVariable(2 * info.low_bit());
     } else {
       bdd_ = dd_manager_->GetConstant(info.constant_value().value<bool>());
     }
   } else {
     has_bdd_ = false;
     if (info.is_variable()) {
-      // TODO(hlsyounes): implement.
       add_ = dd_manager_->GetConstant(0);
+      for (int i = info.high_bit(); i >= info.low_bit(); --i) {
+        add_ = add_ + (dd_manager_->GetAddVariable(2 * i) *
+                       dd_manager_->GetConstant(1 << (info.high_bit() - i)));
+      }
+      add_ = add_ + dd_manager_->GetConstant(info.min_value().value<double>());
     } else {
       add_ = dd_manager_->GetConstant(info.constant_value().value<double>());
     }

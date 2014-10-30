@@ -654,11 +654,11 @@ TEST(CompileExpressionTest, BoolLiteral) {
 
 TEST(CompileExpressionTest, Identifier) {
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
-      {"a", IdentifierInfo::Variable(Type::INT, 0)},
-      {"b", IdentifierInfo::Variable(Type::BOOL, 1)},
+      {"a", IdentifierInfo::Variable(Type::INT, 0, 0, 1, 0)},
+      {"b", IdentifierInfo::Variable(Type::BOOL, 1, 2, 2, false)},
       {"c", IdentifierInfo::Constant(17)},
       {"d", IdentifierInfo::Constant(false)},
-      {"e", IdentifierInfo::Variable(Type::DOUBLE, 2)},
+      {"e", IdentifierInfo::Variable(Type::DOUBLE, 2, 3, 10, 0.5)},
       {"f", IdentifierInfo::Constant(0.5)}};
 
   const CompileExpressionResult result1 =
