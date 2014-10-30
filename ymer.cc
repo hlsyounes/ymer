@@ -743,13 +743,8 @@ void ExpressionCompiler::DoVisitComparison(const Comparison& formula) {
 
 CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
-    const std::map<std::string, int>& variables_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
-  std::map<std::string, IdentifierInfo> identifiers_by_name;
-  for (const auto& entry : variables_by_name) {
-    identifiers_by_name.insert(
-        {entry.first, IdentifierInfo::Variable(Type::INT, entry.second)});
-  }
   CompileExpressionResult result = CompileExpression(expr, expected_type,
                                                      identifiers_by_name);
   if (!result.errors.empty()) {
@@ -787,8 +782,9 @@ CompiledExpression CompileAndOptimizeExpression(
 
 class DistributionCompiler : public DistributionVisitor {
  public:
-  DistributionCompiler(const std::map<std::string, int>* variables_by_name,
-                       std::vector<std::string>* errors);
+  DistributionCompiler(
+      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      std::vector<std::string>* errors);
 
   CompiledDistribution release_dist() { return std::move(dist_); }
 
@@ -799,85 +795,87 @@ class DistributionCompiler : public DistributionVisitor {
   virtual void DoVisitUniform(const Uniform& dist);
 
   CompiledDistribution dist_;
-  const std::map<std::string, int>* variables_by_name_;
+  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   std::vector<std::string>* errors_;
 };
 
 DistributionCompiler::DistributionCompiler(
-    const std::map<std::string, int>* variables_by_name,
+    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     std::vector<std::string>* errors)
     : dist_(CompiledDistribution::MakeMemoryless(CompiledExpression({}))),
-      variables_by_name_(variables_by_name), errors_(errors) {
-  CHECK(variables_by_name);
+      identifiers_by_name_(identifiers_by_name), errors_(errors) {
+  CHECK(identifiers_by_name);
   CHECK(errors);
 }
 
 void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
   dist_ = CompiledDistribution::MakeMemoryless(
       CompileAndOptimizeExpression(
-          dist.rate(), Type::DOUBLE, *variables_by_name_, errors_));
+          dist.rate(), Type::DOUBLE, *identifiers_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
   dist_ = CompiledDistribution::MakeWeibull(
       CompileAndOptimizeExpression(
-          dist.scale(), Type::DOUBLE, *variables_by_name_, errors_),
+          dist.scale(), Type::DOUBLE, *identifiers_by_name_, errors_),
       CompileAndOptimizeExpression(
-          dist.shape(), Type::DOUBLE, *variables_by_name_, errors_));
+          dist.shape(), Type::DOUBLE, *identifiers_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
   dist_ = CompiledDistribution::MakeLognormal(
       CompileAndOptimizeExpression(
-          dist.scale(), Type::DOUBLE, *variables_by_name_, errors_),
+          dist.scale(), Type::DOUBLE, *identifiers_by_name_, errors_),
       CompileAndOptimizeExpression(
-          dist.shape(), Type::DOUBLE, *variables_by_name_, errors_));
+          dist.shape(), Type::DOUBLE, *identifiers_by_name_, errors_));
 }
 
 void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
   dist_ = CompiledDistribution::MakeUniform(
       CompileAndOptimizeExpression(
-          dist.low(), Type::DOUBLE, *variables_by_name_, errors_),
+          dist.low(), Type::DOUBLE, *identifiers_by_name_, errors_),
       CompileAndOptimizeExpression(
-          dist.high(), Type::DOUBLE, *variables_by_name_, errors_));
+          dist.high(), Type::DOUBLE, *identifiers_by_name_, errors_));
 }
 
 CompiledDistribution CompileDistribution(
     const Distribution& dist,
-    const std::map<std::string, int>& variables_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
-  DistributionCompiler compiler(&variables_by_name, errors);
+  DistributionCompiler compiler(&identifiers_by_name, errors);
   dist.Accept(&compiler);
   return compiler.release_dist();
 }
 
 CompiledUpdate CompileUpdate(
     const Update& update,
-    const std::map<std::string, int>& variables_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
-  auto i = variables_by_name.find(update.variable());
+  auto i = identifiers_by_name.find(update.variable());
   int variable;
-  if (i == variables_by_name.end()) {
+  if (i == identifiers_by_name.end()) {
     errors->push_back(StrCat(
         "undefined variable '", update.variable(), "' in update"));
     variable = -1;
+  } else if (!i->second.is_variable()) {
+    errors->push_back(StrCat("constant '", update.variable(), "' in update"));
+    variable = -1;
   } else {
-    variable = i->second;
+    variable = i->second.variable_index();
   }
   return CompiledUpdate(
-      variable,
-      CompileAndOptimizeExpression(
-          update.expr(), Type::INT, variables_by_name, errors));
+      variable, CompileAndOptimizeExpression(update.expr(), Type::INT,
+                                             identifiers_by_name, errors));
 }
 
 std::vector<CompiledUpdate> CompileUpdates(
     const std::vector<const Update*>& updates,
-    const std::map<std::string, int>& variables_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
   std::vector<CompiledUpdate> compiled_updates;
   for (const Update* update : updates) {
     compiled_updates.push_back(
-        CompileUpdate(*update, variables_by_name, errors));
+        CompileUpdate(*update, identifiers_by_name, errors));
   }
   return compiled_updates;
 }
@@ -885,36 +883,55 @@ std::vector<CompiledUpdate> CompileUpdates(
 CompiledOutcome CompileOutcome(
     const Distribution& delay,
     const std::vector<const Update*>& updates,
-    const std::map<std::string, int>& variables_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
-  return CompiledOutcome(CompileDistribution(delay, variables_by_name, errors),
-                         CompileUpdates(updates, variables_by_name, errors));
+  return CompiledOutcome(
+      CompileDistribution(delay, identifiers_by_name, errors),
+      CompileUpdates(updates, identifiers_by_name, errors));
 }
 
 CompiledCommand CompileCommand(
     const Command& command,
-    const std::map<std::string, int>& variables_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
   return CompiledCommand(
       CompileAndOptimizeExpression(command.guard(), Type::BOOL,
-                                   variables_by_name, errors),
-      { CompileOutcome(command.delay(), command.updates(),
-                       variables_by_name, errors) });
+                                   identifiers_by_name, errors),
+      {CompileOutcome(command.delay(), command.updates(), identifiers_by_name,
+                      errors)});
+}
+
+std::map<std::string, IdentifierInfo> GetIdentifiersByName(
+    const CompiledModel& model) {
+  std::map<std::string, IdentifierInfo> identifiers_by_name;
+  int index = 0;
+  int low_bit = 0;
+  for (const CompiledVariable& v : model.variables()) {
+    const int num_bits = Log2(v.max_value() - v.min_value()) + 1;
+    // TODO(hlsyounes): propagate actual type of variable.
+    identifiers_by_name.emplace(
+        v.name(),
+        IdentifierInfo::Variable(Type::INT, index, low_bit,
+                                 low_bit + num_bits - 1, v.min_value()));
+    ++index;
+    low_bit += num_bits;
+  }
+  return identifiers_by_name;
 }
 
 CompiledModel CompileModel(const Model& model,
                            std::vector<std::string>* errors) {
   CompiledModel compiled_model;
 
-  std::map<std::string, int> variables_by_name;
   for (const ParsedVariable& v : model.variables()) {
     compiled_model.AddVariable(
         v.name(), v.min_value(), v.max_value(), v.init_value());
-    variables_by_name.insert({ v.name(), variables_by_name.size() });
   }
 
+  std::map<std::string, IdentifierInfo> identifiers_by_name =
+      GetIdentifiersByName(compiled_model);
   for (const Command* c : model.commands()) {
-    compiled_model.AddCommand(CompileCommand(*c, variables_by_name, errors));
+    compiled_model.AddCommand(CompileCommand(*c, identifiers_by_name, errors));
   }
 
   return compiled_model;
@@ -1156,8 +1173,6 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
 #endif
 }
 
-namespace {
-
 class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
  public:
   const CompiledPathProperty* PathProperty();
@@ -1197,8 +1212,6 @@ void CompiledPathPropertyExtractor::DoVisitCompiledProbabilityThresholdProperty(
 
 void CompiledPathPropertyExtractor::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {}
-
-}  // namespace
 
 const CompiledPathProperty* ExtractPathProperty(
     const CompiledProperty& property) {
