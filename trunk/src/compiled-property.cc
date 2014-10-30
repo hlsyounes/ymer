@@ -46,15 +46,15 @@ class CompiledPropertyPrinter : public CompiledPropertyVisitor,
   explicit CompiledPropertyPrinter(std::ostream* os);
 
  private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& path_property);
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property) override;
 
   std::ostream* os_;
 };
@@ -301,10 +301,292 @@ void CompiledPathPropertyVisitor::VisitCompiledUntilProperty(
 
 namespace {
 
-BDD ExpressionToBdd(const DecisionDiagramManager& dd_manager,
-                    const Expression& expr) {
-  // TODO(hlsyounes): implement.
-  return dd_manager.GetConstant(true);
+class ExpressionToBddConverter : public ExpressionVisitor {
+ public:
+  explicit ExpressionToBddConverter(
+      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      const DecisionDiagramManager* dd_manager);
+
+  BDD bdd() const {
+    CHECK(has_bdd_);
+    return bdd_;
+  }
+
+ private:
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
+
+  bool has_bdd_;
+  BDD bdd_;
+  ADD add_;
+  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  const DecisionDiagramManager* dd_manager_;
+};
+
+ExpressionToBddConverter::ExpressionToBddConverter(
+    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    const DecisionDiagramManager* dd_manager)
+    : has_bdd_(false),
+      bdd_(dd_manager->GetConstant(false)),
+      add_(dd_manager->GetConstant(0)),
+      identifiers_by_name_(identifiers_by_name),
+      dd_manager_(dd_manager) {}
+
+void ExpressionToBddConverter::DoVisitLiteral(const Literal& expr) {
+  if (expr.value().type() == Type::BOOL) {
+    has_bdd_ = true;
+    bdd_ = dd_manager_->GetConstant(expr.value().value<bool>());
+  } else {
+    has_bdd_ = false;
+    add_ = dd_manager_->GetConstant(expr.value().value<double>());
+  }
+}
+
+void ExpressionToBddConverter::DoVisitIdentifier(const Identifier& expr) {
+  auto i = identifiers_by_name_->find(expr.name());
+  CHECK(i != identifiers_by_name_->end());
+  const IdentifierInfo& info = i->second;
+  if (info.type() == Type::BOOL) {
+    has_bdd_ = true;
+    if (info.is_variable()) {
+      // TODO(hlsyounes): implement.
+      bdd_ = dd_manager_->GetConstant(false);
+    } else {
+      bdd_ = dd_manager_->GetConstant(info.constant_value().value<bool>());
+    }
+  } else {
+    has_bdd_ = false;
+    if (info.is_variable()) {
+      // TODO(hlsyounes): implement.
+      add_ = dd_manager_->GetConstant(0);
+    } else {
+      add_ = dd_manager_->GetConstant(info.constant_value().value<double>());
+    }
+  }
+}
+
+void ExpressionToBddConverter::DoVisitFunctionCall(const FunctionCall& expr) {
+  CHECK(!expr.arguments().empty());
+  expr.arguments()[0].Accept(this);
+  if (has_bdd_) {
+    BDD bdd = bdd_;
+    switch (expr.function()) {
+      case Function::UNKNOWN:
+        LOG(FATAL) << "bad function call";
+      case Function::MIN:
+        for (size_t i = 1; i < expr.arguments().size(); ++i) {
+          expr.arguments()[i].Accept(this);
+          CHECK(has_bdd_);
+          bdd = Ite(bdd < bdd_, bdd, bdd_);
+        }
+        bdd_ = bdd;
+        break;
+      case Function::MAX:
+        for (size_t i = 1; i < expr.arguments().size(); ++i) {
+          expr.arguments()[i].Accept(this);
+          CHECK(has_bdd_);
+          bdd = Ite(bdd > bdd_, bdd, bdd_);
+        }
+        bdd_ = bdd;
+        break;
+    case Function::FLOOR:
+    case Function::CEIL:
+    case Function::POW:
+    case Function::LOG:
+    case Function::MOD:
+      LOG(FATAL) << "type mismatch";
+    }
+  } else {
+    std::vector<ADD> arguments;
+    arguments.push_back(add_);
+    for (size_t i = 1; i < arguments.size(); ++i) {
+      expr.arguments()[i].Accept(this);
+      CHECK(!has_bdd_);
+      arguments.push_back(add_);
+    }
+    switch (expr.function()) {
+      case Function::UNKNOWN:
+        LOG(FATAL) << "bad function call";
+      case Function::MIN:
+        CHECK(!arguments.empty());
+        add_ = arguments[0];
+        for (size_t i = 1; i < arguments.size(); ++i) {
+          add_ = min(add_, arguments[i]);
+        }
+        break;
+      case Function::MAX:
+        CHECK(!arguments.empty());
+        add_ = arguments[0];
+        for (size_t i = 1; i < arguments.size(); ++i) {
+          add_ = max(add_, arguments[i]);
+        }
+        break;
+      case Function::FLOOR:
+        CHECK_EQ(arguments.size(), 1);
+        add_ = floor(arguments[0]);
+        break;
+      case Function::CEIL:
+        CHECK_EQ(arguments.size(), 1);
+        add_ = ceil(arguments[0]);
+        break;
+      case Function::POW:
+        CHECK_EQ(arguments.size(), 2);
+        add_ = pow(arguments[0], arguments[1]);
+        break;
+      case Function::LOG:
+        CHECK_EQ(arguments.size(), 2);
+        add_ = log(arguments[0]) / log(arguments[1]);
+        break;
+      case Function::MOD:
+        CHECK_EQ(arguments.size(), 2);
+        add_ = arguments[0] % arguments[1];
+        break;
+    }
+  }
+}
+
+void ExpressionToBddConverter::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      CHECK(!has_bdd_);
+      add_ = -add_;
+      break;
+    case UnaryOperator::NOT:
+      CHECK(has_bdd_);
+      bdd_ = !bdd_;
+      break;
+  }
+}
+
+void ExpressionToBddConverter::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
+  expr.operand1().Accept(this);
+  if (has_bdd_) {
+    BDD operand1 = bdd_;
+    expr.operand2().Accept(this);
+    CHECK(has_bdd_);
+    switch (expr.op()) {
+      case BinaryOperator::PLUS:
+      case BinaryOperator::MINUS:
+      case BinaryOperator::MULTIPLY:
+      case BinaryOperator::DIVIDE:
+        LOG(FATAL) << "type mismatch";
+      case BinaryOperator::AND:
+        bdd_ = operand1 && bdd_;
+        break;
+      case BinaryOperator::OR:
+        bdd_ = operand1 || bdd_;
+        break;
+      case BinaryOperator::IMPLY:
+        bdd_ = !operand1 || bdd_;
+        break;
+      case BinaryOperator::IFF:
+      case BinaryOperator::EQUAL:
+        bdd_ = operand1 == bdd_;
+        break;
+      case BinaryOperator::LESS:
+        bdd_ = operand1 < bdd_;
+        break;
+      case BinaryOperator::LESS_EQUAL:
+        bdd_ = operand1 <= bdd_;
+        break;
+      case BinaryOperator::GREATER_EQUAL:
+        bdd_ = operand1 >= bdd_;
+        break;
+      case BinaryOperator::GREATER:
+        bdd_ = operand1 > bdd_;
+        break;
+      case BinaryOperator::NOT_EQUAL:
+        bdd_ = operand1 != bdd_;
+        break;
+    }
+  } else {
+    ADD operand1 = add_;
+    expr.operand2().Accept(this);
+    CHECK(!has_bdd_);
+    switch (expr.op()) {
+      case BinaryOperator::PLUS:
+        add_ = operand1 + add_;
+        break;
+      case BinaryOperator::MINUS:
+        add_ = operand1 - add_;
+        break;
+      case BinaryOperator::MULTIPLY:
+        add_ = operand1 * add_;
+        break;
+      case BinaryOperator::DIVIDE:
+        add_ = operand1 / add_;
+        break;
+      case BinaryOperator::AND:
+      case BinaryOperator::OR:
+      case BinaryOperator::IMPLY:
+      case BinaryOperator::IFF:
+        LOG(FATAL) << "type mismatch";
+      case BinaryOperator::LESS:
+        has_bdd_ = true;
+        bdd_ = operand1 < add_;
+        break;
+      case BinaryOperator::LESS_EQUAL:
+        has_bdd_ = true;
+        bdd_ = operand1 <= add_;
+        break;
+      case BinaryOperator::GREATER_EQUAL:
+        has_bdd_ = true;
+        bdd_ = operand1 >= add_;
+        break;
+      case BinaryOperator::GREATER:
+        has_bdd_ = true;
+        bdd_ = operand1 > add_;
+        break;
+      case BinaryOperator::EQUAL:
+        has_bdd_ = true;
+        bdd_ = operand1 == add_;
+        break;
+      case BinaryOperator::NOT_EQUAL:
+        has_bdd_ = true;
+        bdd_ = operand1 != add_;
+        break;
+    }
+  }
+}
+
+void ExpressionToBddConverter::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  CHECK(has_bdd_);
+  BDD condition = bdd_;
+  expr.if_branch().Accept(this);
+  if (has_bdd_) {
+    BDD if_branch = bdd_;
+    expr.else_branch().Accept(this);
+    CHECK(has_bdd_);
+    bdd_ = Ite(condition, if_branch, bdd_);
+  } else {
+    ADD if_branch = add_;
+    expr.else_branch().Accept(this);
+    CHECK(!has_bdd_);
+    add_ = Ite(condition, if_branch, add_);
+  }
+}
+
+void ExpressionToBddConverter::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
+}
+
+BDD ExpressionToBdd(
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const DecisionDiagramManager& dd_manager, const Expression& expr) {
+  ExpressionToBddConverter converter(&identifiers_by_name, &dd_manager);
+  expr.Accept(&converter);
+  return converter.bdd();
 }
 
 class CompilerState {
@@ -340,7 +622,8 @@ std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
     CHECK(expr_);
     CompileExpressionResult result =
         CompileExpression(*expr_, Type::BOOL, identifiers_by_name);
-    const BDD bdd = result.errors.empty() ? ExpressionToBdd(dd_manager, *expr_)
+    const BDD bdd = result.errors.empty() ? ExpressionToBdd(identifiers_by_name,
+                                                            dd_manager, *expr_)
                                           : dd_manager.GetConstant(false);
     property_ = CompiledExpressionProperty::New(result.expr, bdd);
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
@@ -365,15 +648,15 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
   }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
-  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
+  void DoVisitUntilProperty(const UntilProperty& path_property) override;
 
   CompilerState state_;
   int next_path_property_index_;
@@ -676,13 +959,13 @@ class CompiledPropertyOptimizer : public CompiledPropertyVisitor {
   std::unique_ptr<const CompiledProperty> release_property();
 
  private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
 
   OptimizerState state_;
 };
@@ -739,8 +1022,8 @@ class CompiledPathPropertyOptimizer : public CompiledPathPropertyVisitor {
   std::unique_ptr<const CompiledPathProperty> release_path_property();
 
  private:
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& property);
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& property) override;
 
   std::unique_ptr<const CompiledPathProperty> path_property_;
 };
