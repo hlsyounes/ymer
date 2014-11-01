@@ -74,7 +74,7 @@ extern int yyparse(void* scanner);
 /* Current model. */
 extern const Model* global_model;
 /* Parsed properties. */
-extern std::vector<const StateFormula*> properties;
+extern UniquePtrVector<const Expression> properties;
 /* Clears all previously parsed declarations. */
 extern void clear_declarations();
 
@@ -260,487 +260,6 @@ bool read_file(const std::string& filename) {
   return success;
 }
 
-class ExpressionCompiler
-    : public ExpressionVisitor, public StateFormulaVisitor {
- public:
-  ExpressionCompiler(const std::map<std::string, int>* variables_by_name,
-                     std::vector<std::string>* errors);
-
-  std::vector<Operation> release_operations() { return std::move(operations_); }
-
-  Type type() const { return type_; }
-
- private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
-  virtual void DoVisitConjunction(const Conjunction& formula);
-  virtual void DoVisitDisjunction(const Disjunction& formula);
-  virtual void DoVisitNegation(const Negation& formula);
-  virtual void DoVisitImplication(const Implication& formula);
-  virtual void DoVisitProbabilistic(const Probabilistic& formula);
-  virtual void DoVisitComparison(const Comparison& formula);
-
-  std::vector<Operation> operations_;
-  int dst_;
-  Type type_;
-  const std::map<std::string, int>* variables_by_name_;
-  std::vector<std::string>* errors_;
-};
-
-ExpressionCompiler::ExpressionCompiler(
-    const std::map<std::string, int>* variables_by_name,
-    std::vector<std::string>* errors)
-    : dst_(0), variables_by_name_(variables_by_name), errors_(errors) {
-  CHECK(variables_by_name);
-  CHECK(errors);
-}
-
-void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
-  const TypedValue& value = expr.value();
-  if (value.type() == Type::DOUBLE) {
-    operations_.push_back(Operation::MakeDCONST(value.value<double>(), dst_));
-  } else {
-    operations_.push_back(Operation::MakeICONST(value.value<int>(), dst_));
-  }
-  type_ = value.type();
-}
-
-void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
-  auto i = variables_by_name_->find(expr.name());
-  int variable;
-  if (i == variables_by_name_->end()) {
-    errors_->push_back(StrCat(
-        "undefined variable '", expr.name(), "' in expression"));
-    variable = -1;
-  } else {
-    variable = i->second;
-  }
-  operations_.push_back(Operation::MakeILOAD(variable, dst_));
-  type_ = Type::INT;
-}
-
-void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
-  std::vector<Type> argument_types;
-  for (const Expression& argument : expr.arguments()) {
-    argument.Accept(this);
-    ++dst_;
-    argument_types.push_back(type_);
-  }
-  dst_ -= argument_types.size();
-  switch (expr.function()) {
-    case Function::UNKNOWN:
-      errors_->push_back("unknown function call");
-      break;
-    case Function::MIN:
-      if (argument_types.empty()) {
-        errors_->push_back(StrCat(expr.function(), " applied to 0 arguments"));
-      } else {
-        type_ = argument_types[0];
-        for (size_t i = 1; i < argument_types.size(); ++i) {
-          if (type_ != argument_types[i]) {
-            if (type_ == Type::BOOL || argument_types[i] == Type::BOOL) {
-              errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                        " applied to ", type_, " and ",
-                                        argument_types[i]));
-            }
-            if (type_ != Type::DOUBLE && argument_types[i] == Type::DOUBLE) {
-              operations_.push_back(Operation::MakeI2D(dst_));
-              type_ = Type::DOUBLE;
-            }
-            if (argument_types[i] != Type::DOUBLE && type_ == Type::DOUBLE) {
-              operations_.push_back(Operation::MakeI2D(dst_ + i));
-            }
-          }
-          if (type_ == Type::DOUBLE) {
-            operations_.push_back(Operation::MakeDMIN(dst_, dst_ + i));
-          } else {
-            operations_.push_back(Operation::MakeIMIN(dst_, dst_ + i));
-          }
-        }
-      }
-      break;
-    case Function::MAX:
-      if (argument_types.empty()) {
-        errors_->push_back(StrCat(expr.function(), " applied to 0 arguments"));
-      } else {
-        type_ = argument_types[0];
-        for (size_t i = 1; i < argument_types.size(); ++i) {
-          if (type_ != argument_types[i]) {
-            if (type_ == Type::BOOL || argument_types[i] == Type::BOOL) {
-              errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                        " applied to ", type_, " and ",
-                                        argument_types[i]));
-            }
-            if (type_ != Type::DOUBLE && argument_types[i] == Type::DOUBLE) {
-              operations_.push_back(Operation::MakeI2D(dst_));
-              type_ = Type::DOUBLE;
-            }
-            if (argument_types[i] != Type::DOUBLE && type_ == Type::DOUBLE) {
-              operations_.push_back(Operation::MakeI2D(dst_ + i));
-            }
-          }
-          if (type_ == Type::DOUBLE) {
-            operations_.push_back(Operation::MakeDMAX(dst_, dst_ + i));
-          } else {
-            operations_.push_back(Operation::MakeIMAX(dst_, dst_ + i));
-          }
-        }
-      }
-      break;
-    case Function::FLOOR:
-      if (argument_types.size() != 1) {
-        errors_->push_back(StrCat(expr.function(), " applied to ",
-                                  argument_types.size(), " arguments"));
-      } else {
-        if (argument_types[0] == Type::BOOL) {
-          errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                    " applied to ", Type::BOOL));
-        }
-        if (argument_types[0] != Type::DOUBLE) {
-          operations_.push_back(Operation::MakeI2D(dst_));
-        }
-        operations_.push_back(Operation::MakeFLOOR(dst_));
-        type_ = Type::INT;
-      }
-      break;
-    case Function::CEIL:
-      if (argument_types.size() != 1) {
-        errors_->push_back(StrCat(expr.function(), " applied to ",
-                                  argument_types.size(), " arguments"));
-      } else {
-        if (argument_types[0] == Type::BOOL) {
-          errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                    " applied to ", Type::BOOL));
-        }
-        if (argument_types[0] != Type::DOUBLE) {
-          operations_.push_back(Operation::MakeI2D(dst_));
-        }
-        operations_.push_back(Operation::MakeCEIL(dst_));
-        type_ = Type::INT;
-      }
-      break;
-    case Function::POW:
-      if (argument_types.size() != 2) {
-        errors_->push_back(StrCat(expr.function(), " applied to ",
-                                  argument_types.size(), " arguments"));
-      } else {
-        if (argument_types[0] == Type::BOOL
-            || argument_types[1] == Type::BOOL) {
-          errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                    " applied to ", Type::BOOL));
-        }
-        if (argument_types[0] != Type::DOUBLE) {
-          operations_.push_back(Operation::MakeI2D(dst_));
-        }
-        if (argument_types[1] != Type::DOUBLE) {
-          operations_.push_back(Operation::MakeI2D(dst_ + 1));
-        }
-        operations_.push_back(Operation::MakePOW(dst_, dst_ + 1));
-        type_ = Type::DOUBLE;
-      }
-      break;
-    case Function::LOG:
-      if (argument_types.size() != 2) {
-        errors_->push_back(StrCat(expr.function(), " applied to ",
-                                  argument_types.size(), " arguments"));
-      } else {
-        if (argument_types[0] == Type::BOOL
-            || argument_types[1] == Type::BOOL) {
-          errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                    " applied to ", Type::BOOL));
-        }
-        if (argument_types[0] != Type::DOUBLE) {
-          operations_.push_back(Operation::MakeI2D(dst_));
-        }
-        if (argument_types[1] != Type::DOUBLE) {
-          operations_.push_back(Operation::MakeI2D(dst_ + 1));
-        }
-        operations_.push_back(Operation::MakeLOG(dst_, dst_ + 1));
-        type_ = Type::DOUBLE;
-      }
-      break;
-    case Function::MOD:
-      if (argument_types.size() != 2) {
-        errors_->push_back(StrCat(expr.function(), " applied to ",
-                                  argument_types.size(), " arguments"));
-      } else {
-        if (argument_types[0] != Type::INT) {
-          errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                    " applied to ", argument_types[0]));
-        }
-        if (argument_types[1] != Type::INT) {
-          errors_->push_back(StrCat("type mismatch; ", expr.function(),
-                                    " applied to ", argument_types[1]));
-        }
-        operations_.push_back(Operation::MakeMOD(dst_, dst_ + 1));
-        type_ = Type::INT;
-      }
-      break;
-  }
-}
-
-void ExpressionCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
-  expr.operand().Accept(this);
-  bool type_mismatch = false;
-  switch (expr.op()) {
-    case UnaryOperator::NEGATE:
-      if (type_ == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDNEG(dst_));
-      } else if (type_ == Type::INT) {
-        operations_.push_back(Operation::MakeINEG(dst_));
-      } else {
-        type_mismatch = true;
-      }
-      break;
-    case UnaryOperator::NOT:
-      if (type_ == Type::BOOL) {
-        operations_.push_back(Operation::MakeNOT(dst_));
-      } else {
-        type_mismatch = true;
-      }
-      break;
-  }
-  if (type_mismatch) {
-    errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
-                              " applied to ", type_));
-  }
-}
-
-void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
-  expr.operand1().Accept(this);
-  Type type1 = type_;
-  ++dst_;
-  expr.operand2().Accept(this);
-  Type type2 = type_;
-  --dst_;
-  if (type1 == Type::BOOL || type2 == Type::BOOL) {
-    errors_->push_back(StrCat("type mismatch; binary operator ", expr.op(),
-                              " applied to ", Type::BOOL));
-  }
-  if (type1 != Type::DOUBLE &&
-      (type2 == Type::DOUBLE || expr.op() == BinaryOperator::DIVIDE)) {
-    operations_.push_back(Operation::MakeI2D(dst_));
-    type1 = Type::DOUBLE;
-  }
-  if (type2 != Type::DOUBLE && type1 == Type::DOUBLE) {
-    operations_.push_back(Operation::MakeI2D(dst_ + 1));
-    type2 = Type::DOUBLE;
-  }
-  switch (expr.op()) {
-    case BinaryOperator::PLUS:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDADD(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeIADD(dst_, dst_ + 1));
-      }
-      break;
-    case BinaryOperator::MINUS:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDSUB(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeISUB(dst_, dst_ + 1));
-      }
-      break;
-    case BinaryOperator::MULTIPLY:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDMUL(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeIMUL(dst_, dst_ + 1));
-      }
-      break;
-    case BinaryOperator::DIVIDE:
-      operations_.push_back(Operation::MakeDDIV(dst_, dst_ + 1));
-      break;
-    default:
-      // TODO(hlsyounes): implement.
-      LOG(FATAL) << "not implemented";
-      break;
-  }
-  type_ = type1;
-}
-
-void ExpressionCompiler::DoVisitConditional(const Conditional& expr) {
-  expr.condition().Accept(this);
-  int iffalse_pos = operations_.size();
-  operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
-  if (type_ != Type::BOOL) {
-    errors_->push_back(StrCat("type mismatch; expecting condition of type ",
-                              Type::BOOL, "; found ", type_));
-  }
-  ++dst_;
-  expr.if_branch().Accept(this);
-  Type if_type = type_;
-  size_t if_end = operations_.size();
-  ++dst_;
-  expr.else_branch().Accept(this);
-  Type else_type = type_;
-  dst_ -= 2;
-  if (!(if_type == else_type ||
-        (if_type == Type::INT && else_type == Type::DOUBLE) ||
-        (else_type == Type::INT && if_type == Type::DOUBLE))) {
-    errors_->push_back(StrCat("incompatible types for condition branches; ",
-                              if_type, " and ", else_type));
-  }
-  if (if_type != Type::DOUBLE && else_type == Type::DOUBLE) {
-    operations_.insert(operations_.begin() + if_end,
-                       Operation::MakeI2D(dst_ + 1));
-    ++if_end;
-    if_type = Type::DOUBLE;
-  }
-  if (else_type != Type::DOUBLE && if_type == Type::DOUBLE) {
-    operations_.push_back(Operation::MakeI2D(dst_ + 2));
-  }
-  operations_.insert(operations_.begin() + if_end,
-                     Operation::MakeGOTO(operations_.size()));
-  operations_[iffalse_pos] = Operation::MakeIFFALSE(dst_, if_end + 1);
-  type_ = if_type;
-}
-
-void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {
-  LOG(FATAL) << "not an expression";
-}
-
-void ExpressionCompiler::DoVisitConjunction(const Conjunction& formula) {
-  size_t n = formula.conjuncts().size();
-  operations_.push_back(Operation::MakeICONST(1, dst_));
-  for (size_t i = 0; i < n; ++i) {
-    const StateFormula& conjunct = *formula.conjuncts()[i];
-    size_t iffalse_pos = operations_.size();
-    operations_.push_back(Operation::MakeNOP());  // placeholder for IFFALSE
-    conjunct.Accept(this);
-    if (type_ != Type::BOOL) {
-      errors_->push_back(StrCat("type mismatch; binary operator & applied to ",
-                                type_));
-    }
-    operations_[iffalse_pos] = Operation::MakeIFFALSE(dst_, operations_.size());
-  }
-  type_ = Type::BOOL;
-}
-
-void ExpressionCompiler::DoVisitDisjunction(const Disjunction& formula) {
-  size_t n = formula.disjuncts().size();
-  operations_.push_back(Operation::MakeICONST(0, dst_));
-  for (size_t i = 0; i < n; ++i) {
-    const StateFormula& disjunct = *formula.disjuncts()[i];
-    size_t iftrue_pos = operations_.size();
-    operations_.push_back(Operation::MakeNOP());  // placeholder for IFTRUE
-    disjunct.Accept(this);
-    if (type_ != Type::BOOL) {
-      errors_->push_back(StrCat("type mismatch; binary operator | applied to ",
-                                type_));
-    }
-    operations_[iftrue_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
-  }
-  type_ = Type::BOOL;
-}
-
-void ExpressionCompiler::DoVisitNegation(const Negation& formula) {
-  formula.negand().Accept(this);
-  if (type_ != Type::BOOL) {
-    errors_->push_back(StrCat("type mismatch; unary operator ! applied to ",
-                              type_));
-  }
-  operations_.push_back(Operation::MakeNOT(dst_));
-  type_ = Type::BOOL;
-}
-
-void ExpressionCompiler::DoVisitImplication(const Implication& formula) {
-  formula.antecedent().Accept(this);
-  if (type_ != Type::BOOL) {
-    errors_->push_back(StrCat("type mismatch; binary operator => applied to ",
-                              type_));
-  }
-  operations_.push_back(Operation::MakeNOT(dst_));
-  size_t iftrue_pos = operations_.size();
-  operations_.push_back(Operation::MakeNOP());  // placeholder for IFTRUE
-  formula.consequent().Accept(this);
-  if (type_ != Type::BOOL) {
-    errors_->push_back(StrCat("type mismatch; binary operator => applied to ",
-                              type_));
-  }
-  operations_[iftrue_pos] = Operation::MakeIFTRUE(dst_, operations_.size());
-  type_ = Type::BOOL;
-}
-
-void ExpressionCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
-  LOG(FATAL) << "not an expression";
-}
-
-void ExpressionCompiler::DoVisitComparison(const Comparison& formula) {
-  formula.expr1().Accept(this);
-  Type type1 = type_;
-  ++dst_;
-  formula.expr2().Accept(this);
-  Type type2 = type_;
-  --dst_;
-  if (!(type1 == type2 ||
-        (type1 == Type::INT && type2 == Type::DOUBLE) ||
-        (type2 == Type::INT && type1 == Type::DOUBLE))) {
-    errors_->push_back(StrCat("incompatible types for binary operator ",
-                              formula.op(), "; ", type1, " and ", type2));
-  }
-  if (type1 != Type::DOUBLE && type2 == Type::DOUBLE) {
-    operations_.push_back(Operation::MakeI2D(dst_));
-    type1 = Type::DOUBLE;
-  }
-  if (type2 != Type::DOUBLE && type1 == Type::DOUBLE) {
-    operations_.push_back(Operation::MakeI2D(dst_ + 1));
-    type2 = Type::DOUBLE;
-  }
-  switch (formula.op()) {
-    case Comparison::LESS:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDLT(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeILT(dst_, dst_ + 1));
-      }
-      break;
-    case Comparison::LESS_EQUAL:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDLE(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeILE(dst_, dst_ + 1));
-      }
-      break;
-    case Comparison::GREATER_EQUAL:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDGE(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeIGE(dst_, dst_ + 1));
-      }
-      break;
-    case Comparison::GREATER:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDGT(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeIGT(dst_, dst_ + 1));
-      }
-      break;
-    case Comparison::EQUAL:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDEQ(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeIEQ(dst_, dst_ + 1));
-      }
-      break;
-    case Comparison::NOT_EQUAL:
-      if (type1 == Type::DOUBLE) {
-        operations_.push_back(Operation::MakeDNE(dst_, dst_ + 1));
-      } else {
-        operations_.push_back(Operation::MakeINE(dst_, dst_ + 1));
-      }
-      break;
-  }
-  type_ = Type::BOOL;
-}
-
 CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
@@ -756,28 +275,6 @@ CompiledExpression CompileAndOptimizeExpression(
   } else {
     return OptimizeIntExpression(result.expr);
   }
-}
-
-CompiledExpression CompileExpression(
-    const StateFormula& expr,
-    const std::map<std::string, int>& variables_by_name,
-    std::vector<std::string>* errors) {
-  ExpressionCompiler compiler(&variables_by_name, errors);
-  expr.Accept(&compiler);
-  if (compiler.type() != Type::BOOL) {
-    errors->push_back(StrCat("type mismatch; expecting expression of type ",
-                             Type::BOOL, "; found ", compiler.type()));
-    return CompiledExpression({});
-  }
-  return CompiledExpression(compiler.release_operations());
-}
-
-CompiledExpression CompileAndOptimizeExpression(
-    const StateFormula& expr,
-    const std::map<std::string, int>& variables_by_name,
-    std::vector<std::string>* errors) {
-  return OptimizeIntExpression(
-      CompileExpression(expr, variables_by_name, errors));
 }
 
 class DistributionCompiler : public DistributionVisitor {
@@ -937,234 +434,17 @@ CompiledModel CompileModel(const Model& model,
   return compiled_model;
 }
 
-class PropertyCompiler : public StateFormulaVisitor {
- public:
-  PropertyCompiler(
-      const std::map<std::string, int>* variables_by_name,
-      const DecisionDiagramManager* dd_manager,
-      const std::map<std::string, VariableProperties>* variable_properties,
-      int next_path_property_index,
-      std::vector<std::string>* errors);
-
-  std::unique_ptr<const CompiledProperty> release_property() {
-    return std::move(property_);
-  }
-
-  int next_path_property_index() const { return next_path_property_index_; }
-
- private:
-  virtual void DoVisitConjunction(const Conjunction& formula);
-  virtual void DoVisitDisjunction(const Disjunction& formula);
-  virtual void DoVisitNegation(const Negation& formula);
-  virtual void DoVisitImplication(const Implication& formula);
-  virtual void DoVisitProbabilistic(const Probabilistic& formula);
-  virtual void DoVisitComparison(const Comparison& formula);
-
-  std::unique_ptr<const CompiledProperty> property_;
-  const std::map<std::string, int>* variables_by_name_;
-  const DecisionDiagramManager* dd_manager_;
-  const std::map<std::string, VariableProperties>* variable_properties_;
-  int next_path_property_index_;
-  std::vector<std::string>* errors_;
-};
-
-std::unique_ptr<const CompiledProperty> CompileProperty(
-    const StateFormula& property,
-    const std::map<std::string, int>& variables_by_name,
-    const DecisionDiagramManager& dd_manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    int* next_path_property_index,
-    std::vector<std::string>* errors) {
-  PropertyCompiler compiler(&variables_by_name, &dd_manager,
-                            &variable_properties,
-                            *next_path_property_index,
-                            errors);
-  property.Accept(&compiler);
-  *next_path_property_index = compiler.next_path_property_index();
-  return compiler.release_property();
-}
-
-class PathPropertyCompiler : public PathFormulaVisitor {
- public:
-  PathPropertyCompiler(
-      const std::map<std::string, int>* variables_by_name,
-      const DecisionDiagramManager* dd_manager,
-      const std::map<std::string, VariableProperties>* variable_properties,
-      int next_index, std::vector<std::string>* errors);
-
-  std::unique_ptr<const CompiledPathProperty> release_path_property() {
-    return std::move(path_property_);
-  }
-
-  int next_index() const { return next_index_; }
-
- private:
-  virtual void DoVisitUntil(const Until& formula);
-
-  std::unique_ptr<const CompiledPathProperty> path_property_;
-  const std::map<std::string, int>* variables_by_name_;
-  const DecisionDiagramManager* dd_manager_;
-  const std::map<std::string, VariableProperties>* variable_properties_;
-  int next_index_;
-  std::vector<std::string>* errors_;
-};
-
-std::unique_ptr<const CompiledPathProperty> CompilePathProperty(
-    const PathFormula& path_property,
-    const std::map<std::string, int>& variables_by_name,
-    const DecisionDiagramManager& dd_manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    int* next_index,
-    std::vector<std::string>* errors) {
-  PathPropertyCompiler compiler(&variables_by_name, &dd_manager,
-                                &variable_properties, *next_index, errors);
-  path_property.Accept(&compiler);
-  *next_index = compiler.next_index();
-  return compiler.release_path_property();
-}
-
-PropertyCompiler::PropertyCompiler(
-    const std::map<std::string, int>* variables_by_name,
-    const DecisionDiagramManager* dd_manager,
-    const std::map<std::string, VariableProperties>* variable_properties,
-    int next_path_property_index,
-    std::vector<std::string>* errors)
-    : variables_by_name_(variables_by_name), dd_manager_(dd_manager),
-      variable_properties_(variable_properties),
-      next_path_property_index_(next_path_property_index), errors_(errors) {
-  CHECK(variables_by_name);
-  CHECK(errors);
-}
-
-void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
-  size_t n = formula.conjuncts().size();
-  UniquePtrVector<const CompiledProperty> operands;
-  for (size_t i = 0; i < n; ++i) {
-    const StateFormula& operand = *formula.conjuncts()[i];
-    operand.Accept(this);
-    operands.push_back(std::move(property_));
-  }
-  if (operands.empty()) {
-    property_ = CompiledExpressionProperty::New(
-        CompiledExpression(CompiledExpression({Operation::MakeICONST(1, 0)})),
-        dd_manager_->GetConstant(true));
-  } else {
-    property_ = CompiledNaryProperty::New(CompiledNaryOperator::AND, nullptr,
-                                          std::move(operands));
-  }
-}
-
-void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
-  size_t n = formula.disjuncts().size();
-  UniquePtrVector<const CompiledProperty> operands;
-  for (size_t i = 0; i < n; ++i) {
-    const StateFormula& operand = *formula.disjuncts()[i];
-    operand.Accept(this);
-    operands.push_back(CompiledNotProperty::New(std::move(property_)));
-  }
-  if (operands.empty()) {
-    property_ = CompiledExpressionProperty::New(
-        CompiledExpression(CompiledExpression({Operation::MakeICONST(0, 0)})),
-        dd_manager_->GetConstant(false));
-  } else {
-    property_ = CompiledNaryProperty::New(CompiledNaryOperator::OR, nullptr,
-                                          std::move(operands));
-  }
-}
-
-void PropertyCompiler::DoVisitNegation(const Negation& formula) {
-  formula.negand().Accept(this);
-  property_ = CompiledNotProperty::New(std::move(property_));
-}
-
-void PropertyCompiler::DoVisitImplication(const Implication& formula) {
-  UniquePtrVector<const CompiledProperty> operands;
-  formula.antecedent().Accept(this);
-  operands.push_back(CompiledNotProperty::New(std::move(property_)));
-  formula.consequent().Accept(this);
-  operands.push_back(std::move(property_));
-  property_ = CompiledNaryProperty::New(CompiledNaryOperator::OR, nullptr,
-                                        std::move(operands));
-}
-
-void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {
-  std::unique_ptr<const CompiledPathProperty> path_property =
-      CompilePathProperty(formula.formula(), *variables_by_name_,
-                          *dd_manager_, *variable_properties_,
-                          &next_path_property_index_, errors_);
-  if (!formula.strict()) {
-    property_ = CompiledProbabilityThresholdProperty::New(
-        CompiledProbabilityThresholdOperator::GREATER_EQUAL,
-        formula.threshold().value<double>(), std::move(path_property));
-  } else {
-    property_ = CompiledProbabilityThresholdProperty::New(
-        CompiledProbabilityThresholdOperator::GREATER,
-        formula.threshold().value<double>(), std::move(path_property));
-  }
-}
-
-void PropertyCompiler::DoVisitComparison(const Comparison& formula) {
-  CompiledExpression compiled_expr =
-      CompileExpression(formula, *variables_by_name_, errors_);
-  property_ = CompiledExpressionProperty::New(
-      compiled_expr, bdd(*dd_manager_, *variable_properties_, formula));
-}
-
-PathPropertyCompiler::PathPropertyCompiler(
-    const std::map<std::string, int>* variables_by_name,
-    const DecisionDiagramManager* dd_manager,
-    const std::map<std::string, VariableProperties>* variable_properties,
-    int next_index,
-    std::vector<std::string>* errors)
-    : variables_by_name_(variables_by_name), dd_manager_(dd_manager),
-      variable_properties_(variable_properties), next_index_(next_index),
-      errors_(errors) {
-  CHECK(variables_by_name);
-  CHECK(errors);
-}
-
-void PathPropertyCompiler::DoVisitUntil(const Until& formula) {
-  int index = next_index_;
-  ++next_index_;
-  std::unique_ptr<const CompiledProperty> pre = CompileProperty(
-      formula.pre(), *variables_by_name_, *dd_manager_, *variable_properties_,
-      &next_index_, errors_);
-  std::unique_ptr<const CompiledProperty> post = CompileProperty(
-      formula.post(), *variables_by_name_, *dd_manager_, *variable_properties_,
-      &next_index_, errors_);
-  path_property_ = CompiledUntilProperty::New(
-      formula.min_time().value<double>(), formula.max_time().value<double>(),
-      std::move(pre), std::move(post), index, StrCat(formula));
-}
-
-std::unique_ptr<const CompiledProperty> CompileProperty(
-    const StateFormula& property,
-    const CompiledModel& model,
-    const DecisionDiagramManager& dd_manager,
-    std::vector<std::string>* errors) {
-  std::map<std::string, int> variables_by_name;
-  std::map<std::string, VariableProperties> variable_properties;
-  int low_bit = 0;
-  for (const CompiledVariable& v : model.variables()) {
-    variables_by_name.insert({ v.name(), variables_by_name.size() });
-    const int num_bits = Log2(v.max_value() - v.min_value()) + 1;
-    VariableProperties p(v.min_value(), low_bit, low_bit + num_bits - 1);
-    variable_properties.insert({ v.name(), p });
-    low_bit += num_bits;
-  }
-  int next_path_property_index = 0;
-  return CompileProperty(property, variables_by_name, dd_manager,
-                         variable_properties, &next_path_property_index,
-                         errors);
-}
-
 std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
-    const StateFormula& property,
-    const CompiledModel& model,
+    const Expression& property,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
-  return OptimizeProperty(*CompileProperty(property, model, dd_manager, errors),
-                          dd_manager);
+  CompilePropertyResult result =
+      CompileProperty(property, identifiers_by_name, dd_manager);
+  if (!result.errors.empty()) {
+    errors->insert(errors->end(), result.errors.begin(), result.errors.end());
+  }
+  return std::move(result.property);
 }
 
 class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
@@ -1397,6 +677,8 @@ int main(int argc, char* argv[]) {
     VLOG(2) << *global_model;
     std::vector<std::string> errors;
     const CompiledModel compiled_model = CompileModel(*global_model, &errors);
+    const std::map<std::string, IdentifierInfo> identifiers_by_name =
+        GetIdentifiersByName(compiled_model);
     DecisionDiagramManager dd_man(2*compiled_model.NumBits());
     if (!errors.empty()) {
       for (const std::string& error : errors) {
@@ -1454,9 +736,9 @@ int main(int argc, char* argv[]) {
 	const State init_state(&compiled_model, &evaluator, &sampler);
         std::vector<std::unique_ptr<const CompiledProperty>>
             compiled_properties;
-        for (const StateFormula* property : properties) {
+        for (const Expression& property : properties) {
           compiled_properties.push_back(CompileAndOptimizeProperty(
-              *property, compiled_model, dd_man, &errors));
+              property, identifiers_by_name, dd_man, &errors));
         }
         const CompiledPathProperty* path_property = nullptr;
         ModelCheckingParams nested_params = params;
@@ -1579,15 +861,16 @@ int main(int argc, char* argv[]) {
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << global_model->commands().size()
                 << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); fi++) {
-	std::cout << std::endl << "Model checking " << **fi << " ..."
+      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
+	std::cout << std::endl << "Model checking " << *fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(**fi, compiled_model, dd_man, &errors);
-	current_property = fi - properties.begin();
+            CompileAndOptimizeProperty(*fi, identifiers_by_name, dd_man,
+                                       &errors);
+        current_property = fi - properties.begin();
 	size_t accepts = 0;
         ModelCheckingStats stats;
-	for (size_t i = 0; i < trials; i++) {
+	for (size_t i = 0; i < trials; ++i) {
 	  timeval start_time;
 	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
 	  itimerval stimer;
@@ -1707,14 +990,15 @@ int main(int argc, char* argv[]) {
                       dd_man.GetNumVariables(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); fi++) {
-	std::cout << std::endl << "Model checking " << **fi << " ..."
+      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
+	std::cout << std::endl << "Model checking " << *fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(**fi, compiled_model, dd_man, &errors);
-	double total_time = 0.0;
+            CompileAndOptimizeProperty(*fi, identifiers_by_name, dd_man,
+                                       &errors);
+        double total_time = 0.0;
 	bool accepted = false;
-	for (size_t i = 0; i < trials; i++) {
+	for (size_t i = 0; i < trials; ++i) {
 	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
 	  itimerval stimer;
 #ifdef PROFILING
@@ -1795,14 +1079,15 @@ int main(int argc, char* argv[]) {
                       dd_man.GetNumVariables(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); fi++) {
-	std::cout << std::endl << "Model checking " << **fi << " ..."
+      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
+	std::cout << std::endl << "Model checking " << *fi << " ..."
 		  << std::endl;
         std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(**fi, compiled_model, dd_man, &errors);
-	size_t accepts = 0;
+            CompileAndOptimizeProperty(*fi, identifiers_by_name, dd_man,
+                                       &errors);
+        size_t accepts = 0;
         ModelCheckingStats stats;
-	for (size_t i = 0; i < trials; i++) {
+	for (size_t i = 0; i < trials; ++i) {
 	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
 	  itimerval stimer;
 #ifdef PROFILING
@@ -1870,9 +1155,6 @@ int main(int argc, char* argv[]) {
       }
     }
     delete global_model;
-    for (const StateFormula* f : properties) {
-      delete f;
-    }
     properties.clear();
   } catch (const std::exception& e) {
     std::cerr << std::endl << PACKAGE ": " << e.what() << std::endl;

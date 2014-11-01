@@ -23,7 +23,7 @@
 %{
 #include "formulas.h"
 
-#include "parser.h"
+#include "parser.hh"
 
 #define YY_USER_INIT yylloc->first_line = yylloc->last_line = 1;
 

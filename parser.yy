@@ -33,7 +33,7 @@
 #include <set>
 #include <string>
 
-#include "parser.h"
+#include "parser.hh"
 
 // Lexical analyzer function.
 extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
@@ -45,7 +45,7 @@ extern std::map<std::string, TypedValue> const_overrides;
 /* Last model parsed. */
 const Model* global_model = nullptr;
 /* Parsed properties. */
-std::vector<const StateFormula*> properties;
+UniquePtrVector<const Expression> properties;
 
 /* Current model. */
 static Model* model;
@@ -104,19 +104,6 @@ static const Literal* make_literal(const TypedValue* q);
 static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
 static const Identifier* find_variable(const std::string* ident);
-/* Returns a conjunction. */
-static Conjunction* make_conjunction(StateFormula* f1,
-				     const StateFormula* f2);
-/* Returns a disjunction. */
-static Disjunction* make_disjunction(StateFormula* f1,
-				     const StateFormula* f2);
-/* Returns a probabilistic path quantification. */
-static StateFormula* make_probabilistic(const TypedValue* p,
-					bool strict, bool negate,
-					const PathFormula* f);
-/* Returns an until formula. */
-static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
-			       const TypedValue* t1, const TypedValue* t2);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression* expr);
 /* Returns the value of the given synchronization. */
@@ -300,35 +287,45 @@ const BinaryOperation* NewNotEqual(
                              std::move(operand1), std::move(operand2));
 }
 
-LessThan* NewLessThan(std::unique_ptr<const Expression>&& expr1,
-                      std::unique_ptr<const Expression>&& expr2) {
-  return new LessThan(std::move(expr1), std::move(expr2));
+double Double(const TypedValue* typed_value) {
+  CHECK(typed_value->type() != Type::BOOL);
+  double value = typed_value->value<double>();
+  delete typed_value;
+  return value;
 }
 
-LessThanOrEqual* NewLessThanOrEqual(std::unique_ptr<const Expression>&& expr1,
-                                    std::unique_ptr<const Expression>&& expr2) {
-  return new LessThanOrEqual(std::move(expr1), std::move(expr2));
+const ProbabilityThresholdOperation* NewProbabilityLess(
+    double threshold, std::unique_ptr<const PathProperty>&& path_property) {
+  return new ProbabilityThresholdOperation(ProbabilityThresholdOperator::LESS,
+                                           threshold, std::move(path_property));
 }
 
-GreaterThanOrEqual* NewGreaterThanOrEqual(
-    std::unique_ptr<const Expression>&& expr1,
-    std::unique_ptr<const Expression>&& expr2) {
-  return new GreaterThanOrEqual(std::move(expr1), std::move(expr2));
+const ProbabilityThresholdOperation* NewProbabilityLessEqual(
+    double threshold, std::unique_ptr<const PathProperty>&& path_property) {
+  return new ProbabilityThresholdOperation(
+      ProbabilityThresholdOperator::LESS_EQUAL, threshold,
+      std::move(path_property));
 }
 
-GreaterThan* NewGreaterThan(std::unique_ptr<const Expression>&& expr1,
-                            std::unique_ptr<const Expression>&& expr2) {
-  return new GreaterThan(std::move(expr1), std::move(expr2));
+const ProbabilityThresholdOperation* NewProbabilityGreaterEqual(
+    double threshold, std::unique_ptr<const PathProperty>&& path_property) {
+  return new ProbabilityThresholdOperation(
+      ProbabilityThresholdOperator::GREATER_EQUAL, threshold,
+      std::move(path_property));
 }
 
-Equality* NewEquality(std::unique_ptr<const Expression>&& expr1,
-                      std::unique_ptr<const Expression>&& expr2) {
-  return new Equality(std::move(expr1), std::move(expr2));
+const ProbabilityThresholdOperation* NewProbabilityGreater(
+    double threshold, std::unique_ptr<const PathProperty>&& path_property) {
+  return new ProbabilityThresholdOperation(
+      ProbabilityThresholdOperator::GREATER, threshold,
+      std::move(path_property));
 }
 
-Inequality* NewInequality(std::unique_ptr<const Expression>&& expr1,
-                          std::unique_ptr<const Expression>&& expr2) {
-  return new Inequality(std::move(expr1), std::move(expr2));
+const UntilProperty* NewUntil(double min_time, double max_time,
+                              const Expression* pre_expr,
+                              const Expression* post_expr) {
+  return new UntilProperty(min_time, max_time, MakeUnique(pre_expr),
+                           MakeUnique(post_expr));
 }
 
 const Exponential* NewExponential(std::unique_ptr<const Expression>&& rate) {
@@ -393,8 +390,7 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 
 %union {
   size_t synch;
-  StateFormula* formula;
-  const PathFormula* path;
+  const PathProperty* path;
   const Distribution* dist;
   const Expression* expr;
   int nat;
@@ -405,7 +401,7 @@ const Uniform* NewUniform(std::unique_ptr<const Expression>&& low,
 }
 
 %type <synch> synchronization
-%type <formula> csl_formula
+%type <expr> csl_formula
 %type <path> path_formula
 %type <dist> distribution
 %type <expr> expr rate_expr const_rate_expr const_expr csl_expr
@@ -689,44 +685,47 @@ integer : NUMBER { $$ = integer_value($1); }
 
 properties : /* empty */
            | properties csl_formula
-               { properties.push_back($2); }
+               { properties.push_back(MakeUnique($2)); }
            ;
 
-csl_formula : TRUE { $$ = new Conjunction(); }
-            | FALSE { $$ = new Disjunction(); }
+csl_formula : TRUE { $$ = new Literal(true); }
+            | FALSE { $$ = new Literal(false); }
             | P '<' NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, true, true, $5); }
+                { $$ = NewProbabilityLess(Double($3), MakeUnique($5)); }
             | P LEQ NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, false, true, $5); }
+                { $$ = NewProbabilityLessEqual(Double($3), MakeUnique($5)); }
             | P GEQ NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, false, false, $5); }
+                { $$ = NewProbabilityGreaterEqual(Double($3), MakeUnique($5)); }
             | P '>' NUMBER '[' path_formula ']'
-                { $$ = make_probabilistic($3, true, false, $5); }
+                { $$ = NewProbabilityGreater(Double($3), MakeUnique($5)); }
             | csl_formula IMPLY_TOKEN csl_formula
-                { $$ = new Implication($1, $3); }
-            | csl_formula '&' csl_formula { $$ = make_conjunction($1, $3); }
-            | csl_formula '|' csl_formula { $$ = make_disjunction($1, $3); }
-            | '!' csl_formula { $$ = new Negation($2); }
+                { $$ = NewImply(MakeUnique($1), MakeUnique($3)); }
+            | csl_formula '&' csl_formula
+                { $$ = NewAnd(MakeUnique($1), MakeUnique($3)); }
+            | csl_formula '|' csl_formula
+                { $$ = NewOr(MakeUnique($1), MakeUnique($3)); }
+            | '!' csl_formula
+                { $$ = NewNot(MakeUnique($2)); }
             | csl_expr '<' csl_expr
-                { $$ = NewLessThan(MakeUnique($1), MakeUnique($3)); }
+                { $$ = NewLess(MakeUnique($1), MakeUnique($3)); }
             | csl_expr LEQ csl_expr
-                { $$ = NewLessThanOrEqual(MakeUnique($1), MakeUnique($3)); }
+                { $$ = NewLessEqual(MakeUnique($1), MakeUnique($3)); }
             | csl_expr GEQ csl_expr
-                { $$ = NewGreaterThanOrEqual(MakeUnique($1), MakeUnique($3)); }
+                { $$ = NewGreaterEqual(MakeUnique($1), MakeUnique($3)); }
             | csl_expr '>' csl_expr
-                { $$ = NewGreaterThan(MakeUnique($1), MakeUnique($3)); }
+                { $$ = NewGreater(MakeUnique($1), MakeUnique($3)); }
             | csl_expr '=' csl_expr
-                { $$ = NewEquality(MakeUnique($1), MakeUnique($3)); }
+                { $$ = NewEqual(MakeUnique($1), MakeUnique($3)); }
             | csl_expr NEQ csl_expr
-                { $$ = NewInequality(MakeUnique($1), MakeUnique($3)); }
+                { $$ = NewNotEqual(MakeUnique($1), MakeUnique($3)); }
             | '(' csl_formula ')'
                 { $$ = $2; }
             ;
 
 path_formula : csl_formula U LEQ NUMBER csl_formula
-                 { $$ = make_until($1, $5, nullptr, $4); }
+                 { $$ = NewUntil(0, Double($4), $1, $5); }
              | csl_formula U '[' NUMBER ',' NUMBER ']' csl_formula
-                 { $$ = make_until($1, $8, $4, $6); }
+                 { $$ = NewUntil(Double($4), Double($6), $1, $8); }
 //             | X csl_formula
              ;
 
@@ -1051,63 +1050,6 @@ static const Identifier* find_variable(const std::string* ident) {
   return identifier;
 }
 
-static Conjunction* make_conjunction(StateFormula* f1,
-				     const StateFormula* f2) {
-  Conjunction* conj = dynamic_cast<Conjunction*>(f1);
-  if (conj == nullptr) {
-    conj = new Conjunction();
-    conj->add_conjunct(f1);
-  }
-  conj->add_conjunct(f2);
-  return conj;
-}
-
-static Disjunction* make_disjunction(StateFormula* f1,
-				     const StateFormula* f2) {
-  Disjunction* disj = dynamic_cast<Disjunction*>(f1);
-  if (disj == nullptr) {
-    disj = new Disjunction();
-    disj->add_disjunct(f1);
-  }
-  disj->add_disjunct(f2);
-  return disj;
-}
-
-static StateFormula* make_probabilistic(const TypedValue* p,
-					bool strict, bool negate,
-					const PathFormula* f) {
-  if (*p < 0 || *p > 1) {
-    yyerror("probability bound outside the interval [0,1]");
-  }
-  bool s = (strict && !negate) || (!strict && negate);
-  StateFormula* pr = new Probabilistic(*p, s, f);
-  if (negate) {
-    pr = new Negation(pr);
-  }
-  delete p;
-  return pr;
-}
-
-static const Until* make_until(const StateFormula* f1, const StateFormula* f2,
-			       const TypedValue* t1, const TypedValue* t2) {
-  const Until* until;
-  if (t1 == nullptr) {
-    if (*t2 < 0) {
-      yyerror("negative time bound");
-    }
-    until = new Until(f1, f2, 0, *t2);
-  } else {
-    if (*t1 < 0) {
-      yyerror("negative time bound");
-    } else if (*t2 < *t1) {
-      yyerror("empty time interval");
-    }
-    until = new Until(f1, f2, *t1, *t2);
-  }
-  delete t2;
-  return until;
-}
-
 static void add_update(const std::string* ident, const Expression* expr) {
   if (variables.find(*ident) == variables.end()) {
     yyerror("updating undeclared variable `" + *ident + "'");
@@ -1304,7 +1246,8 @@ std::string SubstituteName(
   return (i == substitutions.end()) ? name : i->second;
 }
 
-class ExpressionIdentifierSubstituter : public ExpressionVisitor {
+class ExpressionIdentifierSubstituter : public ExpressionVisitor,
+                                        public PathPropertyVisitor {
  public:
   explicit ExpressionIdentifierSubstituter(
       const std::map<std::string, std::string>& substitutions);
@@ -1320,9 +1263,11 @@ class ExpressionIdentifierSubstituter : public ExpressionVisitor {
   virtual void DoVisitConditional(const Conditional& expr);
   virtual void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr);
+  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
 
   std::map<std::string, std::string> substitutions_;
   std::unique_ptr<const Expression> expr_;
+  std::unique_ptr<const PathProperty> path_property_;
 };
 
 std::unique_ptr<const Expression> SubstituteIdentifiers(
@@ -1331,59 +1276,6 @@ std::unique_ptr<const Expression> SubstituteIdentifiers(
   ExpressionIdentifierSubstituter substituter(substitutions);
   expr.Accept(&substituter);
   return substituter.release_expr();
-}
-
-class StateFormulaIdentifierSubstituter : public StateFormulaVisitor {
- public:
-  explicit StateFormulaIdentifierSubstituter(
-      const std::map<std::string, std::string>& substitutions);
-
-  ~StateFormulaIdentifierSubstituter();
-
-  const StateFormula* release_formula();
-
- private:
-  virtual void DoVisitConjunction(const Conjunction& formula);
-  virtual void DoVisitDisjunction(const Disjunction& formula);
-  virtual void DoVisitNegation(const Negation& formula);
-  virtual void DoVisitImplication(const Implication& formula);
-  virtual void DoVisitProbabilistic(const Probabilistic& formula);
-  virtual void DoVisitComparison(const Comparison& formula);
-
-  std::map<std::string, std::string> substitutions_;
-  const StateFormula* formula_;
-};
-
-const StateFormula* SubstituteIdentifiers(
-    const StateFormula& formula,
-    const std::map<std::string, std::string>& substitutions) {
-  StateFormulaIdentifierSubstituter substituter(substitutions);
-  formula.Accept(&substituter);
-  return substituter.release_formula();
-}
-
-class PathFormulaIdentifierSubstituter : public PathFormulaVisitor {
- public:
-  explicit PathFormulaIdentifierSubstituter(
-      const std::map<std::string, std::string>& substitutions);
-
-  ~PathFormulaIdentifierSubstituter();
-
-  const PathFormula* release_formula();
-
- private:
-  virtual void DoVisitUntil(const Until& formula);
-
-  std::map<std::string, std::string> substitutions_;
-  const PathFormula* formula_;
-};
-
-const PathFormula* SubstituteIdentifiers(
-    const PathFormula& formula,
-    const std::map<std::string, std::string>& substitutions) {
-  PathFormulaIdentifierSubstituter substituter(substitutions);
-  formula.Accept(&substituter);
-  return substituter.release_formula();
 }
 
 class DistributionIdentifierSubstituter : public DistributionVisitor {
@@ -1512,120 +1404,19 @@ void ExpressionIdentifierSubstituter::DoVisitConditional(
 
 void ExpressionIdentifierSubstituter::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
-  LOG(FATAL) << "not an expression";
+  expr.path_property().Accept(this);
+  expr_ = ProbabilityThresholdOperation::New(expr.op(), expr.threshold(),
+                                             std::move(path_property_));
 }
 
-StateFormulaIdentifierSubstituter::StateFormulaIdentifierSubstituter(
-    const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions), formula_(nullptr) {
-}
-
-StateFormulaIdentifierSubstituter::~StateFormulaIdentifierSubstituter() {
-  delete formula_;
-}
-
-const StateFormula* StateFormulaIdentifierSubstituter::release_formula() {
-  const StateFormula* formula = formula_;
-  formula_ = nullptr;
-  return formula;
-}
-
-void StateFormulaIdentifierSubstituter::DoVisitConjunction(
-    const Conjunction& formula) {
-  Conjunction* conjunction = new Conjunction();
-  for (const StateFormula* conjunct : formula.conjuncts()) {
-    conjunct->Accept(this);
-    conjunction->add_conjunct(release_formula());
-  }
-  formula_ = conjunction;
-}
-
-void StateFormulaIdentifierSubstituter::DoVisitDisjunction(
-    const Disjunction& formula) {
-  Disjunction* disjunction = new Disjunction();
-  for (const StateFormula* disjunct : formula.disjuncts()) {
-    disjunct->Accept(this);
-    disjunction->add_disjunct(release_formula());
-  }
-  formula_ = disjunction;
-}
-
-void StateFormulaIdentifierSubstituter::DoVisitNegation(
-    const Negation& formula) {
-  formula.negand().Accept(this);
-  formula_ = new Negation(release_formula());
-}
-
-void StateFormulaIdentifierSubstituter::DoVisitImplication(
-    const Implication& formula) {
-  formula.antecedent().Accept(this);
-  const StateFormula* antecedent = release_formula();
-  formula.consequent().Accept(this);
-  formula_ = new Implication(antecedent, release_formula());
-}
-
-void StateFormulaIdentifierSubstituter::DoVisitProbabilistic(
-    const Probabilistic& formula) {
-  formula_ = new Probabilistic(
-      formula.threshold(), formula.strict(),
-      SubstituteIdentifiers(formula.formula(), substitutions_));
-}
-
-void StateFormulaIdentifierSubstituter::DoVisitComparison(
-    const Comparison& formula) {
-  switch (formula.op()) {
-    case Comparison::LESS:
-      formula_ = new LessThan(
-          SubstituteIdentifiers(formula.expr1(), substitutions_),
-          SubstituteIdentifiers(formula.expr2(), substitutions_));
-      break;
-    case Comparison::LESS_EQUAL:
-      formula_ = new LessThanOrEqual(
-          SubstituteIdentifiers(formula.expr1(), substitutions_),
-          SubstituteIdentifiers(formula.expr2(), substitutions_));
-      break;
-    case Comparison::GREATER_EQUAL:
-      formula_ = new GreaterThanOrEqual(
-          SubstituteIdentifiers(formula.expr1(), substitutions_),
-          SubstituteIdentifiers(formula.expr2(), substitutions_));
-      break;
-    case Comparison::GREATER:
-      formula_ = new GreaterThan(
-          SubstituteIdentifiers(formula.expr1(), substitutions_),
-          SubstituteIdentifiers(formula.expr2(), substitutions_));
-      break;
-    case Comparison::EQUAL:
-      formula_ = new Equality(
-          SubstituteIdentifiers(formula.expr1(), substitutions_),
-          SubstituteIdentifiers(formula.expr2(), substitutions_));
-      break;
-    case Comparison::NOT_EQUAL:
-      formula_ = new Inequality(
-          SubstituteIdentifiers(formula.expr1(), substitutions_),
-          SubstituteIdentifiers(formula.expr2(), substitutions_));
-      break;
-  }
-}
-
-PathFormulaIdentifierSubstituter::PathFormulaIdentifierSubstituter(
-    const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions), formula_(nullptr) {
-}
-
-PathFormulaIdentifierSubstituter::~PathFormulaIdentifierSubstituter() {
-  delete formula_;
-}
-
-const PathFormula* PathFormulaIdentifierSubstituter::release_formula() {
-  const PathFormula* formula = formula_;
-  formula_ = nullptr;
-  return formula;
-}
-
-void PathFormulaIdentifierSubstituter::DoVisitUntil(const Until& formula) {
-  formula_ = new Until(SubstituteIdentifiers(formula.pre(), substitutions_),
-                       SubstituteIdentifiers(formula.post(), substitutions_),
-                       formula.min_time(), formula.max_time());
+void ExpressionIdentifierSubstituter::DoVisitUntilProperty(
+    const UntilProperty& path_property) {
+  path_property.pre_expr().Accept(this);
+  auto pre_expr = std::move(expr_);
+  path_property.post_expr().Accept(this);
+  path_property_ =
+      UntilProperty::New(path_property.min_time(), path_property.max_time(),
+                         std::move(pre_expr), std::move(expr_));
 }
 
 DistributionIdentifierSubstituter::DistributionIdentifierSubstituter(
@@ -1766,9 +1557,6 @@ static void prepare_module(const std::string* ident) {
 /* Prepares a model for parsing. */
 static void prepare_model() {
   clear_declarations();
-  for (const StateFormula* property : properties) {
-    delete property;
-  }
   properties.clear();
   if (model != nullptr) {
     delete model;

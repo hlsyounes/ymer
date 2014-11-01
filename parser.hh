@@ -1,19 +1,19 @@
-/* A Bison parser, made by GNU Bison 2.5.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison interface for Yacc-like parsers in C
-   
-      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
-   
+
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
@@ -26,79 +26,87 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+#ifndef YY_YY_PARSER_HH_INCLUDED
+# define YY_YY_PARSER_HH_INCLUDED
+/* Debug traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
+#if YYDEBUG
+extern int yydebug;
+#endif
 
-/* Tokens.  */
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     DTMC_TOKEN = 258,
-     CTMC_TOKEN = 259,
-     MDP_TOKEN = 260,
-     PROBABILISTIC = 261,
-     STOCHASTIC = 262,
-     NONDETERMINISTIC = 263,
-     CONST = 264,
-     INT_TOKEN = 265,
-     DOUBLE_TOKEN = 266,
-     BOOL_TOKEN = 267,
-     RATE = 268,
-     PROB = 269,
-     GLOBAL = 270,
-     DOTDOT = 271,
-     FORMULA = 272,
-     LABEL = 273,
-     INIT = 274,
-     ENDINIT = 275,
-     REWARDS = 276,
-     ENDREWARDS = 277,
-     MODULE = 278,
-     ENDMODULE = 279,
-     ARROW = 280,
-     PRIME = 281,
-     TRUE = 282,
-     FALSE = 283,
-     MAX_TOKEN = 284,
-     MIN_TOKEN = 285,
-     FUNC = 286,
-     IDENTIFIER = 287,
-     NUMBER = 288,
-     LABEL_NAME = 289,
-     SYSTEM = 290,
-     ENDSYSTEM = 291,
-     DOUBLE_BAR = 292,
-     TRIPLE_BAR = 293,
-     BACK_ARROW = 294,
-     A = 295,
-     C = 296,
-     E = 297,
-     F = 298,
-     G = 299,
-     I = 300,
-     PMAX = 301,
-     PMIN = 302,
-     P = 303,
-     RMAX = 304,
-     RMIN = 305,
-     R = 306,
-     S = 307,
-     U = 308,
-     W = 309,
-     X = 310,
-     EXP = 311,
-     L = 312,
-     IFF_TOKEN = 313,
-     IMPLY_TOKEN = 314,
-     NEQ = 315,
-     GEQ = 316,
-     LEQ = 317,
-     UMINUS = 318
-   };
+  enum yytokentype
+  {
+    DTMC_TOKEN = 258,
+    CTMC_TOKEN = 259,
+    MDP_TOKEN = 260,
+    PROBABILISTIC = 261,
+    STOCHASTIC = 262,
+    NONDETERMINISTIC = 263,
+    CONST = 264,
+    INT_TOKEN = 265,
+    DOUBLE_TOKEN = 266,
+    BOOL_TOKEN = 267,
+    RATE = 268,
+    PROB = 269,
+    GLOBAL = 270,
+    DOTDOT = 271,
+    FORMULA = 272,
+    LABEL = 273,
+    INIT = 274,
+    ENDINIT = 275,
+    REWARDS = 276,
+    ENDREWARDS = 277,
+    MODULE = 278,
+    ENDMODULE = 279,
+    ARROW = 280,
+    PRIME = 281,
+    TRUE = 282,
+    FALSE = 283,
+    MAX_TOKEN = 284,
+    MIN_TOKEN = 285,
+    FUNC = 286,
+    IDENTIFIER = 287,
+    NUMBER = 288,
+    LABEL_NAME = 289,
+    SYSTEM = 290,
+    ENDSYSTEM = 291,
+    DOUBLE_BAR = 292,
+    TRIPLE_BAR = 293,
+    BACK_ARROW = 294,
+    A = 295,
+    C = 296,
+    E = 297,
+    F = 298,
+    G = 299,
+    I = 300,
+    PMAX = 301,
+    PMIN = 302,
+    P = 303,
+    RMAX = 304,
+    RMIN = 305,
+    R = 306,
+    S = 307,
+    U = 308,
+    W = 309,
+    X = 310,
+    EXP = 311,
+    L = 312,
+    IFF_TOKEN = 313,
+    IMPLY_TOKEN = 314,
+    NEQ = 315,
+    LEQ = 316,
+    GEQ = 317,
+    UMINUS = 318
+  };
 #endif
 /* Tokens.  */
 #define DTMC_TOKEN 258
@@ -159,23 +167,19 @@
 #define IFF_TOKEN 313
 #define IMPLY_TOKEN 314
 #define NEQ 315
-#define GEQ 316
-#define LEQ 317
+#define LEQ 316
+#define GEQ 317
 #define UMINUS 318
 
-
-
-
+/* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE
+typedef union YYSTYPE YYSTYPE;
+union YYSTYPE
 {
-
-/* Line 2068 of yacc.c  */
-#line 394 "parser.yy"
+#line 391 "parser.yy" /* yacc.c:1909  */
 
   size_t synch;
-  StateFormula* formula;
-  const PathFormula* path;
+  const PathProperty* path;
   const Distribution* dist;
   const Expression* expr;
   int nat;
@@ -184,30 +188,29 @@ typedef union YYSTYPE
   Function function;
   UniquePtrVector<const Expression>* arguments;
 
-
-
-/* Line 2068 of yacc.c  */
-#line 191 "parser.h"
-} YYSTYPE;
+#line 192 "parser.hh" /* yacc.c:1909  */
+};
 # define YYSTYPE_IS_TRIVIAL 1
-# define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 #endif
 
-extern YYSTYPE yylval;
-
+/* Location type.  */
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
-typedef struct YYLTYPE
+typedef struct YYLTYPE YYLTYPE;
+struct YYLTYPE
 {
   int first_line;
   int first_column;
   int last_line;
   int last_column;
-} YYLTYPE;
-# define yyltype YYLTYPE /* obsolescent; will be withdrawn */
+};
 # define YYLTYPE_IS_DECLARED 1
 # define YYLTYPE_IS_TRIVIAL 1
 #endif
 
-extern YYLTYPE yylloc;
 
+extern YYSTYPE yylval;
+extern YYLTYPE yylloc;
+int yyparse (void* scanner);
+
+#endif /* !YY_YY_PARSER_HH_INCLUDED  */
