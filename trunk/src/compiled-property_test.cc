@@ -621,6 +621,20 @@ TEST(OptimizePropertyTest, NaryProperty) {
       "1: ILOAD 0 1\n"
       "2: IEQ 0 1";
   EXPECT_EQ(expected3, StrCat(*property3));
+  auto property4 = OptimizeProperty(
+      CompiledNaryProperty(
+          CompiledNaryOperator::AND, nullptr,
+          UniquePtrVector<const CompiledProperty>(
+              CompileProperty(Identifier("a"), identifiers_by_name, dd_manager)
+                  .property,
+              CompileProperty(Identifier("a"), identifiers_by_name, dd_manager)
+                  .property)),
+      dd_manager);
+  const std::string expected4 =
+      "0: ILOAD 0 0\n"
+      "1: IFFALSE 0 3\n"
+      "2: ILOAD 0 0";
+  EXPECT_EQ(expected4, StrCat(*property4));
 }
 
 }  // namespace

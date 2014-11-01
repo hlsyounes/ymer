@@ -906,7 +906,7 @@ std::vector<Operation> ComposeOperations(
     const std::vector<Operation>& operations2) {
   std::vector<Operation> operations(operations1);
   const int pc_shift =
-      operations1.size() + (op == CompiledNaryOperator::IFF) ? 0 : 1;
+      operations1.size() + ((op == CompiledNaryOperator::IFF) ? 0 : 1);
   const int reg_shift = (op == CompiledNaryOperator::IFF) ? 1 : 0;
   if (op == CompiledNaryOperator::AND) {
     operations.push_back(
