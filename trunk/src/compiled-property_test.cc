@@ -570,11 +570,17 @@ TEST(OptimizePropertyTest, NotProperty) {
   EXPECT_EQ(expected3, StrCat(*property3));
   auto property4 = OptimizeProperty(
       *CompileProperty(
-           UnaryOperation(UnaryOperator::NOT,
-                          ProbabilityThresholdOperation::New(
-                              ProbabilityThresholdOperator::LESS, 0.25,
-                              UntilProperty::New(17, 42, Literal::New(true),
-                                                 Identifier::New("a")))),
+           UnaryOperation(
+               UnaryOperator::NOT,
+               ProbabilityThresholdOperation::New(
+                   ProbabilityThresholdOperator::LESS, 0.25,
+                   UntilProperty::New(
+                       17, 42, UnaryOperation::New(UnaryOperator::NOT,
+                                                   Literal::New(false)),
+                       UnaryOperation::New(
+                           UnaryOperator::NOT,
+                           UnaryOperation::New(UnaryOperator::NOT,
+                                               Identifier::New("a")))))),
            identifiers_by_name, dd_manager).property,
       dd_manager);
   const std::string expected4 =

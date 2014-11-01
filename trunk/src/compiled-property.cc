@@ -157,21 +157,20 @@ bool HasOneProbabilistic(
 }  // namespace
 
 CompiledNaryProperty::CompiledNaryProperty(
-    CompiledNaryOperator op, const CompiledExpression& optional_expr_operand,
-    const BDD& expr_operand_bdd,
+    CompiledNaryOperator op,
+    std::unique_ptr<const CompiledExpressionProperty>&& optional_expr_operand,
     UniquePtrVector<const CompiledProperty>&& other_operands)
     : CompiledProperty(HasOneProbabilistic(other_operands)),
       op_(op),
-      optional_expr_operand_(optional_expr_operand),
-      expr_operand_bdd_(expr_operand_bdd),
+      optional_expr_operand_(std::move(optional_expr_operand)),
       other_operands_(std::move(other_operands)) {}
 
 std::unique_ptr<const CompiledNaryProperty> CompiledNaryProperty::New(
-    CompiledNaryOperator op, const CompiledExpression& optional_expr_operand,
-    const BDD& expr_operand_bdd,
+    CompiledNaryOperator op,
+    std::unique_ptr<const CompiledExpressionProperty>&& optional_expr_operand,
     UniquePtrVector<const CompiledProperty>&& other_operands) {
   return std::unique_ptr<const CompiledNaryProperty>(new CompiledNaryProperty(
-      op, optional_expr_operand, expr_operand_bdd, std::move(other_operands)));
+      op, std::move(optional_expr_operand), std::move(other_operands)));
 }
 
 void CompiledNaryProperty::DoAccept(CompiledPropertyVisitor* visitor) const {
@@ -725,23 +724,20 @@ void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
       return;
     case BinaryOperator::AND:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::AND, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::AND, nullptr,
           UniquePtrVector<const CompiledProperty>(release_property(&state1),
                                                   release_property())));
       return;
     case BinaryOperator::OR:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::OR, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::OR, nullptr,
           UniquePtrVector<const CompiledProperty>(release_property(&state1),
                                                   release_property())));
       return;
     case BinaryOperator::IMPLY:
     case BinaryOperator::LESS_EQUAL:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::OR, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::OR, nullptr,
           UniquePtrVector<const CompiledProperty>(
               CompiledNotProperty::New(release_property(&state1)),
               release_property())));
@@ -749,39 +745,34 @@ void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
     case BinaryOperator::IFF:
     case BinaryOperator::EQUAL:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::IFF, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::IFF, nullptr,
           UniquePtrVector<const CompiledProperty>(release_property(&state1),
                                                   release_property())));
       return;
     case BinaryOperator::LESS:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::AND, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::AND, nullptr,
           UniquePtrVector<const CompiledProperty>(
               CompiledNotProperty::New(release_property(&state1)),
               release_property())));
       return;
     case BinaryOperator::GREATER_EQUAL:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::OR, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::OR, nullptr,
           UniquePtrVector<const CompiledProperty>(
               release_property(&state1),
               CompiledNotProperty::New(release_property()))));
       return;
     case BinaryOperator::GREATER:
       state_ = CompilerState(CompiledNaryProperty::New(
-          CompiledNaryOperator::AND, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::AND, nullptr,
           UniquePtrVector<const CompiledProperty>(
               release_property(&state1),
               CompiledNotProperty::New(release_property()))));
       return;
     case BinaryOperator::NOT_EQUAL:
       state_ = CompilerState(CompiledNotProperty::New(CompiledNaryProperty::New(
-          CompiledNaryOperator::IFF, CompiledExpression({}),
-          dd_manager_->GetConstant(false),
+          CompiledNaryOperator::IFF, nullptr,
           UniquePtrVector<const CompiledProperty>(release_property(&state1),
                                                   release_property()))));
       return;
@@ -990,9 +981,11 @@ std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty(
       property = std::move(other_operands_[0]);
     } else {
       property = CompiledNaryProperty::New(
-          op_, OptimizeIntExpression(expr_operand_ ? expr_operand_->expr()
-                                                   : CompiledExpression({})),
-          expr_operand_ ? expr_operand_->bdd() : dd_manager.GetConstant(false),
+          op_, expr_operand_ == nullptr
+                   ? nullptr
+                   : CompiledExpressionProperty::New(
+                         OptimizeIntExpression(expr_operand_->expr()),
+                         expr_operand_->bdd()),
           UniquePtrVector<const CompiledProperty>(other_operands_.begin(),
                                                   other_operands_.end()));
     }
@@ -1042,7 +1035,7 @@ void CompiledPropertyOptimizer::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
   if (property.other_operands().empty()) {
     state_ = OptimizerState(CompiledExpressionProperty::New(
-        property.expr_operand(), property.expr_operand_bdd()));
+        property.expr_operand().expr(), property.expr_operand().bdd()));
   } else {
     property.other_operands()[0].Accept(this);
     OptimizerState state = std::move(state_);
@@ -1054,7 +1047,7 @@ void CompiledPropertyOptimizer::DoVisitCompiledNaryProperty(
       state.ComposeWith(
           property.op(),
           OptimizerState(CompiledExpressionProperty::New(
-              property.expr_operand(), property.expr_operand_bdd())),
+              property.expr_operand().expr(), property.expr_operand().bdd())),
           *dd_manager_);
     }
     state_ = std::move(state);

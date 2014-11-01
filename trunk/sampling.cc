@@ -114,8 +114,8 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::AND:
       result_ = true;
       if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
-                                                    state_->values());
+        result_ = evaluator_->EvaluateIntExpression(
+            property.expr_operand().expr(), state_->values());
       }
       if (result_ == true && !property.other_operands().empty()) {
         double alpha = params_.alpha / property.other_operands().size();
@@ -132,8 +132,8 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::OR:
       result_ = false;
       if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
-                                                    state_->values());
+        result_ = evaluator_->EvaluateIntExpression(
+            property.expr_operand().expr(), state_->values());
       }
       if (result_ == false && !property.other_operands().empty()) {
         double beta = params_.beta / property.other_operands().size();
@@ -150,8 +150,8 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::IFF: {
       bool has_result = false;
       if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(property.expr_operand(),
-                                                    state_->values());
+        result_ = evaluator_->EvaluateIntExpression(
+            property.expr_operand().expr(), state_->values());
         has_result = true;
       }
       double alpha = std::min(params_.alpha, params_.beta)
