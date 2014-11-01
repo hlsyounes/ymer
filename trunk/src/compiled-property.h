@@ -284,6 +284,6 @@ CompilePropertyResult CompileProperty(
 
 // Optimizes the given property.
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
-    const CompiledProperty& property);
+    const CompiledProperty& property, const DecisionDiagramManager& dd_manager);
 
 #endif  // COMPILED_PROPERTY_H_
