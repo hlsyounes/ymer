@@ -42,10 +42,14 @@ class UniquePtrVector {
       ++i_;
       return *this;
     }
-    Iterator& operator++(int) {
+    Iterator operator++(int) {
       Iterator tmp(*this);
       ++i_;
       return tmp;
+    }
+    typename std::vector<std::unique_ptr<T>>::difference_type operator-(
+        const Iterator& rhs) {
+      return i_ - rhs.i_;
     }
 
    private:
@@ -80,6 +84,7 @@ class UniquePtrVector {
   void push_back(std::unique_ptr<T>&& element) {
     elements_.push_back(std::move(element));
   }
+  void clear() { elements_.clear(); }
 
  private:
   void Init() {}

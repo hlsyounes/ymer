@@ -31,7 +31,6 @@
 #include "src/ddutil.h"
 
 struct PHData;
-struct StateFormula;
 
 // A parsed variable.
 class ParsedVariable {
@@ -197,11 +196,5 @@ ADD variable_mtbdd(const DecisionDiagramManager& manager,
 // Returns the 'next state' MTBDD representation for a variable.
 ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
                           int low, int low_bit, int high_bit);
-
-// Returns the `current state' BDD representation for a state formula.
-BDD bdd(
-    const DecisionDiagramManager& dd_man,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const StateFormula& f);
 
 #endif  // MODELS_H_
