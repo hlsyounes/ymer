@@ -1163,11 +1163,8 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const CompiledModel& model,
     const DecisionDiagramManager& dd_manager,
     std::vector<std::string>* errors) {
-#if 0
-  return OptimizeProperty(*CompileProperty(property, model, errors));
-#else
-  return CompileProperty(property, model, dd_manager, errors);
-#endif
+  return OptimizeProperty(*CompileProperty(property, model, dd_manager, errors),
+                          dd_manager);
 }
 
 class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
