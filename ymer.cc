@@ -1049,9 +1049,8 @@ void PropertyCompiler::DoVisitConjunction(const Conjunction& formula) {
         CompiledExpression(CompiledExpression({Operation::MakeICONST(1, 0)})),
         dd_manager_->GetConstant(true));
   } else {
-    property_ = CompiledNaryProperty::New(
-        CompiledNaryOperator::AND, CompiledExpression({}),
-        dd_manager_->GetConstant(false), std::move(operands));
+    property_ = CompiledNaryProperty::New(CompiledNaryOperator::AND, nullptr,
+                                          std::move(operands));
   }
 }
 
@@ -1068,9 +1067,8 @@ void PropertyCompiler::DoVisitDisjunction(const Disjunction& formula) {
         CompiledExpression(CompiledExpression({Operation::MakeICONST(0, 0)})),
         dd_manager_->GetConstant(false));
   } else {
-    property_ = CompiledNaryProperty::New(
-        CompiledNaryOperator::OR, CompiledExpression({}),
-        dd_manager_->GetConstant(false), std::move(operands));
+    property_ = CompiledNaryProperty::New(CompiledNaryOperator::OR, nullptr,
+                                          std::move(operands));
   }
 }
 
@@ -1085,9 +1083,8 @@ void PropertyCompiler::DoVisitImplication(const Implication& formula) {
   operands.push_back(CompiledNotProperty::New(std::move(property_)));
   formula.consequent().Accept(this);
   operands.push_back(std::move(property_));
-  property_ = CompiledNaryProperty::New(
-      CompiledNaryOperator::OR, CompiledExpression({}),
-      dd_manager_->GetConstant(false), std::move(operands));
+  property_ = CompiledNaryProperty::New(CompiledNaryOperator::OR, nullptr,
+                                        std::move(operands));
 }
 
 void PropertyCompiler::DoVisitProbabilistic(const Probabilistic& formula) {

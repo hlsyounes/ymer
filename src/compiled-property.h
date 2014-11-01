@@ -84,6 +84,26 @@ class CompiledPathProperty {
 // Output operator for compiled path properties.
 std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 
+// A compiled expression property.
+class CompiledExpressionProperty : public CompiledProperty {
+ public:
+  explicit CompiledExpressionProperty(const CompiledExpression& expr,
+                                      const BDD& bdd);
+
+  static std::unique_ptr<const CompiledExpressionProperty> New(
+      const CompiledExpression& expr, const BDD& bdd);
+
+  const CompiledExpression& expr() const { return expr_; }
+
+  const BDD& bdd() const { return bdd_; }
+
+ private:
+  void DoAccept(CompiledPropertyVisitor* visitor) const override;
+
+  CompiledExpression expr_;
+  BDD bdd_;
+};
+
 // Supported operators for compiled n-ary logic operator property.
 enum class CompiledNaryOperator { AND, OR, IFF };
 
@@ -94,26 +114,24 @@ std::ostream& operator<<(std::ostream& os, CompiledNaryOperator op);
 class CompiledNaryProperty : public CompiledProperty {
  public:
   explicit CompiledNaryProperty(
-      CompiledNaryOperator op, const CompiledExpression& optional_expr_operand,
-      const BDD& expr_operand_bdd,
+      CompiledNaryOperator op,
+      std::unique_ptr<const CompiledExpressionProperty>&& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
   static std::unique_ptr<const CompiledNaryProperty> New(
-      CompiledNaryOperator op, const CompiledExpression& optional_expr_operand,
-      const BDD& expr_operand_bdd,
+      CompiledNaryOperator op,
+      std::unique_ptr<const CompiledExpressionProperty>&& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
 
   CompiledNaryOperator op() const { return op_; }
 
   bool has_expr_operand() const {
-    return !optional_expr_operand_.operations().empty();
+    return optional_expr_operand_ != nullptr;
   }
 
-  const CompiledExpression& expr_operand() const {
-    return optional_expr_operand_;
+  const CompiledExpressionProperty& expr_operand() const {
+    return *optional_expr_operand_;
   }
-
-  const BDD& expr_operand_bdd() const { return expr_operand_bdd_; }
 
   const UniquePtrVector<const CompiledProperty>& other_operands() const {
     return other_operands_;
@@ -123,8 +141,7 @@ class CompiledNaryProperty : public CompiledProperty {
   void DoAccept(CompiledPropertyVisitor* visitor) const override;
 
   CompiledNaryOperator op_;
-  CompiledExpression optional_expr_operand_;
-  BDD expr_operand_bdd_;
+  std::unique_ptr<const CompiledExpressionProperty> optional_expr_operand_;
   UniquePtrVector<const CompiledProperty> other_operands_;
 };
 
@@ -175,26 +192,6 @@ class CompiledProbabilityThresholdProperty : public CompiledProperty {
   CompiledProbabilityThresholdOperator op_;
   double threshold_;
   std::unique_ptr<const CompiledPathProperty> path_property_;
-};
-
-// A compiled expression property.
-class CompiledExpressionProperty : public CompiledProperty {
- public:
-  explicit CompiledExpressionProperty(const CompiledExpression& expr,
-                                      const BDD& bdd);
-
-  static std::unique_ptr<const CompiledExpressionProperty> New(
-      const CompiledExpression& expr, const BDD& bdd);
-
-  const CompiledExpression& expr() const { return expr_; }
-
-  const BDD& bdd() const { return bdd_; }
-
- private:
-  void DoAccept(CompiledPropertyVisitor* visitor) const override;
-
-  CompiledExpression expr_;
-  BDD bdd_;
 };
 
 // A compiled until property.

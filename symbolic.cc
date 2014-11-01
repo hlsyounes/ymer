@@ -80,7 +80,7 @@ void SymbolicVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::AND: {
       BDD result = dd_model_->manager().GetConstant(true);
       if (property.has_expr_operand()) {
-        result = property.expr_operand_bdd() && result;
+        result = property.expr_operand().bdd() && result;
       }
       for (const CompiledProperty& operand : property.other_operands()) {
         operand.Accept(this);
@@ -92,7 +92,7 @@ void SymbolicVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::OR: {
       BDD result = dd_model_->manager().GetConstant(false);
       if (property.has_expr_operand()) {
-        result = property.expr_operand_bdd() || result;
+        result = property.expr_operand().bdd() || result;
       }
       for (const CompiledProperty& operand : property.other_operands()) {
         operand.Accept(this);
@@ -105,7 +105,7 @@ void SymbolicVerifier::DoVisitCompiledNaryProperty(
       BDD result = dd_model_->manager().GetConstant(false);
       bool has_result = false;
       if (property.has_expr_operand()) {
-        result = property.expr_operand_bdd();
+        result = property.expr_operand().bdd();
         has_result = true;
       }
       for (const CompiledProperty& operand : property.other_operands()) {
