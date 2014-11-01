@@ -593,90 +593,34 @@ TEST(OptimizePropertyTest, NotProperty) {
   EXPECT_EQ(expected4, StrCat(*property4));
 }
 
-#if 0
-TEST(OptimizePropertyTest, OptimizesEmptyAnd) {
-  const CompiledNaryProperty property = CompiledNaryProperty(
-      CompiledNaryOperator::AND,
-      CompiledExpression({}), UniquePtrVector<const CompiledProperty>());
-  const std::string expected = "0: ICONST 1 0";
-  EXPECT_EQ(expected, StrCat(*OptimizeProperty(property)));
-}
-
-TEST(OptimizePropertyTest, OptimizesExpressionConjunct) {
-  const CompiledNaryProperty property = CompiledNaryProperty(
-      CompiledNaryOperator::AND,
-      UnoptimizedCompiledExpression(),
-      MakeConjuncts(NewCompiledProbabilityThresholdProperty(0),
-                    NewCompiledProbabilityThresholdProperty(2)));
-  const std::string expected =
-      "AND of 3 operands\n"
-      "operand 0:\n"
-      "0: ICONST 0 0\n"
-      "operand 1:\n"
-      "P > 0.25\n"
-      "UNTIL [17, 42]\n"
-      "pre:\n"
-      "0: ILOAD 0 0\n"
-      "post:\n"
-      "0: ILOAD 1 0\n"
-      "operand 2:\n"
-      "P > 0.25\n"
-      "UNTIL [17, 42]\n"
-      "pre:\n"
-      "0: ILOAD 2 0\n"
-      "post:\n"
-      "0: ILOAD 3 0";
-  EXPECT_EQ(expected, StrCat(*OptimizeProperty(property)));
-}
-
-TEST(OptimizePropertyTest, OptimizesLogicOperators) {
-  const CompiledNotProperty property1 = CompiledNotProperty(
-      NewCompiledExpressionProperty(0));
-  const std::string expected1 =
-      "0: ILOAD 0 0\n"
-      "1: NOT 0";
-  EXPECT_EQ(expected1, StrCat(*OptimizeProperty(property1)));
-  const CompiledNotProperty property2 = CompiledNotProperty(
-      CompiledNotProperty::New(
-          NewCompiledProbabilityThresholdProperty(0)));
-  const std::string expected2 =
-      "P > 0.25\n"
-      "UNTIL [17, 42]\n"
-      "pre:\n"
-      "0: ILOAD 0 0\n"
-      "post:\n"
-      "0: ILOAD 1 0";
-  EXPECT_EQ(expected2, StrCat(*OptimizeProperty(property2)));
-  const CompiledNaryProperty property3 = CompiledNaryProperty(
-      CompiledNaryOperator::AND,
-      CompiledExpression({}),
-      MakeConjuncts(
-          NewCompiledExpressionProperty(0),
-          CompiledNotProperty::New(
-              CompiledNotProperty::New(
-                  CompiledNaryProperty::New(
-                      CompiledNaryOperator::AND,
-                      CompiledExpression({}),
-                      MakeConjuncts(
-                          CompiledNotProperty::New(
-                              NewCompiledProbabilityThresholdProperty(1)),
-                          NewCompiledExpressionProperty(3)))))));
+TEST(OptimizePropertyTest, NaryProperty) {
+  const DecisionDiagramManager dd_manager(2);
+  std::map<std::string, IdentifierInfo> identifiers_by_name = {
+      {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
+  auto property1 = OptimizeProperty(
+      *CompileProperty(BinaryOperation(BinaryOperator::AND, Literal::New(false),
+                                       Identifier::New("a")),
+                       identifiers_by_name, dd_manager).property,
+      dd_manager);
+  const std::string expected1 = "0: ICONST 0 0";
+  EXPECT_EQ(expected1, StrCat(*property1));
+  auto property2 = OptimizeProperty(
+      *CompileProperty(BinaryOperation(BinaryOperator::OR, Literal::New(true),
+                                       Identifier::New("a")),
+                       identifiers_by_name, dd_manager).property,
+      dd_manager);
+  const std::string expected2 = "0: ICONST 1 0";
+  EXPECT_EQ(expected2, StrCat(*property2));
+  auto property3 = OptimizeProperty(
+      *CompileProperty(BinaryOperation(BinaryOperator::IFF, Literal::New(true),
+                                       Identifier::New("a")),
+                       identifiers_by_name, dd_manager).property,
+      dd_manager);
   const std::string expected3 =
-      "AND of 2 operands\n"
-      "operand 0:\n"
-      "0: ILOAD 0 0\n"
-      "1: IFFALSE 0 3\n"
-      "2: ILOAD 3 0\n"
-      "operand 1:\n"
-      "NOT of:\n"
-      "P > 0.25\n"
-      "UNTIL [17, 42]\n"
-      "pre:\n"
-      "0: ILOAD 1 0\n"
-      "post:\n"
-      "0: ILOAD 2 0";
-  EXPECT_EQ(expected3, StrCat(*OptimizeProperty(property3)));
+      "0: ICONST 1 0\n"
+      "1: ILOAD 0 1\n"
+      "2: IEQ 0 1";
+  EXPECT_EQ(expected3, StrCat(*property3));
 }
-#endif
 
 }  // namespace

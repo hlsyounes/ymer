@@ -867,11 +867,9 @@ class OptimizerState {
   }
 
   void Negate();
-  void ComposeWith(CompiledNaryOperator op, OptimizerState&& state,
-                   const DecisionDiagramManager& dd_manager);
+  void ComposeWith(CompiledNaryOperator op, OptimizerState&& state);
 
-  std::unique_ptr<const CompiledProperty> ReleaseProperty(
-      const DecisionDiagramManager& dd_manager);
+  std::unique_ptr<const CompiledProperty> ReleaseProperty();
 
  private:
   std::unique_ptr<const CompiledExpressionProperty> expr_operand_;
@@ -947,13 +945,12 @@ std::unique_ptr<const CompiledExpressionProperty> ComposeExpressions(
 }
 
 void OptimizerState::ComposeWith(CompiledNaryOperator op,
-                                 OptimizerState&& state,
-                                 const DecisionDiagramManager& dd_manager) {
+                                 OptimizerState&& state) {
   if (is_negated_ || (operand_count() > 1 && op_ != op)) {
-    other_operands_.push_back(ReleaseProperty(dd_manager));
+    other_operands_.push_back(ReleaseProperty());
   }
   if (state.is_negated_ || (state.operand_count() > 1 && state.op_ != op)) {
-    other_operands_.push_back(state.ReleaseProperty(dd_manager));
+    other_operands_.push_back(state.ReleaseProperty());
   } else {
     if (expr_operand_ == nullptr) {
       expr_operand_ = std::move(state.expr_operand_);
@@ -970,8 +967,7 @@ void OptimizerState::ComposeWith(CompiledNaryOperator op,
   op_ = op;
 }
 
-std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty(
-    const DecisionDiagramManager& dd_manager) {
+std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty() {
   std::unique_ptr<const CompiledProperty> property;
   if (is_expr()) {
     property = CompiledExpressionProperty::New(
@@ -1004,7 +1000,9 @@ class CompiledPropertyOptimizer : public CompiledPropertyVisitor,
  public:
   explicit CompiledPropertyOptimizer(const DecisionDiagramManager* dd_manager);
 
-  std::unique_ptr<const CompiledProperty> release_property();
+  std::unique_ptr<const CompiledProperty> release_property() {
+    return state_.ReleaseProperty();
+  }
 
  private:
   void DoVisitCompiledNaryProperty(
@@ -1026,11 +1024,6 @@ CompiledPropertyOptimizer::CompiledPropertyOptimizer(
     const DecisionDiagramManager* dd_manager)
     : dd_manager_(dd_manager) {}
 
-std::unique_ptr<const CompiledProperty>
-CompiledPropertyOptimizer::release_property() {
-  return state_.ReleaseProperty(*dd_manager_);
-}
-
 void CompiledPropertyOptimizer::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
   if (property.other_operands().empty()) {
@@ -1041,14 +1034,13 @@ void CompiledPropertyOptimizer::DoVisitCompiledNaryProperty(
     OptimizerState state = std::move(state_);
     for (size_t i = 1; i < property.other_operands().size(); ++i) {
       property.other_operands()[i].Accept(this);
-      state.ComposeWith(property.op(), std::move(state_), *dd_manager_);
+      state.ComposeWith(property.op(), std::move(state_));
     }
     if (property.has_expr_operand()) {
       state.ComposeWith(
           property.op(),
           OptimizerState(CompiledExpressionProperty::New(
-              property.expr_operand().expr(), property.expr_operand().bdd())),
-          *dd_manager_);
+              property.expr_operand().expr(), property.expr_operand().bdd())));
     }
     state_ = std::move(state);
   }
