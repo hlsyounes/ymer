@@ -25,39 +25,6 @@
 
 namespace {
 
-#if 0
-std::unique_ptr<const CompiledExpressionProperty>
-NewCompiledExpressionProperty(int variable) {
-  return CompiledExpressionProperty::New(
-      CompiledExpression({Operation::MakeILOAD(variable, 0)}));
-}
-
-CompiledExpression UnoptimizedCompiledExpression() {
-  return CompiledExpression({
-      Operation::MakeICONST(1, 0),
-      Operation::MakeICONST(0, 0)
- });
-}
-
-std::unique_ptr<const CompiledProbabilityThresholdProperty>
-NewCompiledProbabilityThresholdProperty(int base_variable) {
-  return CompiledProbabilityThresholdProperty::New(
-      CompiledProbabilityThresholdOperator::GREATER, 0.25,
-      CompiledUntilProperty::New(
-          17, 42,
-          NewCompiledExpressionProperty(base_variable),
-          NewCompiledExpressionProperty(base_variable + 1),
-          0, "don't care", nullptr));
-}
-
-UniquePtrVector<const CompiledProperty> MakeConjuncts(
-    std::unique_ptr<const CompiledProperty> operand1,
-    std::unique_ptr<const CompiledProperty> operand2) {
-  return UniquePtrVector<const CompiledProperty>(std::move(operand1),
-                                                 std::move(operand2));
-}
-#endif
-
 TEST(CompilePropertyTest, Literal) {
   const DecisionDiagramManager dd_manager(0);
   const CompilePropertyResult result1 =
@@ -573,6 +540,51 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result9.errors);
+}
+
+TEST(OptimizePropertyTest, NotProperty) {
+  const DecisionDiagramManager dd_manager(2);
+  std::map<std::string, IdentifierInfo> identifiers_by_name = {
+      {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
+  auto property1 = OptimizeProperty(
+      *CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(false)),
+                       {}, dd_manager).property,
+      dd_manager);
+  const std::string expected1 = "0: ICONST 1 0";
+  EXPECT_EQ(expected1, StrCat(*property1));
+  auto property2 = OptimizeProperty(
+      CompiledNotProperty(CompileProperty(Identifier("a"), identifiers_by_name,
+                                          dd_manager).property),
+      dd_manager);
+  const std::string expected2 =
+      "0: ILOAD 0 0\n"
+      "1: NOT 0";
+  EXPECT_EQ(expected2, StrCat(*property2));
+  auto property3 = OptimizeProperty(
+      CompiledNotProperty(
+          CompileProperty(
+              UnaryOperation(UnaryOperator::NOT, Identifier::New("a")),
+              identifiers_by_name, dd_manager).property),
+      dd_manager);
+  const std::string expected3 = "0: ILOAD 0 0";
+  EXPECT_EQ(expected3, StrCat(*property3));
+  auto property4 = OptimizeProperty(
+      *CompileProperty(
+           UnaryOperation(UnaryOperator::NOT,
+                          ProbabilityThresholdOperation::New(
+                              ProbabilityThresholdOperator::LESS, 0.25,
+                              UntilProperty::New(17, 42, Literal::New(true),
+                                                 Identifier::New("a")))),
+           identifiers_by_name, dd_manager).property,
+      dd_manager);
+  const std::string expected4 =
+      "P >= 0.25\n"
+      "0: UNTIL [17, 42]\n"
+      "pre:\n"
+      "0: ICONST 1 0\n"
+      "post:\n"
+      "0: ILOAD 0 0";
+  EXPECT_EQ(expected4, StrCat(*property4));
 }
 
 #if 0
