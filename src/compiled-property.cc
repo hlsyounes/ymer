@@ -857,108 +857,160 @@ CompilePropertyResult CompileProperty(
   return std::move(result);
 }
 
-#if 0
 namespace {
 
 class OptimizerState {
  public:
   OptimizerState();
-  OptimizerState(OptimizerState&& state);
-  explicit OptimizerState(const std::vector<Operation>& operations);
+  explicit OptimizerState(
+      std::unique_ptr<const CompiledExpressionProperty>&& expr_operand);
   explicit OptimizerState(
       std::unique_ptr<const CompiledProbabilityThresholdProperty>&& property);
 
-  void Negate();
-  void ConjunctionWith(OptimizerState&& state);
+  bool is_expr() const {
+    return expr_operand_ != nullptr && other_operands_.empty();
+  }
 
-  std::unique_ptr<const CompiledProperty> ReleaseProperty();
-  void Clear();
+  size_t operand_count() const {
+    return (expr_operand_ ? 1 : 0) + other_operands_.size();
+  }
+
+  void Negate();
+  void ComposeWith(CompiledNaryOperator op, OptimizerState&& state,
+                   const DecisionDiagramManager& dd_manager);
+
+  std::unique_ptr<const CompiledProperty> ReleaseProperty(
+      const DecisionDiagramManager& dd_manager);
 
  private:
-  std::vector<Operation> operations_;
-  std::vector<std::unique_ptr<const CompiledProperty> > conjuncts_;
+  std::unique_ptr<const CompiledExpressionProperty> expr_operand_;
+  std::vector<std::unique_ptr<const CompiledProperty>> other_operands_;
   bool is_negated_;
+  CompiledNaryOperator op_;
 };
 
-OptimizerState::OptimizerState()
-    : is_negated_(false) {
-}
+OptimizerState::OptimizerState() {}
 
-OptimizerState::OptimizerState(OptimizerState&& state)
-    : operations_(std::move(state.operations_)),
-      conjuncts_(std::move(state.conjuncts_)),
-      is_negated_(state.is_negated_) {
-  state.Clear();
-}
-
-OptimizerState::OptimizerState(const std::vector<Operation>& operations)
-    : operations_(operations), is_negated_(false) {
-}
+OptimizerState::OptimizerState(
+    std::unique_ptr<const CompiledExpressionProperty>&& expr_operand)
+    : expr_operand_(std::move(expr_operand)), is_negated_(false) {}
 
 OptimizerState::OptimizerState(
     std::unique_ptr<const CompiledProbabilityThresholdProperty>&& property)
     : is_negated_(false) {
-  conjuncts_.push_back(std::move(property));
+  other_operands_.push_back(std::move(property));
 }
 
 void OptimizerState::Negate() {
-  if (conjuncts_.empty()) {
-    operations_.push_back(Operation::MakeNOT(0));
+  if (is_expr()) {
+    std::vector<Operation> operations(expr_operand_->expr().operations());
+    operations.push_back(Operation::MakeNOT(0));
+    expr_operand_ = CompiledExpressionProperty::New(
+        CompiledExpression(operations), !expr_operand_->bdd());
   } else {
     is_negated_ = !is_negated_;
   }
 }
 
-void OptimizerState::ConjunctionWith(OptimizerState&& state) {
-  if (is_negated_) {
-    conjuncts_.push_back(ReleaseProperty());
+std::vector<Operation> ComposeOperations(
+    CompiledNaryOperator op, const std::vector<Operation>& operations1,
+    const std::vector<Operation>& operations2) {
+  std::vector<Operation> operations(operations1);
+  const int pc_shift =
+      operations1.size() + (op == CompiledNaryOperator::IFF) ? 0 : 1;
+  const int reg_shift = (op == CompiledNaryOperator::IFF) ? 1 : 0;
+  if (op == CompiledNaryOperator::AND) {
+    operations.push_back(
+        Operation::MakeIFFALSE(0, pc_shift + operations2.size()));
+  } else if (op == CompiledNaryOperator::OR) {
+    operations.push_back(
+        Operation::MakeIFTRUE(0, pc_shift + operations2.size()));
   }
-  if (state.is_negated_) {
-    conjuncts_.push_back(state.ReleaseProperty());
-  } else {
-    operations_ = MakeConjunction(operations_, state.operations_);
-    for (auto i = state.conjuncts_.begin(); i != state.conjuncts_.end(); ++i) {
-      conjuncts_.push_back(std::move(*i));
-    }
-    state.Clear();
+  for (const Operation& o : operations2) {
+    operations.push_back(o.Shift(pc_shift, reg_shift));
   }
+  if (op == CompiledNaryOperator::IFF) {
+    operations.push_back(Operation::MakeIEQ(0, 1));
+  }
+  return operations;
 }
 
-std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty() {
-  const size_t operand_count =
-      conjuncts_.size() + (operations_.empty() ? 0 : 1);
-  std::unique_ptr<const CompiledProperty> property;
-  if (operand_count == 0) {
-    property = CompiledExpressionProperty::New(
-        CompiledExpression({Operation::MakeICONST(1, 0)}));
-  } else if (operand_count > 1) {
-    // TODO(hlsyounes): Change to handle different operators.
-    property = CompiledNaryProperty::New(
-        CompiledNaryOperator::AND,
-        OptimizeIntExpression(CompiledExpression(operations_)),
-        UniquePtrVector<const CompiledProperty>(
-            conjuncts_.begin(), conjuncts_.end()));
-  } else if (conjuncts_.empty()) {
-    property = CompiledExpressionProperty::New(
-        OptimizeIntExpression(CompiledExpression(operations_)));
+std::unique_ptr<const CompiledExpressionProperty> ComposeExpressions(
+    CompiledNaryOperator op,
+    std::unique_ptr<const CompiledExpressionProperty>&& expr1,
+    std::unique_ptr<const CompiledExpressionProperty>&& expr2) {
+  BDD bdd = expr1->bdd();
+  switch (op) {
+    case CompiledNaryOperator::AND:
+      bdd = bdd && expr2->bdd();
+      break;
+    case CompiledNaryOperator::OR:
+      bdd = bdd || expr2->bdd();
+      break;
+    case CompiledNaryOperator::IFF:
+      bdd = bdd == expr2->bdd();
+      break;
+  }
+  return CompiledExpressionProperty::New(CompiledExpression(ComposeOperations(
+      op, expr1->expr().operations(), expr2->expr().operations())), bdd);
+}
+
+void OptimizerState::ComposeWith(CompiledNaryOperator op,
+                                 OptimizerState&& state,
+                                 const DecisionDiagramManager& dd_manager) {
+  if (is_negated_ || (operand_count() > 1 && op_ != op)) {
+    other_operands_.push_back(ReleaseProperty(dd_manager));
+  }
+  if (state.is_negated_ || (state.operand_count() > 1 && state.op_ != op)) {
+    other_operands_.push_back(state.ReleaseProperty(dd_manager));
   } else {
-    property = std::move(conjuncts_[0]);
+    if (expr_operand_ == nullptr) {
+      expr_operand_ = std::move(state.expr_operand_);
+    } else if (state.expr_operand_ != nullptr) {
+      expr_operand_ = ComposeExpressions(op, std::move(expr_operand_),
+                                         std::move(state.expr_operand_));
+    }
+    for (auto i = state.other_operands_.begin();
+         i != state.other_operands_.end(); ++i) {
+      other_operands_.push_back(std::move(*i));
+    }
+    state.other_operands_.clear();
   }
-  if (is_negated_) {
-    property = CompiledNotProperty::New(std::move(property));
+  op_ = op;
+}
+
+std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty(
+    const DecisionDiagramManager& dd_manager) {
+  std::unique_ptr<const CompiledProperty> property;
+  if (is_expr()) {
+    property = CompiledExpressionProperty::New(
+        OptimizeIntExpression(expr_operand_->expr()), expr_operand_->bdd());
+  } else {
+    if (operand_count() == 1) {
+      property = std::move(other_operands_[0]);
+    } else {
+      property = CompiledNaryProperty::New(
+          op_, OptimizeIntExpression(expr_operand_ ? expr_operand_->expr()
+                                                   : CompiledExpression({})),
+          expr_operand_ ? expr_operand_->bdd() : dd_manager.GetConstant(false),
+          UniquePtrVector<const CompiledProperty>(other_operands_.begin(),
+                                                  other_operands_.end()));
+    }
+    if (is_negated_) {
+      property = CompiledNotProperty::New(std::move(property));
+    }
   }
-  Clear();
+  expr_operand_.reset();
+  other_operands_.clear();
+  is_negated_ = false;
   return property;
 }
 
-void OptimizerState::Clear() {
-  operations_.clear();
-  conjuncts_.clear();
-  is_negated_ = false;
-}
-
-class CompiledPropertyOptimizer : public CompiledPropertyVisitor {
+class CompiledPropertyOptimizer : public CompiledPropertyVisitor,
+                                  CompiledPathPropertyVisitor {
  public:
+  explicit CompiledPropertyOptimizer(const DecisionDiagramManager* dd_manager);
+
   std::unique_ptr<const CompiledProperty> release_property();
 
  private:
@@ -969,27 +1021,44 @@ class CompiledPropertyOptimizer : public CompiledPropertyVisitor {
       const CompiledProbabilityThresholdProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property) override;
 
   OptimizerState state_;
+  std::unique_ptr<const CompiledPathProperty> path_property_;
+  const DecisionDiagramManager* dd_manager_;
 };
+
+CompiledPropertyOptimizer::CompiledPropertyOptimizer(
+    const DecisionDiagramManager* dd_manager)
+    : dd_manager_(dd_manager) {}
 
 std::unique_ptr<const CompiledProperty>
 CompiledPropertyOptimizer::release_property() {
-  return state_.ReleaseProperty();
+  return state_.ReleaseProperty(*dd_manager_);
 }
 
 void CompiledPropertyOptimizer::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
-  OptimizerState state = std::move(state_);
-  // TODO(hlsyounes): Change to handle different operators.
-  if (property.has_expr_operand()) {
-    state.ConjunctionWith(OptimizerState(property.expr_operand().operations()));
+  if (property.other_operands().empty()) {
+    state_ = OptimizerState(CompiledExpressionProperty::New(
+        property.expr_operand(), property.expr_operand_bdd()));
+  } else {
+    property.other_operands()[0].Accept(this);
+    OptimizerState state = std::move(state_);
+    for (size_t i = 1; i < property.other_operands().size(); ++i) {
+      property.other_operands()[i].Accept(this);
+      state.ComposeWith(property.op(), std::move(state_), *dd_manager_);
+    }
+    if (property.has_expr_operand()) {
+      state.ComposeWith(
+          property.op(),
+          OptimizerState(CompiledExpressionProperty::New(
+              property.expr_operand(), property.expr_operand_bdd())),
+          *dd_manager_);
+    }
+    state_ = std::move(state);
   }
-  for (const CompiledProperty& operand : property.other_operands()) {
-    operand.Accept(this);
-    state.ConjunctionWith(std::move(state_));
-  }
-  state_ = std::move(state);
 }
 
 void CompiledPropertyOptimizer::DoVisitCompiledNotProperty(
@@ -1000,61 +1069,48 @@ void CompiledPropertyOptimizer::DoVisitCompiledNotProperty(
 
 void CompiledPropertyOptimizer::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
-  if (property.op() == CompiledProbabilityThresholdOperator::GREATER_EQUAL
-      && property.threshold() <= 0) {
+  if (property.op() == CompiledProbabilityThresholdOperator::GREATER_EQUAL &&
+      property.threshold() <= 0) {
     // Probability is always >= 0, so replace with TRUE.
-    state_ = OptimizerState({Operation::MakeICONST(true, 0)});
-  } else if (property.op() == CompiledProbabilityThresholdOperator::GREATER
-             && property.threshold() >= 1) {
+    state_ = OptimizerState(CompiledExpressionProperty::New(
+        CompiledExpression({Operation::MakeICONST(true, 0)}),
+        dd_manager_->GetConstant(true)));
+  } else if (property.op() == CompiledProbabilityThresholdOperator::GREATER &&
+             property.threshold() >= 1) {
     // Probability is never > 1, so replace with FALSE.
-    state_ = OptimizerState({Operation::MakeICONST(false, 0)});
+    state_ = OptimizerState(CompiledExpressionProperty::New(
+        CompiledExpression({Operation::MakeICONST(false, 0)}),
+        dd_manager_->GetConstant(false)));
   } else {
+    property.path_property().Accept(this);
     state_ = OptimizerState(CompiledProbabilityThresholdProperty::New(
-        property.op(), property.threshold(),
-        OptimizePathProperty(property.path_property())));
+        property.op(), property.threshold(), std::move(path_property_)));
   }
 }
 
 void CompiledPropertyOptimizer::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
-  state_ = OptimizerState(property.expr().operations());
+  state_ = OptimizerState(
+      CompiledExpressionProperty::New(property.expr(), property.bdd()));
 }
 
-class CompiledPathPropertyOptimizer : public CompiledPathPropertyVisitor {
- public:
-  std::unique_ptr<const CompiledPathProperty> release_path_property();
-
- private:
-  void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& property) override;
-
-  std::unique_ptr<const CompiledPathProperty> path_property_;
-};
-
-std::unique_ptr<const CompiledPathProperty>
-CompiledPathPropertyOptimizer::release_path_property() {
-  return std::move(path_property_);
-}
-
-void CompiledPathPropertyOptimizer::DoVisitCompiledUntilProperty(
+void CompiledPropertyOptimizer::DoVisitCompiledUntilProperty(
     const CompiledUntilProperty& path_property) {
+  path_property.pre_property().Accept(this);
+  std::unique_ptr<const CompiledProperty> pre_property = release_property();
+  path_property.post_property().Accept(this);
   path_property_ = CompiledUntilProperty::New(
       path_property.min_time(), path_property.max_time(),
-      OptimizeProperty(path_property.pre_property()),
-      OptimizeProperty(path_property.post_property()),
-      path_property.index(), path_property.string());
+      std::move(pre_property), release_property(), path_property.index(),
+      path_property.string());
 }
 
 }  // namespace
-#endif
 
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
-    const CompiledProperty& property) {
-#if 0
-  CompiledPropertyOptimizer optimizer;
+    const CompiledProperty& property,
+    const DecisionDiagramManager& dd_manager) {
+  CompiledPropertyOptimizer optimizer(&dd_manager);
   property.Accept(&optimizer);
   return optimizer.release_property();
-#else
-  return nullptr;
-#endif
 }

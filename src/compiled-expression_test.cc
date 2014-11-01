@@ -58,32 +58,76 @@ Conditional MakeConditional(T a, U b, V c) {
   return Conditional(Literal::New(a), Literal::New(b), Literal::New(c));
 }
 
-TEST(MakeConjunctionTest, MakesConjunction) {
-  const std::vector<Operation> operations1 = {Operation::MakeICONST(true, 0),
-                                              Operation::MakeNOT(0)};
-  const std::vector<Operation> operations2 = {
-      Operation::MakeICONST(false, 0), Operation::MakeIFFALSE(0, 4),
-      Operation::MakeICONST(17, 0), Operation::MakeGOTO(5),
-      Operation::MakeICONST(42, 0)};
-  const std::vector<Operation> empty_operations;
-  const std::vector<Operation> expected1 = {
-      Operation::MakeICONST(true, 0), Operation::MakeNOT(0),
-      Operation::MakeIFFALSE(0, 8),   Operation::MakeICONST(false, 0),
-      Operation::MakeIFFALSE(0, 7),   Operation::MakeICONST(17, 0),
-      Operation::MakeGOTO(8),         Operation::MakeICONST(42, 0)};
-  EXPECT_EQ(expected1, MakeConjunction(operations1, operations2));
-  const std::vector<Operation> expected2 = {
-      Operation::MakeICONST(false, 0), Operation::MakeIFFALSE(0, 4),
-      Operation::MakeICONST(17, 0),    Operation::MakeGOTO(5),
-      Operation::MakeICONST(42, 0),    Operation::MakeIFFALSE(0, 8),
-      Operation::MakeICONST(true, 0),  Operation::MakeNOT(0)};
-  EXPECT_EQ(expected2, MakeConjunction(operations2, operations1));
-  EXPECT_EQ(operations1, MakeConjunction(operations1, empty_operations));
-  EXPECT_EQ(operations1, MakeConjunction(empty_operations, operations1));
-  EXPECT_EQ(operations2, MakeConjunction(operations2, empty_operations));
-  EXPECT_EQ(operations2, MakeConjunction(empty_operations, operations2));
-  EXPECT_EQ(empty_operations,
-            MakeConjunction(empty_operations, empty_operations));
+TEST(OperationTest, Shift) {
+  EXPECT_EQ(Operation::MakeICONST(17, 42),
+            Operation::MakeICONST(17, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeICONST(false, 42),
+            Operation::MakeICONST(false, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDCONST(0.5, 42),
+            Operation::MakeDCONST(0.5, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeILOAD(4711, 42),
+            Operation::MakeILOAD(4711, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeI2D(42), Operation::MakeI2D(40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeINEG(42), Operation::MakeINEG(40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDNEG(42), Operation::MakeDNEG(40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeNOT(42), Operation::MakeNOT(40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIADD(17, 42),
+            Operation::MakeIADD(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDADD(17, 42),
+            Operation::MakeDADD(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeISUB(17, 42),
+            Operation::MakeISUB(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDSUB(17, 42),
+            Operation::MakeDSUB(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIMUL(17, 42),
+            Operation::MakeIMUL(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDMUL(17, 42),
+            Operation::MakeDMUL(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDDIV(17, 42),
+            Operation::MakeDDIV(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIEQ(17, 42),
+            Operation::MakeIEQ(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDEQ(17, 42),
+            Operation::MakeDEQ(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeINE(17, 42),
+            Operation::MakeINE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDNE(17, 42),
+            Operation::MakeDNE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeILT(17, 42),
+            Operation::MakeILT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDLT(17, 42),
+            Operation::MakeDLT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeILE(17, 42),
+            Operation::MakeILE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDLE(17, 42),
+            Operation::MakeDLE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIGE(17, 42),
+            Operation::MakeIGE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDGE(17, 42),
+            Operation::MakeDGE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIGT(17, 42),
+            Operation::MakeIGT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDGT(17, 42),
+            Operation::MakeDGT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIFFALSE(17, 42),
+            Operation::MakeIFFALSE(15, 39).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIFTRUE(17, 42),
+            Operation::MakeIFTRUE(15, 39).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeGOTO(17), Operation::MakeGOTO(14).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeNOP(), Operation::MakeNOP().Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIMIN(17, 42),
+            Operation::MakeIMIN(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDMIN(17, 42),
+            Operation::MakeDMIN(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIMAX(17, 42),
+            Operation::MakeIMAX(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDMAX(17, 42),
+            Operation::MakeDMAX(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeFLOOR(42), Operation::MakeFLOOR(40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeCEIL(42), Operation::MakeCEIL(40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakePOW(17, 42), Operation::MakePOW(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeLOG(17, 42), Operation::MakeLOG(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeMOD(17, 42), Operation::MakeMOD(15, 40).Shift(3, 2));
 }
 
 TEST(GetNumRegistersTest, Constant) {

@@ -288,6 +288,60 @@ Operation::Operation(Opcode opcode, int operand) : opcode_(opcode) {
 
 Operation::Operation(Opcode opcode) : opcode_(opcode) {}
 
+Operation Operation::Shift(int pc_shift, int reg_shift) const {
+  switch (opcode()) {
+    case Opcode::ICONST:
+    case Opcode::ILOAD:
+      return Operation(opcode(), ioperand1(), operand2() + reg_shift);
+    case Opcode::DCONST:
+      return Operation(opcode(), doperand1(), operand2() + reg_shift);
+    case Opcode::I2D:
+    case Opcode::FLOOR:
+    case Opcode::CEIL:
+    case Opcode::INEG:
+    case Opcode::DNEG:
+    case Opcode::NOT:
+    case Opcode::IADD:
+      return Operation(opcode(), ioperand1() + reg_shift);
+    case Opcode::ISUB:
+    case Opcode::IMUL:
+    case Opcode::IEQ:
+    case Opcode::INE:
+    case Opcode::ILT:
+    case Opcode::ILE:
+    case Opcode::IGE:
+    case Opcode::IGT:
+    case Opcode::IMIN:
+    case Opcode::IMAX:
+    case Opcode::MOD:
+    case Opcode::DADD:
+    case Opcode::DSUB:
+    case Opcode::DMUL:
+    case Opcode::DDIV:
+    case Opcode::DMIN:
+    case Opcode::DMAX:
+    case Opcode::POW:
+    case Opcode::LOG:
+    case Opcode::DEQ:
+    case Opcode::DNE:
+    case Opcode::DLT:
+    case Opcode::DLE:
+    case Opcode::DGE:
+    case Opcode::DGT:
+      return Operation(opcode(), ioperand1() + reg_shift,
+                       operand2() + reg_shift);
+    case Opcode::NOP:
+      return *this;
+    case Opcode::IFFALSE:
+    case Opcode::IFTRUE:
+      return Operation(opcode(), ioperand1() + reg_shift,
+                       operand2() + pc_shift);
+    case Opcode::GOTO:
+      return Operation(opcode(), ioperand1() + pc_shift);
+  }
+  LOG(FATAL) << "bad opcode";
+}
+
 bool operator==(const Operation& left, const Operation& right) {
   if (left.opcode() != right.opcode()) {
     return false;
