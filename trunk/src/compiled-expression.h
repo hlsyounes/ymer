@@ -190,6 +190,10 @@ class Operation {
   // Returns the second operand.
   int operand2() const { return operand2_; }
 
+  // Returns a copy of this operation with program counters and registers
+  // shifted the given number of positions.
+  Operation Shift(int pc_shift, int reg_shift) const;
+
  private:
   // Constructs an operation with no operands.
   explicit Operation(Opcode opcode);
@@ -207,13 +211,6 @@ class Operation {
   } operand1_;
   int operand2_;
 };
-
-// Returns the operations that represent the conjunction of operations1 and
-// operations2, assuming both operations1 and operations2 store the result in
-// integer register 0.
-std::vector<Operation> MakeConjunction(
-    const std::vector<Operation>& operations1,
-    const std::vector<Operation>& operations2);
 
 // Equality operator for operations.
 bool operator==(const Operation& left, const Operation& right);
