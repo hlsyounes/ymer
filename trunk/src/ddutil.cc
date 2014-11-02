@@ -56,7 +56,26 @@ template <typename ValueType>
 ValueType ValueInStateImpl(DdNode* dd, const std::vector<bool>& state) {
   while (!Cudd_IsConstant(dd)) {
     const int index = Cudd_Regular(dd)->index;
-    dd = (state[index]) ? ThenChild(dd) : ElseChild(dd);
+    dd = state[index] ? ThenChild(dd) : ElseChild(dd);
+  }
+  return NodeValue<ValueType>(dd);
+}
+
+template <typename ValueType>
+ValueType ValueInStateImpl(DdNode* dd, const std::vector<int>& values,
+                           const std::vector<StateVariableInfo>& variables) {
+  int current_variable = 0;
+  int total_bit_count = 2 * variables[current_variable].bit_count();
+  while (!Cudd_IsConstant(dd)) {
+    const int index = Cudd_Regular(dd)->index;
+    while (index >= total_bit_count) {
+      ++current_variable;
+      total_bit_count += 2 * variables[current_variable].bit_count();
+    }
+    const bool bit =
+        (values[current_variable] - variables[current_variable].min_value()) &
+        (1 << ((total_bit_count - index - 1) / 2));
+    dd = bit ? ThenChild(dd) : ElseChild(dd);
   }
   return NodeValue<ValueType>(dd);
 }
@@ -108,6 +127,9 @@ DdNode* AddPow(DdManager* manager, DdNode** node1, DdNode** node2) {
 }
 
 }  // namespace
+
+StateVariableInfo::StateVariableInfo(int min_value, int bit_count)
+    : min_value_(min_value), bit_count_(bit_count) {}
 
 DecisionDiagram::DecisionDiagram(DdManager* manager, DdNode* node)
     : manager_(manager), node_(CHECK_NOTNULL(node)) {
@@ -170,6 +192,11 @@ bool BDD::Value() const {
 bool BDD::ValueInState(const std::vector<bool>& state) const {
   CHECK_EQ(ManagerSize(manager()), state.size());
   return ValueInStateImpl<bool>(node(), state);
+}
+
+bool BDD::ValueInState(const std::vector<int>& values,
+                       const std::vector<StateVariableInfo>& variables) const {
+  return ValueInStateImpl<bool>(node(), values, variables);
 }
 
 BDD BDD::Permutation(const std::vector<int>& permutation) const {
@@ -243,6 +270,12 @@ double ADD::Value() const {
 double ADD::ValueInState(const std::vector<bool>& state) const {
   CHECK_EQ(ManagerSize(manager()), state.size());
   return ValueInStateImpl<double>(node(), state);
+}
+
+double ADD::ValueInState(
+    const std::vector<int>& values,
+    const std::vector<StateVariableInfo>& variables) const {
+  return ValueInStateImpl<double>(node(), values, variables);
 }
 
 BDD ADD::Interval(double low, double high) const {
