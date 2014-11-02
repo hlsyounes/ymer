@@ -1,4 +1,3 @@
-/* -*-C++-*- */
 /*
  * Formulas.
  *
@@ -25,17 +24,12 @@
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
-#include <deque>
-#include <map>
-#include <memory>
-#include <utility>
-
 #include "models.h"
+#include "states.h"
+#include "src/compiled-expression.h"
+#include "src/compiled-property.h"
 #include "src/ddutil.h"
-#include "src/expression.h"
 #include "src/statistics.h"
-
-struct State;
 
 /* Sampling algorithm. */
 enum SamplingAlgorithm { ESTIMATE, SSP, SPRT, FIXED };
@@ -61,22 +55,18 @@ struct ModelCheckingStats {
   Sample<size_t> path_length;
 };
 
-class CompiledExpressionEvaluator;
-class CompiledPathProperty;
-class CompiledProperty;
-
-bool Verify(const CompiledProperty& property,
-            const Model& model, const DecisionDiagramModel* dd_model,
+bool Verify(const CompiledProperty& property, const Model& model,
+            const DecisionDiagramModel* dd_model,
             const ModelCheckingParams& params,
             CompiledExpressionEvaluator* evaluator, const State& state,
             ModelCheckingStats* stats);
 
 BDD Verify(const CompiledProperty& property,
-           const DecisionDiagramModel& dd_model,
-           bool estimate, bool top_level_property, double epsilon);
+           const DecisionDiagramModel& dd_model, bool estimate,
+           bool top_level_property, double epsilon);
 
-bool GetObservation(const CompiledPathProperty& property,
-                    const Model& model, const DecisionDiagramModel* dd_model,
+bool GetObservation(const CompiledPathProperty& property, const Model& model,
+                    const DecisionDiagramModel* dd_model,
                     const ModelCheckingParams& params,
                     CompiledExpressionEvaluator* evaluator, const State& state,
                     ModelCheckingStats* stats);
