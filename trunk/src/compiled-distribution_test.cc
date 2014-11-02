@@ -28,10 +28,9 @@ namespace {
 class CompiledDistributionTest : public testing::Test {
  protected:
   CompiledDistributionTest()
-      : e1(CompiledExpression({ Operation::MakeDCONST(1, 0) })),
-        e2(CompiledExpression({ Operation::MakeDCONST(2, 0) })),
-        evaluator_(0, 1) {
-  }
+      : e1(CompiledExpression({Operation::MakeDCONST(1, 0)})),
+        e2(CompiledExpression({Operation::MakeDCONST(2, 0)})),
+        evaluator_(0, 1) {}
 
   std::vector<double> Evaluate(const std::vector<CompiledExpression>& exprs) {
     std::vector<double> values;
@@ -51,25 +50,25 @@ class CompiledDistributionTest : public testing::Test {
 TEST_F(CompiledDistributionTest, MakesMemoryless) {
   const CompiledDistribution dist(CompiledDistribution::MakeMemoryless(e1));
   EXPECT_EQ(DistributionType::MEMORYLESS, dist.type());
-  EXPECT_EQ(std::vector<double>({ 1 }), Evaluate(dist.parameters()));
+  EXPECT_EQ(std::vector<double>({1}), Evaluate(dist.parameters()));
 }
 
 TEST_F(CompiledDistributionTest, MakesWeibull) {
   const CompiledDistribution dist(CompiledDistribution::MakeWeibull(e1, e2));
   EXPECT_EQ(DistributionType::WEIBULL, dist.type());
-  EXPECT_EQ(std::vector<double>({ 1, 2 }), Evaluate(dist.parameters()));
+  EXPECT_EQ(std::vector<double>({1, 2}), Evaluate(dist.parameters()));
 }
 
 TEST_F(CompiledDistributionTest, MakesLognormal) {
   const CompiledDistribution dist(CompiledDistribution::MakeLognormal(e1, e2));
   EXPECT_EQ(DistributionType::LOGNORMAL, dist.type());
-  EXPECT_EQ(std::vector<double>({ 1, 2 }), Evaluate(dist.parameters()));
+  EXPECT_EQ(std::vector<double>({1, 2}), Evaluate(dist.parameters()));
 }
 
 TEST_F(CompiledDistributionTest, MakesUniform) {
   const CompiledDistribution dist(CompiledDistribution::MakeUniform(e1, e2));
   EXPECT_EQ(DistributionType::UNIFORM, dist.type());
-  EXPECT_EQ(std::vector<double>({ 1, 2 }), Evaluate(dist.parameters()));
+  EXPECT_EQ(std::vector<double>({1, 2}), Evaluate(dist.parameters()));
 }
 
 }  // namespace
