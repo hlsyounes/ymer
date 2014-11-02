@@ -29,6 +29,20 @@ class DdNode;
 
 template <typename DD> class VariableArray;
 
+// Information for a state variable, used for evaluating a decision diagram in a
+// state represented by integer-valued state variables.
+class StateVariableInfo {
+ public:
+  StateVariableInfo(int min_value, int bit_count);
+
+  int min_value() const { return min_value_; }
+  int bit_count() const { return bit_count_; }
+
+ private:
+  int min_value_;
+  int bit_count_;
+};
+
 // Abstract wrapper class for DdNode, with automatic referencing and
 // dereferencing.
 class DecisionDiagram {
@@ -79,6 +93,13 @@ class BDD : public DecisionDiagram {
   // Returns the value of this BDD for the given variable assignment.
   bool ValueInState(const std::vector<bool>& state) const;
 
+  // Variation of ValueInState for integer-valued state variables.  Assumes an
+  // interleaved bit-representation, where even bits represent the current state
+  // and odd bits represent the next state (in a state transition matrix).  This
+  // method assumes only even bits are set in the decision diagram.
+  bool ValueInState(const std::vector<int>& values,
+                    const std::vector<StateVariableInfo>& variables) const;
+
   // Returns a permutation of this BDD.
   BDD Permutation(const std::vector<int>& permutation) const;
 
@@ -126,8 +147,15 @@ class ADD : public DecisionDiagram {
   // Returns the value of this ADD.  Requires that this ADD is constant.
   double Value() const;
 
-  // Returns the value of this BDD for the given variable assignment.
+  // Returns the value of this ADD for the given variable assignment.
   double ValueInState(const std::vector<bool>& state) const;
+
+  // Variation of ValueInState for integer-valued state variables.  Assumes an
+  // interleaved bit-representation, where even bits represent the current state
+  // and odd bits represent the next state (in a state transition matrix).  This
+  // method assumes only even bits are set in the decision diagram.
+  double ValueInState(const std::vector<int>& values,
+                      const std::vector<StateVariableInfo>& variables) const;
 
   // Returns the BDD representing low <= *this <= high.
   BDD Interval(double low, double high) const;

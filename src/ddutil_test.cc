@@ -700,6 +700,42 @@ TEST(DecisionDiagramTest, ComputesCubes) {
   EXPECT_FALSE(dd4.ValueInState({false, false}));
 }
 
+TEST(DecisionDiagramTest, BddValueInState) {
+  const DecisionDiagramManager manager(12);
+  const std::vector<StateVariableInfo> variables = {{4, 3}, {0, 1}, {1, 2}};
+  const BDD dd = manager.GetBddVariable(0) || manager.GetBddVariable(2) ||
+                 manager.GetBddVariable(6) || manager.GetBddVariable(10);
+  EXPECT_FALSE(dd.ValueInState({4, 0, 1}, variables));
+  EXPECT_FALSE(dd.ValueInState({5, 0, 1}, variables));
+  EXPECT_TRUE(dd.ValueInState({6, 0, 1}, variables));
+  EXPECT_TRUE(dd.ValueInState({7, 0, 1}, variables));
+  EXPECT_TRUE(dd.ValueInState({8, 0, 1}, variables));
+  EXPECT_TRUE(dd.ValueInState({4, 1, 1}, variables));
+  EXPECT_TRUE(dd.ValueInState({4, 0, 2}, variables));
+  EXPECT_FALSE(dd.ValueInState({4, 0, 3}, variables));
+}
+
+TEST(DecisionDiagramTest, AddValueInState) {
+  const DecisionDiagramManager manager(12);
+  const std::vector<StateVariableInfo> variables = {{4, 3}, {0, 1}, {1, 2}};
+  const ADD dd = Ite(manager.GetBddVariable(0), manager.GetConstant(2),
+                     manager.GetConstant(5)) +
+                 Ite(manager.GetBddVariable(2), manager.GetConstant(3),
+                     manager.GetConstant(7)) +
+                 Ite(manager.GetBddVariable(6), manager.GetConstant(1),
+                     manager.GetConstant(9)) +
+                 Ite(manager.GetBddVariable(10), manager.GetConstant(4),
+                     manager.GetConstant(8));
+  EXPECT_EQ(5 + 7 + 9 + 8, dd.ValueInState({4, 0, 1}, variables));
+  EXPECT_EQ(5 + 7 + 9 + 8, dd.ValueInState({5, 0, 1}, variables));
+  EXPECT_EQ(5 + 3 + 9 + 8, dd.ValueInState({6, 0, 1}, variables));
+  EXPECT_EQ(5 + 3 + 9 + 8, dd.ValueInState({7, 0, 1}, variables));
+  EXPECT_EQ(2 + 7 + 9 + 8, dd.ValueInState({8, 0, 1}, variables));
+  EXPECT_EQ(5 + 7 + 1 + 8, dd.ValueInState({4, 1, 1}, variables));
+  EXPECT_EQ(5 + 7 + 9 + 4, dd.ValueInState({4, 0, 2}, variables));
+  EXPECT_EQ(5 + 7 + 9 + 8, dd.ValueInState({4, 0, 3}, variables));
+}
+
 TEST(Log2Test, All) {
   EXPECT_EQ(0, Log2(1));
   EXPECT_EQ(1, Log2(2));

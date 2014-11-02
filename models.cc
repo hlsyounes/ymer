@@ -570,14 +570,14 @@ VariableProperties::VariableProperties(int min_value, int low_bit, int high_bit)
 
 DecisionDiagramModel::DecisionDiagramModel(
     const DecisionDiagramManager* manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
     const ADD& rate_matrix, const BDD& reachable_states,
     const BDD& initial_state, int initial_state_index, ODDNode* odd)
-    : manager_(manager), variable_properties_(variable_properties),
-      rate_matrix_(rate_matrix), reachable_states_(reachable_states),
-      initial_state_(initial_state), initial_state_index_(initial_state_index),
-      odd_(odd) {
-}
+    : manager_(manager),
+      rate_matrix_(rate_matrix),
+      reachable_states_(reachable_states),
+      initial_state_(initial_state),
+      initial_state_index_(initial_state_index),
+      odd_(odd) {}
 
 DecisionDiagramModel::~DecisionDiagramModel() {
   free_odd(odd_);
@@ -931,8 +931,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
   /* Build ODD. */
   ODDNode* odd = build_odd(*manager, reach_add);
   int init_index = GetInitIndex(*manager, init_bdd, odd);
-  return DecisionDiagramModel(manager, variable_properties, rate_matrix,
-                              reach_bdd, init_bdd, init_index, odd);
+  return DecisionDiagramModel(manager, rate_matrix, reach_bdd, init_bdd,
+                              init_index, odd);
 }
 
 namespace {

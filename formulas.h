@@ -27,6 +27,7 @@
 #include "models.h"
 #include "states.h"
 #include "src/compiled-expression.h"
+#include "src/compiled-model.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/statistics.h"
@@ -55,7 +56,7 @@ struct ModelCheckingStats {
   Sample<size_t> path_length;
 };
 
-bool Verify(const CompiledProperty& property, const Model& model,
+bool Verify(const CompiledProperty& property, const CompiledModel& model,
             const DecisionDiagramModel* dd_model,
             const ModelCheckingParams& params,
             CompiledExpressionEvaluator* evaluator, const State& state,
@@ -65,7 +66,8 @@ BDD Verify(const CompiledProperty& property,
            const DecisionDiagramModel& dd_model, bool estimate,
            bool top_level_property, double epsilon);
 
-bool GetObservation(const CompiledPathProperty& property, const Model& model,
+bool GetObservation(const CompiledPathProperty& property,
+                    const CompiledModel& model,
                     const DecisionDiagramModel* dd_model,
                     const ModelCheckingParams& params,
                     CompiledExpressionEvaluator* evaluator, const State& state,

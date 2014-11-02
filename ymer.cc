@@ -759,7 +759,7 @@ int main(int argc, char* argv[]) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
               msg.value =
-                  GetObservation(*path_property, *global_model, nullptr,
+                  GetObservation(*path_property, compiled_model, nullptr,
                                  nested_params, &evaluator, init_state, &stats);
               VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
@@ -885,9 +885,9 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-	  bool sol = Verify(*property, *global_model, nullptr, params,
+          bool sol = Verify(*property, compiled_model, nullptr, params,
                             &evaluator, init_state, &stats);
-	  double t;
+          double t;
 	  if (server_socket != -1) {
 	    timeval end_time;
 	    gettimeofday(&end_time, 0);
@@ -1097,7 +1097,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  bool sol = Verify(*property, *global_model, &dd_model, params,
+          bool sol = Verify(*property, compiled_model, &dd_model, params,
                             &evaluator, init_state, &stats);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
