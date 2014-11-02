@@ -30,9 +30,7 @@
 #include "rng.h"
 
 // Supported distribution types.
-enum class DistributionType {
-  MEMORYLESS, WEIBULL, LOGNORMAL, UNIFORM
-};
+enum class DistributionType { MEMORYLESS, WEIBULL, LOGNORMAL, UNIFORM };
 
 // A compiled distribution.
 class CompiledDistribution {
@@ -40,14 +38,14 @@ class CompiledDistribution {
   // Returns a memoryless distribution with parameter p.
   static CompiledDistribution MakeMemoryless(const CompiledExpression& p);
   // Returns a Weibull distribution with the given scale and shape parameters.
-  static CompiledDistribution MakeWeibull(
-      const CompiledExpression& scale, const CompiledExpression& shape);
+  static CompiledDistribution MakeWeibull(const CompiledExpression& scale,
+                                          const CompiledExpression& shape);
   // Returns a lognormal distribution with the given scale and shape parameters.
-  static CompiledDistribution MakeLognormal(
-      const CompiledExpression& scale, const CompiledExpression& shape);
+  static CompiledDistribution MakeLognormal(const CompiledExpression& scale,
+                                            const CompiledExpression& shape);
   // Returns a uniform distribution over the interval [low, high).
-  static CompiledDistribution MakeUniform(
-      const CompiledExpression& low, const CompiledExpression& high);
+  static CompiledDistribution MakeUniform(const CompiledExpression& low,
+                                          const CompiledExpression& high);
 
   // Returns the type for this distribution.
   DistributionType type() const { return type_; }
@@ -75,7 +73,8 @@ class CompiledDistributionSampler {
                               Engine* engine);
 
   // Generates a sample for the given compiled distribution.
-  double Sample(const CompiledDistribution& dist, const std::vector<int>& state);
+  double Sample(const CompiledDistribution& dist,
+                const std::vector<int>& state);
 
   double StandardUniform();
 
@@ -89,8 +88,7 @@ class CompiledDistributionSampler {
 template <typename Engine>
 CompiledDistributionSampler<Engine>::CompiledDistributionSampler(
     CompiledExpressionEvaluator* evaluator, Engine* engine)
-    : evaluator_(evaluator), engine_(engine), has_unused_lognormal_(false) {
-}
+    : evaluator_(evaluator), engine_(engine), has_unused_lognormal_(false) {}
 
 template <typename Engine>
 double CompiledDistributionSampler<Engine>::Sample(
@@ -100,7 +98,7 @@ double CompiledDistributionSampler<Engine>::Sample(
     case DistributionType::MEMORYLESS: {
       double lambda =
           evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
-      sample = -log(1.0 - StandardUniform())/lambda;
+      sample = -log(1.0 - StandardUniform()) / lambda;
       break;
     }
     case DistributionType::WEIBULL: {
@@ -125,7 +123,7 @@ double CompiledDistributionSampler<Engine>::Sample(
       double u1 = 1.0 - StandardUniform();
       double u2 = 1.0 - StandardUniform();
       double tmp = sqrt(-2.0 * log(u2));
-      double x1 =  tmp * cos(2 * M_PI * u1);
+      double x1 = tmp * cos(2 * M_PI * u1);
       double x2 = tmp * sin(2 * M_PI * u1);
       unused_lognormal_ = exp(x2 * sigma + mean);
       has_unused_lognormal_ = true;
