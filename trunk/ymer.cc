@@ -733,7 +733,7 @@ int main(int argc, char* argv[]) {
         std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
         CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-	const State init_state(&compiled_model, &evaluator, &sampler);
+	const State init_state(&compiled_model, &sampler);
         std::vector<std::unique_ptr<const CompiledProperty>>
             compiled_properties;
         for (const Expression& property : properties) {
@@ -848,7 +848,7 @@ int main(int argc, char* argv[]) {
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(&compiled_model, &evaluator, &sampler);
+      const State init_state(&compiled_model, &sampler);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1054,7 +1054,7 @@ int main(int argc, char* argv[]) {
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(&compiled_model, &evaluator, &sampler);
+      const State init_state(&compiled_model, &sampler);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
