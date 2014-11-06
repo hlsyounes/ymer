@@ -24,9 +24,8 @@
 #include "src/strutil.h"
 
 State::State(const CompiledModel* model,
-             CompiledExpressionEvaluator* evaluator,
              CompiledDistributionSampler<DCEngine>* sampler)
-    : model_(model), evaluator_(evaluator), sampler_(sampler), time_(0.0) {
+    : model_(model), sampler_(sampler), time_(0.0) {
   values_.reserve(model->variables().size());
   for (const CompiledVariable& v : model->variables()) {
     values_.push_back(v.init_value());
@@ -39,7 +38,7 @@ const int kNoTrigger = -1;
 
 }  // namespace
 
-State State::Next() const {
+State State::Next(CompiledExpressionEvaluator* evaluator) const {
   State next_state(*this);
   const int num_commands = model_->commands().size();
   int trigger = kNoTrigger;
@@ -48,7 +47,7 @@ State State::Next() const {
   for (int i = 0; i < num_commands; ++i) {
     const CompiledCommand& command = model_->commands()[i];
     const CompiledOutcome& outcome = command.outcomes()[0];
-    if (evaluator_->EvaluateIntExpression(command.guard(), values_)) {
+    if (evaluator->EvaluateIntExpression(command.guard(), values_)) {
       double t;
       if (outcome.delay().type() != DistributionType::MEMORYLESS) {
         auto ti = trigger_times_.find(i);
@@ -81,7 +80,7 @@ State State::Next() const {
     const CompiledOutcome& trigger_outcome = trigger_command.outcomes()[0];
     for (const CompiledUpdate& update : trigger_outcome.updates()) {
       next_state.values_[update.variable()] =
-          evaluator_->EvaluateIntExpression(update.expr(), values_);
+          evaluator->EvaluateIntExpression(update.expr(), values_);
     }
     if (trigger_outcome.delay().type() != DistributionType::MEMORYLESS) {
       next_state.trigger_times_.erase(trigger);
