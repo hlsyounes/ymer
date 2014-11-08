@@ -23,26 +23,6 @@
 
 namespace {
 
-TEST(CompiledVariableTest, Constructs) {
-  CompiledVariable v1("foo", 17, 42, 17);
-  EXPECT_EQ("foo", v1.name());
-  EXPECT_EQ(17, v1.min_value());
-  EXPECT_EQ(42, v1.max_value());
-  EXPECT_EQ(17, v1.init_value());
-
-  CompiledVariable v2("bar", 17, 42, 42);
-  EXPECT_EQ("bar", v2.name());
-  EXPECT_EQ(17, v2.min_value());
-  EXPECT_EQ(42, v2.max_value());
-  EXPECT_EQ(42, v2.init_value());
-
-  CompiledVariable v3("baz", 17, 42, 21);
-  EXPECT_EQ("baz", v3.name());
-  EXPECT_EQ(17, v3.min_value());
-  EXPECT_EQ(42, v3.max_value());
-  EXPECT_EQ(21, v3.init_value());
-}
-
 TEST(CompiledModelTest, NumBits) {
   CompiledModel m1;
   m1.AddVariable("foo", 0, 1, 0);

@@ -34,7 +34,7 @@
 class State {
  public:
   // Constructs an initial state for the given model.
-  State(const CompiledModel* model,
+  State(const CompiledModel& model,
         CompiledDistributionSampler<DCEngine>* sampler);
 
   // Returns the current time of this state.
@@ -44,13 +44,10 @@ class State {
   const std::vector<int>& values() const { return values_; }
 
   // Returns a sampled successor of this state.
-  State Next(CompiledExpressionEvaluator* evaluator) const;
-
-  // Returns a string representation of this state.
-  std::string ToString() const;
+  State Next(const CompiledModel& model,
+             CompiledExpressionEvaluator* evaluator) const;
 
 private:
-  const CompiledModel* model_;
   CompiledDistributionSampler<DCEngine>* sampler_;
   double time_;
   std::vector<int> values_;

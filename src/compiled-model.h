@@ -28,33 +28,7 @@
 
 #include "compiled-distribution.h"
 #include "compiled-expression.h"
-
-// A compiled variable.
-class CompiledVariable {
- public:
-  // Constructs a compiled variable with the given name, value range, and
-  // initial value.
-  CompiledVariable(
-      const std::string& name, int min_value, int max_value, int init_value);
-
-  // Returns the name for this compiled variable.
-  const std::string& name() const { return name_; }
-
-  // Returns the minimum value for this compiled variable.
-  int min_value() const { return min_value_; }
-
-  // Returns the maximum value for this compiled variable.
-  int max_value() const { return max_value_; }
-
-  // Returns the initial value for this compiled variable.
-  int init_value() const { return init_value_; }
-
- private:
-  std::string name_;
-  int min_value_;
-  int max_value_;
-  int init_value_;
-};
+#include "ddutil.h"
 
 // A compiled update.
 class CompiledUpdate {
@@ -114,14 +88,17 @@ class CompiledCommand {
 class CompiledModel {
  public:
   // Adds a variable to this compiled model.
-  void AddVariable(
-      const std::string& name, int min_value, int max_value, int init_value);
+  void AddVariable(const std::string& name, int min_value, int max_value,
+                   int init_value);
 
   // Adds a command to this compiled model.
   void AddCommand(const CompiledCommand& command);
 
   // Returns the variables for this compiled model.
-  const std::vector<CompiledVariable>& variables() const { return variables_; }
+  const std::vector<StateVariableInfo>& variables() const { return variables_; }
+
+  // Returns the initial values for the variables of this compiled model.
+  const std::vector<int>& init_values() const { return init_values_; }
 
   // Returns the commands for this compiled model.
   const std::vector<CompiledCommand>& commands() const { return commands_; }
@@ -135,7 +112,8 @@ class CompiledModel {
   int NumBits() const;
 
  private:
-  std::vector<CompiledVariable> variables_;
+  std::vector<StateVariableInfo> variables_;
+  std::vector<int> init_values_;
   std::vector<CompiledCommand> commands_;
 };
 
