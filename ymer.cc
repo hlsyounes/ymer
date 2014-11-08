@@ -732,7 +732,7 @@ int main(int argc, char* argv[]) {
         std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
         CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-	const State init_state(compiled_model, &sampler);
+	const State init_state(compiled_model);
         std::vector<std::unique_ptr<const CompiledProperty>>
             compiled_properties;
         for (const Expression& property : properties) {
@@ -757,9 +757,9 @@ int main(int argc, char* argv[]) {
 	    if (path_property) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
               ModelCheckingStats stats;
-              msg.value =
-                  GetObservation(*path_property, compiled_model, nullptr,
-                                 nested_params, &evaluator, init_state, &stats);
+              msg.value = GetObservation(*path_property, compiled_model,
+                                         nullptr, nested_params, &evaluator,
+                                         &sampler, init_state, &stats);
               VLOG(2) << "Sending sample " << msg.value;
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
@@ -847,7 +847,7 @@ int main(int argc, char* argv[]) {
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(compiled_model, &sampler);
+      const State init_state(compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -885,7 +885,7 @@ int main(int argc, char* argv[]) {
 #endif
 	  }
           bool sol = Verify(*property, compiled_model, nullptr, params,
-                            &evaluator, init_state, &stats);
+                            &evaluator, &sampler, init_state, &stats);
           double t;
 	  if (server_socket != -1) {
 	    timeval end_time;
@@ -1053,7 +1053,7 @@ int main(int argc, char* argv[]) {
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(compiled_model, &sampler);
+      const State init_state(compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1097,7 +1097,7 @@ int main(int argc, char* argv[]) {
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
           bool sol = Verify(*property, compiled_model, &dd_model, params,
-                            &evaluator, init_state, &stats);
+                            &evaluator, &sampler, init_state, &stats);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else

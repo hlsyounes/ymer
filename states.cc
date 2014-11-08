@@ -21,11 +21,8 @@
 
 #include <limits>
 
-State::State(const CompiledModel& model,
-             CompiledDistributionSampler<DCEngine>* sampler)
-    : sampler_(sampler),
-      time_(0.0),
-      values_(model.init_values()) {}
+State::State(const CompiledModel& model)
+    : time_(0.0), values_(model.init_values()) {}
 
 namespace {
 
@@ -34,7 +31,8 @@ const int kNoTrigger = -1;
 }  // namespace
 
 State State::Next(const CompiledModel& model,
-                  CompiledExpressionEvaluator* evaluator) const {
+                  CompiledExpressionEvaluator* evaluator,
+                  CompiledDistributionSampler<DCEngine>* sampler) const {
   State next_state(*this);
   const int num_commands = model.commands().size();
   int trigger = kNoTrigger;
@@ -48,13 +46,13 @@ State State::Next(const CompiledModel& model,
       if (outcome.delay().type() != DistributionType::MEMORYLESS) {
         auto ti = trigger_times_.find(i);
         if (ti == trigger_times_.end()) {
-          t = sampler_->Sample(outcome.delay(), values_) + time_;
+          t = sampler->Sample(outcome.delay(), values_) + time_;
           next_state.trigger_times_.insert({ i, t });
         } else {
           t = ti->second;
         }
       } else {
-        t = sampler_->Sample(outcome.delay(), values_) + time_;
+        t = sampler->Sample(outcome.delay(), values_) + time_;
       }
       if (trigger == kNoTrigger || t < trigger_time) {
         streak = 1;
@@ -62,7 +60,7 @@ State State::Next(const CompiledModel& model,
         trigger_time = t;
       } else if (t == trigger_time) {
         ++streak;
-        if (sampler_->StandardUniform() * streak < 1.0) {
+        if (sampler->StandardUniform() * streak < 1.0) {
           trigger = i;
         }
       }
