@@ -22,6 +22,7 @@
 #ifndef DDUTIL_H_
 #define DDUTIL_H_
 
+#include <string>
 #include <vector>
 
 class DdManager;
@@ -33,12 +34,14 @@ template <typename DD> class VariableArray;
 // state represented by integer-valued state variables.
 class StateVariableInfo {
  public:
-  StateVariableInfo(int min_value, int bit_count);
+  StateVariableInfo(const std::string& name, int min_value, int bit_count);
 
+  const std::string& name() const { return name_; }
   int min_value() const { return min_value_; }
   int bit_count() const { return bit_count_; }
 
  private:
+  std::string name_;
   int min_value_;
   int bit_count_;
 };

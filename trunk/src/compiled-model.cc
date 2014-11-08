@@ -28,15 +28,6 @@
 
 #include "glog/logging.h"
 
-CompiledVariable::CompiledVariable(
-    const std::string& name, int min_value, int max_value, int init_value)
-    : name_(name),
-      min_value_(min_value), max_value_(max_value), init_value_(init_value) {
-  CHECK_LE(min_value, max_value);
-  CHECK_LE(min_value, init_value);
-  CHECK_LE(init_value, max_value);
-}
-
 CompiledUpdate::CompiledUpdate(int variable, const CompiledExpression& expr)
     : variable_(variable), expr_(expr) {
 }
@@ -53,8 +44,9 @@ CompiledCommand::CompiledCommand(const CompiledExpression& guard,
 
 void CompiledModel::AddVariable(
     const std::string& name, int min_value, int max_value, int init_value) {
-  variables_.push_back(
-      CompiledVariable(name, min_value, max_value, init_value));
+  const int bit_count = Log2(max_value - min_value) + 1;
+  variables_.emplace_back(name, min_value, bit_count);
+  init_values_.push_back(init_value);
 }
 
 void CompiledModel::AddCommand(const CompiledCommand& command) {
@@ -114,10 +106,8 @@ std::pair<int, int> CompiledModel::GetNumRegisters() const {
 
 int CompiledModel::NumBits() const {
   int num_bits = 0;
-  for (std::vector<CompiledVariable>::const_iterator i = variables_.begin();
-       i != variables_.end(); ++i) {
-    const CompiledVariable& v = *i;
-    num_bits += Log2(v.max_value() - v.min_value()) + 1;
+  for (const auto& v : variables_) {
+    num_bits += v.bit_count();
   }
   return num_bits;
 }

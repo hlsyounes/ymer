@@ -128,8 +128,9 @@ DdNode* AddPow(DdManager* manager, DdNode** node1, DdNode** node2) {
 
 }  // namespace
 
-StateVariableInfo::StateVariableInfo(int min_value, int bit_count)
-    : min_value_(min_value), bit_count_(bit_count) {}
+StateVariableInfo::StateVariableInfo(const std::string& name, int min_value,
+                                     int bit_count)
+    : name_(name), min_value_(min_value), bit_count_(bit_count) {}
 
 DecisionDiagram::DecisionDiagram(DdManager* manager, DdNode* node)
     : manager_(manager), node_(CHECK_NOTNULL(node)) {

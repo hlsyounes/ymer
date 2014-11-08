@@ -21,16 +21,11 @@
 
 #include <limits>
 
-#include "src/strutil.h"
-
-State::State(const CompiledModel* model,
+State::State(const CompiledModel& model,
              CompiledDistributionSampler<DCEngine>* sampler)
-    : model_(model), sampler_(sampler), time_(0.0) {
-  values_.reserve(model->variables().size());
-  for (const CompiledVariable& v : model->variables()) {
-    values_.push_back(v.init_value());
-  }
-}
+    : sampler_(sampler),
+      time_(0.0),
+      values_(model.init_values()) {}
 
 namespace {
 
@@ -38,14 +33,15 @@ const int kNoTrigger = -1;
 
 }  // namespace
 
-State State::Next(CompiledExpressionEvaluator* evaluator) const {
+State State::Next(const CompiledModel& model,
+                  CompiledExpressionEvaluator* evaluator) const {
   State next_state(*this);
-  const int num_commands = model_->commands().size();
+  const int num_commands = model.commands().size();
   int trigger = kNoTrigger;
   double trigger_time = std::numeric_limits<double>::infinity();
   int streak = 0;
   for (int i = 0; i < num_commands; ++i) {
-    const CompiledCommand& command = model_->commands()[i];
+    const CompiledCommand& command = model.commands()[i];
     const CompiledOutcome& outcome = command.outcomes()[0];
     if (evaluator->EvaluateIntExpression(command.guard(), values_)) {
       double t;
@@ -76,7 +72,7 @@ State State::Next(CompiledExpressionEvaluator* evaluator) const {
   }
   next_state.time_ = trigger_time;
   if (trigger != kNoTrigger) {
-    const CompiledCommand& trigger_command = model_->commands()[trigger];
+    const CompiledCommand& trigger_command = model.commands()[trigger];
     const CompiledOutcome& trigger_outcome = trigger_command.outcomes()[0];
     for (const CompiledUpdate& update : trigger_outcome.updates()) {
       next_state.values_[update.variable()] =
@@ -87,12 +83,4 @@ State State::Next(CompiledExpressionEvaluator* evaluator) const {
     }
   }
   return next_state;
-}
-
-std::string State::ToString() const {
-  std::string str = StrCat(model_->variables()[0].name(), '=', values()[0]);
-  for (size_t i = 1; i < values().size(); ++i) {
-    str += StrCat(" & ", model_->variables()[i].name(), '=', values()[i]);
-  }
-  return str;
 }

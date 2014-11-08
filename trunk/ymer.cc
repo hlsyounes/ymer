@@ -403,15 +403,14 @@ std::map<std::string, IdentifierInfo> GetIdentifiersByName(
   std::map<std::string, IdentifierInfo> identifiers_by_name;
   int index = 0;
   int low_bit = 0;
-  for (const CompiledVariable& v : model.variables()) {
-    const int num_bits = Log2(v.max_value() - v.min_value()) + 1;
+  for (const auto& v : model.variables()) {
     // TODO(hlsyounes): propagate actual type of variable.
     identifiers_by_name.emplace(
         v.name(),
         IdentifierInfo::Variable(Type::INT, index, low_bit,
-                                 low_bit + num_bits - 1, v.min_value()));
+                                 low_bit + v.bit_count() - 1, v.min_value()));
     ++index;
-    low_bit += num_bits;
+    low_bit += v.bit_count();
   }
   return identifiers_by_name;
 }
@@ -733,7 +732,7 @@ int main(int argc, char* argv[]) {
         std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
         CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-	const State init_state(&compiled_model, &sampler);
+	const State init_state(compiled_model, &sampler);
         std::vector<std::unique_ptr<const CompiledProperty>>
             compiled_properties;
         for (const Expression& property : properties) {
@@ -848,7 +847,7 @@ int main(int argc, char* argv[]) {
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(&compiled_model, &sampler);
+      const State init_state(compiled_model, &sampler);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1054,7 +1053,7 @@ int main(int argc, char* argv[]) {
       std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
       CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(&compiled_model, &sampler);
+      const State init_state(compiled_model, &sampler);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else

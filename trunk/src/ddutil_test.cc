@@ -26,6 +26,18 @@
 
 namespace {
 
+TEST(StateVariableInfoTest, Constructs) {
+  StateVariableInfo v1("foo", 17, 42);
+  EXPECT_EQ("foo", v1.name());
+  EXPECT_EQ(17, v1.min_value());
+  EXPECT_EQ(42, v1.bit_count());
+
+  StateVariableInfo v2("bar", 42, 17);
+  EXPECT_EQ("bar", v2.name());
+  EXPECT_EQ(42, v2.min_value());
+  EXPECT_EQ(17, v2.bit_count());
+}
+
 TEST(DecisionDiagramManagerTest, Constructs) {
   const DecisionDiagramManager manager(17);
   EXPECT_EQ(17, manager.GetNumVariables());
@@ -702,7 +714,8 @@ TEST(DecisionDiagramTest, ComputesCubes) {
 
 TEST(DecisionDiagramTest, BddValueInState) {
   const DecisionDiagramManager manager(12);
-  const std::vector<StateVariableInfo> variables = {{4, 3}, {0, 1}, {1, 2}};
+  const std::vector<StateVariableInfo> variables = {
+      {"a", 4, 3}, {"b", 0, 1}, {"c", 1, 2}};
   const BDD dd = manager.GetBddVariable(0) || manager.GetBddVariable(2) ||
                  manager.GetBddVariable(6) || manager.GetBddVariable(10);
   EXPECT_FALSE(dd.ValueInState({4, 0, 1}, variables));
@@ -717,7 +730,8 @@ TEST(DecisionDiagramTest, BddValueInState) {
 
 TEST(DecisionDiagramTest, AddValueInState) {
   const DecisionDiagramManager manager(12);
-  const std::vector<StateVariableInfo> variables = {{4, 3}, {0, 1}, {1, 2}};
+  const std::vector<StateVariableInfo> variables = {
+      {"a", 4, 3}, {"b", 0, 1}, {"c", 1, 2}};
   const ADD dd = Ite(manager.GetBddVariable(0), manager.GetConstant(2),
                      manager.GetConstant(5)) +
                  Ite(manager.GetBddVariable(2), manager.GetConstant(3),
