@@ -30,6 +30,7 @@
 #include "src/compiled-model.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
+#include "src/rng.h"
 #include "src/statistics.h"
 
 /* Sampling algorithm. */
@@ -59,7 +60,8 @@ struct ModelCheckingStats {
 bool Verify(const CompiledProperty& property, const CompiledModel& model,
             const DecisionDiagramModel* dd_model,
             const ModelCheckingParams& params,
-            CompiledExpressionEvaluator* evaluator, const State& state,
+            CompiledExpressionEvaluator* evaluator,
+            CompiledDistributionSampler<DCEngine>* sampler, const State& state,
             ModelCheckingStats* stats);
 
 BDD Verify(const CompiledProperty& property,
@@ -70,7 +72,8 @@ bool GetObservation(const CompiledPathProperty& property,
                     const CompiledModel& model,
                     const DecisionDiagramModel* dd_model,
                     const ModelCheckingParams& params,
-                    CompiledExpressionEvaluator* evaluator, const State& state,
-                    ModelCheckingStats* stats);
+                    CompiledExpressionEvaluator* evaluator,
+                    CompiledDistributionSampler<DCEngine>* sampler,
+                    const State& state, ModelCheckingStats* stats);
 
 #endif /* FORMULAS_H */

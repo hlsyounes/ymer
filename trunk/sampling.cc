@@ -36,6 +36,7 @@
 #include "models.h"
 #include "states.h"
 #include "src/compiled-property.h"
+#include "src/rng.h"
 #include "src/statistics.h"
 #include "src/strutil.h"
 
@@ -59,8 +60,10 @@ class SamplingVerifier
   SamplingVerifier(const CompiledModel* model,
                    const DecisionDiagramModel* dd_model,
                    const ModelCheckingParams& params,
-                   CompiledExpressionEvaluator* evaluator, const State* state,
-                   int probabilistic_level, ModelCheckingStats* stats);
+                   CompiledExpressionEvaluator* evaluator,
+                   CompiledDistributionSampler<DCEngine>* sampler,
+                   const State* state, int probabilistic_level,
+                   ModelCheckingStats* stats);
 
   bool result() const { return result_; }
 
@@ -85,6 +88,7 @@ class SamplingVerifier
   const DecisionDiagramModel* dd_model_;
   ModelCheckingParams params_;
   CompiledExpressionEvaluator* evaluator_;
+  CompiledDistributionSampler<DCEngine>* sampler_;
   const State* state_;
   int probabilistic_level_;
   ModelCheckingStats* stats_;
@@ -97,16 +101,16 @@ class SamplingVerifier
   short next_client_id_;
 };
 
-SamplingVerifier::SamplingVerifier(const CompiledModel* model,
-                                   const DecisionDiagramModel* dd_model,
-                                   const ModelCheckingParams& params,
-                                   CompiledExpressionEvaluator* evaluator,
-                                   const State* state, int probabilistic_level,
-                                   ModelCheckingStats* stats)
+SamplingVerifier::SamplingVerifier(
+    const CompiledModel* model, const DecisionDiagramModel* dd_model,
+    const ModelCheckingParams& params, CompiledExpressionEvaluator* evaluator,
+    CompiledDistributionSampler<DCEngine>* sampler, const State* state,
+    int probabilistic_level, ModelCheckingStats* stats)
     : model_(model),
       dd_model_(dd_model),
       params_(params),
       evaluator_(evaluator),
+      sampler_(sampler),
       state_(state),
       probabilistic_level_(probabilistic_level),
       stats_(stats),
@@ -513,7 +517,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
     }
-    State next_state = curr_state.Next(*model_, evaluator_);
+    State next_state = curr_state.Next(*model_, evaluator_, sampler_);
     double next_t = t + (next_state.time() - curr_state.time());
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);
@@ -599,10 +603,11 @@ int SamplingVerifier::GetSampleCacheSize() const {
 bool Verify(const CompiledProperty& property, const CompiledModel& model,
             const DecisionDiagramModel* dd_model,
             const ModelCheckingParams& params,
-            CompiledExpressionEvaluator* evaluator, const State& state,
+            CompiledExpressionEvaluator* evaluator,
+            CompiledDistributionSampler<DCEngine>* sampler, const State& state,
             ModelCheckingStats* stats) {
-  SamplingVerifier verifier(
-      &model, dd_model, params, evaluator, &state, 0, stats);
+  SamplingVerifier verifier(&model, dd_model, params, evaluator, sampler,
+                            &state, 0, stats);
   property.Accept(&verifier);
   stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
   return verifier.result();
@@ -612,10 +617,11 @@ bool GetObservation(const CompiledPathProperty& property,
                     const CompiledModel& model,
                     const DecisionDiagramModel* dd_model,
                     const ModelCheckingParams& params,
-                    CompiledExpressionEvaluator* evaluator, const State& state,
-                    ModelCheckingStats* stats) {
-  SamplingVerifier verifier(
-      &model, dd_model, params, evaluator, &state, 1, stats);
+                    CompiledExpressionEvaluator* evaluator,
+                    CompiledDistributionSampler<DCEngine>* sampler,
+                    const State& state, ModelCheckingStats* stats) {
+  SamplingVerifier verifier(&model, dd_model, params, evaluator, sampler,
+                            &state, 1, stats);
   property.Accept(&verifier);
   stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
   return verifier.result();

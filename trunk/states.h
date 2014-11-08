@@ -34,8 +34,7 @@
 class State {
  public:
   // Constructs an initial state for the given model.
-  State(const CompiledModel& model,
-        CompiledDistributionSampler<DCEngine>* sampler);
+  explicit State(const CompiledModel& model);
 
   // Returns the current time of this state.
   double time() const { return time_; }
@@ -44,11 +43,10 @@ class State {
   const std::vector<int>& values() const { return values_; }
 
   // Returns a sampled successor of this state.
-  State Next(const CompiledModel& model,
-             CompiledExpressionEvaluator* evaluator) const;
+  State Next(const CompiledModel& model, CompiledExpressionEvaluator* evaluator,
+             CompiledDistributionSampler<DCEngine>* sampler) const;
 
 private:
-  CompiledDistributionSampler<DCEngine>* sampler_;
   double time_;
   std::vector<int> values_;
   std::map<int, double> trigger_times_;
