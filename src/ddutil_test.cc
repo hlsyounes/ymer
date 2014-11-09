@@ -40,7 +40,7 @@ TEST(StateVariableInfoTest, Constructs) {
 
 TEST(DecisionDiagramManagerTest, Constructs) {
   const DecisionDiagramManager manager(17);
-  EXPECT_EQ(17, manager.GetNumVariables());
+  EXPECT_EQ(17, manager.GetVariableCount());
   EXPECT_EQ(std::numeric_limits<double>::min(), manager.GetEpsilon());
 }
 

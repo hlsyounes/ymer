@@ -33,9 +33,9 @@ CompiledUpdate::CompiledUpdate(int variable, const CompiledExpression& expr)
 }
 
 CompiledOutcome::CompiledOutcome(const CompiledDistribution& delay,
-                                 const std::vector<CompiledUpdate>& updates)
-    : delay_(delay), updates_(updates) {
-}
+                                 const std::vector<CompiledUpdate>& updates,
+                                 int first_index)
+    : delay_(delay), updates_(updates), first_index_(first_index) {}
 
 CompiledCommand::CompiledCommand(const CompiledExpression& guard,
                                  const std::vector<CompiledOutcome>& outcomes)
@@ -53,61 +53,66 @@ void CompiledModel::AddCommand(const CompiledCommand& command) {
   commands_.push_back(command);
 }
 
+void CompiledModel::SetTriggerTimeCount(int trigger_time_count) {
+  trigger_time_count_ = trigger_time_count;
+}
+
 namespace {
 
-std::pair<int, int> GetNumDistributionRegisters(
+std::pair<int, int> GetDistributionRegisterCounts(
     const CompiledDistribution& dist) {
-  int num_iregs = 0;
-  int num_dregs = 0;
+  int ireg_count = 0;
+  int dreg_count = 0;
   for (const CompiledExpression& expr : dist.parameters()) {
-    std::pair<int, int> num_regs_expr = GetNumRegisters(expr);
-    num_iregs = std::max(num_iregs, num_regs_expr.first);
-    num_dregs = std::max(num_dregs, num_regs_expr.second);
+    std::pair<int, int> expr_reg_counts = GetExpressionRegisterCounts(expr);
+    ireg_count = std::max(ireg_count, expr_reg_counts.first);
+    dreg_count = std::max(dreg_count, expr_reg_counts.second);
   }
-  return { num_iregs, num_dregs };
+  return {ireg_count, dreg_count};
 }
 
-std::pair<int, int> GetNumUpdateRegisters(const CompiledUpdate& update) {
-  return GetNumRegisters(update.expr());
+std::pair<int, int> GetUpdateRegisterCounts(const CompiledUpdate& update) {
+  return GetExpressionRegisterCounts(update.expr());
 }
 
-std::pair<int, int> GetNumOutcomeRegisters(const CompiledOutcome& outcome) {
-  std::pair<int, int> num_regs = GetNumDistributionRegisters(outcome.delay());
+std::pair<int, int> GetOutcomeRegisterCounts(const CompiledOutcome& outcome) {
+  std::pair<int, int> reg_counts =
+      GetDistributionRegisterCounts(outcome.delay());
   for (const CompiledUpdate& update : outcome.updates()) {
-    std::pair<int, int> num_regs_update = GetNumUpdateRegisters(update);
-    num_regs.first = std::max(num_regs.first, num_regs_update.first);
-    num_regs.second = std::max(num_regs.second, num_regs_update.second);
+    std::pair<int, int> update_reg_counts = GetUpdateRegisterCounts(update);
+    reg_counts.first = std::max(reg_counts.first, update_reg_counts.first);
+    reg_counts.second = std::max(reg_counts.second, update_reg_counts.second);
   }
-  return num_regs;
+  return reg_counts;
 }
 
-std::pair<int, int> GetNumCommandRegisters(const CompiledCommand& command) {
-  std::pair<int, int> num_regs = GetNumRegisters(command.guard());
+std::pair<int, int> GetCommandRegisterCounts(const CompiledCommand& command) {
+  std::pair<int, int> reg_counts = GetExpressionRegisterCounts(command.guard());
   for (const CompiledOutcome& outcome : command.outcomes()) {
-    std::pair<int, int> num_regs_outcome = GetNumOutcomeRegisters(outcome);
-    num_regs.first = std::max(num_regs.first, num_regs_outcome.first);
-    num_regs.second = std::max(num_regs.second, num_regs_outcome.second);
+    std::pair<int, int> outcome_reg_counts = GetOutcomeRegisterCounts(outcome);
+    reg_counts.first = std::max(reg_counts.first, outcome_reg_counts.first);
+    reg_counts.second = std::max(reg_counts.second, outcome_reg_counts.second);
   }
-  return num_regs;
+  return reg_counts;
 }
 
 }  // namespace
 
-std::pair<int, int> CompiledModel::GetNumRegisters() const {
-  int num_iregs = 0;
-  int num_dregs = 0;
+std::pair<int, int> CompiledModel::GetRegisterCounts() const {
+  int ireg_count = 0;
+  int dreg_count = 0;
   for (const CompiledCommand& command : commands_) {
-    std::pair<int, int> num_regs = GetNumCommandRegisters(command);
-    num_iregs = std::max(num_iregs, num_regs.first);
-    num_dregs = std::max(num_dregs, num_regs.second);
+    std::pair<int, int> command_reg_counts = GetCommandRegisterCounts(command);
+    ireg_count = std::max(ireg_count, command_reg_counts.first);
+    dreg_count = std::max(dreg_count, command_reg_counts.second);
   }
-  return { num_iregs, num_dregs };
+  return {ireg_count, dreg_count};
 }
 
-int CompiledModel::NumBits() const {
-  int num_bits = 0;
+int CompiledModel::BitCount() const {
+  int bit_count = 0;
   for (const auto& v : variables_) {
-    num_bits += v.bit_count();
+    bit_count += v.bit_count();
   }
-  return num_bits;
+  return bit_count;
 }

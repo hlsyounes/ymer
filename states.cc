@@ -22,7 +22,10 @@
 #include <limits>
 
 State::State(const CompiledModel& model)
-    : time_(0.0), values_(model.init_values()) {}
+    : time_(0.0),
+      values_(model.init_values()),
+      trigger_times_(model.trigger_time_count(),
+                     std::numeric_limits<double>::infinity()) {}
 
 namespace {
 
@@ -44,12 +47,10 @@ State State::Next(const CompiledModel& model,
     if (evaluator->EvaluateIntExpression(command.guard(), values_)) {
       double t;
       if (outcome.delay().type() != DistributionType::MEMORYLESS) {
-        auto ti = trigger_times_.find(i);
-        if (ti == trigger_times_.end()) {
+        t = trigger_times_[outcome.first_index()];
+        if (t == std::numeric_limits<double>::infinity()) {
           t = sampler->Sample(outcome.delay(), values_) + time_;
-          next_state.trigger_times_.insert({ i, t });
-        } else {
-          t = ti->second;
+          next_state.trigger_times_[outcome.first_index()] = t;
         }
       } else {
         t = sampler->Sample(outcome.delay(), values_) + time_;
@@ -65,7 +66,8 @@ State State::Next(const CompiledModel& model,
         }
       }
     } else if (outcome.delay().type() != DistributionType::MEMORYLESS) {
-      next_state.trigger_times_.erase(i);
+      next_state.trigger_times_[outcome.first_index()] =
+          std::numeric_limits<double>::infinity();
     }
   }
   next_state.time_ = trigger_time;
@@ -77,7 +79,8 @@ State State::Next(const CompiledModel& model,
           evaluator->EvaluateIntExpression(update.expr(), values_);
     }
     if (trigger_outcome.delay().type() != DistributionType::MEMORYLESS) {
-      next_state.trigger_times_.erase(trigger);
+      next_state.trigger_times_[trigger_outcome.first_index()] =
+          std::numeric_limits<double>::infinity();
     }
   }
   return next_state;

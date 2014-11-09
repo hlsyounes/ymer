@@ -130,81 +130,81 @@ TEST(OperationTest, Shift) {
   EXPECT_EQ(Operation::MakeMOD(17, 42), Operation::MakeMOD(15, 40).Shift(3, 2));
 }
 
-TEST(GetNumRegistersTest, Constant) {
+TEST(GetExpressionRegisterCountsTest, Constant) {
   const CompiledExpression expr1({Operation::MakeICONST(17, 3)});
-  EXPECT_EQ(std::make_pair(4, 0), GetNumRegisters(expr1));
+  EXPECT_EQ(std::make_pair(4, 0), GetExpressionRegisterCounts(expr1));
   const CompiledExpression expr2({Operation::MakeDCONST(0.5, 2)});
-  EXPECT_EQ(std::make_pair(0, 3), GetNumRegisters(expr2));
+  EXPECT_EQ(std::make_pair(0, 3), GetExpressionRegisterCounts(expr2));
 }
 
-TEST(GetNumRegistersTest, Variable) {
+TEST(GetExpressionRegisterCountsTest, Variable) {
   const CompiledExpression expr({Operation::MakeILOAD(0, 5)});
-  EXPECT_EQ(std::make_pair(6, 0), GetNumRegisters(expr));
+  EXPECT_EQ(std::make_pair(6, 0), GetExpressionRegisterCounts(expr));
 }
 
-TEST(GetNumRegistersTest, Conversion) {
+TEST(GetExpressionRegisterCountsTest, Conversion) {
   const CompiledExpression expr({Operation::MakeI2D(0)});
-  EXPECT_EQ(std::make_pair(1, 1), GetNumRegisters(expr));
+  EXPECT_EQ(std::make_pair(1, 1), GetExpressionRegisterCounts(expr));
 }
 
-TEST(GetNumRegistersTest, Negation) {
+TEST(GetExpressionRegisterCountsTest, Negation) {
   const CompiledExpression expr1({Operation::MakeINEG(1)});
-  EXPECT_EQ(std::make_pair(2, 0), GetNumRegisters(expr1));
+  EXPECT_EQ(std::make_pair(2, 0), GetExpressionRegisterCounts(expr1));
   const CompiledExpression expr2({Operation::MakeDNEG(1)});
-  EXPECT_EQ(std::make_pair(0, 2), GetNumRegisters(expr2));
+  EXPECT_EQ(std::make_pair(0, 2), GetExpressionRegisterCounts(expr2));
 }
 
-TEST(GetNumRegistersTest, LogicalNot) {
+TEST(GetExpressionRegisterCountsTest, LogicalNot) {
   const CompiledExpression expr({Operation::MakeNOT(0)});
-  EXPECT_EQ(std::make_pair(1, 0), GetNumRegisters(expr));
+  EXPECT_EQ(std::make_pair(1, 0), GetExpressionRegisterCounts(expr));
 }
 
-TEST(GetNumRegistersTest, Computation) {
+TEST(GetExpressionRegisterCountsTest, Computation) {
   const CompiledExpression expr1({Operation::MakeIADD(5, 7)});
-  EXPECT_EQ(std::make_pair(8, 0), GetNumRegisters(expr1));
+  EXPECT_EQ(std::make_pair(8, 0), GetExpressionRegisterCounts(expr1));
   const CompiledExpression expr2({Operation::MakeDMUL(0, 1)});
-  EXPECT_EQ(std::make_pair(0, 2), GetNumRegisters(expr2));
+  EXPECT_EQ(std::make_pair(0, 2), GetExpressionRegisterCounts(expr2));
 }
 
-TEST(GetNumRegistersTest, Comparison) {
+TEST(GetExpressionRegisterCountsTest, Comparison) {
   const CompiledExpression expr1({Operation::MakeIEQ(0, 1)});
-  EXPECT_EQ(std::make_pair(2, 0), GetNumRegisters(expr1));
+  EXPECT_EQ(std::make_pair(2, 0), GetExpressionRegisterCounts(expr1));
   const CompiledExpression expr2({Operation::MakeDGT(1, 4)});
-  EXPECT_EQ(std::make_pair(2, 5), GetNumRegisters(expr2));
+  EXPECT_EQ(std::make_pair(2, 5), GetExpressionRegisterCounts(expr2));
 }
 
-TEST(GetNumRegistersTest, Jump) {
+TEST(GetExpressionRegisterCountsTest, Jump) {
   const CompiledExpression expr1({Operation::MakeIFFALSE(17, 42)});
-  EXPECT_EQ(std::make_pair(18, 0), GetNumRegisters(expr1));
+  EXPECT_EQ(std::make_pair(18, 0), GetExpressionRegisterCounts(expr1));
   const CompiledExpression expr2({Operation::MakeIFTRUE(42, 17)});
-  EXPECT_EQ(std::make_pair(43, 0), GetNumRegisters(expr2));
+  EXPECT_EQ(std::make_pair(43, 0), GetExpressionRegisterCounts(expr2));
   const CompiledExpression expr3({Operation::MakeGOTO(17)});
-  EXPECT_EQ(std::make_pair(0, 0), GetNumRegisters(expr3));
+  EXPECT_EQ(std::make_pair(0, 0), GetExpressionRegisterCounts(expr3));
 }
 
-TEST(GetNumRegistersTest, Function) {
+TEST(GetExpressionRegisterCountsTest, Function) {
   const CompiledExpression expr1({Operation::MakeIMAX(3, 2)});
-  EXPECT_EQ(std::make_pair(4, 0), GetNumRegisters(expr1));
+  EXPECT_EQ(std::make_pair(4, 0), GetExpressionRegisterCounts(expr1));
   const CompiledExpression expr2({Operation::MakeDMIN(3, 2)});
-  EXPECT_EQ(std::make_pair(0, 4), GetNumRegisters(expr2));
+  EXPECT_EQ(std::make_pair(0, 4), GetExpressionRegisterCounts(expr2));
   const CompiledExpression expr3({Operation::MakeFLOOR(2)});
-  EXPECT_EQ(std::make_pair(3, 3), GetNumRegisters(expr3));
+  EXPECT_EQ(std::make_pair(3, 3), GetExpressionRegisterCounts(expr3));
   const CompiledExpression expr4({Operation::MakeCEIL(1)});
-  EXPECT_EQ(std::make_pair(2, 2), GetNumRegisters(expr4));
+  EXPECT_EQ(std::make_pair(2, 2), GetExpressionRegisterCounts(expr4));
   const CompiledExpression expr5({Operation::MakePOW(3, 2)});
-  EXPECT_EQ(std::make_pair(0, 4), GetNumRegisters(expr5));
+  EXPECT_EQ(std::make_pair(0, 4), GetExpressionRegisterCounts(expr5));
   const CompiledExpression expr6({Operation::MakeLOG(3, 2)});
-  EXPECT_EQ(std::make_pair(0, 4), GetNumRegisters(expr6));
+  EXPECT_EQ(std::make_pair(0, 4), GetExpressionRegisterCounts(expr6));
   const CompiledExpression expr7({Operation::MakeMOD(3, 2)});
-  EXPECT_EQ(std::make_pair(4, 0), GetNumRegisters(expr7));
+  EXPECT_EQ(std::make_pair(4, 0), GetExpressionRegisterCounts(expr7));
 }
 
-TEST(GetNumRegistersTest, Program) {
+TEST(GetExpressionRegisterCountsTest, Program) {
   const CompiledExpression expr(
       {Operation::MakeICONST(17, 3), Operation::MakeILOAD(0, 5),
        Operation::MakeMOD(3, 5), Operation::MakeI2D(3),
        Operation::MakeDCONST(0.5, 2), Operation::MakePOW(3, 2)});
-  EXPECT_EQ(std::make_pair(6, 4), GetNumRegisters(expr));
+  EXPECT_EQ(std::make_pair(6, 4), GetExpressionRegisterCounts(expr));
 }
 
 TEST(CompiledExpressionEvaluatorTest, EvaluatesIntegerConstant) {

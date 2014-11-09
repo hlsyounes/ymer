@@ -68,8 +68,8 @@ void CompiledPropertyPrinter::DoVisitCompiledNaryProperty(
   *os_ << property.op() << " of " << operand_count << " operands:";
   int operand_index = 0;
   if (property.has_expr_operand()) {
-    *os_ << std::endl << "operand " << operand_index << ':' << std::endl
-         << property.expr_operand();
+    *os_ << std::endl << "operand " << operand_index << ':' << std::endl;
+    property.expr_operand().Accept(this);
     ++operand_index;
   }
   for (const CompiledProperty& operand : property.other_operands()) {
@@ -1098,4 +1098,71 @@ std::unique_ptr<const CompiledProperty> OptimizeProperty(
   CompiledPropertyOptimizer optimizer(&dd_manager);
   property.Accept(&optimizer);
   return optimizer.release_property();
+}
+
+namespace {
+
+class PropertyRegisterCounter : public CompiledPropertyVisitor,
+                                public CompiledPathPropertyVisitor {
+ public:
+  PropertyRegisterCounter();
+
+  std::pair<int, int> counts() const { return counts_; }
+
+ private:
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property) override;
+
+  std::pair<int, int> counts_;
+};
+
+PropertyRegisterCounter::PropertyRegisterCounter() : counts_(0, 0) {}
+
+void PropertyRegisterCounter::DoVisitCompiledNaryProperty(
+    const CompiledNaryProperty& property) {
+  if (property.has_expr_operand()) {
+    property.expr_operand().Accept(this);
+  }
+  for (const CompiledProperty& operand : property.other_operands()) {
+    operand.Accept(this);
+  }
+}
+
+void PropertyRegisterCounter::DoVisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  property.operand().Accept(this);
+}
+
+void PropertyRegisterCounter::DoVisitCompiledProbabilityThresholdProperty(
+    const CompiledProbabilityThresholdProperty& property) {
+  property.path_property().Accept(this);
+}
+
+void PropertyRegisterCounter::DoVisitCompiledExpressionProperty(
+    const CompiledExpressionProperty& property) {
+  auto expr_counts = GetExpressionRegisterCounts(property.expr());
+  counts_.first = std::max(counts_.first, expr_counts.first);
+  counts_.second = std::max(counts_.second, expr_counts.second);
+}
+
+void PropertyRegisterCounter::DoVisitCompiledUntilProperty(
+    const CompiledUntilProperty& path_property) {
+  path_property.pre_property().Accept(this);
+  path_property.post_property().Accept(this);
+}
+
+}  // namespace
+
+std::pair<int, int> GetPropertyRegisterCounts(
+    const CompiledProperty& property) {
+  PropertyRegisterCounter counter;
+  property.Accept(&counter);
+  return counter.counts();
 }

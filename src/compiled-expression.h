@@ -240,14 +240,14 @@ std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr);
 
 // Returns the number of integer and double registers referenced by the given
 // compiled expression.
-std::pair<int, int> GetNumRegisters(const CompiledExpression& expr);
+std::pair<int, int> GetExpressionRegisterCounts(const CompiledExpression& expr);
 
 // A virtual machine for evaluating for compiled expressions.
 class CompiledExpressionEvaluator {
  public:
-  // Constructs an evaluator for compiled expressions with num_iregs integer
-  // registers and num_dregs double registers.
-  CompiledExpressionEvaluator(int num_iregs, int num_dregs);
+  // Constructs an evaluator for compiled expressions with ireg_count integer
+  // registers and dreg_count double registers.
+  CompiledExpressionEvaluator(int ireg_count, int dreg_count);
 
   // Evaluates expr as an integer expression in the given state.  Assumes that
   // the result of the evaluation ends up in integer register 0.

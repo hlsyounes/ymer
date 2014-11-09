@@ -24,6 +24,9 @@
 #define COMPILED_PROPERTY_H_
 
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "compiled-expression.h"
 #include "ddutil.h"
@@ -282,5 +285,9 @@ CompilePropertyResult CompileProperty(
 // Optimizes the given property.
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
     const CompiledProperty& property, const DecisionDiagramManager& dd_manager);
+
+// Returns the number of integer and double registers referenced by the given
+// compiled expression.
+std::pair<int, int> GetPropertyRegisterCounts(const CompiledProperty& property);
 
 #endif  // COMPILED_PROPERTY_H_

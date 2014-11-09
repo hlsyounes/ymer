@@ -22,8 +22,6 @@
 #ifndef STATES_H_
 #define STATES_H_
 
-#include <map>
-#include <string>
 #include <vector>
 
 #include "src/compiled-model.h"
@@ -49,7 +47,7 @@ class State {
 private:
   double time_;
   std::vector<int> values_;
-  std::map<int, double> trigger_times_;
+  std::vector<double> trigger_times_;
 };
 
 #endif  // STATES_H_

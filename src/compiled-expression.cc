@@ -537,7 +537,8 @@ std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr) {
   return os;
 }
 
-std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
+std::pair<int, int> GetExpressionRegisterCounts(
+    const CompiledExpression& expr) {
   int max_ireg = -1;
   int max_dreg = -1;
   for (const Operation& o : expr.operations()) {
@@ -606,9 +607,9 @@ std::pair<int, int> GetNumRegisters(const CompiledExpression& expr) {
   return {max_ireg + 1, max_dreg + 1};
 }
 
-CompiledExpressionEvaluator::CompiledExpressionEvaluator(int num_iregs,
-                                                         int num_dregs)
-    : iregs_(num_iregs), dregs_(num_dregs) {}
+CompiledExpressionEvaluator::CompiledExpressionEvaluator(int ireg_count,
+                                                         int dreg_count)
+    : iregs_(ireg_count), dregs_(dreg_count) {}
 
 int CompiledExpressionEvaluator::EvaluateIntExpression(
     const CompiledExpression& expr, const std::vector<int>& state) {

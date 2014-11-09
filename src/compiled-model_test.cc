@@ -23,16 +23,16 @@
 
 namespace {
 
-TEST(CompiledModelTest, NumBits) {
+TEST(CompiledModelTest, BitCount) {
   CompiledModel m1;
   m1.AddVariable("foo", 0, 1, 0);
-  EXPECT_EQ(1, m1.NumBits());
+  EXPECT_EQ(1, m1.BitCount());
 
   CompiledModel m2;
   m2.AddVariable("foo", 0, 1, 0);
   m2.AddVariable("bar", 1, 3, 1);
   m2.AddVariable("baz", 8, 15, 8);
-  EXPECT_EQ(6, m2.NumBits());
+  EXPECT_EQ(6, m2.BitCount());
 }
 
 }  // namespace

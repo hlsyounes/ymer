@@ -43,7 +43,7 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd)
   ODDNode *res;
 
   // build tables to store odd nodes
-  int nvars = ddman.GetNumVariables() / 2;
+  int nvars = ddman.GetVariableCount() / 2;
   tables = new ODDNode*[nvars+1];
   for (i = 0; i < nvars+1; i++) {
     tables[i] = NULL;
@@ -91,7 +91,7 @@ static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, i
     // can we assume this?
     //	if (dd == Cudd_ReadZero(ddman)) return;
 
-    if (level == ddman.GetNumVariables() / 2) {
+    if (level == ddman.GetVariableCount() / 2) {
       ptr->e = NULL;
       ptr->t = NULL;
     }

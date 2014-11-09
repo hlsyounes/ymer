@@ -56,8 +56,8 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 
 	// build tables to store hdd nodes
 	res = new HDDMatrix();
-	res->num_levels = ddman.GetNumVariables() / 2;
-	res->row_tables = new HDDNode*[res->num_levels+1];
+        res->num_levels = ddman.GetVariableCount() / 2;
+        res->row_tables = new HDDNode*[res->num_levels+1];
 	res->col_tables = new HDDNode*[res->num_levels];
 	for (i = 0; i < res->num_levels; i++) {
 		res->row_tables[i] = NULL;
@@ -151,8 +151,8 @@ HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd
 	// otherwise go on and create it...
 	
 	// if it's a terminal node, it's easy...
-        int nvars = ddman.GetNumVariables() / 2;
-	if (level == nvars) {
+        int nvars = ddman.GetVariableCount() / 2;
+        if (level == nvars) {
 		num_hdd_matrix_nodes++;
 		ptr = new HDDNode();
 		ptr->type.val = Cudd_V(dd);

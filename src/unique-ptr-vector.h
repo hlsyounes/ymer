@@ -81,6 +81,7 @@ class UniquePtrVector {
   Iterator begin() const { return Iterator(elements_.begin()); }
   Iterator end() const { return Iterator(elements_.end()); }
   T& operator[](int i) const { return *elements_[i]; }
+  T& back() const { return *elements_.back(); }
   void push_back(std::unique_ptr<T>&& element) {
     elements_.push_back(std::move(element));
   }
