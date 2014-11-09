@@ -107,7 +107,7 @@ BDD reachability_bdd(const DecisionDiagramManager& dd_man,
   /*
    * Precompute variable permutations and cubes.
    */
-  size_t nvars = dd_man.GetNumVariables()/2;
+  size_t nvars = dd_man.GetVariableCount()/2;
   std::vector<int> row_to_col(2*nvars);
   std::vector<int> col_to_row(2*nvars);
   for (size_t i = 0; i < nvars; i++) {
@@ -591,7 +591,7 @@ int GetInitIndex(const DecisionDiagramManager& dd_man,
   ADD init_add(initial_state);
   DdNode* d = init_add.get();
   ODDNode* o = odd;
-  size_t nvars = dd_man.GetNumVariables() / 2;
+  size_t nvars = dd_man.GetVariableCount() / 2;
   for (size_t i = 1; i <= nvars; i++) {
     bool bit;
     if (i == nvars) {
@@ -650,7 +650,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
    * Generate phase-type distributions for commands with
    * non-exponential delay.
    */
-  size_t nvars = manager->GetNumVariables()/2;
+  size_t nvars = manager->GetVariableCount()/2;
   std::map<int, PHData> ph_commands;
   for (int i = model.commands().size() - 1; i >= 0; i--) {
     const Command& command = *model.commands()[i];
@@ -741,7 +741,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       ADD ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
         Cudd_PrintDebug(manager->manager(),
-                        ddq.get(), manager->GetNumVariables(), 2);
+                        ddq.get(), manager->GetVariableCount(), 2);
       }
       ddR = ddq +  ddR;
       /*
@@ -757,7 +757,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
         Cudd_PrintDebug(manager->manager(),
-                        ddq.get(), manager->GetNumVariables(), 2);
+                        ddq.get(), manager->GetVariableCount(), 2);
       }
       ddR = ddq + ddR;
       /*
@@ -772,7 +772,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
         Cudd_PrintDebug(manager->manager(),
-                        ddq.get(), manager->GetNumVariables(), 2);
+                        ddq.get(), manager->GetVariableCount(), 2);
       }
       ddR = ddq + ddR;
       if (ph_data->params2.n > 2) {
@@ -787,7 +787,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetNumVariables(), 2);
+                          ddq.get(), manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -822,7 +822,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ADD ddq = ADD(ddu) * manager->GetConstant(ph_data->params.re);
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetNumVariables(), 2);
+                          ddq.get(), manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -846,7 +846,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetNumVariables(), 2);
+                          ddq.get(), manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
         /*
@@ -865,7 +865,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetNumVariables(), 2);
+                          ddq.get(), manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
         /*
@@ -882,7 +882,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ddq = ADD(ddu) * manager->GetConstant(ph_data->params.rc2);
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetNumVariables(), 2);
+                          ddq.get(), manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       } else {
@@ -915,13 +915,13 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetNumVariables(), 2);
+                          ddq.get(), manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       }
     }
   }
-  std::cout << manager->GetNumVariables() << " variables." << std::endl;
+  std::cout << manager->GetVariableCount() << " variables." << std::endl;
   /*
    * Reachability analysis.
    */

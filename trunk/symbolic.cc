@@ -145,7 +145,7 @@ static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
   if (dd != Cudd_ReadZero(ddman.manager())) {
     DdNode* e;
     DdNode* t;
-    if (level == ddman.GetNumVariables() / 2) {
+    if (level == ddman.GetVariableCount() / 2) {
       res[o] = Cudd_V(dd);
       return;
     } else if (dd->index > ddman.GetBddVariable(2 * level).get()->index) {
@@ -180,7 +180,7 @@ static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
                                     const std::vector<double>& vec,
                                     bool strict, double bound,
                                     int level, ODDNode* odd, long o) {
-  if (level == ddman.GetNumVariables() / 2) {
+  if (level == ddman.GetVariableCount() / 2) {
     return ddman.GetConstant((strict && vec[o] > bound)
                              || (!strict && vec[o] >= bound));
   } else {

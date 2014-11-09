@@ -378,24 +378,28 @@ std::vector<CompiledUpdate> CompileUpdates(
 }
 
 CompiledOutcome CompileOutcome(
-    const Distribution& delay,
-    const std::vector<const Update*>& updates,
+    const Distribution& delay, const std::vector<const Update*>& updates,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  return CompiledOutcome(
+    int* next_outcome_index, std::vector<std::string>* errors) {
+  CompiledOutcome outcome(
       CompileDistribution(delay, identifiers_by_name, errors),
-      CompileUpdates(updates, identifiers_by_name, errors));
+      CompileUpdates(updates, identifiers_by_name, errors),
+      *next_outcome_index);
+  if (outcome.delay().type() != DistributionType::MEMORYLESS) {
+    ++*next_outcome_index;
+  }
+  return outcome;
 }
 
 CompiledCommand CompileCommand(
     const Command& command,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
+    int* next_outcome_index, std::vector<std::string>* errors) {
   return CompiledCommand(
       CompileAndOptimizeExpression(command.guard(), Type::BOOL,
                                    identifiers_by_name, errors),
       {CompileOutcome(command.delay(), command.updates(), identifiers_by_name,
-                      errors)});
+                      next_outcome_index, errors)});
 }
 
 std::map<std::string, IdentifierInfo> GetIdentifiersByName(
@@ -424,11 +428,14 @@ CompiledModel CompileModel(const Model& model,
         v.name(), v.min_value(), v.max_value(), v.init_value());
   }
 
+  int next_outcome_index = 0;
   std::map<std::string, IdentifierInfo> identifiers_by_name =
       GetIdentifiersByName(compiled_model);
   for (const Command* c : model.commands()) {
-    compiled_model.AddCommand(CompileCommand(*c, identifiers_by_name, errors));
+    compiled_model.AddCommand(
+        CompileCommand(*c, identifiers_by_name, &next_outcome_index, errors));
   }
+  compiled_model.SetTriggerTimeCount(next_outcome_index);
 
   return compiled_model;
 }
@@ -678,7 +685,18 @@ int main(int argc, char* argv[]) {
     const CompiledModel compiled_model = CompileModel(*global_model, &errors);
     const std::map<std::string, IdentifierInfo> identifiers_by_name =
         GetIdentifiersByName(compiled_model);
-    DecisionDiagramManager dd_man(2*compiled_model.NumBits());
+    DecisionDiagramManager dd_man(2*compiled_model.BitCount());
+    std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
+    UniquePtrVector<const CompiledProperty> compiled_properties;
+    for (const Expression& property : properties) {
+      compiled_properties.push_back(CompileAndOptimizeProperty(
+          property, identifiers_by_name, dd_man, &errors));
+      auto property_reg_counts =
+          GetPropertyRegisterCounts(compiled_properties.back());
+      reg_counts.first = std::max(reg_counts.first, property_reg_counts.first);
+      reg_counts.second =
+          std::max(reg_counts.second, property_reg_counts.second);
+    }
     if (!errors.empty()) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ": " << error << std::endl;
@@ -729,16 +747,10 @@ int main(int argc, char* argv[]) {
 	fd_set master_fds;
 	FD_ZERO(&master_fds);
 	FD_SET(sockfd, &master_fds);
-        std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
-        CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
+        CompiledExpressionEvaluator evaluator(reg_counts.first,
+                                              reg_counts.second);
         CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
 	const State init_state(compiled_model);
-        std::vector<std::unique_ptr<const CompiledProperty>>
-            compiled_properties;
-        for (const Expression& property : properties) {
-          compiled_properties.push_back(CompileAndOptimizeProperty(
-              property, identifiers_by_name, dd_man, &errors));
-        }
         const CompiledPathProperty* path_property = nullptr;
         ModelCheckingParams nested_params = params;
 	timeval timeout;
@@ -781,7 +793,7 @@ int main(int argc, char* argv[]) {
 	    }
 	    if (smsg.id == ServerMsg::START) {
               path_property =
-                  ExtractPathProperty(*compiled_properties[smsg.value]);
+                  ExtractPathProperty(compiled_properties[smsg.value]);
               if (path_property == nullptr) {
 		std::cerr << PACKAGE << ": zero or multiple path formulae"
 			  << std::endl;
@@ -844,8 +856,8 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
-      CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
+      CompiledExpressionEvaluator evaluator(reg_counts.first,
+                                            reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
       const State init_state(compiled_model);
 #ifdef PROFILING
@@ -863,11 +875,10 @@ int main(int argc, char* argv[]) {
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
 	std::cout << std::endl << "Model checking " << *fi << " ..."
 		  << std::endl;
-        std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(*fi, identifiers_by_name, dd_man,
-                                       &errors);
         current_property = fi - properties.begin();
-	size_t accepts = 0;
+        const CompiledProperty& property =
+            compiled_properties[current_property];
+        size_t accepts = 0;
         ModelCheckingStats stats;
 	for (size_t i = 0; i < trials; ++i) {
 	  timeval start_time;
@@ -884,7 +895,7 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-          bool sol = Verify(*property, compiled_model, nullptr, params,
+          bool sol = Verify(property, compiled_model, nullptr, params,
                             &evaluator, &sampler, init_state, &stats);
           double t;
 	  if (server_socket != -1) {
@@ -979,22 +990,21 @@ int main(int argc, char* argv[]) {
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
-                    dd_man.GetNumVariables() / 2)
-                << std::endl
+                       dd_man.GetVariableCount() / 2) << std::endl
                 << "Transitions: "
-                << dd_model.rate_matrix().MintermCount(dd_man.GetNumVariables())
-                << std::endl;
+                << dd_model.rate_matrix().MintermCount(
+                       dd_man.GetVariableCount()) << std::endl;
       std::cout << "Rate matrix";
       Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
-                      dd_man.GetNumVariables(), 1);
+                      dd_man.GetVariableCount(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
 	std::cout << std::endl << "Model checking " << *fi << " ..."
 		  << std::endl;
-        std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(*fi, identifiers_by_name, dd_man,
-                                       &errors);
+        current_property = fi - properties.begin();
+        const CompiledProperty& property =
+            compiled_properties[current_property];
         double total_time = 0.0;
 	bool accepted = false;
 	for (size_t i = 0; i < trials; ++i) {
@@ -1007,7 +1017,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = Verify(*property, dd_model, estimate, true, params.epsilon);
+	  BDD ddf = Verify(property, dd_model, estimate, true, params.epsilon);
 	  BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
@@ -1050,8 +1060,8 @@ int main(int argc, char* argv[]) {
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
           &dd_man, moments, *global_model);
-      std::pair<int, int> num_regs = compiled_model.GetNumRegisters();
-      CompiledExpressionEvaluator evaluator(num_regs.first, num_regs.second);
+      CompiledExpressionEvaluator evaluator(reg_counts.first,
+                                            reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
       const State init_state(compiled_model);
 #ifdef PROFILING
@@ -1068,22 +1078,21 @@ int main(int argc, char* argv[]) {
                 << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
-                    dd_man.GetNumVariables() / 2)
-                << std::endl
+                       dd_man.GetVariableCount() / 2) << std::endl
                 << "Transitions: "
-                << dd_model.rate_matrix().MintermCount(dd_man.GetNumVariables())
-                << std::endl;
+                << dd_model.rate_matrix().MintermCount(
+                       dd_man.GetVariableCount()) << std::endl;
       std::cout << "Rate matrix";
       Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
-                      dd_man.GetNumVariables(), 1);
+                      dd_man.GetVariableCount(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
 	std::cout << std::endl << "Model checking " << *fi << " ..."
 		  << std::endl;
-        std::unique_ptr<const CompiledProperty> property =
-            CompileAndOptimizeProperty(*fi, identifiers_by_name, dd_man,
-                                       &errors);
+        current_property = fi - properties.begin();
+        const CompiledProperty& property =
+            compiled_properties[current_property];
         size_t accepts = 0;
         ModelCheckingStats stats;
 	for (size_t i = 0; i < trials; ++i) {
@@ -1096,7 +1105,7 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-          bool sol = Verify(*property, compiled_model, &dd_model, params,
+          bool sol = Verify(property, compiled_model, &dd_model, params,
                             &evaluator, &sampler, init_state, &stats);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);

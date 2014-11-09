@@ -53,7 +53,7 @@ class CompiledOutcome {
   // Constructs a compiled outcome with the given delay distribution and
   // updates.
   CompiledOutcome(const CompiledDistribution& delay,
-                  const std::vector<CompiledUpdate>& updates);
+                  const std::vector<CompiledUpdate>& updates, int first_index_);
 
   // Returns the delay distribution for this outcome.
   const CompiledDistribution& delay() const { return delay_; }
@@ -61,9 +61,16 @@ class CompiledOutcome {
   // Returns the updates for this outcome.
   const std::vector<CompiledUpdate>& updates() const { return updates_; }
 
+  // Returns the first index for the range of composite outcomes rooted at this
+  // outcome.  Relevant only if the delay distribution is not memoryless.  The
+  // index is used to access the stored trigger time of an enabled event during
+  // model simulation.
+  int first_index() const { return first_index_; }
+
  private:
   CompiledDistribution delay_;
   std::vector<CompiledUpdate> updates_;
+  int first_index_;
 };
 
 // A compiled command.
@@ -94,6 +101,10 @@ class CompiledModel {
   // Adds a command to this compiled model.
   void AddCommand(const CompiledCommand& command);
 
+  // Sets the total number of events for which we may need to store a trigger
+  // time during model simulation.
+  void SetTriggerTimeCount(int trigger_time_count);
+
   // Returns the variables for this compiled model.
   const std::vector<StateVariableInfo>& variables() const { return variables_; }
 
@@ -103,18 +114,23 @@ class CompiledModel {
   // Returns the commands for this compiled model.
   const std::vector<CompiledCommand>& commands() const { return commands_; }
 
+  // Returns the total number of events for which we may need to store a trigger
+  // time during model simulation.
+  int trigger_time_count() const { return trigger_time_count_; }
+
   // Returns the number of integer and double registers referenced by this
   // compiled model.
-  std::pair<int, int> GetNumRegisters() const;
+  std::pair<int, int> GetRegisterCounts() const;
 
   // Returns the number of bits needed to represent the variables of this
   // compiled model.
-  int NumBits() const;
+  int BitCount() const;
 
  private:
   std::vector<StateVariableInfo> variables_;
   std::vector<int> init_values_;
   std::vector<CompiledCommand> commands_;
+  int trigger_time_count_;
 };
 
 #endif  // COMPILED_MODEL_H_

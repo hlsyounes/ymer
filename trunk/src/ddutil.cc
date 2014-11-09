@@ -173,8 +173,8 @@ bool DecisionDiagram::IsConstant() const {
   return Cudd_IsConstant(node_);
 }
 
-double DecisionDiagram::MintermCount(int num_variables) const {
-  return Cudd_CountMinterm(manager_, node_, num_variables);
+double DecisionDiagram::MintermCount(int variable_count) const {
+  return Cudd_CountMinterm(manager_, node_, variable_count);
 }
 
 BDD::BDD(DdManager* manager, DdNode* node)
@@ -377,8 +377,8 @@ ADD log(const ADD& dd) {
   return ADD::MonadicApply(Cudd_addLog, dd);
 }
 
-DecisionDiagramManager::DecisionDiagramManager(int num_variables)
-    : manager_(Cudd_Init(num_variables, 0 /* num_zdd_variables */,
+DecisionDiagramManager::DecisionDiagramManager(int variable_count)
+    : manager_(Cudd_Init(variable_count, 0 /* zdd_variable_count */,
                          CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0)) {
   CHECK(manager_);
   SetEpsilon(std::numeric_limits<double>::min());
@@ -389,7 +389,7 @@ DecisionDiagramManager::~DecisionDiagramManager() {
   Cudd_Quit(manager_);
 }
 
-int DecisionDiagramManager::GetNumVariables() const {
+int DecisionDiagramManager::GetVariableCount() const {
   return Cudd_ReadSize(manager_);
 }
 

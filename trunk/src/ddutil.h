@@ -54,8 +54,8 @@ class DecisionDiagram {
   bool IsConstant() const;
 
   // Returns the minterm count for this decision diagram assuming the given
-  // number of variables.
-  double MintermCount(int num_variables) const;
+  // variable count.
+  double MintermCount(int variable_count) const;
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdNode* get() const { return node(); }
@@ -249,8 +249,8 @@ class VariableArray {
 // Wrapper class for DdManager.
 class DecisionDiagramManager {
  public:
-  // Constructs a decision-diagram manager with the given number of variables.
-  explicit DecisionDiagramManager(int num_variables);
+  // Constructs a decision-diagram manager with the given variable count.
+  explicit DecisionDiagramManager(int variable_count);
 
   // Disallow copy and assign.
   DecisionDiagramManager(const DecisionDiagramManager&) = delete;
@@ -258,8 +258,8 @@ class DecisionDiagramManager {
 
   ~DecisionDiagramManager();
 
-  // Returns the number of variables.
-  int GetNumVariables() const;
+  // Returns the variable count.
+  int GetVariableCount() const;
 
   // Sets the epsilon parameter of this manager.  The epsilon parameter
   // controls the comparison between floating point numbers.  One effect of
