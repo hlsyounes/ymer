@@ -282,6 +282,13 @@ const BinaryOperation* NewNotEqual(const Expression* operand1,
                              WrapUnique(operand1), WrapUnique(operand2));
 }
 
+const Conditional* NewConditional(const Expression* condition,
+                                  const Expression* if_branch,
+                                  const Expression* else_branch) {
+  return new Conditional(WrapUnique(condition), WrapUnique(if_branch),
+                         WrapUnique(else_branch));
+}
+
 double Double(const TypedValue* typed_value) {
   CHECK(typed_value->type() != Type::BOOL);
   double value = typed_value->value<double>();
@@ -396,10 +403,10 @@ const Uniform* NewUniform(const Expression* low,
 }
 
 %type <synch> synchronization
-%type <expr> csl_formula
-%type <path> path_formula
+%type <expr> property
+%type <path> path_property
 %type <dist> distribution
-%type <expr> expr rate_expr const_rate_expr const_expr csl_expr
+%type <expr> expr rate_expr const_rate_expr const_expr
 %type <nat> integer
 %type <str> IDENTIFIER
 %type <number> NUMBER
@@ -607,6 +614,8 @@ expr : NUMBER
          { $$ = NewEqual($1, $3); }
      | expr NEQ expr
          { $$ = NewNotEqual($1, $3); }
+     | expr '?' expr ':' expr
+         { $$ = NewConditional($1, $3, $5); }
      | '(' expr ')'
          { $$ = $2; }
      ;
@@ -678,67 +687,79 @@ integer : NUMBER { $$ = integer_value($1); }
 /* ====================================================================== */
 /* Properties. */
 
-properties : /* empty */
-           | properties csl_formula
-               { properties.push_back(WrapUnique($2)); }
+properties : property_list
+           | property_list ';'
            ;
 
-csl_formula : TRUE { $$ = new Literal(true); }
-            | FALSE { $$ = new Literal(false); }
-            | P '<' NUMBER '[' path_formula ']'
-                { $$ = NewProbabilityLess(Double($3), $5); }
-            | P LEQ NUMBER '[' path_formula ']'
-                { $$ = NewProbabilityLessEqual(Double($3), $5); }
-            | P GEQ NUMBER '[' path_formula ']'
-                { $$ = NewProbabilityGreaterEqual(Double($3), $5); }
-            | P '>' NUMBER '[' path_formula ']'
-                { $$ = NewProbabilityGreater(Double($3), $5); }
-            | csl_formula IMPLY_TOKEN csl_formula
-                { $$ = NewImply($1, $3); }
-            | csl_formula '&' csl_formula
-                { $$ = NewAnd($1, $3); }
-            | csl_formula '|' csl_formula
-                { $$ = NewOr($1, $3); }
-            | '!' csl_formula
-                { $$ = NewNot($2); }
-            | csl_expr '<' csl_expr
-                { $$ = NewLess($1, $3); }
-            | csl_expr LEQ csl_expr
-                { $$ = NewLessEqual($1, $3); }
-            | csl_expr GEQ csl_expr
-                { $$ = NewGreaterEqual($1, $3); }
-            | csl_expr '>' csl_expr
-                { $$ = NewGreater($1, $3); }
-            | csl_expr '=' csl_expr
-                { $$ = NewEqual($1, $3); }
-            | csl_expr NEQ csl_expr
-                { $$ = NewNotEqual($1, $3); }
-            | '(' csl_formula ')'
-                { $$ = $2; }
-            ;
+property_list : property
+                  { properties.push_back(WrapUnique($1)); }
+              | property_list ';' property
+                  { properties.push_back(WrapUnique($3)); }
+              ;
 
-path_formula : csl_formula U LEQ NUMBER csl_formula
-                 { $$ = NewUntil(0, Double($4), $1, $5); }
-             | csl_formula U '[' NUMBER ',' NUMBER ']' csl_formula
-                 { $$ = NewUntil(Double($4), Double($6), $1, $8); }
-//             | X csl_formula
-             ;
-
-csl_expr : integer
-             { $$ = make_literal($1); }
+property : NUMBER
+             { $$ = new Literal(*$1); delete $1; }
+         | TRUE
+             { $$ = new Literal(true); }
+         | FALSE
+             { $$ = new Literal(false); }
          | IDENTIFIER
              { $$ = value_or_variable($1); }
-         | '-' csl_expr %prec UMINUS
+         | function '(' arguments ')'
+             { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
+         | FUNC '(' function ',' arguments ')'
+             { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
+         | P '<' NUMBER '[' path_property ']'
+             { $$ = NewProbabilityLess(Double($3), $5); }
+         | P LEQ NUMBER '[' path_property ']'
+             { $$ = NewProbabilityLessEqual(Double($3), $5); }
+         | P GEQ NUMBER '[' path_property ']'
+             { $$ = NewProbabilityGreaterEqual(Double($3), $5); }
+         | P '>' NUMBER '[' path_property ']'
+             { $$ = NewProbabilityGreater(Double($3), $5); }
+         | '-' property %prec UMINUS
              { $$ = NewNegate($2); }
-         | csl_expr '+' csl_expr
+         | '!' property
+             { $$ = NewNot($2); }
+         | property '+' property
              { $$ = NewPlus($1, $3); }
-         | csl_expr '-' csl_expr
+         | property '-' property
              { $$ = NewMinus($1, $3); }
-         | csl_expr '*' csl_expr
+         | property '*' property
              { $$ = NewMultiply($1, $3); }
-         | '(' csl_expr ')'
+         | property '/' property
+             { $$ = NewDivide($1, $3); }
+         | property '&' property
+             { $$ = NewAnd($1, $3); }
+         | property '|' property
+             { $$ = NewOr($1, $3); }
+         | property IMPLY_TOKEN property
+             { $$ = NewImply($1, $3); }
+         | property IFF_TOKEN property
+             { $$ = NewIff($1, $3); }
+         | property '<' property
+             { $$ = NewLess($1, $3); }
+         | property LEQ property
+             { $$ = NewLessEqual($1, $3); }
+         | property GEQ property
+             { $$ = NewGreaterEqual($1, $3); }
+         | property '>' property
+             { $$ = NewGreater($1, $3); }
+         | property '=' property
+             { $$ = NewEqual($1, $3); }
+         | property NEQ property
+             { $$ = NewNotEqual($1, $3); }
+         | property '?' property ':' property
+             { $$ = NewConditional($1, $3, $5); }
+         | '(' property ')'
              { $$ = $2; }
          ;
+
+path_property : property U LEQ NUMBER property
+                  { $$ = NewUntil(0, Double($4), $1, $5); }
+              | property U '[' NUMBER ',' NUMBER ']' property
+                  { $$ = NewUntil(Double($4), Double($6), $1, $8); }
+              ;
 
 %%
 
@@ -1033,6 +1054,7 @@ static const Expression* value_or_variable(const std::string* ident) {
     return identifier;
   }
 }
+
 static const Identifier* find_variable(const std::string* ident) {
   if (constants.find(*ident) == constants.end()) {
     if (variables.find(*ident) == variables.end()) {

@@ -176,7 +176,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 386 "parser.yy" /* yacc.c:1909  */
+#line 393 "parser.yy" /* yacc.c:1909  */
 
   size_t synch;
   const PathProperty* path;
