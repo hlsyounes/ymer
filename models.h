@@ -1,83 +1,66 @@
-// Copyright (C) 2003--2005 Carnegie Mellon University
-// Copyright (C) 2011--2012 Google Inc
-//
-// This file is part of Ymer.
-//
-// Ymer is free software; you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// Ymer is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-// License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Ymer; if not, write to the Free Software Foundation,
-// Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-//
-// A parsed model.
+/* -*-C++-*- */
+/*
+ * Models.
+ *
+ * Copyright (C) 2003, 2004 Carnegie Mellon University
+ *
+ * This file is part of Ymer.
+ *
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: models.h,v 2.1 2004-01-25 12:36:58 lorens Exp $
+ */
+#ifndef MODELS_H
+#define MODELS_H
 
-#ifndef MODELS_H_
-#define MODELS_H_
-
-#include <set>
-#include <string>
-#include <vector>
-
+#include <config.h>
 #include "modules.h"
 #include "odd.h"
-#include "src/ddutil.h"
+#include "distributions.h"
+#include <map>
 
-struct PHData;
 
-// A parsed variable.
-class ParsedVariable {
- public:
-  // Constructs a parsed variable with the given name, value range and initial
-  // value.
-  ParsedVariable(
-      const std::string& name, int min_value, int max_value, int init_range);
+/* ====================================================================== */
+/* PHData */
 
-  // Returns the name for this parsed variable.
-  const std::string& name() const { return name_; }
-
-  // Returns the minimum value for this parsed variable.
-  int min_value() const { return min_value_; }
-
-  // Returns the maximum value for this parsed variable.
-  int max_value() const { return max_value_; }
-
-  // Returns the initial value for this parsed variable.
-  int init_value() const { return init_value_; }
-
- private:
-  std::string name_;
-  int min_value_;
-  int max_value_;
-  int init_value_;
+/*
+ * Data for phase-type distribution.
+ */
+struct PHData {
+  ECParameters params;
+  ACPH2Parameters params2;
+  Variable* s;
+  DdNode* update_bdd;
 };
 
-// A parsed model.
-class Model {
- public:
+
+/* ====================================================================== */
+/* Model */
+
+/*
+ * A model.
+ */
+struct Model {
   /* Constructs a model. */
   Model();
 
   /* Deletes this model. */
   ~Model();
 
-  // Adds an int variable with the given name.
-  void AddIntVariable(
-      const std::string& name, int min_value, int max_value, int init_value);
-
-  // Opens a new module scope.  Requires that no module scope is currently open.
-  void OpenModuleScope();
-
-  // Closes the current module scope.  Requires that a module scope is
-  // currently open.
-  void CloseModuleScope();
+  /* Adds a global variable to this model. */
+  void add_variable(const Variable& variable);
 
   /* Adds a module to this model. */
   void add_module(const Module& module);
@@ -85,110 +68,86 @@ class Model {
   /* Compiles the commands of this model. */
   void compile();
 
-  // Returns the variables for this model.
-  const std::vector<ParsedVariable>& variables() const { return variables_; }
-
-  // Returns the global variables (just indices) for this model.
-  const std::set<int>& global_variables() const { return global_variables_; }
-
-  // Returns the module variables (just indices) for the ith module.
-  const std::set<int>& module_variables(int i) const {
-    return module_variables_[i];
-  }
-
-  /* Returns the name of the variable with index i. */
-  const std::string& variable_name(int i) const { return variables_[i].name(); }
+  /* Returns the global variables for this model. */
+  const VariableList& variables() const { return variables_; }
 
   /* Returns the modules for this model */
-  const std::vector<const Module*>& modules() const { return modules_; }
+  const ModuleList& modules() const { return modules_; }
 
   /* Returns all commands for this model. */
-  const std::vector<const Command*>& commands() const { return commands_; }
+  const CommandList& commands() const { return commands_; }
 
-  const std::vector<std::set<const Module*>>& command_modules() const {
-    return command_modules_;
-  }
+  /* Caches DDs for this model. */
+  void cache_dds(DdManager* dd_man, size_t moments) const;
+
+  /* Returns an MTBDD representing the rate matrix for this model. */
+  DdNode* rate_mtbdd(DdManager* dd_man) const;
+
+  /* Returns a reachability BDD for this model. */
+  DdNode* reachability_bdd(DdManager* dd_man) const;
+
+  /* Returns an ODD for this model. */
+  ODDNode* odd(DdManager* dd_man) const;
+
+  /* Returns a BDD representing the initial state for this model. */
+  DdNode* init_bdd(DdManager* dd_man) const;
+
+  /* Returns the index associated with the initial state for this model. */
+  int init_index(DdManager* dd_man) const;
+
+  /* Returns the row variables for this model. */
+  DdNode** row_variables(DdManager* dd_man) const;
+
+  /* Returns the column variables for this model. */
+  DdNode** column_variables(DdManager* dd_man) const;
+
+  /* Returns the number of states for this model. */
+  double num_states(DdManager* dd_man) const;
+
+  /* Returns the number of transitions for this model. */
+  double num_transitions(DdManager* dd_man) const;
+
+  /* Releases all DDs cached for this model. */
+  void uncache_dds(DdManager* dd_man) const;
 
 private:
-  std::vector<ParsedVariable> variables_;
-  std::set<int> global_variables_;
-  std::vector<std::set<int>> module_variables_;
-  int current_module_;
+  /* The global variables for this model. */
+  VariableList variables_;
   /* The modules for this model */
-  std::vector<const Module*> modules_;
+  ModuleList modules_;
   /* Compiled commands for this model. */
-  std::vector<const Command*> commands_;
+  CommandList commands_;
   /* Modules that the above commands are associated with. */
-  std::vector<std::set<const Module*>> command_modules_;
+  std::vector<ModuleSet> command_modules_;
+  /* Cached MTBDD representing rate matrix. */
+  mutable DdNode* rate_mtbdd_;
+  /* Cached reachability BDD. */
+  mutable DdNode* reach_bdd_;
+  /* Cached ODD. */
+  mutable ODDNode* odd_;
+  /* Cached BDD representing the initial state. */
+  mutable DdNode* init_bdd_;
+  /* Cached index associated with the initial state. */
+  mutable int init_index_;
+  /* Cached row variables. */
+  mutable DdNode** row_variables_;
+  /* Cached column variables. */
+  mutable DdNode** column_variables_;
+
+  /* Returns a BDD representing the range for all model variables. */
+  DdNode* range_bdd(DdManager* dd_man) const;
+
+  /* Returns a BDD representing the conjunction of dd_start with the
+     BDDs for updates of all variables not explicitly mentioned. */
+  DdNode* variable_updates(DdManager* dd_man, DdNode* dd_start,
+			   const ModuleSet& touched_modules,
+			   const VariableSet& updated_variables,
+			   const Variable* phase_variable,
+			   const std::map<size_t, PHData>& ph_commands) const;
 };
 
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m);
 
-class VariableProperties {
- public:
-  VariableProperties(int min_value, int low_bit, int high_bit);
 
-  int min_value() const { return min_value_; }
-
-  int low_bit() const { return low_bit_; }
-
-  int high_bit() const { return high_bit_; }
-
- private:
-  int min_value_;
-  int low_bit_;
-  int high_bit_;
-};
-
-// A model compiled into decision diagrams.
-class DecisionDiagramModel {
- public:
-  ~DecisionDiagramModel();
-
-  static DecisionDiagramModel Create(const DecisionDiagramManager* manager,
-                                     size_t moments, const Model& model);
-
-  const DecisionDiagramManager& manager() const { return *manager_; }
-
-  const ADD& rate_matrix() const { return rate_matrix_; }
-  const BDD& reachable_states() const { return reachable_states_; }
-  const BDD& initial_state() const { return initial_state_; }
-  int initial_state_index() const { return initial_state_index_; }
-  ODDNode* odd() const { return odd_; }
-
- private:
-  DecisionDiagramModel(
-      const DecisionDiagramManager* manager,
-      const ADD& rate_matrix, const BDD& reachable_states,
-      const BDD& initial_state, int initial_state_index, ODDNode* odd);
-
-  const DecisionDiagramManager* manager_;
-  ADD rate_matrix_;
-  BDD reachable_states_;
-  BDD initial_state_;
-  int initial_state_index_;
-  ODDNode* odd_;
-};
-
-// Returns the 'current state' MTBDD representation for an expression.
-ADD mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e);
-
-// Returns the 'next state' MTBDD representation for an expression.
-ADD primed_mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e);
-
-// Returns the 'current state' MTBDD representation for a variable.
-ADD variable_mtbdd(const DecisionDiagramManager& manager,
-                   int low, int low_bit, int high_bit);
-
-// Returns the 'next state' MTBDD representation for a variable.
-ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
-                          int low, int low_bit, int high_bit);
-
-#endif  // MODELS_H_
+#endif /* MODELS_H */

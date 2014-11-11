@@ -20,289 +20,661 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-
 #include "formulas.h"
-
+#include "comm.h"
+#include "states.h"
+#include "models.h"
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#include <iostream>
-#include <limits>
 #include <queue>
-#include <utility>
+#ifndef __USE_ISOC99
+#define __USE_ISOC99
+#endif
+#include <math.h>
+#include <cstdio>
 
-#include "comm.h"
-#include "models.h"
-#include "states.h"
-#include "src/compiled-property.h"
-#include "src/rng.h"
-#include "src/statistics.h"
-#include "src/strutil.h"
 
-#include "cudd.h"
-#include "glog/logging.h"
-#include "gsl/gsl_cdf.h"
+/* Verbosity level. */
+extern int verbosity;
+/* Whether memoization is enabled. */
+extern bool memoization;
+/* Fixed nested error. */
+extern double nested_error;
+/* Fixed sample size. */
+extern int fixed_sample_size;
+/* Maximum path length. */
+extern int max_path_length;
+/* Total number of samples (for statistics). */
+extern size_t total_samples;
+/* Number of samples per trial (for statistics). */
+extern std::vector<size_t> samples;
+/* Total path lengths (for statistics). */
+extern double total_path_lengths;
 
-namespace {
+/* Nesting level of formula just being verified. */
+size_t StateFormula::formula_level_ = 0;
 
-void PrintProgress(int n) {
-  if (n % 1000 == 0) {
-    std::cout << ':';
-  } else if (n % 100 == 0) {
-    std::cout << '.';
+/* Registered clients. */
+static std::map<int, short> registered_clients;
+/* Next client id. */
+static short next_client_id = 1;
+
+
+/* ====================================================================== */
+/* Conjunction */
+
+/* Estimated effort for verifying this state formula using the
+   statistical engine. */
+double Conjunction::effort(const Model& model, const State& state,
+			   double q, DeltaFun delta, double alpha, double beta,
+			   double alphap, double betap,
+			   SamplingAlgorithm algorithm) const {
+  double h = 0.0;
+  for (FormulaList::const_iterator fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    h += (*fi)->effort(model, state, q,
+		       delta, alpha, beta, alphap, betap, algorithm);
   }
+  return h;
 }
 
-class SamplingVerifier
-    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
- public:
-  SamplingVerifier(const CompiledModel* model,
-                   const DecisionDiagramModel* dd_model,
-                   const ModelCheckingParams& params,
-                   CompiledExpressionEvaluator* evaluator,
-                   CompiledDistributionSampler<DCEngine>* sampler,
-                   const State* state, int probabilistic_level,
-                   ModelCheckingStats* stats);
 
-  bool result() const { return result_; }
-
-  int GetSampleCacheSize() const;
-
- private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& path_property);
-
-  bool VerifyHelper(const CompiledProperty& property, const BDD* ddf);
-  std::string StateToString(const State& state) const;
-
-  bool result_;
-  const CompiledModel* model_;
-  const DecisionDiagramModel* dd_model_;
-  ModelCheckingParams params_;
-  CompiledExpressionEvaluator* evaluator_;
-  CompiledDistributionSampler<DCEngine>* sampler_;
-  const State* state_;
-  int probabilistic_level_;
-  ModelCheckingStats* stats_;
-  std::map<int, std::map<std::vector<int>, Sample<int>>> sample_cache_;
-  std::map<int, std::pair<BDD, BDD>> dd_cache_;
-
-  // Registered clients.
-  std::map<int, short> registered_clients_;
-  // Next client id.
-  short next_client_id_;
-};
-
-SamplingVerifier::SamplingVerifier(
-    const CompiledModel* model, const DecisionDiagramModel* dd_model,
-    const ModelCheckingParams& params, CompiledExpressionEvaluator* evaluator,
-    CompiledDistributionSampler<DCEngine>* sampler, const State* state,
-    int probabilistic_level, ModelCheckingStats* stats)
-    : model_(model),
-      dd_model_(dd_model),
-      params_(params),
-      evaluator_(evaluator),
-      sampler_(sampler),
-      state_(state),
-      probabilistic_level_(probabilistic_level),
-      stats_(stats),
-      next_client_id_(1) {}
-
-void SamplingVerifier::DoVisitCompiledNaryProperty(
-    const CompiledNaryProperty& property) {
-  switch (property.op()) {
-    case CompiledNaryOperator::AND:
-      result_ = true;
-      if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(
-            property.expr_operand().expr(), state_->values());
-      }
-      if (result_ == true && !property.other_operands().empty()) {
-        double alpha = params_.alpha / property.other_operands().size();
-        std::swap(params_.alpha, alpha);
-        for (const CompiledProperty& operand : property.other_operands()) {
-          operand.Accept(this);
-          if (result_ == false) {
-            break;
-          }
-        }
-        std::swap(params_.alpha, alpha);
-      }
-      break;
-    case CompiledNaryOperator::OR:
-      result_ = false;
-      if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(
-            property.expr_operand().expr(), state_->values());
-      }
-      if (result_ == false && !property.other_operands().empty()) {
-        double beta = params_.beta / property.other_operands().size();
-        std::swap(params_.beta, beta);
-        for (const CompiledProperty& operand : property.other_operands()) {
-          operand.Accept(this);
-          if (result_ == true) {
-            break;
-          }
-        }
-        std::swap(params_.beta, beta);
-      }
-      break;
-    case CompiledNaryOperator::IFF: {
-      bool has_result = false;
-      if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(
-            property.expr_operand().expr(), state_->values());
-        has_result = true;
-      }
-      double alpha = std::min(params_.alpha, params_.beta)
-          / property.other_operands().size();
-      double beta = std::min(params_.alpha, params_.beta)
-          / property.other_operands().size();
-      std::swap(params_.alpha, alpha);
-      std::swap(params_.beta, beta);
-      for (const CompiledProperty& operand : property.other_operands()) {
-        bool prev_result = result_;
-        operand.Accept(this);
-        if (has_result) {
-          result_ = prev_result == result_;
-        }
-        has_result = true;
-      }
-      std::swap(params_.beta, beta);
-      std::swap(params_.alpha, alpha);
-      break;
+/* Verifies this state formula using the statistical engine. */
+bool Conjunction::verify(const Model& model, const State& state,
+			 DeltaFun delta, double alpha, double beta,
+			 SamplingAlgorithm algorithm) const {
+  for (FormulaList::const_reverse_iterator fi = conjuncts().rbegin();
+       fi != conjuncts().rend(); fi++) {
+    if (!(*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
+      return false;
     }
   }
+  return true;
 }
 
-void SamplingVerifier::DoVisitCompiledNotProperty(
-    const CompiledNotProperty& property) {
-  std::swap(params_.alpha, params_.beta);
-  property.operand().Accept(this);
-  result_ = !result_;
-  std::swap(params_.alpha, params_.beta);
+
+/* Clears the cache of any probabilistic operator. */
+size_t Conjunction::clear_cache() const {
+  size_t n = 0;
+  for (FormulaList::const_iterator fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    n += (*fi)->clear_cache();
+  }
+  return n;
 }
 
-void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
-    const CompiledProbabilityThresholdProperty& property) {
-  ++probabilistic_level_;
-  double nested_error = 0.0;
-  if (dd_model_ == nullptr && property.path_property().is_probabilistic()) {
-    if (params_.nested_error > 0) {
-      // User-specified nested error.
-      nested_error = params_.nested_error;
+
+/* ====================================================================== */
+/* Disjunction */
+
+/* Estimated effort for verifying this state formula using the
+   statistical engine. */
+double Disjunction::effort(const Model& model, const State& state,
+			   double q, DeltaFun delta, double alpha, double beta,
+			   double alphap, double betap,
+			   SamplingAlgorithm algorithm) const {
+  double h = 0.0;
+  for (FormulaList::const_iterator fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    h += (*fi)->effort(model, state, q,
+		       delta, alpha, beta, alphap, betap, algorithm);
+  }
+  return h;
+}
+
+
+/* Verifies this state formula using the statistical engine. */
+bool Disjunction::verify(const Model& model, const State& state,
+			 DeltaFun delta, double alpha, double beta,
+			 SamplingAlgorithm algorithm) const {
+  for (FormulaList::const_reverse_iterator fi = disjuncts().rbegin();
+       fi != disjuncts().rend(); fi++) {
+    if ((*fi)->verify(model, state, delta, alpha, beta, algorithm)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+/* Clears the cache of any probabilistic operator. */
+size_t Disjunction::clear_cache() const {
+  size_t n = 0;
+  for (FormulaList::const_iterator fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    n += (*fi)->clear_cache();
+  }
+  return n;
+}
+
+
+/* ====================================================================== */
+/* Negation */
+
+/* Estimated effort for verifying this state formula using the
+   statistical engine. */
+double Negation::effort(const Model& model, const State& state,
+			double q, DeltaFun delta, double alpha, double beta,
+			double alphap, double betap,
+			SamplingAlgorithm algorithm) const {
+  return negand().effort(model, state, q,
+			 delta, alpha, beta, alphap, betap, algorithm);
+}
+
+
+/* Verifies this state formula using the statistical engine. */
+bool Negation::verify(const Model& model, const State& state,
+		      DeltaFun delta, double alpha, double beta,
+		      SamplingAlgorithm algorithm) const {
+  return !negand().verify(model, state, delta, beta, alpha, algorithm);
+}
+
+
+/* Clears the cache of any probabilistic operator. */
+size_t Negation::clear_cache() const {
+  return negand().clear_cache();
+}
+
+
+/* ====================================================================== */
+/* Implication */
+
+/* Estimated effort for verifying this state formula using the
+   statistical engine. */
+double Implication::effort(const Model& model, const State& state,
+			   double q, DeltaFun delta, double alpha, double beta,
+			   double alphap, double betap,
+			   SamplingAlgorithm algorithm) const {
+  return (antecedent().effort(model, state, q,
+			      delta, alpha, beta, alphap, betap, algorithm)
+	  + consequent().effort(model, state, q,
+				delta, alpha, beta, alphap, betap, algorithm));
+}
+
+
+/* Verifies this state formula using the statistical engine. */
+bool Implication::verify(const Model& model, const State& state,
+			 DeltaFun delta, double alpha, double beta,
+			 SamplingAlgorithm algorithm) const {
+  if (!antecedent().verify(model, state, delta, beta, alpha, algorithm)) {
+    return true;
+  } else {
+    return consequent().verify(model, state, delta, alpha, beta, algorithm);
+  }
+}
+
+
+/* Clears the cache of any probabilistic operator. */
+size_t Implication::clear_cache() const {
+  return antecedent().clear_cache() + consequent().clear_cache();
+}
+
+
+/* ====================================================================== */
+/* Probabilistic */
+
+/*
+ * Inverse error function.
+ */
+static double erfinv(double y) {
+  // MATLAB code
+  static double a[] = { 0.886226899, -1.645349621, 0.914624893, -0.140543331 };
+  static double b[] = { -2.118377725, 1.442710462, -0.329097515, 0.012229801 };
+  static double c[] = { -1.970840454, -1.624906493, 3.429567803, 1.641345311 };
+  static double d[] = { 3.543889200, 1.637067800 };
+
+  if (y == -1.0) {
+    return -HUGE_VAL;
+  } else if (y == 1.0) {
+    return HUGE_VAL;
+  } else if (isnan(y) || fabs(y) > 1.0) {
+    return NAN;
+  } else {
+    double x;
+    if (fabs(y) <= 0.7) {
+      double z = y*y;
+      x = y*(((a[3]*z + a[2])*z + a[1])*z + a[0]);
+      x /= (((b[3]*z + b[2])*z + b[1])*z + b[0])*z + 1.0;
+    } else if (y > 0.7 && y < 1.0) {
+      double z = sqrt(-log(0.5*(1.0 - y)));
+      x = (((c[3]*z + c[2])*z + c[1])*z + c[0])/((d[1]*z + d[0])*z + 1.0);
+    } else if (y < -0.7 && y > -1.0) {
+      double z = sqrt(-log(0.5*(1.0 + y)));
+      x = -(((c[3]*z + c[2])*z + c[1])*z + c[0])/((d[1]*z + d[0])*z + 1.0);
+    }
+    double u = (erf(x) - y)/(M_2_SQRTPI*exp(-x*x));
+    return x - u/(1.0 + x*u);
+  }
+}
+
+
+/*
+ * Inverse of the standard normal cumulative distribution function.
+ */
+static double norminv(double p) {
+  return M_SQRT2*erfinv(2.0*p - 1.0);
+}
+
+
+/*
+ * Inverse of Student's T cumulative distribution function.
+ */
+static double tinv(double p, double v) {
+  if (v <= 0.0) {
+    return NAN;
+  } else if (p == 0.0) {
+    return -HUGE_VAL;
+  } else if (p == 1.0) {
+    return HUGE_VAL;
+  } else if (v == 1.0) {
+    // MATLAB code
+    return tan(M_PI*(p - 0.5));
+  } else {
+    // Abramowitz & Stegun formula 26.7.5? (from MATLAB)
+    double x = norminv(p);
+    double z = x*x;
+    return x*(1.0 + (z + 1.0)/(4.0*v)
+	      + ((5.0*z + 16.0)*z + 3.0)/(96.0*v*v)
+	      + (((3.0*z + 19.0)*z + 17)*z - 15.0)/(384.0*v*v*v)
+	      + (((((79.0*z + 776.0)*z + 1482.0)*z - 1920.0)*z - 945.0)
+		 /(92160.0*v*v*v*v)));
+  }
+}
+
+
+/*
+ * Inverse of the binomial cumulative distribution function.
+ */
+int binoinv(double y, int n, double p) {
+  if (y < 0.0 || y > 1.0 || n < 1 || p < 0.0 || p > 1.0) {
+    return -1;
+  } else if (y == 0.0 || p == 0.0) {
+    return 0;
+  } else if (y == 1.0 || p == 1.0) {
+    return n;
+  } else {
+    double q = 1.0 - p;
+    double lp = log(p);
+    double lq = log(q);
+    double yy = pow(q, n);
+    int x = 0;
+    while (yy < y && x < n) {
+      x++;
+      double lc = lgamma(n + 1) - lgamma(n - x + 1) - lgamma(x + 1);
+      yy += exp(lc + x*lp + (n - x)*lq);
+    }
+    return x;
+  }
+}
+
+
+/*
+ * Inverse of the binomial cumulative distribution function with
+ * linear interpolation.
+ */
+double realbinoinv(double y, int n, double p) {
+  if (y < 0.0 || y > 1.0 || n < 1 || p < 0.0 || p > 1.0) {
+    return -1.0;
+  } else if (y == 0.0 || p == 0.0) {
+    return 0.0;
+  } else if (y == 1.0 || p == 1.0) {
+    return n;
+  } else {
+    double q = 1.0 - p;
+    double lp = log(p);
+    double lq = log(q);
+    double yy = pow(q, n);
+    if (yy > y) {
+      return -1.0;
     } else {
-      // Simple heuristic for nested error.
-      nested_error = 0.8 * MaxNestedError(params_.delta);
-    }
-    if (probabilistic_level_ == 1) {
-      VLOG(1) << "Nested error: " << nested_error;
-      VLOG(1) << "Maximum symmetric nested error: "
-              << MaxNestedError(params_.delta);
+      int x = 0;
+      while (yy < y && x < n) {
+	x++;
+	double lc = lgamma(n + 1) - lgamma(n - x + 1) - lgamma(x + 1);
+	double f = exp(lc + x*lp + (n - x)*lq);
+	if (yy + f > y) {
+	  return x - 1 + (y - yy)/f;
+	} else {
+	  yy += f;
+	}
+      }
+      return n;
     }
   }
-  const double theta = property.threshold();
-  const double theta0 =
-      std::min(1.0, (theta + params_.delta)*(1.0 - nested_error));
-  const double theta1 =
-      std::max(0.0, 1.0 - (1.0 - (theta - params_.delta))*(1.0 - nested_error));
-  ModelCheckingParams nested_params = params_;
-  nested_params.alpha = nested_error;
-  nested_params.beta = nested_error;
-  if (params_.algorithm == ESTIMATE) {
-    if (probabilistic_level_ == 1) {
-      std::cout << "Sequential estimation";
+}
+
+
+/*
+ * Returns a single sampling plan.
+ */
+static std::pair<int, int>
+single_sampling_plan(double p0, double p1, double alpha, double beta) {
+  if (p1 <= 0.0) {
+    if (p0 >= 1.0) {
+      return std::make_pair(1, 0);
+    } else {
+      return std::make_pair(int(ceil(log(alpha)/log(1.0 - p0))), 0);
     }
-    SequentialEstimator<int> estimator(params_.delta, params_.alpha);
-    std::swap(params_, nested_params);
-    while (true) {
-      property.path_property().Accept(this);
-      const bool x = result_;
-      estimator.AddObservation(x ? 1 : 0);
-      if (probabilistic_level_ == 1) {
-        PrintProgress(estimator.count());
+  } else if (p0 >= 1.0) {
+    int n = int(ceil(log(beta)/log(p1)) + 0.5);
+    return std::make_pair(n, n - 1);
+  } else {
+    int nmin = 1, nmax = -1;
+    int n = nmin;
+    while (nmax < 0 || nmin < nmax) {
+      double x0 = realbinoinv(alpha, n, p0);
+      double x1 = realbinoinv(1 - beta, n, p1);
+      std::cout << n << '\t' << x0 << '\t' << x1 << '\t' << (x0 >= x1 - 1e-10)
+		<< std::endl;
+      if (x0 >= x1 - 1e-10 && x0 >= 0.0) {
+	nmax = n;
+      } else {
+	nmin = n + 1;
       }
-      if (VLOG_IS_ON(2)) {
-        LOG(INFO) << std::string(2*(probabilistic_level_ - 1), ' ')
-                  << estimator.count() << '\t' << estimator.value() << '\t'
-                  << estimator.state() << '\t' << estimator.bound();
-      }
-      if (estimator.state() <= estimator.bound()) {
-        break;
+      if (nmax < 0) {
+	n *= 2;
+      } else {
+	n = (nmin + nmax)/2;
       }
     }
-    std::swap(params_, nested_params);
-    if (probabilistic_level_ == 1) {
-      std::cout << estimator.count() << " observations." << std::endl;
-      std::cout << "Pr[" << property.path_property().string() << "] = "
-                << estimator.value() << " ("
-                << std::max(0.0, estimator.value() - params_.delta) << ','
-                << std::min(1.0, estimator.value() + params_.delta) << ")"
-                << std::endl;
-      stats_->sample_size.AddObservation(estimator.count());
+    int c0 = n - binoinv(1 - alpha, n, 1 - p0) - 1;
+    int c1 = binoinv(1 - beta, n, p1);
+    std::cout << n << '\t' << c0 << '\t' << c1 << '\t' << (c0 >= c1)
+	      << std::endl;
+    while (c0 < c1 || c0 < 0) {
+      n++;
+      c0 = n - binoinv(1 - alpha, n, 1 - p0) - 1;
+      c1 = binoinv(1 - beta, n, p1);
+      std::cout << n << '\t' << c0 << '\t' << c1 << '\t' << (c0 >= c1)
+		<< std::endl;
     }
-    switch (property.op()) {
-      case CompiledProbabilityThresholdOperator::GREATER_EQUAL:
-        result_ = estimator.value() >= theta;
-        break;
-      case CompiledProbabilityThresholdOperator::GREATER:
-        result_ = estimator.value() > theta;
-        break;
+    return std::make_pair(n, (c0 + c1)/2);
+  }
+}
+
+
+/* Estimated effort for verifying this state formula using the
+   statistical engine. */
+double Probabilistic::effort(const Model& model, const State& state,
+			     double q, DeltaFun delta,
+			     double alpha, double beta,
+			     double alphap, double betap,
+			     SamplingAlgorithm algorithm) const {
+  double p0, p1;
+  double theta = threshold().double_value();
+  double nested_effort;
+  if (formula().probabilistic()) {
+    double r = 0.5*(sqrt(5) - 1.0);
+    double a = 0.0;
+    double b = 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta));
+    double x1 = a + (1.0 - r)*(b - a);
+    double x2 = a + r*(b - a);
+    double f1 = formula().effort(model, state, q,
+				 delta, alphap, betap, x1, x1, algorithm);
+    double f2 = formula().effort(model, state, q,
+				 delta, alphap, betap, x2, x2, algorithm);
+    do {
+      if (f2 > f1) {
+	b = x2;
+	x2 = x1;
+	f2 = f1;
+	x1 = a + (1.0 - r)*(b - a);
+	f1 = formula().effort(model, state, q,
+			      delta, alphap, betap, x1, x1, algorithm);
+      } else {
+	a = x1;
+	x1 = x2;
+	f1 = f2;
+	x2 = b - (1.0 - r)*(b - a);
+	f2 = formula().effort(model, state, q,
+			      delta, alphap, betap, x2, x2, algorithm);
+      }
+    } while ((b - a)/(b + a) > 1e-3);
+    nested_effort = 0.5*(f1 + f2);
+    p0 = std::min(1.0, (theta + (*delta)(theta))*(1.0 - alphap));
+    p1 = std::max(0.0, 1.0 - (1.0 - (theta - (*delta)(theta)))*(1.0 - betap));
+  } else {
+    p0 = std::min(1.0, theta + (*delta)(theta));
+    p1 = std::max(0.0, theta - (*delta)(theta));
+    nested_effort = formula().effort(model, state, q,
+				     delta, alphap, betap, 0, 0, algorithm);
+  }
+  double n;
+  if (algorithm == SEQUENTIAL) {
+    double x = (norminv(alpha)*sqrt(p0*(1.0 - p0))
+		+ norminv(beta)*sqrt(p1*(1.0 - p1)));
+    double y = p0 - p1;
+    n = x*x/y/y;
+  } else {
+    n = -(log(beta/(1.0 - alpha))*log((1.0 - beta)/alpha)
+	  /log(p1/p0)/log((1.0 - p0)/(1.0 - p1)));
+  }
+  return n*nested_effort;
+}
+
+
+/* Verifies this state formula using the statistical engine. */
+bool Probabilistic::verify(const Model& model, const State& state,
+			   DeltaFun delta, double alpha, double beta,
+			   SamplingAlgorithm algorithm) const {
+  double p0, p1;
+  double theta = threshold().double_value();
+  double alphap;
+  double betap;
+  if (formula().probabilistic()) {
+    double q = 0.0;
+    for (CommandList::const_iterator ci = model.commands().begin();
+	 ci != model.commands().end(); ci++) {
+      std::vector<double> m;
+      (*ci)->delay().moments(m, 1);
+      q = std::max(q, 1.0/m[0]);
     }
-    --probabilistic_level_;
-    return;
+    double r = 0.5*(sqrt(5) - 1.0);
+    double a = 0.0;
+    double b = 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta));
+    if (nested_error > a && nested_error < b) {
+      a = b = nested_error;
+    } else {
+      double x1 = a + (1.0 - r)*(b - a);
+      double x2 = a + r*(b - a);
+      double f1 = effort(model, state, q,
+			 delta, alpha, beta, x1, x1, algorithm);
+      double f2 = effort(model, state, q,
+			 delta, alpha, beta, x2, x2, algorithm);
+      do {
+	if (f2 > f1) {
+	  b = x2;
+	  x2 = x1;
+	  f2 = f1;
+	  x1 = a + (1.0 - r)*(b - a);
+	  f1 = effort(model, state, q, delta, alpha, beta, x1, x1, algorithm);
+	} else {
+	  a = x1;
+	  x1 = x2;
+	  f1 = f2;
+	  x2 = b - (1.0 - r)*(b - a);
+	  f2 = effort(model, state, q, delta, alpha, beta, x2, x2, algorithm);
+	}
+      } while ((b - a)/(b + a) > 1e-3);
+    }
+    alphap = betap = 0.5*(a + b);
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+	std::cout << "Nested error: " << alphap << ", " << betap << std::endl;
+	std::cout << "Maximum symmetric nested error: "
+		  << 2.0*(*delta)(theta)/(1.0 + 2.0*(*delta)(theta))
+		  << std::endl;
+      }
+    }
+  } else {
+    alphap = 0.0;
+    betap = 0.0;
+  }
+  p0 = std::min(1.0, (theta + (*delta)(theta))*(1.0 - alphap));
+  p1 = std::max(0.0, 1.0 - (1.0 - (theta - (*delta)(theta)))*(1.0 - betap));
+  if (algorithm == FIXED) {
+    int c = 0;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << "Fixed-size sampling";
+      }
+      if (verbosity > 1) {
+        std::cout << std::endl;
+      }
+    }
+    formula_level_++;
+    for (int i = 1; i <= fixed_sample_size; ++i) {
+      if (formula().sample(model, state, delta, alphap, betap, algorithm)) {
+        c++;
+      }
+      if (verbosity == 1) {
+        if (formula_level() == 1) {
+          if (i % 1000 == 0) {
+            std::cout << ':';
+          } else if (i % 100 == 0) {
+            std::cout << '.';
+          }
+        }
+      } else if (verbosity > 1) {
+        for (size_t j = 0; j < 2*(formula_level() - 1); j++) {
+          std::cout << ' ';
+        }
+        std::cout << i << '\t' << c << std::endl;
+      }
+    }
+    formula_level_--;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << fixed_sample_size << " samples." << std::endl;
+      }
+      total_samples += fixed_sample_size;
+      samples.push_back(fixed_sample_size);
+    }
+    double p = double(c)/fixed_sample_size;
+    if (strict()) {
+      return p > theta;
+    } else {
+      return p >= theta;
+    }
+  }
+  if (algorithm == ESTIMATE) {
+    int c = 0, n = 0;
+    double es = (*delta)(theta)*(*delta)(theta);
+    double a = 1.0 - 0.5*alpha;
+    double p, t, b;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << "Sequential estimation";
+      }
+      if (verbosity > 1) {
+        std::cout << std::endl;
+      }
+    }
+    formula_level_++;
+    while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
+      if (formula().sample(model, state, delta, alphap, betap, algorithm)) {
+	c++;
+      }
+      n++;
+      p = double(c)/n;
+      if (verbosity == 1) {
+        if (formula_level() == 1) {
+          if (n % 1000 == 0) {
+            std::cout << ':';
+          } else if (n % 100 == 0) {
+            std::cout << '.';
+          }
+        }
+      } else if (verbosity > 1) {
+        for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
+          std::cout << ' ';
+        }
+	std::cout << n << '\t' << c << '\t' << p/(1 + (*delta)(theta)) << '\t'
+		  << p/(1 - (*delta)(theta)) << std::endl;
+      }
+      t = c*(1.0 - p);
+      b = tinv(a, n - 1.0);
+    }
+    formula_level_--;
+    if (formula_level() == 0) {
+      if (verbosity > 0) {
+        std::cout << n << " samples." << std::endl;
+      }
+      std::cout << "Pr[" << formula() << "] = " << p << " ("
+                << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
+                << ")" << std::endl;
+      total_samples += n;
+      samples.push_back(n);
+    }
+    if (strict()) {
+      return p > theta;
+    } else {
+      return p >= theta;
+    }
   }
 
-  std::unique_ptr<BernoulliTester> tester;
-  if (params_.algorithm == FIXED) {
-    tester.reset(new FixedBernoulliTester(
-        theta, theta, params_.fixed_sample_size));
-  } else if (params_.algorithm == SSP) {
-    tester.reset(new SingleSamplingBernoulliTester(
-        theta0, theta1, params_.alpha, params_.beta));
+  int n, c;
+  double logA, logB;
+  if (algorithm == SEQUENTIAL) {
+    std::pair<int, int> nc = single_sampling_plan(p0, p1, alpha, beta);
+    n = nc.first;
+    c = nc.second;
   } else { /* algorithm == SPRT */
-    tester.reset(new SprtBernoulliTester(
-        theta0, theta1, params_.alpha, params_.beta));
-  }
-  if (probabilistic_level_ == 1) {
-    std::cout << "Acceptance sampling";
-  }
-  if (params_.memoization) {
-    auto& sample_cache = sample_cache_[property.path_property().index()];
-    auto ci = sample_cache.find(state_->values());
-    if (ci != sample_cache.end()) {
-      tester->SetSample(ci->second);
+    logA = -log(alpha);
+    /* If p1 is 0, then a beta of 0 can always be guaranteed. */
+    if (p1 > 0.0) {
+      logA += log(1.0 - beta);
+    }
+    logB = log(beta);
+    /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
+    if (p0 < 1.0) {
+      logB -= log(1.0 - alpha);
     }
   }
+  if (formula_level() == 0) {
+    if (verbosity > 0) {
+      std::cout << "Acceptance sampling";
+      if (algorithm == SEQUENTIAL) {
+	std::cout << " <" << n << ',' << c << ">";
+      }
+    }
+    if (verbosity > 1) {
+      std::cout << std::endl;
+    }
+  }
+  int m = 0;
+  double d = 0.0;
+  if (memoization) {
+    std::map<ValueMap, std::pair<size_t, double> >::const_iterator ci =
+      cache_.find(state.values());
+    if (ci != cache_.end()) {
+      m = (*ci).second.first;
+      d = (*ci).second.second;
+    }
+  }
+  formula_level_++;
   std::queue<short> schedule;
   std::map<short, std::queue<bool> > buffer;
   std::map<short, size_t> sample_count;
   std::map<short, size_t> usage_count;
   std::set<short> dead_clients;
   fd_set master_fds;
-  int fdmax = -1;
+  int fdmax;
   if (server_socket != -1) {
     FD_ZERO(&master_fds);
     FD_SET(server_socket, &master_fds);
     fdmax = server_socket;
     std::set<int> closed_sockets;
-    for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
-	 ci != registered_clients_.end(); ci++) {
+    for (std::map<int, short>::const_iterator ci = registered_clients.begin();
+	 ci != registered_clients.end(); ci++) {
       int sockfd = (*ci).first;
       short client_id = (*ci).second;
       ServerMsg smsg = { ServerMsg::START, current_property };
       int nbytes = send(sockfd, &smsg, sizeof smsg, 0);
       if (nbytes == -1) {
 	perror(PACKAGE);
-        LOG(FATAL) << "server error";
+	return -1;
       } else if (nbytes == 0) {
 	closed_sockets.insert(sockfd);
 	close(sockfd);
@@ -316,20 +688,21 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     }
     for (std::set<int>::const_iterator ci = closed_sockets.begin();
 	 ci != closed_sockets.end(); ci++) {
-      registered_clients_.erase(*ci);
+      registered_clients.erase(*ci);
     }
   }
-  std::swap(params_, nested_params);
-  while (!tester->done()) {
-    bool s = false, have_sample = false;
+  while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
+	 || (algorithm == SPRT && logB < d && d < logA)) {
+    bool s, have_sample = false;
     if (!schedule.empty() && !buffer[schedule.front()].empty()) {
       short client_id = schedule.front();
       s = buffer[client_id].front();
       buffer[client_id].pop();
       schedule.push(client_id);
       schedule.pop();
-      if (VLOG_IS_ON(2)) {
-	LOG(INFO) << "Using sample (" << s << ") from client " << client_id;
+      if (verbosity > 1) {
+	std::cout << "Using sample (" << s << ") from client "
+		  << client_id << std::endl;
       }
       usage_count[client_id]++;
       have_sample = true;
@@ -359,7 +732,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
 	if (sockfd > fdmax) {
 	  fdmax = sockfd;
 	}
-	int client_id = next_client_id_++;
+	int client_id = next_client_id++;
 	ServerMsg smsg = { ServerMsg::REGISTER, client_id };
 	if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
 	  perror(PACKAGE);
@@ -371,7 +744,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
 	    perror(PACKAGE);
 	    close(sockfd);
 	  } else {
-	    registered_clients_[sockfd] = client_id;
+	    registered_clients[sockfd] = client_id;
 	    schedule.push(client_id);
 	    unsigned long addr = ntohl(client_addr.sin_addr.s_addr);
 	    std::cout << "Registering client " << client_id << " @ "
@@ -384,8 +757,8 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
       }
       std::set<int> closed_sockets;
       for (std::map<int, short>::const_iterator ci =
-	     registered_clients_.begin();
-	   ci != registered_clients_.end(); ci++) {
+	     registered_clients.begin();
+	   ci != registered_clients.end(); ci++) {
 	int sockfd = (*ci).first;
 	short client_id = (*ci).second;
 	if (FD_ISSET(sockfd, &read_fds)) {
@@ -405,17 +778,17 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
 	    FD_CLR(sockfd, &master_fds);
 	  } else if (msg.id == ClientMsg::SAMPLE) {
 	    s = msg.value;
-	    if (VLOG_IS_ON(2)) {
-	      LOG(INFO) << "Receiving sample (" << s << ") from client "
-			<< client_id;
+	    if (verbosity > 1) {
+	      std::cout << "Receiving sample (" << s << ") from client "
+			<< client_id << std::endl;
 	    }
 	    sample_count[client_id]++;
 	    schedule.push(client_id);
 	    if (schedule.front() == client_id) {
 	      schedule.pop();
-	      if (VLOG_IS_ON(2)) {
-		LOG(INFO) << "Using sample (" << s << ") from client "
-			  << client_id;
+	      if (verbosity > 1) {
+		std::cout << "Using sample (" << s << ") from client "
+			  << client_id << std::endl;
 	      }
 	      usage_count[client_id]++;
 	      have_sample = true;
@@ -430,42 +803,82 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
       }
       for (std::set<int>::const_iterator ci = closed_sockets.begin();
 	   ci != closed_sockets.end(); ci++) {
-	registered_clients_.erase(*ci);
+	registered_clients.erase(*ci);
       }
     } else {
       /* Local mode. */
-      property.path_property().Accept(this);
-      s = result_;
+      const State& ns = state.resampled(model);
+      s = formula().sample(model, ns, delta, alphap, betap, algorithm);
+      if (&ns != &state) {
+	delete &ns;
+      }
       have_sample = true;
     }
     if (!have_sample) {
       continue;
     }
-    tester->AddObservation(s);
-    if (probabilistic_level_ == 1) {
-      PrintProgress(tester->sample().count());
-    }
-    if (VLOG_IS_ON(2)) {
-      LOG(INFO) << std::string(2*(probabilistic_level_ - 1), ' ')
-                << tester->StateToString();
-    }
-  }
-  std::swap(params_, nested_params);
-  if (probabilistic_level_ == 1) {
-    std::cout << tester->sample().count() << " observations." << std::endl;
-    stats_->sample_size.AddObservation(tester->sample().count());
-  }
-  if (server_socket != -1) {
-    if (VLOG_IS_ON(1)) {
-      for (std::map<short, size_t>::const_iterator si = sample_count.begin();
-	   si != sample_count.end(); si++) {
-	LOG(INFO) << "Client " << (*si).first << ": "
-		  << (*si).second << " generated "
-		  << usage_count[(*si).first] << " used";
+    if (s) {
+      if (algorithm == SEQUENTIAL) {
+	d += 1.0;
+      } else { /* algorithm == SPRT */
+	if (p1 > 0.0) {
+	  d += log(p1) - log(p0);
+	} else {
+	  d = -HUGE_VAL;
+	}
+      }
+    } else {
+      if (algorithm == SEQUENTIAL) {
+	/* do nothing */
+      } else { /* algorithm == SPRT */
+	if (p0 < 1.0) {
+	  d += log(1.0 - p1) - log(1.0 - p0);
+	} else {
+	  d = HUGE_VAL;
+	}
       }
     }
-    for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
-	 ci != registered_clients_.end(); ci++) {
+    m++;
+    if (verbosity == 1) {
+      if (formula_level() == 1) {
+	if (m % 1000 == 0) {
+	  std::cout << ':';
+	} else if (m % 100 == 0) {
+	  std::cout << '.';
+	}
+      }
+    } else if (verbosity > 1) {
+      for (size_t i = 0; i < 2*(formula_level() - 1); i++) {
+	std::cout << ' ';
+      }
+      if (algorithm == SEQUENTIAL) {
+	std::cout << m << '\t' << d << '\t' << (c + m - n) << '\t' << c
+		  << std::endl;
+      } else { /* algorithm == SPRT */
+	std::cout << m << '\t' << d << '\t' << logB << '\t' << logA
+		  << std::endl;
+      }
+    }
+  }
+  formula_level_--;
+  if (formula_level() == 0) {
+    if (verbosity > 0) {
+      std::cout << m << " samples." << std::endl;
+    }
+    total_samples += m;
+    samples.push_back(m);
+  }
+  if (server_socket != -1) {
+    if (verbosity > 0) {
+      for (std::map<short, size_t>::const_iterator si = sample_count.begin();
+	   si != sample_count.end(); si++) {
+	std::cout << "Client " << (*si).first << ": "
+		  << (*si).second << " generated "
+		  << usage_count[(*si).first] << " used" << std::endl;
+      }
+    }
+    for (std::map<int, short>::const_iterator ci = registered_clients.begin();
+	 ci != registered_clients.end(); ci++) {
       int sockfd = (*ci).first;
       ServerMsg smsg = { ServerMsg::STOP };
       if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
@@ -474,76 +887,116 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
       }
     }
   }
-  if (params_.memoization) {
-    sample_cache_[property.path_property().index()][state_->values()] =
-        tester->sample();
+  if (memoization) {
+    cache_[state.values()] = std::make_pair(m, d);
   }
-  result_ = tester->accept();
-  --probabilistic_level_;
+  if (algorithm == SEQUENTIAL) {
+    return d > c;
+  } else { /* algorithm == SPRT */
+    return d <= logB;
+  }
 }
 
-void SamplingVerifier::DoVisitCompiledExpressionProperty(
-    const CompiledExpressionProperty& property) {
-  result_ = evaluator_->EvaluateIntExpression(property.expr(),
-                                              state_->values());
+
+/* Clears the cache of any probabilistic operator. */
+size_t Probabilistic::clear_cache() const {
+  size_t n = cache_.size() + formula().clear_cache();
+  cache_.clear();
+  return n;
 }
 
-void SamplingVerifier::DoVisitCompiledUntilProperty(
-    const CompiledUntilProperty& path_property) {
-  const BDD* dd1 = nullptr;
-  const BDD* dd2 = nullptr;
-  auto cached_dds = dd_cache_.end();
-  if (dd_model_ != nullptr) {
-    // Mixed engine.
-    cached_dds = dd_cache_.find(path_property.index());
-    if (cached_dds == dd_cache_.end()) {
-      BDD dd1 = Verify(path_property.pre_property(), *dd_model_, false, false,
-          params_.epsilon);
-      BDD dd2 = Verify(path_property.post_property(), *dd_model_, false, false,
-                       params_.epsilon);
-      cached_dds = dd_cache_.insert(
-          {path_property.index(), std::make_pair(dd1, dd2)}).first;
-    }
-    dd1 = &cached_dds->second.first;
-    dd2 = &cached_dds->second.second;
-  }
+
+/* ====================================================================== */
+/* Comparison */
+
+/* Estimated effort for verifying this state formula using the
+   statistical engine. */
+double Comparison::effort(const Model& model, const State& state,
+			  double q, DeltaFun delta, double alpha, double beta,
+			  double alphap, double betap,
+			  SamplingAlgorithm algorithm) const {
+  return 1.0;
+}
+
+
+/* Verifies this state formula using the statistical engine. */
+bool Comparison::verify(const Model& model, const State& state,
+			DeltaFun delta, double alpha, double beta,
+			SamplingAlgorithm algorithm) const {
+  return holds(state.values());
+}
+
+
+/* Clears the cache of any probabilistic operator. */
+size_t Comparison::clear_cache() const {
+  return 0;
+}
+
+
+/* ====================================================================== */
+/* Until */
+
+/* Estimated effort for generating a sample for this path formula. */
+double Until::effort(const Model& model, const State& state,
+		     double q, DeltaFun delta, double alpha, double beta,
+		     double alphap, double betap,
+		     SamplingAlgorithm algorithm) const {
+  double a = max_time().double_value();
+  double b = (max_time() - min_time()).double_value();
+  return q*(a*pre().effort(model, state, q,
+			   delta, alpha, beta, alphap, betap, algorithm)
+	    + b*post().effort(model, state, q,
+			      delta, alpha, beta, alphap, betap, algorithm));
+}
+
+
+/* Generates a sample for this path formula. */
+bool Until::sample(const Model& model, const State& state,
+		   DeltaFun delta, double alpha, double beta,
+		   SamplingAlgorithm algorithm) const {
   double t = 0.0;
-  State curr_state = *state_;
-  const double t_min = path_property.min_time();
-  const double t_max = path_property.max_time();
+  const State* curr_state = &state;
+  double t_min = min_time().double_value();
+  double t_max = max_time().double_value();
   size_t path_length = 1;
   bool result = false, done = false, output = false;
-  while (!done && path_length < params_.max_path_length) {
-    if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
-      LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
+  while (!done && path_length < max_path_length) {
+    if (verbosity > 2 && StateFormula::formula_level() == 1) {
+      std::cout << "t = " << t << ": ";
+      curr_state->print(std::cout);
+      std::cout << std::endl;
     }
-    State next_state = curr_state.Next(*model_, evaluator_, sampler_);
-    double next_t = t + (next_state.time() - curr_state.time());
-    const State* curr_state_ptr = &curr_state;
-    std::swap(state_, curr_state_ptr);
+    const State& next_state = curr_state->next(model);
+    double next_t = t + next_state.dt();
     if (t_min <= t) {
-      if (VerifyHelper(path_property.post_property(), dd2)) {
-        result = true;
-        done = true;
-      } else if (!VerifyHelper(path_property.pre_property(), dd1)) {
-        result = false;
-        done = true;
+      if (post().verify(model, *curr_state, delta, alpha, beta, algorithm)) {
+	result = true;
+	done = true;
+      } else if (!pre().verify(model, *curr_state,
+			       delta, alpha, beta, algorithm)) {
+	result = false;
+	done = true;
       }
     } else {
-      if (!VerifyHelper(path_property.pre_property(), dd1)) {
-        result = false;
-        done = true;
+      if (!pre().verify(model, *curr_state, delta, alpha, beta, algorithm)) {
+	result = false;
+	done = true;
       } else if (t_min < next_t
-                 && VerifyHelper(path_property.post_property(), dd2)) {
-        t = t_min;
-        result = true;
-        done = true;
-        output = true;
+		 && post().verify(model, *curr_state,
+				  delta, alpha, beta, algorithm)) {
+	t = t_min;
+	result = true;
+	done = true;
+	output = true;
       }
     }
-    std::swap(state_, curr_state_ptr);
-    if (!done) {
-      curr_state = std::move(next_state);
+    if (done) {
+      delete &next_state;
+    } else {
+      if (curr_state != &state) {
+	delete curr_state;
+      }
+      curr_state = &next_state;
       t = next_t;
       if (t_max < t) {
 	result = false;
@@ -553,76 +1006,195 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       path_length++;
     }
   }
-  if (VLOG_IS_ON(3)) {
+  if (verbosity > 2) {
     if (output) {
-      LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
+      std::cout << "t = " << t << ": ";
+      curr_state->print(std::cout);
+      std::cout << std::endl;
     }
     if (result) {
-      LOG(INFO) << ">>positive sample";
+      std::cout << ">>positive sample" << std::endl;
     } else {
-      LOG(INFO) << ">>negative sample";
+      std::cout << ">>negative sample" << std::endl;
     }
   }
-  if (probabilistic_level_ == 1) {
-    stats_->path_length.AddObservation(path_length);
+  if (curr_state != &state) {
+    delete curr_state;
   }
-  result_ = result;
-}
-
-bool SamplingVerifier::VerifyHelper(
-    const CompiledProperty& property, const BDD* ddf) {
-  if (dd_model_ != nullptr) {
-    return ddf->ValueInState(state_->values(), model_->variables());
-  } else {
-    property.Accept(this);
-    return result_;
-  }
-}
-
-std::string SamplingVerifier::StateToString(const State& state) const {
-  std::string result;
-  for (size_t i = 0; i < model_->variables().size(); ++i) {
-    if (i > 0) {
-      result += " & ";
-    }
-    result += StrCat(model_->variables()[i].name(), '=', state.values()[i]);
+  if (StateFormula::formula_level() == 1) {
+    total_path_lengths += path_length;
   }
   return result;
 }
 
-int SamplingVerifier::GetSampleCacheSize() const {
-  int sample_cache_size = 0;
-  for (const auto& cache : sample_cache_) {
-    sample_cache_size += cache.second.size();
+
+/* Verifies this path formula using the mixed engine. */
+bool Until::verify(DdManager* dd_man, const Model& model,
+		   const State& state, const Rational& p, bool strict,
+		   DeltaFun delta, double alpha, double beta,
+		   SamplingAlgorithm algorithm,
+		   double epsilon) const {
+  double theta = p.double_value();
+  double p0 = std::min(1.0, theta + (*delta)(theta));
+  double p1 = std::max(0.0, theta - (*delta)(theta));
+
+  DdNode* dd1 = (pre().probabilistic()
+		 ? pre().verify(dd_man, model, epsilon, false) : NULL);
+  if (dd1 != NULL) {
+    DdNode* ddr = model.reachability_bdd(dd_man);
+    if (dd1 == ddr) {
+      Cudd_RecursiveDeref(dd_man, dd1);
+      dd1 = Cudd_ReadOne(dd_man);
+      Cudd_Ref(dd1);
+    }
+    Cudd_RecursiveDeref(dd_man, ddr);
   }
-  return sample_cache_size;
+  DdNode* dd2 = (post().probabilistic()
+		 ? post().verify(dd_man, model, epsilon, false) : NULL);
+
+  if (algorithm == ESTIMATE) {
+    int c = 0, n = 0;
+    double es = (*delta)(theta)*(*delta)(theta);
+    double a = 1.0 - 0.5*alpha;
+    double p, t, b;
+    if (verbosity > 0) {
+      std::cout << "Sequential estimation";
+    }
+    if (verbosity > 1) {
+      std::cout << std::endl;
+    }
+    while (c == 0 || n < 2 || (t + 1.0)/c/c > es/b/b) {
+      if (sample(dd_man, model, state, epsilon, dd1, dd2)) {
+	c++;
+      }
+      n++;
+      p = double(c)/n;
+      if (verbosity == 1) {
+	if (n % 1000 == 0) {
+	  std::cout << ':';
+	} else if (n % 100 == 0) {
+	  std::cout << '.';
+	}
+      } else if (verbosity > 1) {
+	std::cout << n << '\t' << c << '\t' << p/(1 + (*delta)(theta)) << '\t'
+		  << p/(1 - (*delta)(theta)) << std::endl;
+      }
+      t = c*(1.0 - p);
+      b = tinv(a, n - 1.0);
+    }
+    if (verbosity > 0) {
+      std::cout << n << " samples." << std::endl;
+    }
+    std::cout << "Pr[" << *this << "] = " << p << " ("
+	      << p/(1 + (*delta)(theta)) << ',' << p/(1 - (*delta)(theta))
+	      << ")" << std::endl;
+    if (dd1 != NULL) {
+      Cudd_RecursiveDeref(dd_man, dd1);
+    }
+    if (dd2 != NULL) {
+      Cudd_RecursiveDeref(dd_man, dd2);
+    }
+    if (strict) {
+      return p > theta;
+    } else {
+      return p >= theta;
+    }
+  }
+
+  int n, c;
+  double logA, logB;
+  if (algorithm == SEQUENTIAL) {
+    std::pair<int, int> nc = single_sampling_plan(p0, p1, alpha, beta);
+    n = nc.first;
+    c = nc.second;
+  } else { /* algorithm == SPRT */
+    logA = -log(alpha);
+    /* If p1 is 0, then a beta of 0 can always be guaranteed. */
+    if (p1 > 0.0) {
+      logA += log(1.0 - beta);
+    }
+    logB = log(beta);
+    /* If p0 is 1, then an alpha of 0 can always be guaranteed. */
+    if (p0 < 1.0) {
+      logB -= log(1.0 - alpha);
+    }
+  }
+  if (verbosity > 0) {
+    std::cout << "Acceptance sampling";
+    if (algorithm == SEQUENTIAL) {
+      std::cout << " <" << n << ',' << c << ">";
+    }
+  }
+  if (verbosity > 1) {
+    std::cout << std::endl;
+  }
+  int m = 0;
+  double d = 0.0;
+  while ((algorithm == SEQUENTIAL && d <= c && d + n - m > c)
+	 || (algorithm == SPRT && logB < d && d < logA)) {
+    const State& ns = state.resampled(model);
+    bool s = sample(dd_man, model, ns, epsilon, dd1, dd2);
+    if (&ns != &state) {
+      delete &ns;
+    }
+    if (s) {
+      if (algorithm == SEQUENTIAL) {
+	d += 1.0;
+      } else { /* algorithm == SPRT */
+	if (p1 > 0.0) {
+	  d += log(p1) - log(p0);
+	} else {
+	  d = -HUGE_VAL;
+	}
+      }
+    } else {
+      if (algorithm == SEQUENTIAL) {
+	/* do nothing */
+      } else { /* algorithm == SPRT */
+	if (p0 < 1.0) {
+	  d += log(1.0 - p1) - log(1.0 - p0);
+	} else {
+	  d = HUGE_VAL;
+	}
+      }
+    }
+    m++;
+    if (verbosity == 1) {
+      if (m % 1000 == 0) {
+	std::cout << ':';
+      } else if (m % 100 == 0) {
+	std::cout << '.';
+      }
+    } else if (verbosity > 1) {
+      if (algorithm == SEQUENTIAL) {
+	std::cout << m << '\t' << d << '\t' << (c + m - n) << '\t' << c
+		  << std::endl;
+      } else { /* algorithm == SPRT */
+	std::cout << m << '\t' << d << '\t' << logB << '\t' << logA
+		  << std::endl;
+      }
+    }
+  }
+  if (verbosity > 0) {
+    std::cout << m << " samples." << std::endl;
+  }
+  total_samples += m;
+  samples.push_back(m);
+  if (dd1 != NULL) {
+    Cudd_RecursiveDeref(dd_man, dd1);
+  }
+  if (dd2 != NULL) {
+    Cudd_RecursiveDeref(dd_man, dd2);
+  }
+  if (algorithm == SEQUENTIAL) {
+    return d > c;
+  } else { /* algorithm == SPRT */
+    return d <= logB;
+  }
 }
 
-}  // namespace
 
-bool Verify(const CompiledProperty& property, const CompiledModel& model,
-            const DecisionDiagramModel* dd_model,
-            const ModelCheckingParams& params,
-            CompiledExpressionEvaluator* evaluator,
-            CompiledDistributionSampler<DCEngine>* sampler, const State& state,
-            ModelCheckingStats* stats) {
-  SamplingVerifier verifier(&model, dd_model, params, evaluator, sampler,
-                            &state, 0, stats);
-  property.Accept(&verifier);
-  stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
-  return verifier.result();
-}
-
-bool GetObservation(const CompiledPathProperty& property,
-                    const CompiledModel& model,
-                    const DecisionDiagramModel* dd_model,
-                    const ModelCheckingParams& params,
-                    CompiledExpressionEvaluator* evaluator,
-                    CompiledDistributionSampler<DCEngine>* sampler,
-                    const State& state, ModelCheckingStats* stats) {
-  SamplingVerifier verifier(&model, dd_model, params, evaluator, sampler,
-                            &state, 1, stats);
-  property.Accept(&verifier);
-  stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
-  return verifier.result();
+/* Clears the cache of any probabilistic operator. */
+size_t Until::clear_cache() const {
+  return pre().clear_cache() + post().clear_cache();
 }

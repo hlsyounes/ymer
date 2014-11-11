@@ -1,53 +1,76 @@
-// Copyright (C) 2003--2005 Carnegie Mellon University
-// Copyright (C) 2011--2012 Google Inc
-//
-// This file is part of Ymer.
-//
-// Ymer is free software; you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.
-//
-// Ymer is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-// License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Ymer; if not, write to the Free Software Foundation,
-// Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-//
-// A simulator state.
+/* -*-C++-*- */
+/*
+ * States.
+ *
+ * Copyright (C) 2003--2005 Carnegie Mellon University
+ *
+ * This file is part of Ymer.
+ *
+ * Ymer is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Ymer is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Ymer; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: states.h,v 4.1 2005-02-01 14:19:47 lorens Exp $
+ */
+#ifndef STATES_H
+#define STATES_H
 
-#ifndef STATES_H_
-#define STATES_H_
+#include <config.h>
+#include "expressions.h"
 
-#include <vector>
+struct Command;
+struct Model;
 
-#include "src/compiled-model.h"
-#include "src/expression.h"
-#include "src/rng.h"
 
-// A simulator state.
-class State {
- public:
-  // Constructs an initial state for the given model.
-  explicit State(const CompiledModel& model);
+/* ====================================================================== */
+/* State */
 
-  // Returns the current time of this state.
-  double time() const { return time_; }
+/*
+ * A state.
+ */
+struct State {
+  /* Constructs an initial state for the given model. */
+  explicit State(const Model& model);
 
-  // Returns the variable values for this state.
-  const std::vector<int>& values() const { return values_; }
+  /* Deletes this state. */
+  virtual ~State() {}
 
-  // Returns a sampled successor of this state.
-  State Next(const CompiledModel& model, CompiledExpressionEvaluator* evaluator,
-             CompiledDistributionSampler<DCEngine>* sampler) const;
+  /* Returns the variable values for this state. */
+  const ValueMap& values() const { return values_; }
+
+  /* Returns the time spent in the preceding state. */
+  virtual double dt() const { return 0.0; }
+
+  /* Returns a sampled successor of this state. */
+  virtual const State& next(const Model& model) const;
+
+  /* Returns a copy of this state with resampled trigger times. */
+  virtual const State& resampled(const Model& model) const;
+
+  /* Prints this object on the given stream. */
+  void print(std::ostream& os) const;
+
+protected:
+  /* Constructs a state. */
+  explicit State(const ValueMap& values) : values_(values) {}
+
+  /* Returns the variable values for this state. */
+  ValueMap& values() { return values_; }
 
 private:
-  double time_;
-  std::vector<int> values_;
-  std::vector<double> trigger_times_;
+  /* Variables values for this state. */
+  ValueMap values_;
 };
 
-#endif  // STATES_H_
+
+#endif /* STATES_H */

@@ -19,60 +19,73 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: parser.yy,v 2.1 2004-01-25 12:39:50 lorens Exp $
  */
-
 %{
 #include <config.h>
 #include "models.h"
 #include "distributions.h"
 #include "formulas.h"
-#include "glog/logging.h"
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <set>
 #include <string>
 
-#include "parser.hh"
 
-// Lexical analyzer function.
-extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
+/* Workaround for bug in Bison 1.35 that disables stack growth. */
+#define YYLTYPE_IS_TRIVIAL 1
+
+
+/* An integer range. */
+struct Range {
+  const Expression* l;
+  const Expression* h;
+};
+
+
+/* The lexer. */
+extern int yylex();
+/* Current line number. */
+extern size_t line_number;
 /* Name of current file. */
 extern std::string current_file;
 /* Constant overrides. */
-extern std::map<std::string, TypedValue> const_overrides;
+extern std::map<std::string, Rational> const_overrides;
 
 /* Last model parsed. */
-const Model* global_model = nullptr;
+const Model* global_model = NULL;
+/* Number of bits required by binary encoding of state space. */
+int num_model_bits;
 /* Parsed properties. */
-UniquePtrVector<const Expression> properties;
+FormulaList properties;
 
 /* Current model. */
 static Model* model;
 /* Current module. */
 static Module* module;
-/* Current identifier substitutions. */
-static std::map<std::string, std::string> subst;
+/* Current variable substitutions. */
+static std::map<const Variable*, const std::string*> subst;
 /* Current synchronization substitutions. */
-static std::map<size_t, size_t> synch_subst;
+static SynchSubstitutionMap synch_subst;
 /* Current command. */
 static Command* command;
 /* Declared integer constants. */
-static std::set<std::string> constants;
+static std::map<std::string, const Variable*> constants;
 /* Constant values. */
-static std::map<std::string, TypedValue> constant_values;
+static ValueMap constant_values;
 /* Declared rate constants. */
-static std::set<std::string> rates;
+static std::map<std::string, const Variable*> rates;
 /* Rate values. */
-static std::map<std::string, TypedValue> rate_values;
+static ValueMap rate_values;
 /* All state variables. */
-static std::set<std::string> variables;
+static std::map<std::string, Variable*> variables;
 /* Variables lows. */
-static std::map<std::string, std::unique_ptr<const Expression>> variable_lows;
+static std::map<const Variable*, const Expression*> variable_lows;
 /* Variables highs. */
-static std::map<std::string, std::unique_ptr<const Expression>> variable_highs;
+static std::map<const Variable*, const Expression*> variable_highs;
 /* Variables starts. */
-static std::map<std::string, std::unique_ptr<const Expression>> variable_starts;
+static std::map<const Variable*, const Expression*> variable_starts;
 /* Declared modules. */
 static std::map<std::string, Module*> modules;
 /* Declared synchronizations. */
@@ -85,27 +98,47 @@ static bool success = true;
 /* Clears all previously parsed declarations. */
 void clear_declarations();
 
+/* Outputs an error message. */
+static void yyerror(const std::string& s);
+/* Outputs a warning message. */
+static void yywarning(const std::string& s);
 /* Checks if undeclared variables were used. */
 static void check_undeclared();
-/* Returns the integer value of the given typed value, signaling an error if
-   the type is not INT. */
-static int integer_value(const TypedValue* q);
-/* Returns an identifier representing an integer constant. */
-static const Identifier* find_constant(const std::string* ident);
-/* Returns an identifier representing a rate constant. */
-static const Identifier* find_rate(const std::string* ident);
-/* Returns an identifier representing a rate constant or an integer variable. */
-static const Identifier* find_rate_or_variable(const std::string* ident);
-/* Returns a literal expression. */
-static const Literal* make_literal(int n);
-/* Returns a literal expression. */
-static const Literal* make_literal(const TypedValue* q);
+/* Returns the numerator of the given rational, signaling an error if
+   the denominator is not 1. */
+static int integer_value(const Rational* q);
+/* Returns a variable representing an integer constant. */
+static const Variable* find_constant(const std::string* ident);
+/* Returns a variable representing a rate constant. */
+static const Variable* find_rate(const std::string* ident);
+/* Returns a variable representing a rate constant or an integer variable. */
+static const Variable* find_rate_or_variable(const std::string* ident);
+/* Returns a range with the given bounds, signaling an error if the
+   range is empty. */
+static Range make_range(const Expression* l, const Expression* h);
+/* Returns a value expression. */
+static const Value* make_value(int n);
+/* Returns a value expression. */
+static const Value* make_value(const Rational* q);
 /* Returns a constant value or a variable for the given identifier. */
 static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
-static const Identifier* find_variable(const std::string* ident);
+static const Variable* find_variable(const std::string* ident);
+/* Returns a conjunction. */
+static Conjunction* make_conjunction(StateFormula& f1,
+				     const StateFormula& f2);
+/* Returns a disjunction. */
+static Disjunction* make_disjunction(StateFormula& f1,
+				     const StateFormula& f2);
+/* Returns a probabilistic path quantification. */
+static StateFormula* make_probabilistic(const Rational* p,
+					bool strict, bool negate,
+					const PathFormula& f);
+/* Returns an until formula. */
+static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+			       const Rational* t1, const Rational* t2);
 /* Adds an update to the current command. */
-static void add_update(const std::string* ident, const Expression* expr);
+static void add_update(const std::string* ident, const Expression& expr);
 /* Returns the value of the given synchronization. */
 static size_t synchronization_value(const std::string* ident);
 /* Adds a substitution to the current substitution map. */
@@ -118,17 +151,15 @@ static void declare_constant(const std::string* ident,
 static void declare_rate(const std::string* ident,
                          const Expression* value_expr);
 /* Declares a variable. */
-static bool declare_variable(const std::string* ident,
-                             const Expression* low,
-                             const Expression* high,
-                             const Expression* start,
-                             bool delayed_addition = false);
+static const Variable* declare_variable(const std::string* ident,
+					const Range& range,
+					const Expression* start,
+					bool delayed_addition = false);
 /* Adds a command to the current module. */
 static void add_command();
 /* Prepares a command for parsing. */
-static void prepare_command(int synch,
-                            std::unique_ptr<const Expression>&& guard,
-			    const Distribution* delay);
+static void prepare_command(int synch, const StateFormula& guard,
+			    const Distribution& delay);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
 /* Adds a module to the current model. */
@@ -139,287 +170,50 @@ static void prepare_module(const std::string* ident);
 static void prepare_model();
 /* Compiles the current model. */
 static void compile_model();
-
-namespace {
-
-// Wrapper for lexical analyzer function called by generated code.
-int yylex(void* scanner) {
-  return yylex(&yylval, &yylloc, scanner);
-}
-
-// Error reporting function.
-void yyerror(const std::string& msg) {
-  std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
-            << msg << std::endl;
-  success = false;
-}
-
-// Wrapper for error reporting function called by generated code.
-void yyerror(void* scanner, const std::string& msg) {
-  yyerror(msg);
-}
-
-void yywarning(const std::string& msg) {
-  std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
-            << msg << std::endl;
-}
-
-template <typename T>
-std::unique_ptr<T> WrapUnique(T* ptr) {
-  return std::unique_ptr<T>(ptr);
-}
-
-Function MakeFunction(const std::string& name) {
-  if (name == "min") {
-    return Function::MIN;
-  } else if (name == "max") {
-    return Function::MAX;
-  } else if (name == "floor") {
-    return Function::FLOOR;
-  } else if (name == "ceil") {
-    return Function::CEIL;
-  } else if (name == "pow") {
-    return Function::POW;
-  } else if (name == "log") {
-    return Function::LOG;
-  } else if (name == "mod") {
-    return Function::MOD;
-  } else {
-    yyerror("unknown function");
-    return Function::UNKNOWN;
-  }
-}
-
-const UnaryOperation* NewNegate(const Expression* operand) {
-  return new UnaryOperation(UnaryOperator::NEGATE, WrapUnique(operand));
-}
-
-const UnaryOperation* NewNot(const Expression* operand) {
-  return new UnaryOperation(UnaryOperator::NOT, WrapUnique(operand));
-}
-
-const BinaryOperation* NewPlus(const Expression* operand1,
-                               const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::PLUS, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewMinus(const Expression* operand1,
-                                const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::MINUS, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewMultiply(const Expression* operand1,
-                                   const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::MULTIPLY, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewDivide(const Expression* operand1,
-                                 const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::DIVIDE, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewAnd(const Expression* operand1,
-                              const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::AND, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewOr(const Expression* operand1,
-                             const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::OR, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewImply(const Expression* operand1,
-                                const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::IMPLY, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewIff(const Expression* operand1,
-                              const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::IFF, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewLess(const Expression* operand1,
-                               const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::LESS, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewLessEqual(const Expression* operand1,
-                                    const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::LESS_EQUAL, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewGreaterEqual(const Expression* operand1,
-                                       const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::GREATER_EQUAL,
-                             WrapUnique(operand1), WrapUnique(operand2));
-}
-
-const BinaryOperation* NewGreater(const Expression* operand1,
-                                  const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::GREATER, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewEqual(const Expression* operand1,
-                                const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::EQUAL, WrapUnique(operand1),
-                             WrapUnique(operand2));
-}
-
-const BinaryOperation* NewNotEqual(const Expression* operand1,
-                                   const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::NOT_EQUAL,
-                             WrapUnique(operand1), WrapUnique(operand2));
-}
-
-const Conditional* NewConditional(const Expression* condition,
-                                  const Expression* if_branch,
-                                  const Expression* else_branch) {
-  return new Conditional(WrapUnique(condition), WrapUnique(if_branch),
-                         WrapUnique(else_branch));
-}
-
-double Double(const TypedValue* typed_value) {
-  CHECK(typed_value->type() != Type::BOOL);
-  double value = typed_value->value<double>();
-  delete typed_value;
-  return value;
-}
-
-const ProbabilityThresholdOperation* NewProbabilityLess(
-    double threshold, const PathProperty* path_property) {
-  return new ProbabilityThresholdOperation(
-      ProbabilityThresholdOperator::LESS, threshold, WrapUnique(path_property));
-}
-
-const ProbabilityThresholdOperation* NewProbabilityLessEqual(
-    double threshold, const PathProperty* path_property) {
-  return new ProbabilityThresholdOperation(
-      ProbabilityThresholdOperator::LESS_EQUAL, threshold,
-      WrapUnique(path_property));
-}
-
-const ProbabilityThresholdOperation* NewProbabilityGreaterEqual(
-    double threshold, const PathProperty* path_property) {
-  return new ProbabilityThresholdOperation(
-      ProbabilityThresholdOperator::GREATER_EQUAL, threshold,
-      WrapUnique(path_property));
-}
-
-const ProbabilityThresholdOperation* NewProbabilityGreater(
-    double threshold, const PathProperty* path_property) {
-  return new ProbabilityThresholdOperation(
-      ProbabilityThresholdOperator::GREATER, threshold,
-      WrapUnique(path_property));
-}
-
-const UntilProperty* NewUntil(double min_time, double max_time,
-                              const Expression* pre_expr,
-                              const Expression* post_expr) {
-  return new UntilProperty(min_time, max_time, WrapUnique(pre_expr),
-                           WrapUnique(post_expr));
-}
-
-const Exponential* NewExponential(const Expression* rate) {
-  return Exponential::make(WrapUnique(rate));
-}
-
-const Distribution* NewWeibull(const Expression* scale,
-                               const Expression* shape) {
-  return Weibull::make(WrapUnique(scale), WrapUnique(shape));
-}
-
-const Lognormal* NewLognormal(const Expression* scale,
-                              const Expression* shape) {
-  return Lognormal::make(WrapUnique(scale), WrapUnique(shape));
-}
-
-const Uniform* NewUniform(const Expression* low,
-                          const Expression* high) {
-  return Uniform::make(WrapUnique(low), WrapUnique(high));
-}
-
-}  // namespace
 %}
 
-%defines
-%locations
-%lex-param {void* scanner}
-%parse-param {void* scanner}
-%error-verbose
-
-%token DTMC_TOKEN CTMC_TOKEN MDP_TOKEN PROBABILISTIC STOCHASTIC NONDETERMINISTIC
-%token CONST INT_TOKEN DOUBLE_TOKEN BOOL_TOKEN RATE PROB
-%token GLOBAL DOTDOT
-%token FORMULA LABEL
-%token INIT ENDINIT
+%token STOCHASTIC CTMC
+%token CONST_TOKEN INT DOUBLE RATE GLOBAL INIT
+%token TRUE_TOKEN FALSE_TOKEN
+%token EXP
 %token REWARDS ENDREWARDS
 %token MODULE ENDMODULE
-%token ARROW PRIME
-%token TRUE FALSE
-%token MAX_TOKEN MIN_TOKEN FUNC
-%token IDENTIFIER NUMBER LABEL_NAME
-%token SYSTEM ENDSYSTEM
-%token DOUBLE_BAR TRIPLE_BAR BACK_ARROW
+%token PNAME NAME LABEL_NAME NUMBER
+%token ARROW DOTDOT
+%token ILLEGAL_TOKEN
 
-%token A C
-%token E F G I
-%token PMAX PMIN P RMAX
-%token RMIN R S U W X EXP L
-
-%left DOUBLE_BAR TRIPLE_BAR
-%right '?' ':'
-%left IFF_TOKEN
-%left IMPLY_TOKEN
-%left '|'
-%left '&'
-%left '=' NEQ
-%left '<' LEQ GEQ '>'
+%left IMPLY
+%left '&' '|'
+%left '!'
+%left '<' LTE GTE '>' EQ NEQ
 %left '+' '-'
 %left '*' '/'
-%left '{'
-%right UMINUS '!'
 
 %union {
   size_t synch;
-  const PathProperty* path;
+  StateFormula* formula;
+  const PathFormula* path;
   const Distribution* dist;
   const Expression* expr;
+  Range range;
   int nat;
   const std::string* str;
-  const TypedValue* number;
-  Function function;
-  UniquePtrVector<const Expression>* arguments;
+  const Rational* num;
 }
 
 %type <synch> synchronization
-%type <expr> property
-%type <path> path_property
+%type <formula> formula csl_formula
+%type <path> path_formula
 %type <dist> distribution
-%type <expr> expr rate_expr const_rate_expr const_expr
+%type <expr> expr rate_expr const_rate_expr const_expr csl_expr
+%type <range> range
 %type <nat> integer
-%type <str> IDENTIFIER
-%type <number> NUMBER
-%type <function> function
-%type <arguments> arguments
-
-%destructor { delete $$; } <expr>
-%destructor { delete $$; } <number>
-%destructor { delete $$; } <arguments>
+%type <str> PNAME NAME
+%type <num> NUMBER
 
 %%
 
-file : { success = true; } model_or_properties
+file : { success = true; line_number = 1; } model_or_properties
          { check_undeclared(); if (!success) YYERROR; }
      ;
 
@@ -435,7 +229,7 @@ model : model_type { prepare_model(); } declarations modules rewards
           { compile_model(); }
       ;
 
-model_type : STOCHASTIC | CTMC_TOKEN
+model_type : STOCHASTIC | CTMC
            ;
 
 /* ====================================================================== */
@@ -445,27 +239,19 @@ declarations : /* empty */
              | declarations declaration
              ;
 
-declaration : CONST IDENTIFIER ';'
-                { declare_constant($2, nullptr); }
-            | CONST IDENTIFIER '=' const_expr ';'
-                { declare_constant($2, $4); }
-            | CONST INT_TOKEN IDENTIFIER ';'
-                { declare_constant($3, nullptr); }
-            | CONST INT_TOKEN IDENTIFIER '=' const_expr ';'
+declaration : CONST_TOKEN NAME ';' { declare_constant($2, NULL); }
+            | CONST_TOKEN NAME '=' const_expr ';' { declare_constant($2, $4); }
+            | CONST_TOKEN INT NAME ';' { declare_constant($3, NULL); }
+            | CONST_TOKEN INT NAME '=' const_expr ';'
                 { declare_constant($3, $5); }
-            | RATE IDENTIFIER ';'
-                { declare_rate($2, nullptr); }
-            | RATE IDENTIFIER '=' const_rate_expr ';'
-                { declare_rate($2, $4); }
-            | CONST DOUBLE_TOKEN IDENTIFIER ';'
-                { declare_rate($3, nullptr); }
-            | CONST DOUBLE_TOKEN IDENTIFIER '=' const_rate_expr ';'
+            | RATE NAME ';' { declare_rate($2, NULL); }
+            | RATE NAME '=' const_rate_expr ';' { declare_rate($2, $4); }
+            | CONST_TOKEN DOUBLE NAME ';' { declare_rate($3, NULL); }
+            | CONST_TOKEN DOUBLE NAME '=' const_rate_expr ';'
                 { declare_rate($3, $5); }
-            | GLOBAL IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']' ';'
-                { declare_variable($2, $5, $7, nullptr); }
-            | GLOBAL IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']'
-                INIT const_expr ';'
-                { declare_variable($2, $5, $7, $10); }
+            | GLOBAL NAME ':' range ';' { declare_variable($2, $4, NULL); }
+            | GLOBAL NAME ':' range INIT const_expr ';'
+                { declare_variable($2, $4, $6); }
             ;
 
 
@@ -476,10 +262,9 @@ modules : /* empty */
         | modules module_decl
         ;
 
-module_decl : MODULE IDENTIFIER { prepare_module($2); } variables commands
-              ENDMODULE
+module_decl : MODULE NAME { prepare_module($2); } variables commands ENDMODULE
                 { add_module(); }
-            | MODULE IDENTIFIER '=' IDENTIFIER '[' substitutions ']' ENDMODULE
+            | MODULE NAME '=' NAME '[' substitutions ']' ENDMODULE
                 { add_module($2, $4); }
             ;
 
@@ -491,34 +276,31 @@ subst_list : subst
            | subst_list ',' subst
            ;
 
-subst : IDENTIFIER '=' IDENTIFIER { add_substitution($1, $3); }
+subst : NAME '=' NAME { add_substitution($1, $3); }
       ;
 
 variables : /* empty */
           | variables variable_decl
           ;
 
-variable_decl : IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']' ';'
-                  { declare_variable($1, $4, $6, nullptr); }
-              | IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']'
-                  INIT const_expr ';'
-                  { declare_variable($1, $4, $6, $9); }
+variable_decl : NAME ':' range ';' { declare_variable($1, $3, NULL); }
+              | NAME ':' range INIT const_expr ';'
+                  { declare_variable($1, $3, $5); }
               ;
 
 commands : /* empty */
          | commands command
          ;
 
-command : synchronization expr ARROW distribution ':'
-            { prepare_command($1, WrapUnique($2), $4); } update ';'
-            { add_command(); }
+command : synchronization formula ARROW distribution ':'
+            { prepare_command($1, *$2, *$4); } update ';' { add_command(); }
         ;
 
 synchronization : '[' ']' { $$ = 0; }
-                | '[' IDENTIFIER ']' { $$ = synchronization_value($2); }
+                | '[' NAME ']' { $$ = synchronization_value($2); }
                 ;
 
-update : IDENTIFIER PRIME '=' expr { add_update($1, $4); }
+update : PNAME '=' expr { add_update($1, *$3); }
        | update '&' update
        | '(' update ')'
        ;
@@ -543,141 +325,89 @@ reward_rules : /* empty */
              | reward_rules transition_reward
              ;
 
-state_reward : expr ':' rate_expr ';'
+state_reward : formula ':' rate_expr ';'
                  { delete $1; delete $3; }
              ;
 
-transition_reward : '[' IDENTIFIER ']' expr ':' rate_expr ';'
+transition_reward : '[' NAME ']' formula ':' rate_expr ';'
                       { delete $2; delete $4; delete $6; }
                   ;
 
 
 /* ====================================================================== */
+/* Formulas. */
+
+formula : TRUE_TOKEN { $$ = new Conjunction(); }
+        | FALSE_TOKEN { $$ = new Disjunction(); }
+        | formula '&' formula { $$ = make_conjunction(*$1, *$3); }
+        | formula '|' formula { $$ = make_disjunction(*$1, *$3); }
+        | '!' formula { $$ = new Negation(*$2); }
+        | expr '<' expr { $$ = new LessThan(*$1, *$3); }
+        | expr LTE expr { $$ = new LessThanOrEqual(*$1, *$3); }
+        | expr GTE expr { $$ = new GreaterThanOrEqual(*$1, *$3); }
+        | expr '>' expr { $$ = new GreaterThan(*$1, *$3); }
+        | expr '=' expr %prec EQ { $$ = new Equality(*$1, *$3); }
+        | expr NEQ expr { $$ = new Inequality(*$1, *$3); }
+        | '(' formula ')' { $$ = $2; }
+        ;
+
+
+/* ====================================================================== */
 /* Distributions. */
 
-distribution : rate_expr
-                 { $$ = NewExponential($1); }
-             | EXP '(' rate_expr ')'
-                 { $$ = NewExponential($3); }
-             | W '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = NewWeibull($3, $5); }
-             | L '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = NewLognormal($3, $5); }
-             | U '(' const_rate_expr ',' const_rate_expr ')'
-                 { $$ = NewUniform($3, $5); }
+distribution : rate_expr { $$ = &Exponential::make(*$1); }
+             | EXP '(' rate_expr ')' { $$ = &Exponential::make(*$3); }
+             | 'W' '(' const_rate_expr ',' const_rate_expr ')'
+                 { $$ = &Weibull::make(*$3, *$5); }
+             | 'L' '(' const_rate_expr ',' const_rate_expr ')'
+                 { $$ = &Lognormal::make(*$3, *$5); }
+             | 'U' '(' const_rate_expr ',' const_rate_expr ')'
+                 { $$ = &Uniform::make(*$3, *$5); }
              ;
 
 /* ====================================================================== */
 /* Expressions. */
 
-expr : NUMBER
-         { $$ = new Literal(*$1); delete $1; }
-     | TRUE
-         { $$ = new Literal(true); }
-     | FALSE
-         { $$ = new Literal(true); }
-     | IDENTIFIER
-         { $$ = find_variable($1); }
-     | function '(' arguments ')'
-         { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
-     | FUNC '(' function ',' arguments ')'
-         { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
-     | '-' expr %prec UMINUS
-         { $$ = NewNegate($2); }
-     | '!' expr
-         { $$ = NewNot($2); }
-     | expr '+' expr
-         { $$ = NewPlus($1, $3); }
-     | expr '-' expr
-         { $$ = NewMinus($1, $3); }
-     | expr '*' expr
-         { $$ = NewMultiply($1, $3); }
-     | expr '/' expr
-         { $$ = NewDivide($1, $3); }
-     | expr '&' expr
-         { $$ = NewAnd($1, $3); }
-     | expr '|' expr
-         { $$ = NewOr($1, $3); }
-     | expr IMPLY_TOKEN expr
-         { $$ = NewImply($1, $3); }
-     | expr IFF_TOKEN expr
-         { $$ = NewIff($1, $3); }
-     | expr '<' expr
-         { $$ = NewLess($1, $3); }
-     | expr LEQ expr
-         { $$ = NewLessEqual($1, $3); }
-     | expr GEQ expr
-         { $$ = NewGreaterEqual($1, $3); }
-     | expr '>' expr
-         { $$ = NewGreater($1, $3); }
-     | expr '=' expr
-         { $$ = NewEqual($1, $3); }
-     | expr NEQ expr
-         { $$ = NewNotEqual($1, $3); }
-     | expr '?' expr ':' expr
-         { $$ = NewConditional($1, $3, $5); }
-     | '(' expr ')'
-         { $$ = $2; }
+expr : integer { $$ = make_value($1); }
+     | NAME { $$ = find_variable($1); }
+     | expr '+' expr { $$ = &Addition::make(*$1, *$3); }
+     | expr '-' expr { $$ = &Subtraction::make(*$1, *$3); }
+     | expr '*' expr { $$ = &Multiplication::make(*$1, *$3); }
+     | '(' expr ')' { $$ = $2; }
      ;
 
-rate_expr : NUMBER
-              { $$ = make_literal($1); }
-          | IDENTIFIER
-              { $$ = find_rate_or_variable($1); }
-          | '-' rate_expr %prec UMINUS
-              { $$ = NewNegate($2); }
-          | rate_expr '+' rate_expr
-              { $$ = NewPlus($1, $3); }
-          | rate_expr '-' rate_expr
-              { $$ = NewMinus($1, $3); }
-          | rate_expr '*' rate_expr
-              { $$ = NewMultiply($1, $3); }
-          | rate_expr '/' rate_expr
-              { $$ = NewDivide($1, $3); }
-          | '(' rate_expr ')'
-              { $$ = $2; }
+rate_expr : NUMBER { $$ = make_value($1); }
+          | NAME { $$ = find_rate_or_variable($1); }
+          | rate_expr '+' rate_expr { $$ = &Addition::make(*$1, *$3); }
+          | rate_expr '-' rate_expr { $$ = &Subtraction::make(*$1, *$3); }
+          | rate_expr '*' rate_expr { $$ = &Multiplication::make(*$1, *$3); }
+          | rate_expr '/' rate_expr { $$ = &Division::make(*$1, *$3); }
+          | '(' rate_expr ')' { $$ = $2; }
           ;
 
-const_rate_expr : NUMBER
-                    { $$ = make_literal($1); }
-                | IDENTIFIER
-                    { $$ = find_rate($1); }
+const_rate_expr : NUMBER { $$ = make_value($1); }
+                | NAME { $$ = find_rate($1); }
                 | const_rate_expr '*' const_rate_expr
-                    { $$ = NewMultiply($1, $3); }
+                    { $$ = &Multiplication::make(*$1, *$3); }
                 | const_rate_expr '/' const_rate_expr
-                    { $$ = NewDivide($1, $3); }
-                | '(' const_rate_expr ')'
-                    { $$ = $2; }
+                    { $$ = &Division::make(*$1, *$3); }
+                | '(' const_rate_expr ')' { $$ = $2; }
                 ;
-
-function : IDENTIFIER
-               { $$ = MakeFunction(*$1); delete $1; }
-         ;
-
-arguments : expr
-              { $$ = new UniquePtrVector<const Expression>(WrapUnique($1)); }
-          | arguments ',' expr
-              { $$ = $1; $$->push_back(WrapUnique($3)); }
-          ;
 
 
 /* ====================================================================== */
-/* Integers. */
+/* Ranges and integers. */
 
-const_expr : integer
-               { $$ = make_literal($1); }
-           | IDENTIFIER
-               { $$ = find_constant($1); }
-           | '-' const_expr %prec UMINUS
-               { $$ = NewNegate($2); }
-           | const_expr '+' const_expr
-               { $$ = NewPlus($1, $3); }
-           | const_expr '-' const_expr
-               { $$ = NewMinus($1, $3); }
+range : '[' const_expr DOTDOT const_expr ']' { $$ = make_range($2, $4); }
+      ;
+
+const_expr : integer { $$ = make_value($1); }
+           | NAME { $$ = find_constant($1); }
+           | const_expr '+' const_expr { $$ = &Addition::make(*$1, *$3); }
+           | const_expr '-' const_expr { $$ = &Subtraction::make(*$1, *$3); }
            | const_expr '*' const_expr
-               { $$ = NewMultiply($1, $3); }
-           | '(' const_expr ')'
-               { $$ = $2; }
+               { $$ = &Multiplication::make(*$1, *$3); }
+           | '(' const_expr ')' { $$ = $2; }
 	   ;
 
 integer : NUMBER { $$ = integer_value($1); }
@@ -687,272 +417,82 @@ integer : NUMBER { $$ = integer_value($1); }
 /* ====================================================================== */
 /* Properties. */
 
-properties : property_list
-           | property_list ';'
+properties : /* empty */
+           | properties csl_formula
+               { properties.push_back($2); StateFormula::ref($2); }
            ;
 
-property_list : property
-                  { properties.push_back(WrapUnique($1)); }
-              | property_list ';' property
-                  { properties.push_back(WrapUnique($3)); }
-              ;
+csl_formula : TRUE_TOKEN { $$ = new Conjunction(); }
+            | FALSE_TOKEN { $$ = new Disjunction(); }
+            | 'P' '<' NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, true, true, *$5); }
+            | 'P' LTE NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, false, true, *$5); }
+            | 'P' GTE NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, false, false, *$5); }
+            | 'P' '>' NUMBER '[' path_formula ']'
+                { $$ = make_probabilistic($3, true, false, *$5); }
+            | csl_formula IMPLY csl_formula { $$ = new Implication(*$1, *$3); }
+            | csl_formula '&' csl_formula { $$ = make_conjunction(*$1, *$3); }
+            | csl_formula '|' csl_formula { $$ = make_disjunction(*$1, *$3); }
+            | '!' csl_formula { $$ = new Negation(*$2); }
+            | csl_expr '<' csl_expr { $$ = new LessThan(*$1, *$3); }
+            | csl_expr LTE csl_expr { $$ = new LessThanOrEqual(*$1, *$3); }
+            | csl_expr GTE csl_expr { $$ = new GreaterThanOrEqual(*$1, *$3); }
+            | csl_expr '>' csl_expr { $$ = new GreaterThan(*$1, *$3); }
+            | csl_expr '=' csl_expr %prec EQ { $$ = new Equality(*$1, *$3); }
+            | csl_expr NEQ csl_expr { $$ = new Inequality(*$1, *$3); }
+            | '(' csl_formula ')' { $$ = $2; }
+            ;
 
-property : NUMBER
-             { $$ = new Literal(*$1); delete $1; }
-         | TRUE
-             { $$ = new Literal(true); }
-         | FALSE
-             { $$ = new Literal(false); }
-         | IDENTIFIER
-             { $$ = value_or_variable($1); }
-         | function '(' arguments ')'
-             { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
-         | FUNC '(' function ',' arguments ')'
-             { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
-         | P '<' NUMBER '[' path_property ']'
-             { $$ = NewProbabilityLess(Double($3), $5); }
-         | P LEQ NUMBER '[' path_property ']'
-             { $$ = NewProbabilityLessEqual(Double($3), $5); }
-         | P GEQ NUMBER '[' path_property ']'
-             { $$ = NewProbabilityGreaterEqual(Double($3), $5); }
-         | P '>' NUMBER '[' path_property ']'
-             { $$ = NewProbabilityGreater(Double($3), $5); }
-         | '-' property %prec UMINUS
-             { $$ = NewNegate($2); }
-         | '!' property
-             { $$ = NewNot($2); }
-         | property '+' property
-             { $$ = NewPlus($1, $3); }
-         | property '-' property
-             { $$ = NewMinus($1, $3); }
-         | property '*' property
-             { $$ = NewMultiply($1, $3); }
-         | property '/' property
-             { $$ = NewDivide($1, $3); }
-         | property '&' property
-             { $$ = NewAnd($1, $3); }
-         | property '|' property
-             { $$ = NewOr($1, $3); }
-         | property IMPLY_TOKEN property
-             { $$ = NewImply($1, $3); }
-         | property IFF_TOKEN property
-             { $$ = NewIff($1, $3); }
-         | property '<' property
-             { $$ = NewLess($1, $3); }
-         | property LEQ property
-             { $$ = NewLessEqual($1, $3); }
-         | property GEQ property
-             { $$ = NewGreaterEqual($1, $3); }
-         | property '>' property
-             { $$ = NewGreater($1, $3); }
-         | property '=' property
-             { $$ = NewEqual($1, $3); }
-         | property NEQ property
-             { $$ = NewNotEqual($1, $3); }
-         | property '?' property ':' property
-             { $$ = NewConditional($1, $3, $5); }
-         | '(' property ')'
-             { $$ = $2; }
+path_formula : csl_formula 'U' LTE NUMBER csl_formula
+                 { $$ = make_until(*$1, *$5, NULL, $4); }
+             | csl_formula 'U' '[' NUMBER ',' NUMBER ']' csl_formula
+                 { $$ = make_until(*$1, *$8, $4, $6); }
+//             | 'X' csl_formula
+             ;
+
+csl_expr : integer { $$ = make_value($1); }
+         | NAME { $$ = value_or_variable($1); }
+         | csl_expr '+' csl_expr { $$ = &Addition::make(*$1, *$3); }
+         | csl_expr '-' csl_expr { $$ = &Subtraction::make(*$1, *$3); }
+         | csl_expr '*' csl_expr { $$ = &Multiplication::make(*$1, *$3); }
+         | '(' csl_expr ')' { $$ = $2; }
          ;
 
-path_property : property U LEQ NUMBER property
-                  { $$ = NewUntil(0, Double($4), $1, $5); }
-              | property U '[' NUMBER ',' NUMBER ']' property
-                  { $$ = NewUntil(Double($4), Double($6), $1, $8); }
-              ;
 
 %%
 
-namespace {
-
-class ConstantExpressionEvaluator : public ExpressionVisitor {
- public:
-  explicit ConstantExpressionEvaluator(
-      const std::map<std::string, TypedValue>* constant_values);
-
-  TypedValue value() const { return value_; }
-
- private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
-
-  const std::map<std::string, TypedValue>* constant_values_;
-  TypedValue value_;
-};
-
-ConstantExpressionEvaluator::ConstantExpressionEvaluator(
-    const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), value_(0) {
-}
-
-void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
-  value_ = expr.value();
-}
-
-void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
-  auto i = constant_values_->find(expr.name());
-  CHECK(i != constant_values_->end());
-  value_ = i->second;
-}
-
-void ConstantExpressionEvaluator::DoVisitFunctionCall(
-    const FunctionCall& expr) {
-  std::vector<TypedValue> arguments;
-  for (const Expression& argument : expr.arguments()) {
-    argument.Accept(this);
-    arguments.push_back(value_);
-  }
-  switch (expr.function()) {
-    case Function::UNKNOWN:
-      LOG(FATAL) << "bad function call";
-    case Function::MIN:
-      CHECK(!arguments.empty());
-      value_ = arguments[0];
-      for (size_t i = 1; i < arguments.size(); ++i) {
-        value_ = std::min(value_, arguments[i]);
-      }
-      break;
-    case Function::MAX:
-      CHECK(!arguments.empty());
-      value_ = arguments[0];
-      for (size_t i = 1; i < arguments.size(); ++i) {
-        value_ = std::max(value_, arguments[i]);
-      }
-      break;
-    case Function::FLOOR:
-      CHECK(arguments.size() == 1);
-      value_ = floor(arguments[0]);
-      break;
-    case Function::CEIL:
-      CHECK(arguments.size() == 2);
-      value_ = ceil(arguments[0]);
-      break;
-    case Function::POW:
-      CHECK(arguments.size() == 2);
-      value_ = pow(arguments[0], arguments[1]);
-      break;
-    case Function::LOG:
-      CHECK(arguments.size() == 2);
-      value_ = log(arguments[0]) / log(arguments[1]);
-      break;
-    case Function::MOD:
-      CHECK(arguments.size() == 2);
-      value_ = arguments[0] % arguments[1];
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitUnaryOperation(
-    const UnaryOperation& expr) {
-  expr.operand().Accept(this);
-  switch (expr.op()) {
-    case UnaryOperator::NEGATE:
-      value_ = -value_;
-      break;
-    case UnaryOperator::NOT:
-      value_ = !value_;
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitBinaryOperation(
-    const BinaryOperation& expr) {
-  expr.operand1().Accept(this);
-  TypedValue operand1 = value_;
-  expr.operand2().Accept(this);
-  switch (expr.op()) {
-    case BinaryOperator::PLUS:
-      value_ = operand1 + value_;
-      break;
-    case BinaryOperator::MINUS:
-      value_ = operand1 - value_;
-      break;
-    case BinaryOperator::MULTIPLY:
-      value_ = operand1 * value_;
-      break;
-    case BinaryOperator::DIVIDE:
-      value_ = operand1 / value_;
-      break;
-    case BinaryOperator::AND:
-      value_ = operand1.value<bool>() && value_.value<bool>();
-      break;
-    case BinaryOperator::OR:
-      value_ = operand1.value<bool>() || value_.value<bool>();
-      break;
-    case BinaryOperator::IMPLY:
-      value_ = !operand1.value<bool>() || value_.value<bool>();
-      break;
-    case BinaryOperator::IFF:
-      value_ = operand1.value<bool>() == value_.value<bool>();
-      break;
-    case BinaryOperator::LESS:
-      value_ = operand1 < value_;
-      break;
-    case BinaryOperator::LESS_EQUAL:
-      value_ = operand1 <= value_;
-      break;
-    case BinaryOperator::GREATER_EQUAL:
-      value_ = operand1 >= value_;
-      break;
-    case BinaryOperator::GREATER:
-      value_ = operand1 > value_;
-      break;
-    case BinaryOperator::EQUAL:
-      value_ = operand1 == value_;
-      break;
-    case BinaryOperator::NOT_EQUAL:
-      value_ = operand1 != value_;
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
-  expr.condition().Accept(this);
-  if (value_.value<bool>()) {
-    expr.if_branch().Accept(this);
-  } else {
-    expr.else_branch().Accept(this);
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {
-  LOG(FATAL) << "not a constant expression";
-}
-
-TypedValue EvaluateConstantExpression(
-    const Expression& expr,
-    const std::map<std::string, TypedValue>& constant_values) {
-  ConstantExpressionEvaluator evaluator(&constant_values);
-  expr.Accept(&evaluator);
-  return evaluator.value();
-}
-
-bool InVariableSet(
-    const Model& model, const std::set<int> variables, const std::string name) {
-  for (std::set<int>::const_iterator i = variables.begin();
-       i != variables.end(); ++i) {
-    if (name == model.variables()[*i].name()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
-
+/* Clears all previously parsed declarations. */
 void clear_declarations() {
   constants.clear();
   constant_values.clear();
   variables.clear();
 }
 
+
+/* Tests if the given variables is a member of the given list. */
+static bool member(const VariableList& vars, const Variable* v) {
+  return find(vars.begin(), vars.end(), v) != vars.end();
+}
+
+
+/* Outputs an error message. */
+static void yyerror(const std::string& s) {
+  std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
+	    << std::endl;
+  success = false;
+}
+
+
+/* Outputs a warning. */
+static void yywarning(const std::string& s) {
+  std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
+	    << std::endl;
+}
+
+
+/* Checks if undeclared variables were used. */
 static void check_undeclared() {
   if (!undeclared.empty()) {
     yyerror("undeclared variables used in expressions");
@@ -966,25 +506,50 @@ static void check_undeclared() {
   rate_values.clear();
   modules.clear();
   synchronizations.clear();
+  for (std::map<const Variable*, const Expression*>::const_iterator vi =
+	 variable_lows.begin();
+       vi != variable_lows.end(); vi++) {
+    Expression::destructive_deref((*vi).second);
+  }
   variable_lows.clear();
+  for (std::map<const Variable*, const Expression*>::const_iterator vi =
+	 variable_highs.begin();
+       vi != variable_highs.end(); vi++) {
+    Expression::destructive_deref((*vi).second);
+  }
   variable_highs.clear();
+  for (std::map<const Variable*, const Expression*>::const_iterator vi =
+	 variable_starts.begin();
+       vi != variable_starts.end(); vi++) {
+    Expression::destructive_deref((*vi).second);
+  }
   variable_starts.clear();
 }
 
-static int integer_value(const TypedValue* q) {
+
+/* Returns the numerator of the given rational, signaling an error if
+   the denominator is not 1. */
+static int integer_value(const Rational* q) {
   int n;
-  if (q->type() != Type::INT) {
+  if (q->denominator() != 1) {
     yyerror("expecting integer");
     n = 0;
   } else {
-    n = q->value<int>();
+    n = q->numerator();
   }
   delete q;
   return n;
 }
 
-static const Identifier* find_constant(const std::string* ident) {
-  if (constants.find(*ident) == constants.end()) {
+
+/* Returns a variable representing an integer constant. */
+static const Variable* find_constant(const std::string* ident) {
+  std::map<std::string, const Variable*>::const_iterator ci =
+    constants.find(*ident);
+  if (ci != constants.end()) {
+    delete ident;
+    return (*ci).second;
+  } else {
     if (variables.find(*ident) != variables.end()) {
       yyerror("variable `" + *ident + "' used where expecting constant");
     } else if (rates.find(*ident) != rates.end()) {
@@ -992,99 +557,211 @@ static const Identifier* find_constant(const std::string* ident) {
     } else {
       yyerror("undeclared constant `" + *ident + "'");
     }
-    variables.insert(*ident);
-    rates.insert(*ident);
-    constants.insert(*ident);
-    rate_values.insert({*ident, 0});
-    constant_values.insert({*ident, 0});
+    Variable* v = new Variable();
+    variables.insert(std::make_pair(*ident, v));
+    rates.insert(std::make_pair(*ident, v));
+    constants.insert(std::make_pair(*ident, v));
+    rate_values.insert(std::make_pair(v, 0));
+    constant_values.insert(std::make_pair(v, 0));
+    delete ident;
+    return v;
   }
-  const Identifier* identifier = new Identifier(*ident);
-  delete ident;
-  return identifier;
 }
 
-static const Identifier* find_rate(const std::string* ident) {
-  if (rates.find(*ident) == rates.end()) {
+
+/* Returns a variable representing a rate constant. */
+static const Variable* find_rate(const std::string* ident) {
+  std::map<std::string, const Variable*>::const_iterator ri =
+    rates.find(*ident);
+  if (ri != rates.end()) {
+    delete ident;
+    return (*ri).second;
+  } else {
     if (variables.find(*ident) != variables.end()) {
       yyerror("variable `" + *ident + "' used where expecting rate");
     } else {
       yyerror("undeclared rate `" + *ident + "'");
     }
-    variables.insert(*ident);
-    rates.insert(*ident);
-    rate_values.insert({*ident, 0});
+    Variable* v = new Variable();
+    variables.insert(std::make_pair(*ident, v));
+    rates.insert(std::make_pair(*ident, v));
+    rate_values.insert(std::make_pair(v, 0));
+    delete ident;
+    return v;
   }
-  const Identifier* identifier = new Identifier(*ident);
-  delete ident;
-  return identifier;
 }
 
-static const Identifier* find_rate_or_variable(const std::string* ident) {
-  if (rates.find(*ident) != rates.end()) {
-    const Identifier* identifier = new Identifier(*ident);
+
+/* Returns a variable representing a rate constant or an integer variable. */
+static const Variable* find_rate_or_variable(const std::string* ident) {
+  std::map<std::string, const Variable*>::const_iterator ri =
+    rates.find(*ident);
+  if (ri != rates.end()) {
     delete ident;
-    return identifier;
+    return (*ri).second;
   } else {
     return find_variable(ident);
   }
 }
 
-static const Literal* make_literal(int n) {
-  return new Literal(n);
+
+/* Returns a range with the given bounds. */
+static Range make_range(const Expression* l, const Expression* h) {
+  Range r = { l, h };
+  return r;
 }
 
-static const Literal* make_literal(const TypedValue* q) {
-  const Literal* v = new Literal(*q);
+
+/* Returns a value expression. */
+static const Value* make_value(int n) {
+  return new Value(n);
+}
+
+
+/* Returns a value expression. */
+static const Value* make_value(const Rational* q) {
+  const Value* v = new Value(*q);
   delete q;
   return v;
 }
 
+
+/* Returns a constant value or a variable for the given identifier. */
 static const Expression* value_or_variable(const std::string* ident) {
-  if (constants.find(*ident) != constants.end()) {
-    const Literal* value = new Literal(constant_values.find(*ident)->second);
+  std::map<std::string, const Variable*>::const_iterator ci =
+    constants.find(*ident);
+  if (ci != constants.end()) {
     delete ident;
-    return value;
+    return new Value(constant_values[(*ci).second]);
   } else {
-    if (variables.find(*ident) == variables.end()) {
-      variables.insert(*ident);
+    Variable* v;
+    std::map<std::string, Variable*>::const_iterator vi =
+      variables.find(*ident);
+    if (vi == variables.end()) {
+      v = new Variable();
+      variables.insert(std::make_pair(*ident, v));
       undeclared.insert(*ident);
+    } else {
+      v = (*vi).second;
     }
-    const Identifier* identifier = new Identifier(*ident);
     delete ident;
-    return identifier;
+    return v;
   }
 }
 
-static const Identifier* find_variable(const std::string* ident) {
-  if (constants.find(*ident) == constants.end()) {
-    if (variables.find(*ident) == variables.end()) {
-      variables.insert(*ident);
+
+/* Returns a variable for the given identifier. */
+static const Variable* find_variable(const std::string* ident) {
+  std::map<std::string, const Variable*>::const_iterator ci =
+    constants.find(*ident);
+  if (ci != constants.end()) {
+    delete ident;
+    return (*ci).second;
+  } else {
+    Variable* v;
+    std::map<std::string, Variable*>::const_iterator vi =
+      variables.find(*ident);
+    if (vi == variables.end()) {
+      v = new Variable();
+      variables.insert(std::make_pair(*ident, v));
       undeclared.insert(*ident);
+    } else {
+      v = (*vi).second;
     }
+    delete ident;
+    return v;
   }
-  const Identifier* identifier = new Identifier(*ident);
-  delete ident;
-  return identifier;
 }
 
-static void add_update(const std::string* ident, const Expression* expr) {
-  if (variables.find(*ident) == variables.end()) {
-    yyerror("updating undeclared variable `" + *ident + "'");
+
+/* Returns a conjunction. */
+static Conjunction* make_conjunction(StateFormula& f1,
+				     const StateFormula& f2) {
+  Conjunction* conj = dynamic_cast<Conjunction*>(&f1);
+  if (conj == NULL) {
+    conj = new Conjunction();
+    conj->add_conjunct(f1);
   }
-  const int module_index = model->modules().size();
-  if (InVariableSet(*model, model->global_variables(), *ident)) {
+  conj->add_conjunct(f2);
+  return conj;
+}
+
+
+/* Returns a disjunction. */
+static Disjunction* make_disjunction(StateFormula& f1,
+				     const StateFormula& f2) {
+  Disjunction* disj = dynamic_cast<Disjunction*>(&f1);
+  if (disj == NULL) {
+    disj = new Disjunction();
+    disj->add_disjunct(f1);
+  }
+  disj->add_disjunct(f2);
+  return disj;
+}
+
+
+/* Returns a probabilistic path quantification. */
+static StateFormula* make_probabilistic(const Rational* p,
+					bool strict, bool negate,
+					const PathFormula& f) {
+  if (*p < 0 || *p > 1) {
+    yyerror("probability bound outside the interval [0,1]");
+  }
+  bool s = (strict && !negate) || (!strict && negate);
+  StateFormula* pr = new Probabilistic(*p, s, f);
+  if (negate) {
+    pr = new Negation(*pr);
+  }
+  delete p;
+  return pr;
+}
+
+
+/* Returns an until formula. */
+static const Until* make_until(const StateFormula& f1, const StateFormula& f2,
+			       const Rational* t1, const Rational* t2) {
+  const Until* until;
+  if (t1 == NULL) {
+    if (*t2 < 0) {
+      yyerror("negative time bound");
+    }
+    until = new Until(f1, f2, 0, *t2);
+  } else {
+    if (*t1 < 0) {
+      yyerror("negative time bound");
+    } else if (*t2 < *t1) {
+      yyerror("empty time interval");
+    }
+    until = new Until(f1, f2, *t1, *t2);
+  }
+  delete t2;
+  return until;
+}
+
+
+/* Adds an update to the current command. */
+static void add_update(const std::string* ident, const Expression& expr) {
+  const Variable* v;
+  std::map<std::string, Variable*>::const_iterator vi = variables.find(*ident);
+  if (vi == variables.end()) {
+    yyerror("updating undeclared variable `" + *ident + "'");
+    v = new Variable();
+  } else {
+    v = (*vi).second;
+  }
+  if (member(model->variables(), v)) {
     if (command->synch() != 0) {
       yywarning("updating global variable in synchronized command");
     }
-  } else if (!InVariableSet(*model, model->module_variables(module_index),
-                            *ident)) {
+  } else if (!member(module->variables(), v)) {
     yyerror("updating variable belonging to other module");
   }
-  command->add_update(new Update(*ident,
-                                 std::unique_ptr<const Expression>(expr)));
+  command->add_update(*new Update(*v, expr));
   delete ident;
 }
 
+
+/* Returns the value of the given synchronization. */
 static size_t synchronization_value(const std::string* ident) {
   size_t s;
   std::map<std::string, size_t>::const_iterator si =
@@ -1093,25 +770,29 @@ static size_t synchronization_value(const std::string* ident) {
     s = synchronizations.size() + 1;
     synchronizations.insert(std::make_pair(*ident, s));
   } else {
-    s = si->second;
+    s = (*si).second;
   }
   delete ident;
   return s;
 }
 
+
+/* Adds a substitution to the current substitution map. */
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2) {
-  if (variables.find(*ident1) != variables.end()) {
+  // TODO: must be able to substitute synchronizations as well as variables
+  std::map<std::string, Variable*>::const_iterator vi =
+    variables.find(*ident1);
+  if (vi != variables.end()) {
     /* Variable substitution. */
-    subst.insert(std::make_pair(*ident1, *ident2));
-    delete ident2;
+    subst.insert(std::make_pair((*vi).second, ident2));
   } else {
     std::map<std::string, size_t>::const_iterator si =
       synchronizations.find(*ident1);
     if (si != synchronizations.end()) {
       /* Synchronization substitution. */
       size_t s = synchronization_value(ident2);
-      synch_subst.insert({si->second, s});
+      synch_subst.insert(std::make_pair((*si).second, s));
     } else {
       yyerror("illegal substitution `" + *ident1 + "=" + *ident2 + "'");
       delete ident2;
@@ -1120,6 +801,8 @@ static void add_substitution(const std::string* ident1,
   delete ident1;
 }
 
+
+/* Declares an integer constant. */
 static void declare_constant(const std::string* ident,
                              const Expression* value_expr) {
   if (constants.find(*ident) != constants.end()) {
@@ -1134,26 +817,28 @@ static void declare_constant(const std::string* ident,
     yyerror("ignoring declaration of constant `" + *ident
 	    + "' previously declared as synchronization");
   } else {
-    std::map<std::string, TypedValue>::iterator override =
+    std::map<std::string, Rational>::iterator override =
         const_overrides.find(*ident);
-    if (value_expr == nullptr && override == const_overrides.end()) {
+    if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized constant `" + *ident + "'");
-      value_expr = make_literal(0);
+      value_expr = make_value(0);
     }
-    variables.insert(*ident);
-    rates.insert(*ident);
-    constants.insert(*ident);
+    Variable* v = new Variable();
+    variables.insert(std::make_pair(*ident, v));
+    rates.insert(std::make_pair(*ident, v));
+    constants.insert(std::make_pair(*ident, v));
     const int value =
         ((override != const_overrides.end()) ?
-         override->second :
-         EvaluateConstantExpression(*value_expr, constant_values)).value<int>();
-    rate_values.insert({*ident, value});
-    constant_values.insert({*ident, value});
+         override->second : value_expr->value(constant_values)).numerator();
+    rate_values.insert(std::make_pair(v, value));
+    constant_values.insert(std::make_pair(v, value));
   }
   delete ident;
   delete value_expr;
 }
 
+
+/* Declares a rate constant. */
 static void declare_rate(const std::string* ident,
                          const Expression* value_expr) {
   if (rates.find(*ident) != rates.end()) {
@@ -1168,28 +853,30 @@ static void declare_rate(const std::string* ident,
     yyerror("ignoring declaration of rate `" + *ident
 	    + "' previously declared as synchronization");
   } else {
-    std::map<std::string, TypedValue>::iterator override =
+    std::map<std::string, Rational>::iterator override =
         const_overrides.find(*ident);
-    if (value_expr == nullptr && override == const_overrides.end()) {
+    if (value_expr == NULL && override == const_overrides.end()) {
       yyerror("uninitialized rate `" + *ident + "'");
-      value_expr = make_literal(0);
+      value_expr = make_value(0);
     }
-    variables.insert(*ident);
-    rates.insert(*ident);
-    const TypedValue value = (override != const_overrides.end()) ?
-        override->second : EvaluateConstantExpression(*value_expr, rate_values);
-    rate_values.insert({*ident, value});
+    Variable* v = new Variable();
+    variables.insert(std::make_pair(*ident, v));
+    rates.insert(std::make_pair(*ident, v));
+    const Rational value = (override != const_overrides.end()) ?
+        override->second : value_expr->value(rate_values);
+    rate_values.insert(std::make_pair(v, value));
   }
   delete ident;
   delete value_expr;
 }
 
-static bool declare_variable(const std::string* ident,
-                             const Expression* low,
-                             const Expression* high,
-                             const Expression* start,
-                             bool delayed_addition) {
-  bool declared = false;
+
+/* Declares a variable. */
+static const Variable* declare_variable(const std::string* ident,
+					const Range& range,
+					const Expression* start,
+					bool delayed_addition) {
+  Variable* v = NULL;
   if (constants.find(*ident) != constants.end()) {
     yyerror("ignoring declaration of variable `" + *ident
 	    + "' previously declared as constant");
@@ -1200,286 +887,75 @@ static bool declare_variable(const std::string* ident,
     yyerror("ignoring declaration of variable `" + *ident
 	    + "' previously declared as synchronization");
   } else {
-    declared = true;
-    if (variables.find(*ident) != variables.end()) {
+    std::map<std::string, Variable*>::const_iterator vi =
+      variables.find(*ident);
+    if (vi != variables.end()) {
       if (undeclared.find(*ident) != undeclared.end()) {
+	v = (*vi).second;
+	int low = range.l->value(constant_values).numerator();
+	v->set_low(low);
+	v->set_high(range.h->value(constant_values).numerator());
+	if (start != NULL) {
+	  v->set_start(start->value(constant_values).numerator());
+	} else {
+	  v->set_start(low);
+	}
+	v->set_low_bit(num_model_bits);
 	undeclared.erase(*ident);
       } else {
 	yyerror("ignoring repeated declaration of variable `" + *ident + "'");
       }
     } else {
-      variables.insert(*ident);
+      int low = range.l->value(constant_values).numerator();
+      int s = ((start != NULL)
+	       ? start->value(constant_values).numerator() : low);
+      v = new Variable(low, range.h->value(constant_values).numerator(), s,
+		       num_model_bits);
     }
   }
-  if (declared) {
-    int l =
-        EvaluateConstantExpression(*low, constant_values).value<int>();
-    int h =
-        EvaluateConstantExpression(*high, constant_values).value<int>();
-    int s = ((start != nullptr)
-             ? EvaluateConstantExpression(*start, constant_values).value<int>()
-             : l);
-    variable_lows.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(low)));
-    variable_highs.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(high)));
-    variable_starts.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(start)));
-    model->AddIntVariable(*ident, l, h, s);
+  if (v != NULL) {
+    variable_lows.insert(std::make_pair(v, range.l));
+    Expression::ref(range.l);
+    variable_highs.insert(std::make_pair(v, range.h));
+    Expression::ref(range.h);
+    variable_starts.insert(std::make_pair(v, start));
+    Expression::ref(start);
+    num_model_bits = v->high_bit() + 1;
+    variables.insert(std::make_pair(*ident, v));
     if (!delayed_addition) {
-      if (module != nullptr) {
-	module->add_variable(*ident);
+      if (module != NULL) {
+	module->add_variable(*v);
+      } else {
+	model->add_variable(*v);
       }
     }
   } else {
-    delete low;
-    delete high;
-    delete start;
+    Expression::ref(range.l);
+    Expression::destructive_deref(range.l);
+    Expression::ref(range.h);
+    Expression::destructive_deref(range.h);
+    Expression::ref(start);
+    Expression::destructive_deref(start);
   }
   delete ident;
-  return declared;
+  return v;
 }
 
 
 /* Adds a command to the current module. */
 static void add_command() {
-  module->add_command(command);
+  module->add_command(*command);
 }
 
 
 /* Prepares a command for parsing. */
-static void prepare_command(int synch,
-                            std::unique_ptr<const Expression>&& guard,
-			    const Distribution* delay) {
-  command = new Command(synch, std::move(guard), delay);
+static void prepare_command(int synch, const StateFormula& guard,
+			    const Distribution& delay) {
+  command = new Command(synch, guard, delay);
 }
 
-namespace {
 
-std::string SubstituteName(
-    const std::string& name,
-    const std::map<std::string, std::string>& substitutions) {
-  auto i = substitutions.find(name);
-  return (i == substitutions.end()) ? name : i->second;
-}
-
-class ExpressionIdentifierSubstituter : public ExpressionVisitor,
-                                        public PathPropertyVisitor {
- public:
-  explicit ExpressionIdentifierSubstituter(
-      const std::map<std::string, std::string>& substitutions);
-
-  std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
-
- private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
-  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
-
-  std::map<std::string, std::string> substitutions_;
-  std::unique_ptr<const Expression> expr_;
-  std::unique_ptr<const PathProperty> path_property_;
-};
-
-std::unique_ptr<const Expression> SubstituteIdentifiers(
-    const Expression& expr,
-    const std::map<std::string, std::string>& substitutions) {
-  ExpressionIdentifierSubstituter substituter(substitutions);
-  expr.Accept(&substituter);
-  return substituter.release_expr();
-}
-
-class DistributionIdentifierSubstituter : public DistributionVisitor {
- public:
-  explicit DistributionIdentifierSubstituter(
-      const std::map<std::string, std::string>& substitutions);
-
-  ~DistributionIdentifierSubstituter();
-
-  const Distribution* release_distribution();
-
- private:
-  virtual void DoVisitExponential(const Exponential& distribution);
-  virtual void DoVisitWeibull(const Weibull& distribution);
-  virtual void DoVisitLognormal(const Lognormal& distribution);
-  virtual void DoVisitUniform(const Uniform& distribution);
-
-  std::map<std::string, std::string> substitutions_;
-  const Distribution* distribution_;
-};
-
-const Distribution* SubstituteIdentifiers(
-    const Distribution& distribution,
-    const std::map<std::string, std::string>& substitutions) {
-  DistributionIdentifierSubstituter substituter(substitutions);
-  distribution.Accept(&substituter);
-  return substituter.release_distribution();
-}
-
-const Update* SubstituteIdentifiers(
-    const Update& update,
-    const std::map<std::string, std::string>& substitutions) {
-  return new Update(SubstituteName(update.variable(), substitutions),
-                    SubstituteIdentifiers(update.expr(), substitutions));
-}
-
-const Command* SubstituteIdentifiers(
-    const Command& command,
-    const std::map<std::string, std::string>& substitutions,
-    const std::map<size_t, size_t>& synchs) {
-  size_t s;
-  std::map<size_t, size_t>::const_iterator si = synchs.find(command.synch());
-  if (si == synchs.end()) {
-    s = command.synch();
-  } else {
-    s = si->second;
-  }
-  Command* subst_comm = new Command(
-      s,
-      SubstituteIdentifiers(command.guard(), substitutions),
-      SubstituteIdentifiers(command.delay(), substitutions));
-  for (const Update* update : command.updates()) {
-    subst_comm->add_update(SubstituteIdentifiers(*update, substitutions));
-  }
-  return subst_comm;
-}
-
-Module* SubstituteIdentifiers(
-    const Module& module,
-    const std::map<std::string, std::string>& substitutions,
-    const std::map<size_t, size_t>& syncs) {
-  Module* subst_mod = new Module();
-  for (const std::string& variable : module.variables()) {
-    subst_mod->add_variable(SubstituteName(variable, substitutions));
-  }
-  for (const Command* command : module.commands()) {
-    subst_mod->add_command(
-        SubstituteIdentifiers(*command, substitutions, syncs));
-  }
-  return subst_mod;
-}
-
-ExpressionIdentifierSubstituter::ExpressionIdentifierSubstituter(
-    const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions) {
-}
-
-void ExpressionIdentifierSubstituter::DoVisitLiteral(const Literal& expr) {
-  expr_.reset(new Literal(expr.value()));
-}
-
-void ExpressionIdentifierSubstituter::DoVisitIdentifier(
-    const Identifier& expr) {
-  auto i = substitutions_.find(expr.name());
-  if (i == substitutions_.end()) {
-    expr_.reset(new Identifier(expr.name()));
-  } else {
-    expr_.reset(new Identifier(i->second));
-  }
-}
-
-void ExpressionIdentifierSubstituter::DoVisitFunctionCall(
-    const FunctionCall& expr) {
-  UniquePtrVector<const Expression> arguments;
-  for (const Expression& argument : expr.arguments()) {
-    argument.Accept(this);
-    arguments.push_back(release_expr());
-  }
-  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
-}
-
-void ExpressionIdentifierSubstituter::DoVisitUnaryOperation(
-    const UnaryOperation& expr) {
-  expr.operand().Accept(this);
-  expr_ = UnaryOperation::New(expr.op(), release_expr());
-}
-
-void ExpressionIdentifierSubstituter::DoVisitBinaryOperation(
-    const BinaryOperation& expr) {
-  expr.operand1().Accept(this);
-  std::unique_ptr<const Expression> operand1 = release_expr();
-  expr.operand2().Accept(this);
-  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
-}
-
-void ExpressionIdentifierSubstituter::DoVisitConditional(
-    const Conditional& expr) {
-  expr.condition().Accept(this);
-  std::unique_ptr<const Expression> condition = release_expr();
-  expr.if_branch().Accept(this);
-  std::unique_ptr<const Expression> if_branch = release_expr();
-  expr.else_branch().Accept(this);
-  expr_ = Conditional::New(std::move(condition),
-                           std::move(if_branch), release_expr());
-}
-
-void ExpressionIdentifierSubstituter::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {
-  expr.path_property().Accept(this);
-  expr_ = ProbabilityThresholdOperation::New(expr.op(), expr.threshold(),
-                                             std::move(path_property_));
-}
-
-void ExpressionIdentifierSubstituter::DoVisitUntilProperty(
-    const UntilProperty& path_property) {
-  path_property.pre_expr().Accept(this);
-  auto pre_expr = std::move(expr_);
-  path_property.post_expr().Accept(this);
-  path_property_ =
-      UntilProperty::New(path_property.min_time(), path_property.max_time(),
-                         std::move(pre_expr), std::move(expr_));
-}
-
-DistributionIdentifierSubstituter::DistributionIdentifierSubstituter(
-    const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions), distribution_(nullptr) {
-}
-
-DistributionIdentifierSubstituter::~DistributionIdentifierSubstituter() {
-  delete distribution_;
-}
-
-const Distribution* DistributionIdentifierSubstituter::release_distribution() {
-  const Distribution* distribution = distribution_;
-  distribution_ = nullptr;
-  return distribution;
-}
-
-void DistributionIdentifierSubstituter::DoVisitExponential(
-    const Exponential& distribution) {
-  distribution_ = Exponential::make(
-      SubstituteIdentifiers(distribution.rate(), substitutions_));
-}
-
-void DistributionIdentifierSubstituter::DoVisitWeibull(
-    const Weibull& distribution) {
-  distribution_ = Weibull::make(
-      SubstituteIdentifiers(distribution.scale(), substitutions_),
-      SubstituteIdentifiers(distribution.shape(), substitutions_));
-}
-
-void DistributionIdentifierSubstituter::DoVisitLognormal(
-    const Lognormal& distribution) {
-  distribution_ = Lognormal::make(
-      SubstituteIdentifiers(distribution.scale(), substitutions_),
-      SubstituteIdentifiers(distribution.shape(), substitutions_));
-}
-
-void DistributionIdentifierSubstituter::DoVisitUniform(
-    const Uniform& distribution) {
-  distribution_ = Uniform::make(
-      SubstituteIdentifiers(distribution.low(), substitutions_),
-      SubstituteIdentifiers(distribution.high(), substitutions_));
-}
-
-}  // namespace
-
+/* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2) {
   std::map<std::string, Module*>::const_iterator mi = modules.find(*ident1);
   if (mi != modules.end()) {
@@ -1489,57 +965,67 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
     if (mi == modules.end()) {
       yyerror("ignoring renaming of undeclared module `" + *ident2 + "'");
     } else {
-      const Module& src_module = *mi->second;
-      std::map<std::string, std::string> c_subst;
-      for (const std::string& constant : constants) {
-	auto si = subst.find(constant);
+      const Module& src_module = *(*mi).second;
+      SubstitutionMap c_subst;
+      for (ValueMap::const_iterator ci = constant_values.begin();
+	   ci != constant_values.end(); ci++) {
+	std::map<const Variable*, const std::string*>::const_iterator si =
+	  subst.find((*ci).first);
 	if (si != subst.end()) {
-	  auto cj = constants.find(si->second);
-	  if (cj == constants.end()) {
-	    yyerror("substituting constant with non-constant " + si->second);
+	  std::map<std::string, const Variable*>::const_iterator cj =
+	    constants.find(*(*si).second);
+	  if (cj != constants.end()) {
+	    c_subst.insert(std::make_pair((*ci).first, (*cj).second));
 	  } else {
-	    c_subst.insert(*si);
+	    yyerror("substituting constant with non-constant" + *(*si).second);
 	  }
 	}
       }
-      std::map<std::string, std::string> v_subst;
-      model->OpenModuleScope();
-      for (const std::string& variable : src_module.variables()) {
-	auto si = subst.find(variable);
+      SubstitutionMap v_subst;
+      for (VariableList::const_iterator vi = src_module.variables().begin();
+	   vi != src_module.variables().end(); vi++) {
+	std::map<const Variable*, const std::string*>::const_iterator si =
+	  subst.find(*vi);
 	if (si == subst.end()) {
 	  yyerror("missing substitution for module variable");
 	} else {
-          std::unique_ptr<const Expression> low =
-              SubstituteIdentifiers(*variable_lows.find(variable)->second,
-                                    c_subst);
-          std::unique_ptr<const Expression> high =
-              SubstituteIdentifiers(*variable_highs.find(variable)->second,
-                                    c_subst);
-          std::unique_ptr<const Expression> start;
-	  auto i = variable_starts.find(variable);
-	  if (i->second != nullptr) {
-	    start = SubstituteIdentifiers(*i->second, c_subst);
+	  const Expression* low =
+	    &(*variable_lows.find(*vi)).second->substitution(c_subst);
+	  const Expression* high =
+	    &(*variable_highs.find(*vi)).second->substitution(c_subst);
+	  const Expression* start;
+	  std::map<const Variable*, const Expression*>::const_iterator i =
+	    variable_starts.find(*vi);
+	  if ((*i).second != NULL) {
+	    start = &(*i).second->substitution(c_subst);
+	  } else {
+	    start = NULL;
 	  }
-	  if (declare_variable(new std::string(si->second), low.release(),
-                               high.release(), start.release(), true)) {
-	    v_subst.insert(*si);
+	  Range r = { low, high };
+	  const Variable* v =
+	    declare_variable((*si).second, r, start, true);
+	  if (v != NULL) {
+	    v_subst.insert(std::make_pair(*vi, v));
 	  }
 	}
       }
-      for (auto si = subst.begin(); si != subst.end(); si++) {
-        std::unique_ptr<const Identifier> v1(
-            find_variable(new std::string(si->first)));
-	if (find(src_module.variables().begin(), src_module.variables().end(),
-                 si->first) != src_module.variables().end()) {
-          std::unique_ptr<const Identifier> v2(
-              find_variable(new std::string(si->second)));
-          v_subst.insert(*si);
+      for (std::map<const Variable*, const std::string*>::const_iterator si =
+	     subst.begin();
+	   si != subst.end(); si++) {
+	const Variable* v1 = (*si).first;
+	if (!member(src_module.variables(), v1)) {
+	  const Variable* v2 =
+	    dynamic_cast<const Variable*>(find_variable((*si).second));
+	  if (v2 == NULL) {
+	    yyerror("substituting variable with constant");
+	  } else {
+	    v_subst.insert(std::make_pair(v1, v2));
+	  }
 	}
       }
-      Module* mod = SubstituteIdentifiers(src_module, v_subst, synch_subst);
+      Module* mod = &src_module.substitution(v_subst, synch_subst);
       modules.insert(std::make_pair(*ident1, mod));
       model->add_module(*mod);
-      model->CloseModuleScope();
     }
   }
   subst.clear();
@@ -1552,8 +1038,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 /* Adds a module to the current model. */
 static void add_module() {
   model->add_module(*module);
-  module = nullptr;
-  model->CloseModuleScope();
+  module = NULL;
 }
 
 
@@ -1565,7 +1050,6 @@ static void prepare_module(const std::string* ident) {
   } else {
     module = new Module();
     modules.insert(std::make_pair(*ident, module));
-    model->OpenModuleScope();
   }
   delete ident;
 }
@@ -1574,11 +1058,16 @@ static void prepare_module(const std::string* ident) {
 /* Prepares a model for parsing. */
 static void prepare_model() {
   clear_declarations();
+  for (FormulaList::const_iterator fi = properties.begin();
+       fi != properties.end(); fi++) {
+    StateFormula::destructive_deref(*fi);
+  }
   properties.clear();
-  if (model != nullptr) {
+  if (model != NULL) {
     delete model;
   }
   model = new Model();
+  num_model_bits = 0;
 }
 
 
@@ -1586,7 +1075,7 @@ static void prepare_model() {
 static void compile_model() {
   for (std::map<std::string, Module*>::const_iterator mi = modules.begin();
        mi != modules.end(); mi++) {
-    mi->second->compile(constant_values, rate_values);
+    (*mi).second->compile(constant_values, rate_values);
   }
   model->compile();
   global_model = model;

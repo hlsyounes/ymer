@@ -21,10 +21,6 @@
  */
 #include "hybrid.h"
 
-#include <cstdio>
-
-#include "cudd.h"
-
 // static variables
 static int sb_max_mem = 1024;
 static int num_sb_levels = -1;
@@ -35,8 +31,8 @@ static double sparse_bits_memory;
 static HDDNode *zero = NULL;
 
 // local prototypes
-static HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
-static HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
+static HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
+static HDDNode *build_hdd_matrix_colrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
 static int compute_n_and_nnz_rec(HDDNode *hdd, int level, int num_levels, ODDNode *row);
 static SparseBit *build_sparse_bit(HDDNode *hdd, int level, int num_levels);
 static void fill_sparse_bit_rec(HDDNode *hdd, int level, int num_levels, long row, long col, SparseBit *sb, int code);
@@ -48,7 +44,7 @@ static void hdd_negative_row_sums_rec(HDDNode *hdd, int level, int num_levels, l
 
 // builds hybrid mtbdd matrix from mtbdd
 
-HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, ODDNode *odd)
+HDDMatrix *build_hdd_matrix(DdManager *ddman, DdNode *matrix, DdNode **rvars, DdNode **cvars, int num_vars, ODDNode *odd)
 {
 	int i;
 	HDDMatrix *res;
@@ -56,15 +52,15 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 
 	// build tables to store hdd nodes
 	res = new HDDMatrix();
-        res->num_levels = ddman.GetVariableCount() / 2;
-        res->row_tables = new HDDNode*[res->num_levels+1];
-	res->col_tables = new HDDNode*[res->num_levels];
-	for (i = 0; i < res->num_levels; i++) {
+	res->num_levels = num_vars;
+	res->row_tables = new HDDNode*[num_vars+1];
+	res->col_tables = new HDDNode*[num_vars];
+	for (i = 0; i < num_vars; i++) {
 		res->row_tables[i] = NULL;
 		res->col_tables[i] = NULL;
 	}
 	// extra table for constants
-	res->row_tables[res->num_levels] = NULL;
+	res->row_tables[num_vars] = NULL;
 	
 	// reset node counter
 	num_hdd_matrix_nodes = 0;
@@ -80,12 +76,12 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 	res->zero->next = NULL;
 
 	// call recursive bit
-	res->top = build_hdd_matrix_rowrec(ddman, matrix.get(), 0, odd, odd, res);
+	res->top = build_hdd_matrix_rowrec(ddman, matrix, rvars, cvars, num_vars, 0, odd, odd, res);
 
 	// go thru all nodes and
 	// (1) store actual offset (int) not odd ptr
 	// (2) set sparse bit pointer to null
-	for (i = 0; i < res->num_levels+1; i++) {
+	for (i = 0; i < num_vars+1; i++) {
 		ptr = res->row_tables[i];
 		while (ptr != NULL) {
 			ptr->off = ((ODDNode*)(ptr->off))->eoff;
@@ -93,7 +89,7 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 			ptr = ptr->next;
 		}
 	}
-	for (i = 0; i < res->num_levels; i++) {
+	for (i = 0; i < num_vars; i++) {
 		ptr = res->col_tables[i];
 		while (ptr != NULL) {
 			ptr->off = ((ODDNode*)(ptr->off))->eoff;
@@ -101,6 +97,36 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 			ptr = ptr->next;
 		}
 	}
+
+//	int count;
+//	int count2;
+
+//	// count no of nodes at each level
+//	for (i = 0; i < num_vars+1; i++) {
+//		count = 0;
+//		tmp = res->tables[i];
+//		while (tmp != NULL) {
+//			count++;
+//			tmp = tmp->next;
+//		}
+//		printf("%d : %d\n", i, count);
+//	}
+//	printf("\n");
+	
+//	for (i = 0; i < num_vars+1; i++) {
+//		count = 0;
+//		count2 = 0;
+//		tmp = res->tables[i];
+//		while (tmp != NULL) {
+//			count++;
+//			if (tmp->ee != res->zero) count2++;
+//			if (tmp->et != res->zero) count2++;
+//			if (tmp->te != res->zero) count2++;
+//			if (tmp->tt != res->zero) count2++;
+//			tmp = tmp->next;
+//		}
+//		printf("%d : %f\n", i, (double)count2/count);
+//	}
 	
 	// store odd too
 	res->odd = odd;
@@ -124,13 +150,13 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 
 // recursive part of build_hdd_matrix
 
-HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
+HDDNode *build_hdd_matrix_rowrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
 {
 	HDDNode *ptr, *hdd_e, *hdd_t;
 	DdNode *e, *t;
 
 	// check for zero terminal
-	if (dd == Cudd_ReadZero(ddman.manager()))
+	if (dd == Cudd_ReadZero(ddman))
 	{
 		return hddm->zero;
 	}
@@ -151,29 +177,28 @@ HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd
 	// otherwise go on and create it...
 	
 	// if it's a terminal node, it's easy...
-        int nvars = ddman.GetVariableCount() / 2;
-        if (level == nvars) {
+	if (level == num_vars) {
 		num_hdd_matrix_nodes++;
 		ptr = new HDDNode();
 		ptr->type.val = Cudd_V(dd);
 		ptr->off = (size_t)row;
 		ptr->off2 = (size_t)col;
 		ptr->sb = (SparseBit*)dd;
-		ptr->next = hddm->row_tables[nvars];
-		hddm->row_tables[nvars] = ptr;
+		ptr->next = hddm->row_tables[num_vars];
+		hddm->row_tables[num_vars] = ptr;
 		return ptr;
 	}
 
 	// if not, have to recurse before creation
-	if (dd->index > ddman.GetBddVariable(2 * level).get()->index) {
+	if (dd->index > rvars[level]->index) {
 		e = t = dd;
 	}
 	else {
 		e = Cudd_E(dd);
 		t = Cudd_T(dd);
 	}
-	hdd_e = build_hdd_matrix_colrec(ddman, e, level, row->e, col, hddm);
-	hdd_t = build_hdd_matrix_colrec(ddman, t, level, row->t, col, hddm);
+	hdd_e = build_hdd_matrix_colrec(ddman, e, rvars, cvars, num_vars, level, row->e, col, hddm);
+	hdd_t = build_hdd_matrix_colrec(ddman, t, rvars, cvars, num_vars, level, row->t, col, hddm);
 	num_hdd_matrix_nodes++;
 	ptr = new HDDNode();
 	ptr->type.kids.e = hdd_e;
@@ -186,13 +211,13 @@ HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd
 	return ptr;
 }
 
-HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
+HDDNode *build_hdd_matrix_colrec(DdManager *ddman, DdNode *dd, DdNode **rvars, DdNode **cvars, int num_vars, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
 {
 	HDDNode *ptr, *hdd_e, *hdd_t;
 	DdNode *e, *t;
 
 	// check for zero terminal
-	if (dd == Cudd_ReadZero(ddman.manager()))
+	if (dd == Cudd_ReadZero(ddman))
 	{
 		return hddm->zero;
 	}
@@ -213,15 +238,15 @@ HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd
 	// otherwise go on and create it...
 	
 	// can't be a terminal node so recurse before creation
-	if (dd->index > ddman.GetBddVariable(2 * level + 1).get()->index) {
+	if (dd->index > cvars[level]->index) {
 		e = t = dd;
 	}
 	else {
 		e = Cudd_E(dd);
 		t = Cudd_T(dd);
 	}
-	hdd_e = build_hdd_matrix_rowrec(ddman, e, level+1, row, col->e, hddm);
-	hdd_t = build_hdd_matrix_rowrec(ddman, t, level+1, row, col->t, hddm);
+	hdd_e = build_hdd_matrix_rowrec(ddman, e, rvars, cvars, num_vars, level+1, row, col->e, hddm);
+	hdd_t = build_hdd_matrix_rowrec(ddman, t, rvars, cvars, num_vars, level+1, row, col->t, hddm);
 	num_hdd_matrix_nodes++;
 	ptr = new HDDNode();
 	ptr->type.kids.e = hdd_e;
@@ -603,14 +628,11 @@ void free_hdd_matrix(HDDMatrix *hddm)
 		// get next node
 		ptr = ptr2;
 	}
-
-        // free zero constant
-        delete hddm->zero;
-
+	
 	// free tables
 	delete hddm->row_tables;
 	delete hddm->col_tables;
-
+	
 	// free data structure
 	delete hddm;
 }

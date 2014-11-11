@@ -22,30 +22,24 @@
  */
 #include "odd.h"
 
-#include <cstdio>
-#include <set>
-
-#include "cudd.h"
-
 // static variables
 static int num_odd_nodes = 0;
 
 // local prototypes
-static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode **tables);
-static long add_offsets(const DecisionDiagramManager &ddman, ODDNode *dd, int level, int num_vars);
+static ODDNode *build_odd_rec(DdManager *ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables);
+static long add_offsets(DdManager *ddman, ODDNode *dd, int level, int num_vars);
 
 //------------------------------------------------------------------------------
 
-ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd)
+ODDNode *build_odd(DdManager *ddman, DdNode *dd, DdNode **vars, int num_vars)
 {
   int i;
   ODDNode **tables;
   ODDNode *res;
 
   // build tables to store odd nodes
-  int nvars = ddman.GetVariableCount() / 2;
-  tables = new ODDNode*[nvars+1];
-  for (i = 0; i < nvars+1; i++) {
+  tables = new ODDNode*[num_vars+1];
+  for (i = 0; i < num_vars+1; i++) {
     tables[i] = NULL;
   }
 	
@@ -53,10 +47,10 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd)
   num_odd_nodes = 0;
 	
   // call recursive bit
-  res = build_odd_rec(ddman, dd.get(), 0, tables);
+  res = build_odd_rec(ddman, dd, 0, vars, num_vars, tables);
 	
   // add offsets to odd
-  add_offsets(ddman, res, 0, nvars);
+  add_offsets(ddman, res, 0, num_vars);
 
   // free memory
   delete tables;
@@ -66,7 +60,7 @@ ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd)
 
 //------------------------------------------------------------------------------
 
-static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode **tables)
+static ODDNode *build_odd_rec(DdManager *ddman, DdNode *dd, int level, DdNode **vars, int num_vars, ODDNode **tables)
 {
   ODDNode *ptr;
 	
@@ -91,17 +85,17 @@ static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, i
     // can we assume this?
     //	if (dd == Cudd_ReadZero(ddman)) return;
 
-    if (level == ddman.GetVariableCount() / 2) {
+    if (level == num_vars) {
       ptr->e = NULL;
       ptr->t = NULL;
     }
-    else if (ddman.GetBddVariable(2 * level).get()->index < dd->index) {
-      ptr->e = build_odd_rec(ddman, dd, level+1, tables);
+    else if (vars[level]->index < dd->index) {
+      ptr->e = build_odd_rec(ddman, dd, level+1, vars, num_vars, tables);
       ptr->t = ptr->e;
     }
     else {
-      ptr->e = build_odd_rec(ddman, Cudd_E(dd), level+1, tables);
-      ptr->t = build_odd_rec(ddman, Cudd_T(dd), level+1, tables);
+      ptr->e = build_odd_rec(ddman, Cudd_E(dd), level+1, vars, num_vars, tables);
+      ptr->t = build_odd_rec(ddman, Cudd_T(dd), level+1, vars, num_vars, tables);
     }
     ptr->eoff = -1;
     ptr->toff = -1;
@@ -112,11 +106,11 @@ static ODDNode *build_odd_rec(const DecisionDiagramManager &ddman, DdNode *dd, i
 
 //------------------------------------------------------------------------------
 
-long add_offsets(const DecisionDiagramManager &ddman, ODDNode *odd, int level, int num_vars)
+long add_offsets(DdManager *ddman, ODDNode *odd, int level, int num_vars)
 {
   if ((odd->eoff == -1) || (odd->toff == -1)) {
     if (level == num_vars) {
-      if (odd->dd == Cudd_ReadZero(ddman.manager())) {
+      if (odd->dd == Cudd_ReadZero(ddman)) {
 	odd->eoff = 0;
 	odd->toff = 0;
       }
@@ -141,23 +135,3 @@ int get_num_odd_nodes()
 }
 
 //------------------------------------------------------------------------------
-
-namespace {
-
-void free_odd_impl(ODDNode *odd, std::set<ODDNode*>* deleted) {
-  if (deleted->find(odd) == deleted->end()) {
-    deleted->insert(odd);
-    free_odd_impl(odd->next, deleted);
-    free_odd_impl(odd->e, deleted);
-    free_odd_impl(odd->t, deleted);
-    delete odd;
-  }
-}
-
-}  // namespace
-
-void free_odd(ODDNode *odd) {
-  std::set<ODDNode*> deleted;
-  deleted.insert(NULL);
-  free_odd_impl(odd, &deleted);
-}

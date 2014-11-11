@@ -16,194 +16,23 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: distributions.cc,v 2.1 2004-01-25 12:19:50 lorens Exp $
  */
-
 #include "distributions.h"
-
+#include "expressions.h"
 #include <cmath>
-#include <iostream>
 
-#include "config.h"
-#include "src/expression.h"
-
-namespace {
-
-class ConstantExpressionEvaluator : public ExpressionVisitor {
- public:
-  ConstantExpressionEvaluator();
-
-  TypedValue value() const { return value_; }
-
- private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
-
-  TypedValue value_;
-};
-
-ConstantExpressionEvaluator::ConstantExpressionEvaluator()
-    : value_(0) {
-}
-
-void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
-  value_ = expr.value();
-}
-
-void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
-  LOG(FATAL) << "expecting constant expression";
-}
-
-void ConstantExpressionEvaluator::DoVisitFunctionCall(
-    const FunctionCall& expr) {
-  std::vector<TypedValue> arguments;
-  for (const Expression& argument : expr.arguments()) {
-    argument.Accept(this);
-    arguments.push_back(value_);
-  }
-  switch (expr.function()) {
-    case Function::UNKNOWN:
-      LOG(FATAL) << "bad function call";
-    case Function::MIN:
-      CHECK(!arguments.empty());
-      value_ = arguments[0];
-      for (size_t i = 1; i < arguments.size(); ++i) {
-        value_ = std::min(value_, arguments[i]);
-      }
-      break;
-    case Function::MAX:
-      CHECK(!arguments.empty());
-      value_ = arguments[0];
-      for (size_t i = 1; i < arguments.size(); ++i) {
-        value_ = std::max(value_, arguments[i]);
-      }
-      break;
-    case Function::FLOOR:
-      CHECK(arguments.size() == 1);
-      value_ = floor(arguments[0]);
-      break;
-    case Function::CEIL:
-      CHECK(arguments.size() == 2);
-      value_ = ceil(arguments[0]);
-      break;
-    case Function::POW:
-      CHECK(arguments.size() == 2);
-      value_ = pow(arguments[0], arguments[1]);
-      break;
-    case Function::LOG:
-      CHECK(arguments.size() == 2);
-      value_ = log(arguments[0]) / log(arguments[1]);
-      break;
-    case Function::MOD:
-      CHECK(arguments.size() == 2);
-      value_ = arguments[0] % arguments[1];
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitUnaryOperation(
-    const UnaryOperation& expr) {
-  expr.operand().Accept(this);
-  switch (expr.op()) {
-    case UnaryOperator::NEGATE:
-      value_ = -value_;
-      break;
-    case UnaryOperator::NOT:
-      value_ = !value_;
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitBinaryOperation(
-    const BinaryOperation& expr) {
-  expr.operand1().Accept(this);
-  TypedValue operand1 = value_;
-  expr.operand2().Accept(this);
-  switch (expr.op()) {
-    case BinaryOperator::PLUS:
-      value_ = operand1 + value_;
-      break;
-    case BinaryOperator::MINUS:
-      value_ = operand1 - value_;
-      break;
-    case BinaryOperator::MULTIPLY:
-      value_ = operand1 * value_;
-      break;
-    case BinaryOperator::DIVIDE:
-      value_ = operand1 / value_;
-      break;
-    case BinaryOperator::AND:
-      value_ = operand1.value<bool>() && value_.value<bool>();
-      break;
-    case BinaryOperator::OR:
-      value_ = operand1.value<bool>() || value_.value<bool>();
-      break;
-    case BinaryOperator::IMPLY:
-      value_ = !operand1.value<bool>() || value_.value<bool>();
-      break;
-    case BinaryOperator::IFF:
-      value_ = operand1.value<bool>() == value_.value<bool>();
-      break;
-    case BinaryOperator::LESS:
-      value_ = operand1 < value_;
-      break;
-    case BinaryOperator::LESS_EQUAL:
-      value_ = operand1 <= value_;
-      break;
-    case BinaryOperator::GREATER_EQUAL:
-      value_ = operand1 >= value_;
-      break;
-    case BinaryOperator::GREATER:
-      value_ = operand1 > value_;
-      break;
-    case BinaryOperator::EQUAL:
-      value_ = operand1 == value_;
-      break;
-    case BinaryOperator::NOT_EQUAL:
-      value_ = operand1 != value_;
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
-  expr.condition().Accept(this);
-  if (value_.value<bool>()) {
-    expr.if_branch().Accept(this);
-  } else {
-    expr.else_branch().Accept(this);
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {
-  LOG(FATAL) << "expecting constant expression";
-}
-
-TypedValue EvaluateConstantExpression(const Expression& expr) {
-  ConstantExpressionEvaluator evaluator;
-  expr.Accept(&evaluator);
-  return evaluator.value();
-}
-
-}  // namespace
 
 /* ====================================================================== */
 /* Distribution */
 
-Distribution::Distribution() {
-}
+/* The standard exponential distribution: Exp(1). */
+const Distribution& Distribution::EXP1 = Exponential::EXP1_;
 
-Distribution::~Distribution() {
-}
+/* An id-specific random number generator, or NULL. */
+mt_struct* Distribution::mts = NULL;
 
-void Distribution::Accept(DistributionVisitor* visitor) const {
-  DoAccept(visitor);
-}
 
 /* Provides the parameters for an acyclic continuous phase-type
    (ACPH) distribution in the class of EC distributions matching the
@@ -317,47 +146,10 @@ void Distribution::acph2(ACPH2Parameters& params) const {
   }
 }
 
-namespace {
 
-// A distribution visitor that prints a distribution to an output stream.
-class DistributionPrinter : public DistributionVisitor {
- public:
-  explicit DistributionPrinter(std::ostream* os);
-
- private:
-  virtual void DoVisitExponential(const Exponential& distribution);
-  virtual void DoVisitWeibull(const Weibull& distribution);
-  virtual void DoVisitLognormal(const Lognormal& distribution);
-  virtual void DoVisitUniform(const Uniform& distribution);
-
-  std::ostream* os_;
-};
-
-DistributionPrinter::DistributionPrinter(std::ostream* os)
-    : os_(os) {
-}
-
-void DistributionPrinter::DoVisitExponential(const Exponential& distribution) {
-  *os_ << "Exp(" << distribution.rate() << ")";
-}
-
-void DistributionPrinter::DoVisitWeibull(const Weibull& distribution) {
-  *os_ << "W(" << distribution.scale() << "," << distribution.shape() << ")";
-}
-
-void DistributionPrinter::DoVisitLognormal(const Lognormal& distribution) {
-  *os_ << "L(" << distribution.scale() << "," << distribution.shape() << ")";
-}
-
-void DistributionPrinter::DoVisitUniform(const Uniform& distribution) {
-  *os_ << "U(" << distribution.low() << "," << distribution.high() << ")";
-}
-
-}  // namespace
-
+/* Output operator for distributions. */
 std::ostream& operator<<(std::ostream& os, const Distribution& d) {
-  DistributionPrinter printer(&os);
-  d.Accept(&printer);
+  d.print(os);
   return os;
 }
 
@@ -365,30 +157,49 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
 /* ====================================================================== */
 /* Exponential */
 
+/* The standard exponential distribution: Exp(1). */
+const Exponential Exponential::EXP1_;
+
+
 /* Returns an exponential distribution with the given rate. */
-const Exponential* Exponential::make(std::unique_ptr<const Expression>&& rate) {
-  return new Exponential(std::move(rate));
+const Exponential& Exponential::make(const Expression& rate) {
+  const Value* value = dynamic_cast<const Value*>(&rate);
+  if (value != NULL && value->value() == 1) {
+    Expression::ref(value);
+    Expression::destructive_deref(value);
+    return EXP1_;
+  } else {
+    return *new Exponential(rate);
+  }
+}
+
+
+/* Constructs an exponential distribution with rate 1. */
+Exponential::Exponential()
+  : rate_(new Value(1)) {
+  Expression::ref(rate_);
+  ref(this);
 }
 
 
 /* Constructs an exponential distribution with the given rate. */
-Exponential::Exponential(std::unique_ptr<const Expression>&& rate)
-    : rate_(std::move(rate)) {
+Exponential::Exponential(const Expression& rate)
+  : rate_(&rate) {
+  Expression::ref(rate_);
 }
 
 
 /* Deletes this exponential distribution. */
-Exponential::~Exponential() = default;
-
-void Exponential::DoAccept(DistributionVisitor* visitor) const {
-  visitor->VisitExponential(*this);
+Exponential::~Exponential() {
+  Expression::destructive_deref(rate_);
 }
+
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Exponential::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double lambda_inv = 1.0/EvaluateConstantExpression(rate()).value<double>();
+  double lambda_inv = 1.0/rate().value(ValueMap()).double_value();
   double mi = 1.0;
   for (size_t i = 1; i <= n; i++) {
     mi *= i*lambda_inv;
@@ -397,42 +208,80 @@ void Exponential::moments(std::vector<double>& m, size_t n) const {
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Exponential::sample(const ValueMap& values) const {
+  double lambda = rate().value(values).double_value();
+  return -log(genrand_real3_id(mts))/lambda;
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Exponential& Exponential::substitution(const ValueMap& values) const {
+  const Expression& e = rate().substitution(values);
+  if (&e != &rate()) {
+    return make(e);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Exponential&
+Exponential::substitution(const SubstitutionMap& subst) const {
+  const Expression& e = rate().substitution(subst);
+  if (&e != &rate()) {
+    return make(e);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Prints this object on the given stream. */
+void Exponential::print(std::ostream& os) const {
+  os << "Exp(" << rate() << ")";
+}
+
+
 /* ===================================================================== */
 /* Weibull */
 
 /* Returns a Weibull distribution with the given scale and shape. */
-const Distribution* Weibull::make(std::unique_ptr<const Expression>&& scale,
-				  std::unique_ptr<const Expression>&& shape) {
-  const Literal* value = dynamic_cast<const Literal*>(shape.get());
-  if (value != nullptr && value->value() == 1) {
-    return Exponential::make(BinaryOperation::New(
-        BinaryOperator::DIVIDE, std::move(shape), std::move(scale)));
+const Distribution& Weibull::make(const Expression& scale,
+				  const Expression& shape) {
+  const Value* value = dynamic_cast<const Value*>(&shape);
+  if (value != NULL && value->value() == 1) {
+    Expression::ref(value);
+    Expression::destructive_deref(value);
+    return Exponential::make(Division::make(*new Value(1), scale));
   } else {
-    return new Weibull(std::move(scale), std::move(shape));
+    return *new Weibull(scale, shape);
   }
 }
 
 
 /* Constructs a Weibull distribution with the given scale and shape. */
-Weibull::Weibull(std::unique_ptr<const Expression>&& scale,
-                 std::unique_ptr<const Expression>&& shape)
-    : scale_(std::move(scale)), shape_(std::move(shape)) {
+Weibull::Weibull(const Expression& scale, const Expression& shape)
+  : scale_(&scale), shape_(&shape) {
+  Expression::ref(scale_);
+  Expression::ref(shape_);
 }
 
 
 /* Deletes this Weibull distribution. */
-Weibull::~Weibull() = default;
-
-void Weibull::DoAccept(DistributionVisitor* visitor) const {
-  visitor->VisitWeibull(*this);
+Weibull::~Weibull() {
+  Expression::destructive_deref(scale_);
+  Expression::destructive_deref(shape_);
 }
+
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Weibull::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double eta = EvaluateConstantExpression(scale()).value<double>();
-  double beta_inv = 1.0/EvaluateConstantExpression(shape()).value<double>();
+  double eta = scale().value(ValueMap()).double_value();
+  double beta_inv = 1.0/shape().value(ValueMap()).double_value();
   double ei = 1.0;
   double bi = 1.0;
   for (size_t i = 1; i <= n; i++) {
@@ -443,36 +292,75 @@ void Weibull::moments(std::vector<double>& m, size_t n) const {
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Weibull::sample(const ValueMap& values) const {
+  double eta = scale().value(values).double_value();
+  double beta = shape().value(values).double_value();
+  return eta*pow(-log(genrand_real3_id(mts)), 1.0/beta);
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Distribution& Weibull::substitution(const ValueMap& values) const {
+  const Expression& e1 = scale().substitution(values);
+  const Expression& e2 = shape().substitution(values);
+  if (&e1 != &scale() || &e2 != &shape()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Weibull& Weibull::substitution(const SubstitutionMap& subst) const {
+  const Expression& e1 = scale().substitution(subst);
+  const Expression& e2 = shape().substitution(subst);
+  if (&e1 != &scale() || &e2 != &shape()) {
+    return *new Weibull(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Prints this object on the given stream. */
+void Weibull::print(std::ostream& os) const {
+  os << "W(" << scale() << ',' << shape() << ")";
+}
+
+
 /* ===================================================================== */
 /* Lognormal */
 
 /* Returns a lognormal distribution with the given scale and shape. */
-const Lognormal* Lognormal::make(std::unique_ptr<const Expression>&& scale,
-				 std::unique_ptr<const Expression>&& shape) {
-  return new Lognormal(std::move(scale), std::move(shape));
+const Lognormal& Lognormal::make(const Expression& scale,
+				 const Expression& shape) {
+  return *new Lognormal(scale, shape);
 }
 
 
 /* Constructs a lognormal distribution with the given scale and shape. */
-Lognormal::Lognormal(std::unique_ptr<const Expression>&& scale,
-                     std::unique_ptr<const Expression>&& shape)
-    : scale_(std::move(scale)), shape_(std::move(shape)) {
+Lognormal::Lognormal(const Expression& scale, const Expression& shape)
+  : scale_(&scale), shape_(&shape), have_unused_(false) {
+  Expression::ref(scale_);
+  Expression::ref(shape_);
 }
 
 
 /* Deletes this lognormal distribution. */
-Lognormal::~Lognormal() = default;
-
-void Lognormal::DoAccept(DistributionVisitor* visitor) const {
-  visitor->VisitLognormal(*this);
+Lognormal::~Lognormal() {
+  Expression::destructive_deref(scale_);
+  Expression::destructive_deref(shape_);
 }
+
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Lognormal::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double mu = EvaluateConstantExpression(scale()).value<double>();
-  double sigma = EvaluateConstantExpression(shape()).value<double>();
+  double mu = scale().value(ValueMap()).double_value();
+  double sigma = shape().value(ValueMap()).double_value();
   double mean = log(mu) - sigma*sigma/2.0;
   for (size_t i = 1; i <= n; i++) {
     m.push_back(exp(i*mean + i*i*sigma*sigma/2.0));
@@ -480,36 +368,88 @@ void Lognormal::moments(std::vector<double>& m, size_t n) const {
 }
 
 
+/* Returns a sample drawn from this distribution. */
+double Lognormal::sample(const ValueMap& values) const {
+  if (have_unused_) {
+    have_unused_ = false;
+    return unused_;
+  } else {
+    /* Generate two N(0,1) samples using the Box-Muller transform. */
+    double mu = scale().value(ValueMap()).double_value();
+    double sigma = shape().value(ValueMap()).double_value();
+    double mean = log(mu) - sigma*sigma/2.0;
+    double u1 = genrand_real3_id(mts);
+    double u2 = genrand_real3_id(mts);
+    double tmp = sqrt(-2.0*log(u2));
+    double x1 = tmp*cos(2*M_PI*u1);
+    double x2 = tmp*sin(2*M_PI*u1);
+    unused_ = exp(x2*sigma + mean);
+    have_unused_ = true;
+    return exp(x1*sigma + mean);
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Lognormal& Lognormal::substitution(const ValueMap& values) const {
+  const Expression& e1 = scale().substitution(values);
+  const Expression& e2 = shape().substitution(values);
+  if (&e1 != &scale() || &e2 != &shape()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns this distribution subject to the given substitutions. */
+const Lognormal& Lognormal::substitution(const SubstitutionMap& subst) const {
+  const Expression& e1 = scale().substitution(subst);
+  const Expression& e2 = shape().substitution(subst);
+  if (&e1 != &scale() || &e2 != &shape()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
+}
+
+
+/* Prints this object on the given stream. */
+void Lognormal::print(std::ostream& os) const {
+  os << "L(" << scale() << ',' << shape() << ")";
+}
+
+
 /* ===================================================================== */
 /* Uniform */
 
 /* Returns a uniform distribution with the given bounds. */
-const Uniform* Uniform::make(std::unique_ptr<const Expression>&& low,
-                             std::unique_ptr<const Expression>&& high) {
-  return new Uniform(std::move(low), std::move(high));
+const Uniform& Uniform::make(const Expression& low, const Expression& high) {
+  return *new Uniform(low, high);
 }
 
 
 /* Constructs a uniform distribution with the given bounds. */
-Uniform::Uniform(std::unique_ptr<const Expression>&& low,
-                 std::unique_ptr<const Expression>&& high)
-    : low_(std::move(low)), high_(std::move(high)) {
+Uniform::Uniform(const Expression& low, const Expression& high)
+  : low_(&low), high_(&high) {
+  Expression::ref(low_);
+  Expression::ref(high_);
 }
 
 
 /* Deletes this uniform distribution. */
-Uniform::~Uniform() = default;
-
-void Uniform::DoAccept(DistributionVisitor* visitor) const {
-  visitor->VisitUniform(*this);
+Uniform::~Uniform() {
+  Expression::destructive_deref(low_);
+  Expression::destructive_deref(high_);
 }
+
 
 /* Fills the provided list with the first n moments of this distribution. */
 void Uniform::moments(std::vector<double>& m, size_t n) const {
   /* N.B. this function should never be called for a distribution with
      non-constant parameters. */
-  double a = EvaluateConstantExpression(low()).value<double>();
-  double b = EvaluateConstantExpression(high()).value<double>();
+  double a = low().value(ValueMap()).double_value();
+  double b = high().value(ValueMap()).double_value();
   double ai = a;
   double bi = b;
   for (size_t i = 1; i <= n; i++) {
@@ -519,32 +459,40 @@ void Uniform::moments(std::vector<double>& m, size_t n) const {
   }
 }
 
-DistributionVisitor::DistributionVisitor() {
+
+/* Returns a sample drawn from this distribution. */
+double Uniform::sample(const ValueMap& values) const {
+  double a = low().value(values).double_value();
+  double b = high().value(values).double_value();
+  return (b - a)*genrand_real3_id(mts) + a;
 }
 
-DistributionVisitor::DistributionVisitor(const DistributionVisitor&) {
+
+/* Returns this distribution subject to the given substitutions. */
+const Uniform& Uniform::substitution(const ValueMap& values) const {
+  const Expression& e1 = low().substitution(values);
+  const Expression& e2 = high().substitution(values);
+  if (&e1 != &low() || &e2 != &high()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
 }
 
-DistributionVisitor& DistributionVisitor::operator=(
-    const DistributionVisitor&) {
-  return *this;
+
+/* Returns this distribution subject to the given substitutions. */
+const Uniform& Uniform::substitution(const SubstitutionMap& subst) const {
+  const Expression& e1 = low().substitution(subst);
+  const Expression& e2 = high().substitution(subst);
+  if (&e1 != &low() || &e2 != &high()) {
+    return make(e1, e2);
+  } else {
+    return *this;
+  }
 }
 
-DistributionVisitor::~DistributionVisitor() {
-}
 
-void DistributionVisitor::VisitExponential(const Exponential& dist) {
-  DoVisitExponential(dist);
-}
-
-void DistributionVisitor::VisitWeibull(const Weibull& dist) {
-  DoVisitWeibull(dist);
-}
-
-void DistributionVisitor::VisitLognormal(const Lognormal& dist) {
-  DoVisitLognormal(dist);
-}
-
-void DistributionVisitor::VisitUniform(const Uniform& dist) {
-  DoVisitUniform(dist);
+/* Prints this object on the given stream. */
+void Uniform::print(std::ostream& os) const {
+  os << "U(" << low() << ',' << high() << ")";
 }

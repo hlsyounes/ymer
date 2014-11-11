@@ -19,204 +19,246 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: symbolic.cc,v 4.2 2005-02-01 14:21:16 lorens Exp $
  */
-
 #include "formulas.h"
-
-#include <float.h>
-
-#include <cmath>
-#include <iostream>
-#include <stdexcept>
-
 #include "models.h"
 #include "hybrid.h"
-#include "src/compiled-property.h"
+#include <float.h>
+#include <cmath>
+#include <stdexcept>
 
-#include "cudd.h"
 
-namespace {
+/* Verbosity level. */
+extern int verbosity;
 
-class SymbolicVerifier
-    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
- public:
-  explicit SymbolicVerifier(const DecisionDiagramModel* dd_model,
-                            bool estimate, bool top_level_property,
-                            double epsilon);
 
-  BDD result() const { return result_; }
+/* ====================================================================== */
+/* Conjunction */
 
- private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& path_property);
-
-  const DecisionDiagramModel* dd_model_;
-  bool estimate_;
-  bool top_level_property_;
-  double epsilon_;
-  double threshold_;
-  bool strict_;
-  BDD result_;
-};
-
-SymbolicVerifier::SymbolicVerifier(const DecisionDiagramModel* dd_model,
-                                   bool estimate, bool top_level_property,
-                                   double epsilon)
-    : dd_model_(dd_model), estimate_(estimate),
-      top_level_property_(top_level_property), epsilon_(epsilon),
-      result_(dd_model->manager().GetConstant(false)) {
-}
-
-void SymbolicVerifier::DoVisitCompiledNaryProperty(
-    const CompiledNaryProperty& property) {
-  switch (property.op()) {
-    case CompiledNaryOperator::AND: {
-      BDD result = dd_model_->manager().GetConstant(true);
-      if (property.has_expr_operand()) {
-        result = property.expr_operand().bdd() && result;
-      }
-      for (const CompiledProperty& operand : property.other_operands()) {
-        operand.Accept(this);
-        result = result_ && result;
-      }
-      result_ = result;
-      break;
-    }
-    case CompiledNaryOperator::OR: {
-      BDD result = dd_model_->manager().GetConstant(false);
-      if (property.has_expr_operand()) {
-        result = property.expr_operand().bdd() || result;
-      }
-      for (const CompiledProperty& operand : property.other_operands()) {
-        operand.Accept(this);
-        result = result_ || result;
-      }
-      result_ = result;
-      break;
-    }
-    case CompiledNaryOperator::IFF: {
-      BDD result = dd_model_->manager().GetConstant(false);
-      bool has_result = false;
-      if (property.has_expr_operand()) {
-        result = property.expr_operand().bdd();
-        has_result = true;
-      }
-      for (const CompiledProperty& operand : property.other_operands()) {
-        operand.Accept(this);
-        result = has_result ? result == result_ : result_;
-        has_result = true;
-      }
-      result_ = result;
-      break;
-    }
+/* Verifies this state formula using the hybrid engine. */
+DdNode* Conjunction::verify(DdManager* dd_man, const Model& model,
+			    double epsilon, bool estimate) const {
+  DdNode* sol = model.reachability_bdd(dd_man);
+  for (FormulaList::const_iterator fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
+    DdNode* dda = Cudd_bddAnd(dd_man, ddf, sol);
+    Cudd_Ref(dda);
+    Cudd_RecursiveDeref(dd_man, ddf);
+    Cudd_RecursiveDeref(dd_man, sol);
+    sol = dda;
   }
-  result_ = dd_model_->reachable_states() && result_;
+  return sol;
 }
 
-void SymbolicVerifier::DoVisitCompiledNotProperty(
-    const CompiledNotProperty& property) {
-  property.operand().Accept(this);
-  result_ = dd_model_->reachable_states() && !result_;
+
+/* ====================================================================== */
+/* Disjunction */
+
+/* Verifies this state formula using the hybrid engine. */
+DdNode* Disjunction::verify(DdManager* dd_man, const Model& model,
+			    double epsilon, bool estimate) const {
+  DdNode* sol = Cudd_ReadLogicZero(dd_man);
+  Cudd_Ref(sol);
+  for (FormulaList::const_iterator fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    DdNode* ddf = (*fi)->verify(dd_man, model, epsilon, estimate);
+    DdNode* ddo = Cudd_bddOr(dd_man, ddf, sol);
+    Cudd_Ref(ddo);
+    Cudd_RecursiveDeref(dd_man, ddf);
+    Cudd_RecursiveDeref(dd_man, sol);
+    sol = ddo;
+  }
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* dda = Cudd_bddAnd(dd_man, ddr, sol);
+  Cudd_Ref(dda);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man, sol);
+  return dda;
 }
 
-void SymbolicVerifier::DoVisitCompiledProbabilityThresholdProperty(
-    const CompiledProbabilityThresholdProperty& property) {
-  threshold_ = property.threshold();
-  strict_ = property.op() == CompiledProbabilityThresholdOperator::GREATER;
-  property.path_property().Accept(this);
+
+/* ====================================================================== */
+/* Negation */
+
+/* Verifies this state formula using the hybrid engine. */
+DdNode* Negation::verify(DdManager* dd_man, const Model& model,
+			 double epsilon, bool estimate) const {
+  DdNode* ddf = negand().verify(dd_man, model, epsilon, estimate);
+  DdNode* sol = Cudd_Not(ddf);
+  Cudd_Ref(sol);
+  Cudd_RecursiveDeref(dd_man, ddf);
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* dda = Cudd_bddAnd(dd_man, ddr, sol);
+  Cudd_Ref(dda);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man, sol);
+  return dda;
 }
 
-void SymbolicVerifier::DoVisitCompiledExpressionProperty(
-    const CompiledExpressionProperty& property) {
-  result_ = dd_model_->reachable_states() && property.bdd();
+
+/* ====================================================================== */
+/* Implication */
+
+/* Verifies this state formula using the hybrid engine. */
+DdNode* Implication::verify(DdManager* dd_man, const Model& model,
+			    double epsilon, bool estimate) const {
+  DdNode* dda = antecedent().verify(dd_man, model, epsilon, estimate);
+  DdNode* ddn = Cudd_Not(dda);
+  Cudd_Ref(ddn);
+  Cudd_RecursiveDeref(dd_man, dda);
+  DdNode* ddc = consequent().verify(dd_man, model, epsilon, estimate);
+  DdNode* ddi = Cudd_bddOr(dd_man, ddn, ddc);
+  Cudd_Ref(ddi);
+  Cudd_RecursiveDeref(dd_man, ddn);
+  Cudd_RecursiveDeref(dd_man, ddc);
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* sol = Cudd_bddAnd(dd_man, ddr, ddi);
+  Cudd_Ref(sol);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  Cudd_RecursiveDeref(dd_man, ddi);
+  return sol;
 }
 
-// Recursive component of mtbdd_to_double_vector.
-static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
-                                       DdNode* dd, int level,
+
+/* ====================================================================== */
+/* Probabilistic */
+
+/* Verifies this state formula using the hybrid engine. */
+DdNode* Probabilistic::verify(DdManager* dd_man, const Model& model,
+			      double epsilon, bool estimate) const {
+  formula_level_++;
+  DdNode* res = formula().verify(dd_man, model, threshold(), strict(),
+				 epsilon, estimate);
+  formula_level_--;
+  return res;
+}
+
+
+/* ====================================================================== */
+/* Comparison */
+
+/* Verifies this state formula using the hybrid engine. */
+DdNode* Comparison::verify(DdManager* dd_man, const Model& model,
+			   double epsilon, bool estimate) const {
+  DdNode* ddc = bdd(dd_man);
+  DdNode* ddr = model.reachability_bdd(dd_man);
+  DdNode* sol = Cudd_bddAnd(dd_man, ddc, ddr);
+  Cudd_Ref(sol);
+  Cudd_RecursiveDeref(dd_man, ddc);
+  Cudd_RecursiveDeref(dd_man, ddr);
+  return sol;
+}
+
+
+/* ====================================================================== */
+/* Until */
+
+/* Recursive component of mtbdd_to_double_vector. */
+static void mtbdd_to_double_vector_rec(DdManager* ddman, DdNode* dd,
+				       DdNode** vars, int num_vars, int level,
 				       ODDNode* odd, long o, double* res) {
-  if (dd != Cudd_ReadZero(ddman.manager())) {
+  if (dd != Cudd_ReadZero(ddman)) {
     DdNode* e;
     DdNode* t;
-    if (level == ddman.GetVariableCount() / 2) {
+    if (level == num_vars) {
       res[o] = Cudd_V(dd);
       return;
-    } else if (dd->index > ddman.GetBddVariable(2 * level).get()->index) {
+    } else if (dd->index > vars[level]->index) {
       e = t = dd;
     } else {
       e = Cudd_E(dd);
       t = Cudd_T(dd);
     }
-    mtbdd_to_double_vector_rec(ddman, e, level + 1, odd->e, o, res);
-    mtbdd_to_double_vector_rec(ddman, t, level + 1, odd->t, o+odd->eoff,
-                               res);
+    mtbdd_to_double_vector_rec(ddman, e, vars, num_vars, level + 1,
+			       odd->e, o, res);
+    mtbdd_to_double_vector_rec(ddman, t, vars, num_vars, level + 1,
+			       odd->t, o+odd->eoff, res);
   }
 }
 
-// Converts an MTBDD to a double vector.
-static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
-                                      const ADD& dd, ODDNode* odd) {
-  // Determine size.
+
+/* Converts an MTBDD to a double vector. */
+static double* mtbdd_to_double_vector(DdManager* ddman, DdNode* dd,
+				      DdNode** vars, int num_vars,
+				      ODDNode* odd) {
+  /* Determine size. */
   size_t n = odd->eoff + odd->toff;
-  // Create array.
+  /* Create array. */
   double* res = new double[n];
   for (size_t i = 0; i < n; i++) {
     res[i] = 0.0;
   }
-  mtbdd_to_double_vector_rec(ddman, dd.get(), 0, odd, 0, res);
+  mtbdd_to_double_vector_rec(ddman, dd, vars, num_vars, 0, odd, 0, res);
 
   return res;
 }
 
-// Recursive component of double_vector_to_bdd.
-static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
-                                    const std::vector<double>& vec,
-                                    bool strict, double bound,
-                                    int level, ODDNode* odd, long o) {
-  if (level == ddman.GetVariableCount() / 2) {
-    return ddman.GetConstant((strict && vec[o] > bound)
-                             || (!strict && vec[o] >= bound));
+
+/* Recursive component of double_vector_to_bdd. */
+static DdNode* double_vector_to_bdd_rec(DdManager* ddman, double* vec,
+					bool strict, double bound,
+					DdNode** vars, int num_vars,
+					int level, ODDNode* odd, long o) {
+  if (level == num_vars) {
+    DdNode* dd = (((strict && vec[o] > bound) || (!strict && vec[o] >= bound))
+		  ? Cudd_ReadOne(ddman) : Cudd_ReadLogicZero(ddman));
+    Cudd_Ref(dd);
+    return dd;
   } else {
-    BDD e = (odd->eoff > 0)
-        ? double_vector_to_bdd_rec(
-            ddman, vec, strict, bound, level + 1, odd->e, o)
-        : ddman.GetConstant(false);
-    BDD t = (odd->toff > 0)
-        ? double_vector_to_bdd_rec(
-            ddman, vec, strict, bound, level + 1, odd->t, o+odd->eoff)
-        : ddman.GetConstant(false);
-    if (e.get() == t.get()) {
+    DdNode* e;
+    DdNode* t;
+    if (odd->eoff > 0) {
+      e = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
+				   level + 1, odd->e, o);
+    } else {
+      e = Cudd_ReadLogicZero(ddman);
+      Cudd_Ref(e);
+    }
+    if (odd->toff > 0) {
+      t = double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
+				   level + 1, odd->t, o+odd->eoff);
+    } else {
+      t = Cudd_ReadLogicZero(ddman);
+      Cudd_Ref(t);
+    }
+    if (e == t) {
+      Cudd_RecursiveDeref(ddman, t);
       return e;
     } else {
-      return Ite(ddman.GetBddVariable(2 * level), t, e);
+      Cudd_Ref(vars[level]);
+      DdNode* dd = Cudd_bddIte(ddman, vars[level], t, e);
+      Cudd_Ref(dd);
+      Cudd_RecursiveDeref(ddman, vars[level]);
+      Cudd_RecursiveDeref(ddman, t);
+      Cudd_RecursiveDeref(ddman, e);
+      return dd;
     }
   }
 }
 
-// Converts a double vector to a BDD.
-static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
-                                const std::vector<double>& vec,
-                                bool strict, double bound,
-                                ODDNode* odd) {
-  return double_vector_to_bdd_rec(ddman, vec, strict, bound, 0, odd, 0);
+
+/* Converts a double vector to a BDD. */
+static DdNode* double_vector_to_bdd(DdManager* ddman, double* vec,
+				    bool strict, double bound,
+				    DdNode** vars, int num_vars,
+				    ODDNode* odd) {
+  return double_vector_to_bdd_rec(ddman, vec, strict, bound, vars, num_vars,
+				  0, odd, 0);
 }
 
-// Matrix vector multiplication stuff.
+
+/* Matrix vector multiplication stuff. */
 static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
 		     HDDNode* hdd, int level, long row, long col)
 {
   if (hdd == hddm->zero) {
-    // It is the zero node.
+    /* It is the zero node. */
     return;
   } else if (hdd->sb) {
-    // There is a sparse bit.
+    /* There is a sparse bit. */
     SparseBit* sb = hdd->sb;
     int n = sb->n;
     double* non_zeros = sb->non_zeros;
@@ -225,13 +267,13 @@ static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
     for (int i = 0; i < n; i++) {
       int l = row_starts[i];
       int h = row_starts[i+1];
-      for (int j = l; j < h; j++) {
+      for (int j = l; j < h; j++) {		
 	soln2[row + i] += soln[col + cols[j]]*non_zeros[j]*unif;
       }
     }
     return;
   } else if (level == hddm->num_levels) {
-    // We have reached the bottom.
+    /* We have reached the bottom. */
     soln2[row] += soln[col]*hdd->type.val*unif;
     return;
   }
@@ -250,7 +292,8 @@ static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
   }
 }
 
-// Poisson tail bounds.
+
+/* Poisson tail bounds. */
 static double tail_bound(int n, double lambda, int left, int right,
 			 double epsilon) {
   int m = (int) lambda;
@@ -272,21 +315,24 @@ static double tail_bound(int n, double lambda, int left, int right,
   }
 }
 
-// Finds truncation points L and R and computes weights for a sum of
-// Poisson probabilities with rate lambda given an error bound of
-// epsilon (Fox & Glynn, CACM 31(4):440-445, 1988).
+
+/* Finds truncation points L and R and computes weights for a sum of
+   Poisson probabilities with rate lambda given an error bound of
+   epsilon (Fox & Glynn, CACM 31(4):440-445, 1988) */
 static void fox_glynn_weighter(int& left, int& right, double*& weights,
 			       double& weight_sum, double lambda,
 			       double epsilon) {
-  // Set the mode.
+  /* Set the mode. */
   int m = int(lambda);
 
-  // Make sure lambda is positive.
+  /* Make sure lambda is positive. */
   if (lambda <= 0.0) {
     throw std::invalid_argument("lambda <= 0.0");
   }
 
-  // Find truncation points L and R.
+  /*
+   * Find truncation points L and R.
+   */
   double sqrt_lambda = sqrt(lambda);
   double sqrt_2pi = sqrt(2.0*M_PI);
   if (lambda < 25.0) {
@@ -294,8 +340,8 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     if (exp(-lambda) < DBL_MIN) {
       throw std::underflow_error("potential underflow for Fox-Glynn");
     }
-  } else {  // lambda >= 25.0
-    // Find left using Corollary 2 with actual lambda.
+  } else { /* lambda >= 25.0 */
+    /* Find left using Corollary 2 with actual lambda. */
     double b = (1.0 + 1.0/lambda)*exp(1.0/8.0/lambda);
     int i = 2;
     for (; i < m; i++) {
@@ -308,7 +354,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     left = m - i;
   }
   if (lambda < 400.0) {
-    // Find right using Corollary 1 with lambda=400.
+    /* Find right using Corollary 1 with lambda=400. */
     double a = (1.0 + 1.0/400.0)*exp(1.0/16.0)*M_SQRT2;
     int i = 2;
     int i_max = (400 + 3)/2;
@@ -321,8 +367,8 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
       }
     }
     right = m + i;
-  } else {  // lambda >= 400.0
-    // Find right using Corollary 1 with actual lambda.
+  } else { /* lambda >= 400.0 */
+    /* Find right using Corollary 1 with actual lambda. */
     double a = (1.0 + 1.0/lambda)*exp(1.0/16.0)*M_SQRT2;
     int i = 2;
     int i_max = int((lambda + 3.0)/2.0);
@@ -335,16 +381,46 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
       }
     }
     right = m + i;
+#if 0
+    /* Check for underflow using corollary 3. */
+    double c_m = 1.0/sqrt_2pi/sqrt(m)*exp(m - lambda - 1.0/12.0/m);
+    double k_hat1 = right/sqrt_lambda + 1.0;
+    double e = exp(1.0)*pow(DBL_MAX*1e-10/(right - left), -2.0/k_hat1/k_hat1);
+    if (c_m*pow(e, -k_hat1*k_hat1/2.0) < DBL_MIN) {
+      throw std::underflow_error("potential underflow for Fox-Glynn");
+    }
+#endif
   }
+#if 0
+  if (lambda >= 25.0) {
+    /* Check for underflow using corollary 4. */
+    double c_m = 1.0/sqrt_2pi/sqrt(m)*exp(m - lambda - 1.0/12.0/m);
+    double k_tilde = (m - left)/sqrt_lambda;
+    double p;
+    if (k_tilde > 0 && k_tilde <= sqrt_lambda/2.0) {
+      p = c_m*exp(-k_tilde*k_tilde/2.0
+		  - k_tilde*k_tilde*k_tilde/3.0/sqrt_lambda);
+    } else {
+      double sqrt_m1 = sqrt(m + 1.0);
+      p = std::max(c_m*pow(1.0 - k_tilde/sqrt_m1, k_tilde*sqrt_m1),
+		   exp(-lambda));
+    }
+    if (p*((DBL_MAX*1e-10)/(right - left)) < DBL_MIN) {
+      throw std::underflow_error("potential underflow for Fox-Glynn");
+    }
+  }
+#endif
 
-  // Compute weights.
+  /*
+   * Compute weights.
+   */
   weights = new double[right - left + 1];
   weights[m - left] = (DBL_MAX*1e-10)/(right - left);
-  // Down.
+  /* Down. */
   for (int j = m; j > left; j--) {
     weights[j - 1 - left] = (j/lambda)*weights[j - left];
   }
-  // Up.
+  /* Up. */
   if (lambda < 400.0) {
     if (right > 600) {
       throw std::underflow_error("potential undeflow for Fox-Glynn");
@@ -365,7 +441,9 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     }
   }
 
-  // Compute sum of weights.
+  /*
+   * Compute sum of weights.
+   */
   weight_sum = 0.0;
   int s = left;
   int t = right;
@@ -381,95 +459,220 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
   weight_sum += weights[s - left];
 }
 
-void SymbolicVerifier::DoVisitCompiledUntilProperty(
-    const CompiledUntilProperty& path_property) {
+
+#if 0
+/* this function was written by joachim meyer-kayser (converted from java) */
+void compute_weights(int& left, int& right, double*& weights,
+		     double& total_weight, double lambda,
+		     double underflow, double overflow, double epsilon) {
+  int m = (int) lambda;
+
+  if (lambda < 25.0) {
+    left = 0;
+  }
+
+  if (lambda < 400.0) {
+    /* Find right using Corollary 1 with lambda=400. */
+    double a = 1.0025*exp(1.0/16.0)*M_SQRT2;
+    double startk = 1.0/(2.0*M_SQRT2*400.0);
+    double stopk = 20.0/(2.0*M_SQRT2);
+    double k;
+    for (k = startk; k <= stopk; k += 3.0) {
+      double d = 1.0/(1 - exp((-2.0/9.0)*(k*M_SQRT2*20.0 + 1.5)));
+      double f = a*d*exp(-0.5*k*k)/(k*sqrt(2.0*M_PI));
+      if (f <= epsilon/2.0) {
+	break;
+      }
+    }
+    if (k > stopk) {
+      k = stopk;
+    }
+    right = (int) ceil(m + k*M_SQRT2*20.0 + 1.5);
+  }
+
+  if (lambda >= 400.0) {
+    /* Find right using Corollary 1 using actual lambda. */
+    double sqrtl  = sqrt(lambda);
+    double a = (1.0 + 1.0/lambda)*exp(1.0/16.0)*M_SQRT2;
+    double startk = 1.0/(2.0*M_SQRT2*lambda);
+    double stopk = sqrtl/(2*M_SQRT2);
+    double k;
+    for (k = startk; k <= stopk; k += 3.0) {
+      double d = 1.0/(1.0 - exp((-2.0/9.0)*(k*M_SQRT2*sqrtl + 1.5)));
+      double f = a*d*exp(-0.5*k*k)/(k*sqrt(2.0*M_PI));
+      if (f <= epsilon/2.0) {
+	break;
+      }
+    }
+    if (k > stopk) {
+      k = stopk;
+    }
+    right = (int) ceil(m + k*M_SQRT2*sqrtl + 1.5);
+  }
+
+  if (lambda >= 25.0) {
+    /* Find left using Corollary 2 using actual lambda. */
+    double sqrtl  = sqrt(lambda);
+    double b = (1.0 + 1.0/lambda)*exp(0.125/lambda);
+    double startk = 1.0/(M_SQRT2*sqrtl);
+    double stopk =  (m - 1.5)/(M_SQRT2*sqrtl);
+    double k;
+    for (k = startk; k <= stopk; k += 3.0) {
+      if (b*exp(-0.5*k*k)/(k*sqrt(2.0*M_PI)) <= epsilon/2.0) {
+	break;
+      }
+    }
+    if (k > stopk) {
+      k = stopk;
+    }
+    left = (int) floor(m - k*sqrtl - 1.5);
+  }
+
+  if (left < 0) {
+    left = 0;
+  }
+
+  double q = overflow/(1e10*(right - left));
+  weights = new double[right - left + 1];
+  weights[m - left] = q;
+
+  /* down */
+  for (int j = m; j > left; j--) {
+    weights[j - 1 - left] = (j/lambda)*weights[j - left];
+  }
+
+  /* up */
+  if (lambda < 400) {
+    if (right > 600) {
+      throw std::overflow_error("overflow: right truncation point > 600");
+    }
+    for (int j = m; j < right; ) {
+      q = lambda/(j+1);
+      if (weights[j - left] > underflow/q) {
+	weights[j + 1 - left] = q*weights[j - left];
+	j++;
+      } else {
+	right = j;
+      }
+    }
+  } else {
+    for (int j = m; j < right; j++) {
+      weights[j + 1 - left] = (lambda/(j + 1))*weights[j - left];
+    }
+  }
+
+  int l = left;
+  int r = right;
+  total_weight = 0.0;
+  while (l < r) {
+    if (weights[l - left] <= weights[r - left]) {
+      total_weight += weights[l - left];
+      l++;
+    } else {
+      total_weight += weights[r - left];
+      r--;
+    }
+  }
+  total_weight += weights[l - left];
+}
+#endif
+
+
+/* Verifies this path formula using the hybrid engine. */
+DdNode* Until::verify(DdManager* dd_man, const Model& model,
+		      const Rational& p, bool strict, double epsilon,
+		      bool estimate) const {
   /*
    * Detect trivial cases.
    */
-  if (threshold_ == 0 && !strict_) {
+  if (p == 0 && !strict) {
     /* Satisfied by all reachable states. */
-    result_ = dd_model_->reachable_states();
-    return;
-  } else if (threshold_ == 1 && strict_) {
+    return model.reachability_bdd(dd_man);
+  } else if (p == 1 && strict) {
     /* Not satisfied by any states. */
-    result_ = dd_model_->manager().GetConstant(false);
-    return;
+    DdNode* sol = Cudd_ReadLogicZero(dd_man);
+    Cudd_Ref(sol);
+    return sol;
   }
 
   /*
-   * Verify postcondition property.
+   * Verify postcondition formula.
    */
-  bool estimate = false;
-  bool top_level_property = false;
-  std::swap(estimate_, estimate);
-  std::swap(top_level_property_, top_level_property);
-  path_property.post_property().Accept(this);
-  BDD dd2 = result_;
-  std::swap(estimate_, estimate);
-  std::swap(top_level_property_, top_level_property);
-  if (path_property.max_time() == 0) {
+  DdNode* dd2 = post().verify(dd_man, model, epsilon, false);
+  if (max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
-    result_ = dd2;
-    return;
+    return dd2;
   }
 
   /*
-   * Verify precondition property.
+   * Verify precondition formula.
    */
-  std::swap(estimate_, estimate);
-  std::swap(top_level_property_, top_level_property);
-  path_property.pre_property().Accept(this);
-  BDD dd1 = result_;
-  std::swap(estimate_, estimate);
-  std::swap(top_level_property_, top_level_property);
+  DdNode* dd1 = pre().verify(dd_man, model, epsilon, false);
 
-  if (path_property.min_time() > 0) {
-    // TODO(hlsyounes): implement support for interval time bounds.
+  if (min_time() > 0) {
+    // TODO
     throw std::invalid_argument("interval time bounds not supported");
   }
 
   /*
    * Compute BDD representing non-absorbing states in transformed model.
    */
-  BDD maybe = dd1 && !dd2;
-  if (maybe.get() == dd_model_->manager().GetConstant(false).get()) {
+  DdNode* ddn = Cudd_Not(dd2);
+  Cudd_Ref(ddn);
+  DdNode* maybe = Cudd_bddAnd(dd_man, dd1, ddn);
+  Cudd_Ref(maybe);
+  Cudd_RecursiveDeref(dd_man, dd1);
+  Cudd_RecursiveDeref(dd_man, ddn);
+  if (maybe == Cudd_ReadLogicZero(dd_man)) {
     /* All states are absorbing so solution is simply dd2. */
-    result_ = dd2;
-    return;
+    Cudd_RecursiveDeref(dd_man, maybe);
+    return dd2;
   }
 
   /* ---------------------------------------------------------------------- */
   /* Transient analysis. */
 
+  /* Probability threshold. */
+  double threshold = p.double_value();
   /* Time limit. */
-  double time = path_property.max_time();
+  double time = max_time().double_value();
   /* ODD for model. */
-  ODDNode* odd = dd_model_->odd();
+  ODDNode* odd = model.odd(dd_man);
   /* Number of states. */
   size_t nstates = odd->eoff + odd->toff;
 
   /*
    * Build HDD for matrix.
    */
-  if (top_level_property_) {
+  if (verbosity > 0) {
     std::cout << "Building hybrid MTBDD matrix...";
   }
-  ADD ddR = dd_model_->rate_matrix() * ADD(maybe);
-  HDDMatrix* hddm = build_hdd_matrix(dd_model_->manager(), ddR, odd);
-  if (top_level_property_) {
+  DdNode* ddm = Cudd_BddToAdd(dd_man, maybe);
+  Cudd_Ref(ddm);
+  Cudd_RecursiveDeref(dd_man, maybe);
+  DdNode* ddT = model.rate_mtbdd(dd_man);
+  DdNode* ddR = Cudd_addApply(dd_man, Cudd_addTimes, ddT, ddm);
+  Cudd_Ref(ddR);
+  Cudd_RecursiveDeref(dd_man, ddT);
+  Cudd_RecursiveDeref(dd_man, ddm);
+  DdNode** rvars = model.row_variables(dd_man);
+  DdNode** cvars = model.column_variables(dd_man);
+  int nvars = Cudd_ReadSize(dd_man) / 2;
+  HDDMatrix* hddm = build_hdd_matrix(dd_man, ddR, rvars, cvars, nvars, odd);
+  if (verbosity > 0) {
     std::cout << hddm->num_nodes << " nodes." << std::endl;
   }
 
   /*
    * Add sparse bits.
    */
-  if (top_level_property_) {
+  if (verbosity > 0) {
     std::cout << "Adding sparse bits...";
   }
   add_sparse_bits(hddm);
-  if (top_level_property_) {
+  if (verbosity > 0) {
     std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
-              << std::endl;
+	      << std::endl;
   }
 
   /* Get vector of diagonals. */
@@ -499,10 +702,24 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   /*
    * Create solution/iteration vectors.
    */
-  double* soln = mtbdd_to_double_vector(dd_model_->manager(), ADD(dd2), odd);
+  DdNode* yes = Cudd_BddToAdd(dd_man, dd2);
+  Cudd_Ref(yes);
+  Cudd_RecursiveDeref(dd_man, dd2);
+  double* soln = mtbdd_to_double_vector(dd_man, yes, rvars, nvars, odd);
+  Cudd_RecursiveDeref(dd_man, yes);
   double* soln2 = new double[nstates];
-  int init = top_level_property_ ? dd_model_->initial_state_index() : -1;
-  std::vector<double> sum((init >= 0) ? 1 : nstates, 0);
+  double* sum;
+  int init = ((StateFormula::formula_level() == 1)
+	      ? model.init_index(dd_man) : -1);
+  if (init >= 0) {
+    sum = new double[1];
+    sum[0] = 0.0;
+  } else {
+    sum = new double[nstates];
+    for (size_t i = 0; i < nstates; i++) {
+      sum[i] = 0.0;
+    }
+  }
 
   /*
    * Compute poisson probabilities.
@@ -510,32 +727,32 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   int left, right;
   double* weights;
   double weight_sum;
-  if (top_level_property_) {
+  if (verbosity > 0) {
     std::cout << "Uniformization: " << max_diag << "*" << time << " = "
-              << (max_diag*time) << std::endl;
+	      << (max_diag*time) << std::endl;
   }
   fox_glynn_weighter(left, right, weights, weight_sum,
-		     1.01*max_diag*time, epsilon_);
-  if (top_level_property_) {
+		     1.01*max_diag*time, epsilon);
+  if (verbosity > 0) {
     std::cout << "Fox-Glynn: left = " << left << ", right = " << right
-              << std::endl;
+	      << std::endl;
   }
 
   /*
    * Iterations before left bound to update vector.
    */
-  if (top_level_property_) {
+  if (verbosity > 0) {
     std::cout << "Computing probabilities";
   }
   int iters;
   bool done = false;
   bool steady = false;
   for (iters = 1; iters < left && !done; iters++) {
-    if (top_level_property_) {
+    if (verbosity > 0) {
       if (iters % 1000 == 0) {
-        std::cout << ':';
+	std::cout << ':';
       } else if (iters % 100 == 0) {
-        std::cout << '.';
+	std::cout << '.';
       }
     }
     /*
@@ -548,10 +765,10 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
     /*
      * Check for steady state convergence.
      */
-    if (!estimate_) {
+    if (!estimate) {
       done = true;
       double sqnorm = 0.0;
-      double sqbound = epsilon_ * epsilon_ / 64.0;
+      double sqbound = epsilon*epsilon/64.0;
       for (size_t i = 0; i < nstates; i++) {
 	double diff = soln2[i] - soln[i];
 	sqnorm += diff*diff;
@@ -583,12 +800,15 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   /*
    * Accumulate weights.
    */
+  if (verbosity > 1) {
+    std::cout << std::endl;
+  }
   for (; iters <= right && !done; iters++) {
-    if (top_level_property_) {
+    if (verbosity == 1) {
       if (iters % 1000 == 0) {
-        std::cout << ':';
+	std::cout << ':';
       } else if (iters % 100 == 0) {
-        std::cout << '.';
+	std::cout << '.';
       }
     }
     if (iters > 0) {
@@ -602,10 +822,10 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       /*
        * Check for steady state convergence.
        */
-      if (!estimate_) {
+      if (!estimate) {
 	done = true;
 	double sqnorm = 0.0;
-	double sqbound = epsilon_ * epsilon_ / 64.0;
+	double sqbound = epsilon*epsilon/64.0;
 	for (size_t i = 0; i < nstates; i++) {
 	  double diff = soln2[i] - soln[i];
 	  sqnorm += diff*diff;
@@ -648,18 +868,18 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
 	sum[i] += weights[iters - left]/weight_sum*soln[i];
       }
       double slack = tail_bound(iters, 1.01*max_diag*time,
-				left, right, epsilon_);
-      if (VLOG_IS_ON(2) && init >= 0) {
-	LOG(INFO) << iters
+				left, right, epsilon);
+      if (verbosity > 1 && init >= 0) {
+	std::cout << iters
 		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"
-		  << "; threshold = " << threshold_;
+		  << "; threshold = " << threshold << std::endl;
       }
-      if (!estimate_) {
+      if (!estimate) {
 	bool pass = false;
-	if (strict_) {
-	  pass = (sum[i] + slack <= threshold_ || sum[i] > threshold_);
+	if (strict) {
+	  pass = (sum[i] + slack <= threshold || sum[i] > threshold);
 	} else {
-	  pass = (sum[i] + slack < threshold_ || sum[i] >= threshold_);
+	  pass = (sum[i] + slack < threshold || sum[i] >= threshold);
 	}
 	if (pass) {
 	  num_pass++;
@@ -680,49 +900,39 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   if (iters > right) {
     iters = right;
   }
-  if (top_level_property_) {
+  if (verbosity > 0) {
     std::cout << ' ' << iters << " iterations." << std::endl;
+    if (estimate) {
+      std::cout.precision(10);
+      std::cout << "Pr[" << *this << "] = " << sum[0] << std::endl;
+      std::cout.precision(6);
+    }
   }
-  if (estimate_) {
-    std::cout.precision(10);
-    std::cout << "Pr[" << path_property.string() << "] = " << sum[0]
-              << std::endl;
-    std::cout.precision(6);
-  }
-  if (steady && top_level_property_) {
+  if (verbosity > 0 && steady) {
     std::cout << "Steady state detected." << std::endl;
   }
   /*
    * Free memory.
    */
+  Cudd_RecursiveDeref(dd_man, ddR);
   free_hdd_matrix(hddm);
   delete diags;
   delete soln;
   delete soln2;
   delete weights;
 
+  DdNode* sol;
   if (init >= 0) {
-    if ((strict_ && sum[0] > threshold_)
-      || (!strict_ && sum[0] >= threshold_)) {
-      result_ = dd_model_->initial_state();
-      return;
+    if ((strict && sum[0] > threshold) || (!strict && sum[0] >= threshold)) {
+      sol = model.init_bdd(dd_man);
     } else {
-      result_ = dd_model_->manager().GetConstant(false);
-      return;
+      sol = Cudd_ReadLogicZero(dd_man);
+      Cudd_Ref(sol);
     }
   } else {
-    result_ = double_vector_to_bdd(
-        dd_model_->manager(), sum, strict_, threshold_, odd);
-    return;
+    sol = double_vector_to_bdd(dd_man, sum, strict, threshold,
+			       rvars, nvars, odd);
   }
-}
-
-}  // namespace
-
-BDD Verify(const CompiledProperty& property,
-           const DecisionDiagramModel& dd_model,
-           bool estimate, bool top_level_property, double epsilon) {
-  SymbolicVerifier verifier(&dd_model, estimate, top_level_property, epsilon);
-  property.Accept(&verifier);
-  return verifier.result();
+  delete sum;
+  return sol;
 }

@@ -19,15 +19,21 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: distributions.h,v 4.1 2005-02-01 14:01:41 lorens Exp $
  */
 #ifndef DISTRIBUTIONS_H
 #define DISTRIBUTIONS_H
 
-#include <ostream>
-#include <string>
+#include <config.h>
+#include "rng.h"
+#include <iostream>
 #include <vector>
 
-#include "src/expression.h"
+struct Expression;
+struct ValueMap;
+struct SubstitutionMap;
+
 
 /* ====================================================================== */
 /* ECParameters */
@@ -80,26 +86,43 @@ struct ACPH2Parameters {
 /* ====================================================================== */
 /* Distribution */
 
-class DistributionVisitor;
+/*
+ * A probability distribution.
+ */
+struct Distribution {
+  /* The standard exponential distribution: Exp(1). */
+  static const Distribution& EXP1;
 
-// Abstract base class for probability distributions.
-//
-// This class supports the visitor pattern.  Example usage:
-//
-//   class ConcreteDistributionVisitor : public DistributionVisitor {
-//     ...
-//   };
-//
-//   Distribution* dist = ...;
-//   ConcreteDistributionVisitor visitor;
-//   dist->Accept(&visitor);
-//
-class Distribution {
- public:
+  /* An id-specific random number generator, or NULL. */
+  static mt_struct* mts;
+
+  /* Increases the reference count for the given distribution. */
+  static void ref(const Distribution* d) {
+    if (d != NULL) {
+      d->ref_count_++;
+    }
+  }
+
+  /* Decreases the reference count for the given distribution. */
+  static void deref(const Distribution* d) {
+    if (d != NULL) {
+      d->ref_count_--;
+    }
+  }
+
+  /* Decreases the reference count for the given distribution and
+     deletes it if the the reference count becomes zero. */
+  static void destructive_deref(const Distribution* d) {
+    if (d != NULL) {
+      d->ref_count_--;
+      if (d->ref_count_ == 0) {
+	delete d;
+      }
+    }
+  }
+
   /* Deletes this distribution. */
-  virtual ~Distribution();
-
-  void Accept(DistributionVisitor* visitor) const;
+  virtual ~Distribution() {}
 
   /* Provides the parameters for an acyclic continuous phase-type
      (ACPH) distribution in the class of EC distributions matching the
@@ -111,19 +134,34 @@ class Distribution {
      distribution. */
   void acph2(ACPH2Parameters& params) const;
 
+  /* Tests if this a memoryless distribution. */
+  virtual bool memoryless() const { return false; }
+
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const = 0;
 
+  /* Returns a sample drawn from this distribution. */
+  virtual double sample(const ValueMap& values) const = 0;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Distribution& substitution(const ValueMap& values) const = 0;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Distribution&
+  substitution(const SubstitutionMap& subst) const = 0;
+
 protected:
   /* Constructs a distribution. */
-  Distribution();
+  Distribution() : ref_count_(0) {}
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const = 0;
 
 private:
-  // Disallow copy and assign.
-  Distribution(const Distribution&);
-  Distribution& operator=(const Distribution&);
+  /* Reference counter. */
+  mutable size_t ref_count_;
 
-  virtual void DoAccept(DistributionVisitor* visitor) const = 0;
+  friend std::ostream& operator<<(std::ostream& os, const Distribution& d);
 };
 
 /* Output operator for distributions. */
@@ -136,10 +174,9 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d);
 /*
  * An exponential distribution.
  */
-class Exponential : public Distribution {
- public:
+struct Exponential : public Distribution {
   /* Returns an exponential distribution with the given rate. */
-  static const Exponential* make(std::unique_ptr<const Expression>&& rate);
+  static const Exponential& make(const Expression& rate);
 
   /* Deletes this exponential distribution. */
   virtual ~Exponential();
@@ -147,17 +184,39 @@ class Exponential : public Distribution {
   /* Returns the rate of this exponential distribution. */
   const Expression& rate() const { return *rate_; }
 
+  /* Tests if this a memoryless distribution. */
+  virtual bool memoryless() const { return true; }
+
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const;
 
-private:
-  /* Constructs an exponential distribution with the given rate. */
-  Exponential(std::unique_ptr<const Expression>&& rate);
+  /* Returns a sample drawn from this distribution. */
+  virtual double sample(const ValueMap& values) const;
 
-  virtual void DoAccept(DistributionVisitor* visitor) const;
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Exponential& substitution(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Exponential& substitution(const SubstitutionMap& subst) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
+private:
+  /* The standard exponential distribution: Exp(1). */
+  static const Exponential EXP1_;
 
   /* The rate of this exponential distribution. */
-  std::unique_ptr<const Expression> rate_;
+  const Expression* rate_;
+
+  /* Constructs an exponential distribution with rate 1. */
+  Exponential();
+
+  /* Constructs an exponential distribution with the given rate. */
+  Exponential(const Expression& rate);
+
+  friend struct Distribution;
 };
 
 
@@ -167,11 +226,10 @@ private:
 /*
  * A Weibull distribution.
  */
-class Weibull : public Distribution {
- public:
+struct Weibull : public Distribution {
   /* Returns a Weibull distribution with the given scale and shape. */
-  static const Distribution* make(std::unique_ptr<const Expression>&& scale,
-				  std::unique_ptr<const Expression>&& shape);
+  static const Distribution& make(const Expression& scale,
+				  const Expression& shape);
 
   /* Deletes this Weibull distribution. */
   virtual ~Weibull();
@@ -185,17 +243,27 @@ class Weibull : public Distribution {
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const;
 
+  /* Returns a sample drawn from this distribution. */
+  virtual double sample(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Distribution& substitution(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Weibull& substitution(const SubstitutionMap& subst) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
 private:
-  /* Constructs a Weibull distribution with the given scale and shape. */
-  Weibull(std::unique_ptr<const Expression>&& scale,
-          std::unique_ptr<const Expression>&& shape);
-
-  virtual void DoAccept(DistributionVisitor* visitor) const;
-
   /* The scale of this Weibull distribution. */
-  std::unique_ptr<const Expression> scale_;
+  const Expression* scale_;
   /* The shape of this Weibull distribution. */
-  std::unique_ptr<const Expression> shape_;
+  const Expression* shape_;
+
+  /* Constructs a Weibull distribution with the given scale and shape. */
+  Weibull(const Expression& scale, const Expression& shape);
 };
 
 
@@ -205,11 +273,10 @@ private:
 /*
  * A lognormal distribution.
  */
-class Lognormal : public Distribution {
- public:
+struct Lognormal : public Distribution {
   /* Returns a lognormal distribution with the given scale and shape. */
-  static const Lognormal* make(std::unique_ptr<const Expression>&& scale,
-			       std::unique_ptr<const Expression>&& shape);
+  static const Lognormal& make(const Expression& scale,
+			       const Expression& shape);
 
   /* Deletes this lognormal distribution. */
   virtual ~Lognormal();
@@ -223,17 +290,31 @@ class Lognormal : public Distribution {
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const;
 
+  /* Returns a sample drawn from this distribution. */
+  virtual double sample(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Lognormal& substitution(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Lognormal& substitution(const SubstitutionMap& subst) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
 private:
-  /* Constructs a lognormal distribution with the given scale and shape. */
-  Lognormal(std::unique_ptr<const Expression>&& scale,
-            std::unique_ptr<const Expression>&& shape);
-
-  virtual void DoAccept(DistributionVisitor* visitor) const;
-
   /* The scale of this lognormal distribution. */
-  std::unique_ptr<const Expression> scale_;
+  const Expression* scale_;
   /* The shape of this lognormal distribution. */
-  std::unique_ptr<const Expression> shape_;
+  const Expression* shape_;
+  /* Whether there is an unused sample available. */
+  mutable bool have_unused_;
+  /* An unused sample. */
+  mutable double unused_;
+
+  /* Constructs a lognormal distribution with the given scale and shape. */
+  Lognormal(const Expression& scale, const Expression& shape);
 };
 
 
@@ -243,11 +324,9 @@ private:
 /*
  * A uniform distribution.
  */
-class Uniform : public Distribution {
- public:
+struct Uniform : public Distribution {
   /* Returns a uniform distribution with the bounds. */
-  static const Uniform* make(std::unique_ptr<const Expression>&& low,
-                             std::unique_ptr<const Expression>&& high);
+  static const Uniform& make(const Expression& low, const Expression& high);
 
   /* Deletes this uniform distribution. */
   virtual ~Uniform();
@@ -261,38 +340,28 @@ class Uniform : public Distribution {
   /* Fills the provided list with the first n moments of this distribution. */
   virtual void moments(std::vector<double>& m, size_t n) const;
 
+  /* Returns a sample drawn from this distribution. */
+  virtual double sample(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Uniform& substitution(const ValueMap& values) const;
+
+  /* Returns this distribution subject to the given substitutions. */
+  virtual const Uniform& substitution(const SubstitutionMap& subst) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
 private:
-  /* Constructs a uniform distribution with the given bounds. */
-  Uniform(std::unique_ptr<const Expression>&& low,
-          std::unique_ptr<const Expression>&& high);
-
-  virtual void DoAccept(DistributionVisitor* visitor) const;
-
   /* The lower bound of this uniform distribution. */
-  std::unique_ptr<const Expression> low_;
+  const Expression* low_;
   /* The upper bound of this uniform distribution. */
-  std::unique_ptr<const Expression> high_;
+  const Expression* high_;
+
+  /* Constructs a uniform distribution with the given bounds. */
+  Uniform(const Expression& low, const Expression& high);
 };
 
-// Abstract base class for distribution visitors.
-class DistributionVisitor {
- public:
-  void VisitExponential(const Exponential& dist);
-  void VisitWeibull(const Weibull& dist);
-  void VisitLognormal(const Lognormal& dist);
-  void VisitUniform(const Uniform& dist);
-
- protected:
-  DistributionVisitor();
-  DistributionVisitor(const DistributionVisitor&);
-  DistributionVisitor& operator=(const DistributionVisitor&);
-  ~DistributionVisitor();
-
- private:
-  virtual void DoVisitExponential(const Exponential& dist) = 0;
-  virtual void DoVisitWeibull(const Weibull& dist) = 0;
-  virtual void DoVisitLognormal(const Lognormal& dist) = 0;
-  virtual void DoVisitUniform(const Uniform& dist) = 0;
-};
 
 #endif /* DISTRIBUTIONS_H */

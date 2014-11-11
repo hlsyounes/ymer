@@ -20,10 +20,10 @@
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 AC_PREREQ(2.57)
-AC_INIT(Ymer, 3.0.6, hlsyounes@gmail.com)
+AC_INIT(Ymer, 3.0.5, hlsyounes@gmail.com)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(ymer.cc)
-AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
 
 # Checks for programs.
@@ -35,33 +35,8 @@ AM_PROG_LEX
 AC_PROG_LIBTOOL
 AC_PROG_YACC
 
-AC_DEFUN([AX_PROG_CXX_CXX11],
-    [AC_MSG_CHECKING([for $CXX option to accept ISO C++11])
-     AC_CACHE_VAL(ax_cv_prog_cxx_cxx11,
-         [ax_cv_prog_cxx_cxx11=no
-          ax_save_CXX=$CXX
-          AC_LANG(C++)
-          AC_LANG_CONFTEST([AC_LANG_PROGRAM(
-              [[enum class Enum { VALUE };]],
-              [[Enum test = Enum::VALUE;]])])
-          for ax_arg in "" -std=c++11 -std=c++0x
-          do
-            CXX="$ax_save_CXX $ax_arg"
-            AC_COMPILE_IFELSE([],
-                [ax_cv_prog_cxx_cxx11=$ax_arg
-                 break])
-          done
-          rm -f conftest.$ac_ext conftest.$ac_objext
-          CXX=$ax_save_CXX])
-     case "x$ax_cv_prog_cxx_cxx11" in
-       x|xno)
-         AC_MSG_RESULT([none needed]) ;;
-       *)
-         AC_MSG_RESULT([$ax_cv_prog_cxx_cxx11])
-         CXX="$CXX $ax_cv_prog_cxx_cxx11" ;;
-     esac])
-
-AX_PROG_CXX_CXX11
+# Set the language.
+AC_LANG(C++)
 
 # Whether to use tcmalloc.
 AC_ARG_WITH([tcmalloc],
@@ -98,5 +73,4 @@ AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror getopt_long])
 
 AC_CONFIG_FILES(Makefile)
-AC_CONFIG_SUBDIRS([glog gsl gtest])
 AC_OUTPUT

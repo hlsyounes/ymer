@@ -1,7 +1,0 @@
-Sampling engine: alpha=0.01, beta=0.01, delta=0.05, seed=0
-Variables: 5
-Events:    28
-
-Model checking P>=0.74[ P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = 4 & y1 = 4 ] ...
-Acceptance sampling.........:.....1529 observations.
-Property is true in the initial state.

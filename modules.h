@@ -19,17 +19,16 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: modules.h,v 2.1 2004-01-25 12:38:08 lorens Exp $
  */
-
 #ifndef MODULES_H
 #define MODULES_H
 
-#include <map>
-#include <set>
-#include <vector>
+#include <config.h>
+#include "expressions.h"
 
-#include "src/expression.h"
-
+struct StateFormula;
 struct Distribution;
 
 
@@ -41,19 +40,48 @@ struct Distribution;
  */
 struct Update {
   /* Constructs a variable update. */
-  Update(const std::string& variable, std::unique_ptr<const Expression>&& expr);
+  Update(const Variable& variable, const Expression& expr);
+
+  /* Deletes this variable update. */
+  ~Update();
 
   /* Returns the variable for this update. */
-  const std::string& variable() const { return variable_; }
+  const Variable& variable() const { return *variable_; }
 
   /* Returns the expression for this update. */
   const Expression& expr() const { return *expr_; }
 
+  /* Returns this update subject to the given substitutions. */
+  const Update& substitution(const ValueMap& values) const;
+
+  /* Returns this update subject to the given substitutions. */
+  const Update& substitution(const SubstitutionMap& subst) const;
+
+  /* Returns a BDD representation of this update. */
+  DdNode* bdd(DdManager* dd_man) const;
+
 private:
   /* The variable for this update. */
-  std::string variable_;
+  const Variable* variable_;
   /* The expression for this update. */
-  std::unique_ptr<const Expression> expr_;
+  const Expression* expr_;
+};
+
+
+/* ====================================================================== */
+/* UpdateList */
+
+struct UpdateList : public std::vector<const Update*> {
+};
+
+
+/* ====================================================================== */
+/* SynchronizationMap */
+
+/*
+ * Substitution map for synchronizations.
+ */
+struct SynchSubstitutionMap : public std::map<size_t, size_t> {
 };
 
 
@@ -65,46 +93,63 @@ private:
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, std::unique_ptr<const Expression>&& guard,
-          const Distribution* delay);
+  Command(size_t synch, const StateFormula& guard, const Distribution& delay);
 
   /* Deletes this command. */
   ~Command();
 
   /* Adds an update to this command. */
-  void add_update(const Update* update);
+  void add_update(const Update& update);
 
   /* Returns the synchronization for this command; 0 if this command
      requires no synchronization. */
   size_t synch() const { return synch_; }
 
   /* Returns the guard for this command. */
-  const Expression& guard() const { return *guard_; }
+  const StateFormula& guard() const { return *guard_; }
 
   /* Returns the delay distribution for this command. */
   const Distribution& delay() const { return *delay_; }
 
   /* Returns the updates for this command. */
-  const std::vector<const Update*>& updates() const { return updates_; }
+  const UpdateList& updates() const { return updates_; }
+
+  /* Returns this command subject to the given substitutions. */
+  const Command& substitution(const ValueMap& constants,
+			      const ValueMap& rates) const;
+
+  /* Returns this command subject to the given substitutions. */
+  const Command& substitution(const SubstitutionMap& subst,
+			      const SynchSubstitutionMap& synchs) const;
+
+  /* Returns a BDD representation of this command and fills the
+     provided set with variables updated by this command. */
+  DdNode* bdd(VariableSet& updated, DdManager* dd_man) const;
 
 private:
-  // Disallow copy and assign.
-  Command(const Command&);
-  Command& operator=(const Command&);
-
   /* The synchronization for this command; 0 if this command requires
      no synchronization. */
   size_t synch_;
   /* The guard for this command. */
-  std::unique_ptr<const Expression> guard_;
+  const StateFormula* guard_;
   /* The rate for this command. */
   const Distribution* delay_;
   /* The updates for this command. */
-  std::vector<const Update*> updates_;
+  UpdateList updates_;
 };
 
 /* Output operator for commands. */
 std::ostream& operator<<(std::ostream& os, const Command& c);
+
+
+/* ====================================================================== */
+/* CommandList */
+
+/*
+ * A list of commands.
+ */
+struct CommandList : public std::vector<const Command*> {
+};
 
 
 /* ====================================================================== */
@@ -121,26 +166,60 @@ struct Module {
   ~Module();
 
   /* Adds a variable to this module. */
-  void add_variable(const std::string& variable);
+  void add_variable(const Variable& variable);
 
   /* Adds a command to this module. */
-  void add_command(const Command* command);
+  void add_command(const Command& command);
 
   /* Substitutes constants with values. */
-  void compile(const std::map<std::string, TypedValue>& constant_values,
-               const std::map<std::string, TypedValue>& rate_values);
+  void compile(const ValueMap& constants, const ValueMap& rates);
 
   /* Returns the variables for this module. */
-  const std::vector<std::string>& variables() const { return variables_; }
+  const VariableList& variables() const { return variables_; }
 
   /* Returns the commands for this module. */
-  const std::vector<const Command*>& commands() const { return commands_; }
+  const CommandList& commands() const { return commands_; }
+
+  /* Returns this module subject to the given substitutions. */
+  Module& substitution(const SubstitutionMap& subst,
+		       const SynchSubstitutionMap& synchs) const;
+
+  /* Returns a BDD representing the identity between the `current
+     state' and `next state' variables of this module. */
+  DdNode* identity_bdd(DdManager* dd_man) const;
+
+  /* Releases any cached DDs for this module. */
+  void uncache_dds(DdManager* dd_man) const;
 
 private:
   /* The variables for this module. */
-  std::vector<std::string> variables_;
+  VariableList variables_;
   /* The commands for this module. */
-  std::vector<const Command*> commands_;
+  CommandList commands_;
+  /* Cached BDD representing identity between the module variables and
+     their primed versions. */
+  mutable DdNode* identity_bdd_;
 };
+
+
+/* ====================================================================== */
+/* ModuleList */
+
+/*
+ * A list of modules.
+ */
+struct ModuleList : public std::vector<const Module*> {
+};
+
+
+/* ====================================================================== */
+/* ModuleSet */
+
+/*
+ * A set of modules.
+ */
+struct ModuleSet : public std::set<const Module*> {
+};
+
 
 #endif /* MODULES_H */

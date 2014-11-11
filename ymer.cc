@@ -22,16 +22,9 @@
  */
 #include <config.h>
 #include "comm.h"
-#include "distributions.h"
 #include "states.h"
 #include "models.h"
 #include "formulas.h"
-#include "src/compiled-property.h"
-#include "src/ddutil.h"
-#include "src/rng.h"
-#include "src/strutil.h"
-#include "src/typed-value.h"
-#include "glog/logging.h"
 #include <cudd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -51,47 +44,59 @@
 #include <iostream>
 #include <limits>
 #include <map>
-#include <memory>
 #include <stdexcept>
 #include <string>
-#include <utility>
 
-struct yy_buffer_state;
 
-// Init function for lexical analyzer (scanner).
-extern int yylex_init(void** scanner_ptr);
-// Destroy function for lexical analyzer (scanner).
-extern int yylex_destroy(void* scanner);
-// Creates a scanner buffer for the given file.
-extern yy_buffer_state* yy_create_buffer(FILE* file, int size, void* scanner);
-// Switches to the given scanner buffer.
-extern void yy_switch_to_buffer(yy_buffer_state* buf, void* scanner);
-// Deletes a scanner buffer.
-extern void yy_delete_buffer(yy_buffer_state* buf, void* scanner);
-// Parse function.
-extern int yyparse(void* scanner);
-
+/* The parse function. */
+extern int yyparse();
+/* File to parse. */
+extern FILE* yyin;
 /* Current model. */
 extern const Model* global_model;
+/* Number of bits required by binary encoding of state space. */
+extern int num_model_bits;
 /* Parsed properties. */
-extern UniquePtrVector<const Expression> properties;
+extern FormulaList properties;
 /* Clears all previously parsed declarations. */
 extern void clear_declarations();
 
 /* Name of current file. */
 std::string current_file;
 /* Constant overrides. */
-std::map<std::string, TypedValue> const_overrides;
+std::map<std::string, Rational> const_overrides;
+/* Verbosity level. */
+int verbosity;
+/* Whether memoization is enabled. */
+bool memoization = false;
+/* Fixed nested error. */
+double nested_error = -1.0;
+/* Fixed sample size. */
+int fixed_sample_size = 0;
+/* Maxumum path length. */
+int max_path_length = std::numeric_limits<int>::max();
+/* Total number of samples (for statistics). */
+size_t total_samples;
+/* Number of samples per trial (for statistics). */
+std::vector<size_t> samples;
+/* Total path lengths (for statistics). */
+double total_path_lengths;
 /* Sockets for communication. */
 int server_socket = -1;
 /* Current property. */
-int current_property;
+size_t current_property;
+
+/* Set default delta. */
+static double delta = 1e-2;
+/* Whether delta is relative or not. */
+static bool relative_delta = false;
 
 /* Program options. */
 static option long_options[] = {
   { "alpha", required_argument, 0, 'A' },
   { "beta", required_argument, 0, 'B' },
   { "delta", required_argument, 0, 'D' },
+  { "relative-delta", required_argument, 0, 'd' },
   { "epsilon", required_argument, 0, 'E' },
   { "const", required_argument, 0, 'c' },
   { "engine", required_argument, 0, 'e' },
@@ -106,16 +111,16 @@ static option long_options[] = {
   { "sampling-algorithm", required_argument, 0, 's' },
   { "seed", required_argument, 0, 'S' },
   { "trials", required_argument, 0, 'T' },
+  { "verbose", optional_argument, 0, 'v' },
   { "version", no_argument, 0, 'V' },
   { "help", no_argument, 0, 'h' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:pP:s:S:T:V";
+static const char OPTION_STRING[] = "A:B:c:D:d:E:e:H:hL:Mm:N:n:pP:s:S:T:v::V";
 
-namespace {
 
 /* Displays help. */
-void display_help() {
+static void display_help() {
   std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
 	    << "options:" << std::endl
 	    << "  -A a,  --alpha=a\t"
@@ -131,6 +136,9 @@ void display_help() {
             << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
 	    << "  -D d,  --delta=d\t"
 	    << "use indifference region of width 2*d with sampling"
+	    << std::endl
+	    << "  -d d,  --relative-delta=d" << std::endl
+	    << "\t\t\tuse indifference region of relative with sampling"
 	    << std::endl
 	    << "\t\t\t  engine (default is 1e-2)" << std::endl
 	    << "  -E e,  --epsilon=e\t"
@@ -165,6 +173,10 @@ void display_help() {
 	    << "  -T t,  --trials=t\t"
 	    << "number of trials for sampling engine (default is 1)"
 	    << std::endl
+	    << "  -v[n], --verbose[=n]\t"
+	    << "use verbosity level n;" << std::endl
+	    << "\t\t\t  n is a number from 0 (verbose mode off) and up;"
+	    << std::endl
 	    << "\t\t\t  default level is 1 if optional argument is left out"
 	    << std::endl
 	    << "  -V,    --version\t"
@@ -181,7 +193,7 @@ void display_help() {
 
 
 /* Displays version information. */
-void display_version() {
+static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003--2005 Carnegie Mellon University"
 	    << std::endl
@@ -199,9 +211,8 @@ void display_version() {
 
 
 /* Parses spec for const overrides.  Returns true on success. */
-bool parse_const_overrides(
-    const std::string& spec,
-    std::map<std::string, TypedValue>* const_overrides) {
+static bool parse_const_overrides(
+    const std::string& spec, std::map<std::string, Rational>* const_overrides) {
   if (spec.empty()) {
     return true;
   }
@@ -214,15 +225,7 @@ bool parse_const_overrides(
     }
     const std::string name(comma + 1, assignment);
     const std::string value(assignment + 1, next_comma);
-    char* endptr;
-    TypedValue v = static_cast<int>(strtol(value.c_str(), &endptr, 10));
-    if (*endptr != '\0') {
-      v = strtod(value.c_str(), &endptr);
-    }
-    if (endptr == value.c_str()) {
-      return false;
-    }
-    if (!const_overrides->insert(std::make_pair(name, v)).second) {
+    if (!const_overrides->insert(std::make_pair(name, value.c_str())).second) {
       return false;
     }
     comma = next_comma;
@@ -230,294 +233,101 @@ bool parse_const_overrides(
   return true;
 }
 
-// Prepares a scanner to scan the given file.
-yy_buffer_state* PrepareFileScan(FILE* file, void* scanner) {
-  yy_buffer_state* buffer_state = yy_create_buffer(file, 32768, scanner);
-  yy_switch_to_buffer(buffer_state, scanner);
-  return buffer_state;
-}
-
 /* Parses the given file, and returns true on success. */
-bool read_file(const std::string& filename) {
-  FILE* file = (filename == "-") ? stdin : fopen(filename.c_str(), "r");
-  if (file == nullptr) {
-    std::cerr << PACKAGE << ':' << filename << ": " << strerror(errno)
+static bool read_file(const char* name) {
+  yyin = fopen(name, "r");
+  if (yyin == 0) {
+    std::cerr << PACKAGE << ':' << name << ": " << strerror(errno)
 	      << std::endl;
     return false;
-  }
-  current_file = filename;
-
-  void* scanner;
-  yylex_init(&scanner);
-  yy_buffer_state* buffer_state = PrepareFileScan(file, scanner);
-  bool success = (yyparse(scanner) == 0);
-  yy_delete_buffer(buffer_state, scanner);
-  yylex_destroy(scanner);
-
-  if (file != stdin) {
-    fclose(file);
-  }
-  return success;
-}
-
-CompiledExpression CompileAndOptimizeExpression(
-    const Expression& expr, Type expected_type,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  CompileExpressionResult result = CompileExpression(expr, expected_type,
-                                                     identifiers_by_name);
-  if (!result.errors.empty()) {
-    errors->insert(errors->end(), result.errors.begin(), result.errors.end());
-    return CompiledExpression({});
-  }
-  if (expected_type == Type::DOUBLE) {
-    return OptimizeDoubleExpression(result.expr);
   } else {
-    return OptimizeIntExpression(result.expr);
+    current_file = name;
+    bool success = (yyparse() == 0);
+    fclose(yyin);
+    return success;
   }
 }
 
-class DistributionCompiler : public DistributionVisitor {
- public:
-  DistributionCompiler(
-      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
-      std::vector<std::string>* errors);
 
-  CompiledDistribution release_dist() { return std::move(dist_); }
-
- private:
-  virtual void DoVisitExponential(const Exponential& dist);
-  virtual void DoVisitWeibull(const Weibull& dist);
-  virtual void DoVisitLognormal(const Lognormal& dist);
-  virtual void DoVisitUniform(const Uniform& dist);
-
-  CompiledDistribution dist_;
-  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
-  std::vector<std::string>* errors_;
-};
-
-DistributionCompiler::DistributionCompiler(
-    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
-    std::vector<std::string>* errors)
-    : dist_(CompiledDistribution::MakeMemoryless(CompiledExpression({}))),
-      identifiers_by_name_(identifiers_by_name), errors_(errors) {
-  CHECK(identifiers_by_name);
-  CHECK(errors);
+/* Extracts a path formula from the given state formula. */
+static bool extract_path_formula(const PathFormula*& pf, double& theta,
+			  const StateFormula& f) {
+  const Conjunction* cf = dynamic_cast<const Conjunction*>(&f);
+  if (cf != 0) {
+    for (FormulaList::const_iterator fi = cf->conjuncts().begin();
+	 fi != cf->conjuncts().end(); fi++) {
+      if (!extract_path_formula(pf, theta, **fi)) {
+	return false;
+      }
+    }
+    return true;
+  }
+  const Disjunction* df = dynamic_cast<const Disjunction*>(&f);
+  if (df != 0) {
+    for (FormulaList::const_iterator fi = df->disjuncts().begin();
+	 fi != df->disjuncts().end(); fi++) {
+      if (!extract_path_formula(pf, theta, **fi)) {
+	return false;
+      }
+    }
+    return true;
+  }
+  const Negation* nf = dynamic_cast<const Negation*>(&f);
+  if (nf != 0) {
+    return extract_path_formula(pf, theta, nf->negand());
+  }
+  const Implication* wf = dynamic_cast<const Implication*>(&f);
+  if (wf != 0) {
+    return (extract_path_formula(pf, theta, wf->antecedent())
+	    && extract_path_formula(pf, theta, wf->consequent()));
+  }
+  const Probabilistic* qf = dynamic_cast<const Probabilistic*>(&f);
+  if (qf != 0) {
+    if (pf == 0) {
+      pf = &qf->formula();
+      theta = qf->threshold().double_value();
+      return true;
+    } else {
+      pf = 0;
+      return false;
+    }
+  }
+  return true;
 }
 
-void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
-  dist_ = CompiledDistribution::MakeMemoryless(
-      CompileAndOptimizeExpression(
-          dist.rate(), Type::DOUBLE, *identifiers_by_name_, errors_));
-}
 
-void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
-  dist_ = CompiledDistribution::MakeWeibull(
-      CompileAndOptimizeExpression(
-          dist.scale(), Type::DOUBLE, *identifiers_by_name_, errors_),
-      CompileAndOptimizeExpression(
-          dist.shape(), Type::DOUBLE, *identifiers_by_name_, errors_));
-}
-
-void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
-  dist_ = CompiledDistribution::MakeLognormal(
-      CompileAndOptimizeExpression(
-          dist.scale(), Type::DOUBLE, *identifiers_by_name_, errors_),
-      CompileAndOptimizeExpression(
-          dist.shape(), Type::DOUBLE, *identifiers_by_name_, errors_));
-}
-
-void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
-  dist_ = CompiledDistribution::MakeUniform(
-      CompileAndOptimizeExpression(
-          dist.low(), Type::DOUBLE, *identifiers_by_name_, errors_),
-      CompileAndOptimizeExpression(
-          dist.high(), Type::DOUBLE, *identifiers_by_name_, errors_));
-}
-
-CompiledDistribution CompileDistribution(
-    const Distribution& dist,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  DistributionCompiler compiler(&identifiers_by_name, errors);
-  dist.Accept(&compiler);
-  return compiler.release_dist();
-}
-
-CompiledUpdate CompileUpdate(
-    const Update& update,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  auto i = identifiers_by_name.find(update.variable());
-  int variable;
-  if (i == identifiers_by_name.end()) {
-    errors->push_back(StrCat(
-        "undefined variable '", update.variable(), "' in update"));
-    variable = -1;
-  } else if (!i->second.is_variable()) {
-    errors->push_back(StrCat("constant '", update.variable(), "' in update"));
-    variable = -1;
+double indifference_region(double theta) {
+  if (relative_delta) {
+    return 2*delta*((theta <= 0.5) ? theta : 1.0 - theta);
   } else {
-    variable = i->second.variable_index();
-  }
-  return CompiledUpdate(
-      variable, CompileAndOptimizeExpression(update.expr(), Type::INT,
-                                             identifiers_by_name, errors));
-}
-
-std::vector<CompiledUpdate> CompileUpdates(
-    const std::vector<const Update*>& updates,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  std::vector<CompiledUpdate> compiled_updates;
-  for (const Update* update : updates) {
-    compiled_updates.push_back(
-        CompileUpdate(*update, identifiers_by_name, errors));
-  }
-  return compiled_updates;
-}
-
-CompiledOutcome CompileOutcome(
-    const Distribution& delay, const std::vector<const Update*>& updates,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    int* next_outcome_index, std::vector<std::string>* errors) {
-  CompiledOutcome outcome(
-      CompileDistribution(delay, identifiers_by_name, errors),
-      CompileUpdates(updates, identifiers_by_name, errors),
-      *next_outcome_index);
-  if (outcome.delay().type() != DistributionType::MEMORYLESS) {
-    ++*next_outcome_index;
-  }
-  return outcome;
-}
-
-CompiledCommand CompileCommand(
-    const Command& command,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    int* next_outcome_index, std::vector<std::string>* errors) {
-  return CompiledCommand(
-      CompileAndOptimizeExpression(command.guard(), Type::BOOL,
-                                   identifiers_by_name, errors),
-      {CompileOutcome(command.delay(), command.updates(), identifiers_by_name,
-                      next_outcome_index, errors)});
-}
-
-std::map<std::string, IdentifierInfo> GetIdentifiersByName(
-    const CompiledModel& model) {
-  std::map<std::string, IdentifierInfo> identifiers_by_name;
-  int index = 0;
-  int low_bit = 0;
-  for (const auto& v : model.variables()) {
-    // TODO(hlsyounes): propagate actual type of variable.
-    identifiers_by_name.emplace(
-        v.name(),
-        IdentifierInfo::Variable(Type::INT, index, low_bit,
-                                 low_bit + v.bit_count() - 1, v.min_value()));
-    ++index;
-    low_bit += v.bit_count();
-  }
-  return identifiers_by_name;
-}
-
-CompiledModel CompileModel(const Model& model,
-                           std::vector<std::string>* errors) {
-  CompiledModel compiled_model;
-
-  for (const ParsedVariable& v : model.variables()) {
-    compiled_model.AddVariable(
-        v.name(), v.min_value(), v.max_value(), v.init_value());
-  }
-
-  int next_outcome_index = 0;
-  std::map<std::string, IdentifierInfo> identifiers_by_name =
-      GetIdentifiersByName(compiled_model);
-  for (const Command* c : model.commands()) {
-    compiled_model.AddCommand(
-        CompileCommand(*c, identifiers_by_name, &next_outcome_index, errors));
-  }
-  compiled_model.SetTriggerTimeCount(next_outcome_index);
-
-  return compiled_model;
-}
-
-std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
-    const Expression& property,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const DecisionDiagramManager& dd_manager,
-    std::vector<std::string>* errors) {
-  CompilePropertyResult result =
-      CompileProperty(property, identifiers_by_name, dd_manager);
-  if (!result.errors.empty()) {
-    errors->insert(errors->end(), result.errors.begin(), result.errors.end());
-  }
-  return std::move(result.property);
-}
-
-class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
- public:
-  const CompiledPathProperty* PathProperty();
-
- private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
-
-  std::vector<const CompiledPathProperty*> path_properties_;
-};
-
-const CompiledPathProperty* CompiledPathPropertyExtractor::PathProperty() {
-  return path_properties_.size() == 1 ? path_properties_[0] : nullptr;
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledNaryProperty(
-    const CompiledNaryProperty& property) {
-  for (const CompiledProperty& operand : property.other_operands()) {
-    operand.Accept(this);
+    return delta;
   }
 }
 
-void CompiledPathPropertyExtractor::DoVisitCompiledNotProperty(
-    const CompiledNotProperty& property) {
-  property.operand().Accept(this);
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledProbabilityThresholdProperty(
-    const CompiledProbabilityThresholdProperty& property) {
-  path_properties_.push_back(&property.path_property());
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledExpressionProperty(
-    const CompiledExpressionProperty& property) {}
-
-const CompiledPathProperty* ExtractPathProperty(
-    const CompiledProperty& property) {
-  CompiledPathPropertyExtractor extractor;
-  property.Accept(&extractor);
-  return extractor.PathProperty();
-}
-
-}  // namespace
 
 /* The main program. */
 int main(int argc, char* argv[]) {
-  google::InitGoogleLogging(argv[0]);
-
-  ModelCheckingParams params;
+  /* Set default alpha. */
+  double alpha = 1e-2;
+  /* Set default beta. */
+  double beta = 1e-2;
+  /* Set default epsilon. */
+  double epsilon = 1e-6;
   /* Verification without estimation by default. */
   bool estimate = false;
   /* Set default engine. */
   enum { SAMPLING_ENGINE, HYBRID_ENGINE, MIXED_ENGINE } engine =
 							  SAMPLING_ENGINE;
+  /* Sampling algorithm. */
+  SamplingAlgorithm algorithm = SPRT;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */
   size_t seed = time(0);
   /* Set default number of trials. */
   size_t trials = 1;
+  /* Set default verbosity. */
+  verbosity = 0;
   /* Sever hostname */
   std::string hostname;
   /* Server port. */
@@ -540,18 +350,18 @@ int main(int argc, char* argv[]) {
       }
       switch (c) {
       case 'A':
-	params.alpha = atof(optarg);
-	if (params.alpha < 1e-10) {
+	alpha = atof(optarg);
+	if (alpha < 1e-10) {
 	  throw std::invalid_argument("alpha < 1e-10");
-	} else if (params.alpha >= 0.5) {
+	} else if (alpha >= 0.5) {
 	  throw std::invalid_argument("alpha >= 0.5");
 	}
 	break;
       case 'B':
-	params.beta = atof(optarg);
-	if (params.beta < 1e-10) {
+	beta = atof(optarg);
+	if (beta < 1e-10) {
 	  throw std::invalid_argument("beta < 1e-10");
-	} else if (params.beta >= 0.5) {
+	} else if (beta >= 0.5) {
 	  throw std::invalid_argument("beta >= 0.5");
 	}
 	break;
@@ -561,18 +371,28 @@ int main(int argc, char* argv[]) {
         }
         break;
       case 'D':
-	params.delta = atof(optarg);
-	if (params.delta < 1e-10) {
+	delta = atof(optarg);
+	relative_delta = false;
+	if (delta < 1e-10) {
 	  throw std::invalid_argument("delta < 1e-10");
-	} else if (params.delta > 0.5) {
+	} else if (delta > 0.5) {
+	  throw std::invalid_argument("delta > 0.5");
+	}
+	break;
+      case 'd':
+	delta = atof(optarg);
+	relative_delta = true;
+	if (delta < 1e-10) {
+	  throw std::invalid_argument("delta < 1e-10");
+	} else if (delta > 0.5) {
 	  throw std::invalid_argument("delta > 0.5");
 	}
 	break;
       case 'E':
-	params.epsilon = atof(optarg);
-	if (params.epsilon < 1e-10) {
+	epsilon = atof(optarg);
+	if (epsilon < 1e-10) {
 	  throw std::invalid_argument("epsilon < 1e-10");
-	} else if (params.epsilon > 1.0) {
+	} else if (epsilon > 1.0) {
 	  throw std::invalid_argument("epsilon > 1.0");
 	}
 	break;
@@ -592,10 +412,10 @@ int main(int argc, char* argv[]) {
 	hostname = optarg;
 	break;
       case 'L':
-        params.max_path_length = atoi(optarg);
+        max_path_length = atoi(optarg);
         break;
       case 'M':
-	params.memoization = true;
+	memoization = true;
 	break;
       case 'm':
 	moments = atoi(optarg);
@@ -606,15 +426,15 @@ int main(int argc, char* argv[]) {
 	}
 	break;
       case 'N':
-	params.algorithm = FIXED;
-        params.fixed_sample_size = atoi(optarg);
+	algorithm = FIXED;
+        fixed_sample_size = atoi(optarg);
 	break;
       case 'n':
-	params.nested_error = atof(optarg);
+	nested_error = atof(optarg);
 	break;
       case 'p':
 	estimate = true;
-	params.algorithm = ESTIMATE;
+	algorithm = ESTIMATE;
 	break;
       case 'P':
 	port = atoi(optarg);
@@ -623,10 +443,10 @@ int main(int argc, char* argv[]) {
 	}
 	break;
       case 's':
-	if (strcasecmp(optarg, "ssp") == 0) {
-	  params.algorithm = SSP;
+	if (strcasecmp(optarg, "sequential") == 0) {
+	  algorithm = SEQUENTIAL;
 	} else if (strcasecmp(optarg, "sprt") == 0) {
-	  params.algorithm = SPRT;
+	  algorithm = SPRT;
 	} else {
 	  throw std::invalid_argument("unsupported sampling algorithm `"
 				      + std::string(optarg) + "'");
@@ -637,6 +457,9 @@ int main(int argc, char* argv[]) {
 	break;
       case 'T':
 	trials = atoi(optarg);
+	break;
+      case 'v':
+	verbosity = (optarg != 0) ? atoi(optarg) : 1;
 	break;
       case 'V':
 	display_version();
@@ -650,9 +473,6 @@ int main(int argc, char* argv[]) {
 		  << std::endl;
 	return 1;
       }
-    }
-    if (params.nested_error > 0) {
-      CHECK_LT(params.nested_error, MaxNestedError(params.delta));
     }
 
     /*
@@ -671,7 +491,8 @@ int main(int argc, char* argv[]) {
       /*
        * No remaining command line argument, so read from standard input.
        */
-      if (!read_file("-")) {
+      yyin = stdin;
+      if (yyparse() != 0) {
 	return 1;
       }
     }
@@ -680,28 +501,8 @@ int main(int argc, char* argv[]) {
       std::cout << "no model" << std::endl;
       return 0;
     }
-    VLOG(2) << *global_model;
-    std::vector<std::string> errors;
-    const CompiledModel compiled_model = CompileModel(*global_model, &errors);
-    const std::map<std::string, IdentifierInfo> identifiers_by_name =
-        GetIdentifiersByName(compiled_model);
-    DecisionDiagramManager dd_man(2*compiled_model.BitCount());
-    std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
-    UniquePtrVector<const CompiledProperty> compiled_properties;
-    for (const Expression& property : properties) {
-      compiled_properties.push_back(CompileAndOptimizeProperty(
-          property, identifiers_by_name, dd_man, &errors));
-      auto property_reg_counts =
-          GetPropertyRegisterCounts(compiled_properties.back());
-      reg_counts.first = std::max(reg_counts.first, property_reg_counts.first);
-      reg_counts.second =
-          std::max(reg_counts.second, property_reg_counts.second);
-    }
-    if (!errors.empty()) {
-      for (const std::string& error : errors) {
-        std::cerr << PACKAGE << ": " << error << std::endl;
-      }
-      return 0;
+    if (verbosity > 1) {
+      std::cout << *global_model << std::endl;
     }
 
     std::cout.setf(std::ios::unitbuf);
@@ -732,27 +533,30 @@ int main(int argc, char* argv[]) {
 	  perror(PACKAGE);
 	  return 1;
 	} else if (nbytes == 0) {
-	  VLOG(1) << "Shutting down (server unavailable)";
+	  if (verbosity > 0) {
+	    std::cout << "Shutting down (server unavailable)" << std::endl;
+	  }
 	  return 0;
 	}
 	if (smsg.id != ServerMsg::REGISTER) {
 	  throw std::logic_error("expecting register message");
 	}
 	int client_id = smsg.value;
-        std::cout << "Client " << client_id << std::endl;
-        std::cout << "Initializing random number generator...";
-        DCEngine dc_engine(client_id, seed);
-        dc_engine.seed(seed);
-        std::cout << "done" << std::endl;
+	if (verbosity > 0) {
+	  std::cout << "Client " << client_id << std::endl;
+	  std::cout << "Initializing random number generator...";
+	}
+	Distribution::mts = get_mt_parameter_id(client_id);
+	init_genrand_id(seed, Distribution::mts);
+	if (verbosity > 0) {
+	  std::cout << "done" << std::endl;
+	}
 	fd_set master_fds;
 	FD_ZERO(&master_fds);
 	FD_SET(sockfd, &master_fds);
-        CompiledExpressionEvaluator evaluator(reg_counts.first,
-                                              reg_counts.second);
-        CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-	const State init_state(compiled_model);
-        const CompiledPathProperty* path_property = nullptr;
-        ModelCheckingParams nested_params = params;
+	const State init_state(*global_model);
+	const PathFormula* pf = 0;
+	double alphap = alpha, betap = beta;
 	timeval timeout;
 	timeval* to = 0;
 	while (true) {
@@ -766,19 +570,23 @@ int main(int argc, char* argv[]) {
 	    perror(PACKAGE);
 	    exit(-1);
 	  } else if (result == 0) {
-	    if (path_property) {
+	    if (pf != 0) {
 	      ClientMsg msg = { ClientMsg::SAMPLE };
-              ModelCheckingStats stats;
-              msg.value = GetObservation(*path_property, compiled_model,
-                                         nullptr, nested_params, &evaluator,
-                                         &sampler, init_state, &stats);
-              VLOG(2) << "Sending sample " << msg.value;
+	      msg.value = pf->sample(*global_model, init_state,
+				     indifference_region, alphap, betap,
+				     algorithm);
+	      if (verbosity > 1) {
+		std::cout << "Sending sample " << msg.value << std::endl;
+	      }
 	      nbytes = send(sockfd, &msg, sizeof msg, 0);
 	      if (nbytes == -1) {
 		perror(PACKAGE);
 		return 1;
 	      } else if (nbytes == 0) {
-		VLOG(1) << "Shutting down (server unavailable)";
+		if (verbosity > 0) {
+		  std::cout << "Shutting down (server unavailable)"
+			    << std::endl;
+		}
 		return 0;
 	      }
 	    }
@@ -788,27 +596,46 @@ int main(int argc, char* argv[]) {
 	      perror(PACKAGE);
 	      return 1;
 	    } else if (nbytes == 0) {
-	      VLOG(1) << "Shutting down (server unavailable)";
+	      if (verbosity > 0) {
+		std::cout << "Shutting down (server unavailable)" << std::endl;
+	      }
 	      return 0;
 	    }
 	    if (smsg.id == ServerMsg::START) {
-              path_property =
-                  ExtractPathProperty(compiled_properties[smsg.value]);
-              if (path_property == nullptr) {
-		std::cerr << PACKAGE << ": zero or multiple path formulae"
+	      double theta;
+	      if (!extract_path_formula(pf, theta, *properties[smsg.value])) {
+		std::cerr << PACKAGE << ": multiple path formulae"
 			  << std::endl;
 		return 1;
 	      }
-              // Since we currently do not support distributed sampling for
-              // properties with nested probabilistic operators, we can just
-              // set the nested error bounds to 0.
-              nested_params.alpha = 0;
-              nested_params.beta = 0;
+	      if (pf != 0) {
+		alphap = alpha;
+		betap = beta;
+		if (pf->probabilistic()) {
+		  double p0, p1;
+		  while (true) {
+		    p0 = std::min(1.0, (theta + delta)*(1.0 - betap));
+		    p1 = std::max(0.0, 1.0 - ((1.0 - (theta - delta))
+					      *(1.0 - alphap)));
+		    if (p1 < p0) {
+		      break;
+		    } else {
+		      alphap *= 0.5;
+		      betap *= 0.5;
+		    }
+		  }
+		}
+	      }
 	      to = &timeout;
-	      VLOG(1) << "Sampling started for property " << smsg.value;
+	      if (verbosity > 0) {
+		std::cout << "Sampling started for property "
+			  << smsg.value << std::endl;
+	      }
 	    } else if (smsg.id == ServerMsg::STOP) {
 	      to = 0;
-	      VLOG(1) << "Sampling stopped.";
+	      if (verbosity > 0) {
+		std::cout << "Sampling stopped." << std::endl;
+	      }
 	    } else {
 	      std::cerr << "Message with bad id (" << smsg.id << ") ignored."
 			<< std::endl;
@@ -837,16 +664,16 @@ int main(int argc, char* argv[]) {
 	  perror(PACKAGE);
 	  return 1;
 	}
-	VLOG(1) << "Server at port " << port;
+	if (verbosity > 0) {
+	  std::cout << "Server at port " << port << std::endl;
+	}
       }
     }
 
     if (engine == SAMPLING_ENGINE) {
-      DCEngine dc_engine;
-      dc_engine.seed(seed);
-      std::cout << "Sampling engine: alpha=" << params.alpha
-                << ", beta=" << params.beta << ", delta=" << params.delta
-                << ", seed=" << seed << std::endl;
+      init_genrand(seed);
+      std::cout << "Sampling engine: alpha=" << alpha << ", beta=" << beta
+		<< ", delta=" << delta << ", seed=" << seed << std::endl;
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -856,10 +683,7 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      CompiledExpressionEvaluator evaluator(reg_counts.first,
-                                            reg_counts.second);
-      CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(compiled_model);
+      const State init_state(*global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -869,18 +693,24 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      std::cout << "Variables: " << init_state.values().size() << std::endl;
-      std::cout << "Events:    " << global_model->commands().size()
-                << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
-	std::cout << std::endl << "Model checking " << *fi << " ..."
+      if (verbosity > 0) {
+	std::cout << "Variables: " << init_state.values().size() << std::endl;
+	std::cout << "Events:    " << global_model->commands().size()
 		  << std::endl;
-        current_property = fi - properties.begin();
-        const CompiledProperty& property =
-            compiled_properties[current_property];
-        size_t accepts = 0;
-        ModelCheckingStats stats;
-	for (size_t i = 0; i < trials; ++i) {
+      }
+      for (FormulaList::const_iterator fi = properties.begin();
+	   fi != properties.end(); fi++) {
+	std::cout << std::endl << "Model checking " << **fi << " ..."
+		  << std::endl;
+	current_property = fi - properties.begin();
+	size_t accepts = 0;
+	std::vector<double> times;
+	double total_time = 0.0;
+	total_samples = 0;
+	samples.clear();
+	total_path_lengths = 0.0;
+	double total_cached = 0.0;
+	for (size_t i = 0; i < trials; i++) {
 	  timeval start_time;
 	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
 	  itimerval stimer;
@@ -895,9 +725,11 @@ int main(int argc, char* argv[]) {
 	    getitimer(ITIMER_PROF, &stimer);
 #endif
 	  }
-          bool sol = Verify(property, compiled_model, nullptr, params,
-                            &evaluator, &sampler, init_state, &stats);
-          double t;
+	  bool sol = (*fi)->verify(*global_model, init_state,
+				   indifference_region, alpha, beta,
+				   algorithm);
+	  total_cached += (*fi)->clear_cache();
+	  double t;
 	  if (server_socket != -1) {
 	    timeval end_time;
 	    gettimeofday(&end_time, 0);
@@ -932,42 +764,43 @@ int main(int argc, char* argv[]) {
 	    if (sol) {
 	      accepts++;
 	    }
-            stats.time.AddObservation(t);
+	    total_time += t;
+	    times.push_back(t);
 	  }
 	}
 	if (trials > 1) {
-	  std::cout << "Model checking time mean: " << stats.time.mean()
+	  double time_avg = total_time/trials;
+	  double sample_avg = double(total_samples)/trials;
+	  double path_avg = total_path_lengths/total_samples;
+	  double time_var = 0.0;
+	  double sample_var = 0.0;
+	  for (size_t i = 0; i < trials; i++) {
+	    double diff = times[i] - time_avg;
+	    time_var += diff*diff;
+	    diff = samples[i] - sample_avg;
+	    sample_var += diff*diff;
+	  }
+	  time_var /= trials - 1;
+	  sample_var /= trials - 1;
+	  double cached_avg = total_cached/trials;
+	  std::cout << "Average model checking time: " << time_avg
 		    << " seconds" << std::endl
-                    << "Model checking time min: " << stats.time.min()
-                    << " seconds" << std::endl
-                    << "Model checking time max: " << stats.time.max()
-                    << " seconds" << std::endl
-		    << "Model checking time std.dev.: "
-                    << stats.time.sample_stddev() << std::endl
-		    << "Sample size mean: " << stats.sample_size.mean()
-                    << std::endl
-                    << "Sample size min: " << stats.sample_size.min()
-                    << std::endl
-                    << "Sample size max: " << stats.sample_size.max()
-                    << std::endl
-                    << "Sample size std.dev.: "
-                    << stats.sample_size.sample_stddev() << std::endl
-		    << "Path length mean: " << stats.path_length.mean()
-                    << std::endl
-		    << "Path length min: " << stats.path_length.min()
-                    << std::endl
-		    << "Path length max: " << stats.path_length.max()
-                    << std::endl
-                    << "Path length std.dev.: "
-                    << stats.path_length.sample_stddev() << std::endl
+		    << "Time standard deviation: " << sqrt(time_var)
+		    << std::endl
+		    << "Average number of samples: " << sample_avg << std::endl
+		    << "Samples standard deviation: " << sqrt(sample_var)
+		    << std::endl
+		    << "Average path lengths: " << path_avg << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl
-		    << "Average cached: " << stats.sample_cache_size.mean()
-                    << std::endl;
+		    << "Average cached: " << cached_avg << std::endl;
 	}
       }
     } else if (engine == HYBRID_ENGINE) {
-      std::cout << "Hybrid engine: epsilon=" << params.epsilon << std::endl;
+      std::cout << "Hybrid engine: epsilon=" << epsilon << std::endl;
+      DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
+				    CUDD_CACHE_SLOTS, 0);
+      Cudd_SetEpsilon(dd_man, 1e-15);
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -977,8 +810,7 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
-      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model);
+      global_model->cache_dds(dd_man, moments);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -988,26 +820,28 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      std::cout << "States:      "
-                << dd_model.reachable_states().MintermCount(
-                       dd_man.GetVariableCount() / 2) << std::endl
-                << "Transitions: "
-                << dd_model.rate_matrix().MintermCount(
-                       dd_man.GetVariableCount()) << std::endl;
-      std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
-                      dd_man.GetVariableCount(), 1);
-      std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
-                << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
-	std::cout << std::endl << "Model checking " << *fi << " ..."
+      if (verbosity > 0) {
+	std::cout << "States:      " << global_model->num_states(dd_man)
+		  << std::endl
+		  << "Transitions: " << global_model->num_transitions(dd_man)
 		  << std::endl;
-        current_property = fi - properties.begin();
-        const CompiledProperty& property =
-            compiled_properties[current_property];
-        double total_time = 0.0;
+	DdNode* ddR = global_model->rate_mtbdd(dd_man);
+	std::cout << "Rate matrix";
+	Cudd_PrintDebug(dd_man, ddR, Cudd_ReadSize(dd_man), 1);
+	Cudd_RecursiveDeref(dd_man, ddR);
+	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+		  << std::endl;
+      }
+      global_model->init_index(dd_man);
+      DdNode* init = global_model->init_bdd(dd_man);
+      for (FormulaList::const_iterator fi = properties.begin();
+	   fi != properties.end(); fi++) {
+	std::cout << std::endl << "Model checking " << **fi << " ..."
+		  << std::endl;
+	double total_time = 0.0;
 	bool accepted = false;
-	for (size_t i = 0; i < trials; ++i) {
+	int old_verbosity = verbosity;
+	for (size_t i = 0; i < trials; i++) {
 	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
 	  itimerval stimer;
 #ifdef PROFILING
@@ -1017,8 +851,11 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = Verify(property, dd_model, estimate, true, params.epsilon);
-	  BDD sol = ddf && dd_model.initial_state();
+	  DdNode* ddf = (*fi)->verify(dd_man, *global_model, epsilon,
+				      estimate);
+	  DdNode* sol = Cudd_bddAnd(dd_man, ddf, init);
+	  Cudd_Ref(sol);
+	  Cudd_RecursiveDeref(dd_man, ddf);
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1028,12 +865,17 @@ int main(int argc, char* argv[]) {
 	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
 	  double t = std::max(0.0, sec + usec*1e-6);
 	  total_time += t;
-	  accepted = (sol.get() != dd_man.GetConstant(false).get());
+	  accepted = (sol != Cudd_ReadLogicZero(dd_man));
+	  Cudd_RecursiveDeref(dd_man, sol);
 	  if (t > 1.0) {
 	    total_time *= trials;
 	    break;
 	  }
+	  if (trials > 1) {
+	    verbosity = 0;
+	  }
 	}
+	verbosity = old_verbosity;
 	std::cout << "Model checking completed in " << total_time/trials
 		  << " seconds." << std::endl;
 	if (accepted) {
@@ -1042,13 +884,21 @@ int main(int argc, char* argv[]) {
 	  std::cout << "Property is false in the initial state." << std::endl;
 	}
       }
+      Cudd_RecursiveDeref(dd_man, init);
+      global_model->uncache_dds(dd_man);
+      int unrel = Cudd_CheckZeroRef(dd_man);
+      if (unrel != 0) {
+	std::cerr << unrel << " unreleased DDs" << std::endl;
+      }
+      Cudd_Quit(dd_man);
     } else if (engine == MIXED_ENGINE) {
-      DCEngine dc_engine;
-      dc_engine.seed(seed);
-      std::cout << "Mixed engine: alpha=" << params.alpha
-                << ", beta=" << params.beta << ", delta=" << params.delta
-                << ", epsilon=" << params.epsilon << ", seed=" << seed
-                << std::endl;
+      init_genrand(seed);
+      std::cout << "Mixed engine: alpha=" << alpha << ", beta=" << beta
+		<< ", delta=" << delta << ", epsilon=" << epsilon
+		<< ", seed=" << seed << std::endl;
+      DdManager* dd_man = Cudd_Init(2*num_model_bits, 0, CUDD_UNIQUE_SLOTS,
+				    CUDD_CACHE_SLOTS, 0);
+      Cudd_SetEpsilon(dd_man, 1e-15);
       itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
       itimerval stimer;
 #ifdef PROFILING
@@ -1058,12 +908,8 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model);
-      CompiledExpressionEvaluator evaluator(reg_counts.first,
-                                            reg_counts.second);
-      CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
-      const State init_state(compiled_model);
+      global_model->cache_dds(dd_man, moments);
+      const State init_state(*global_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1073,29 +919,32 @@ int main(int argc, char* argv[]) {
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
       double t = std::max(0.0, sec + usec*1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
-      std::cout << "Variables: " << init_state.values().size() << std::endl;
-      std::cout << "Events:    " << global_model->commands().size()
-                << std::endl;
-      std::cout << "States:      "
-                << dd_model.reachable_states().MintermCount(
-                       dd_man.GetVariableCount() / 2) << std::endl
-                << "Transitions: "
-                << dd_model.rate_matrix().MintermCount(
-                       dd_man.GetVariableCount()) << std::endl;
-      std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
-                      dd_man.GetVariableCount(), 1);
-      std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
-                << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
-	std::cout << std::endl << "Model checking " << *fi << " ..."
+      if (verbosity > 0) {
+	std::cout << "Variables: " << init_state.values().size() << std::endl;
+	std::cout << "Events:    " << global_model->commands().size()
 		  << std::endl;
-        current_property = fi - properties.begin();
-        const CompiledProperty& property =
-            compiled_properties[current_property];
-        size_t accepts = 0;
-        ModelCheckingStats stats;
-	for (size_t i = 0; i < trials; ++i) {
+	std::cout << "States:      " << global_model->num_states(dd_man)
+		  << std::endl
+		  << "Transitions: " << global_model->num_transitions(dd_man)
+		  << std::endl;
+	DdNode* ddR = global_model->rate_mtbdd(dd_man);
+	std::cout << "Rate matrix";
+	Cudd_PrintDebug(dd_man, ddR, Cudd_ReadSize(dd_man), 1);
+	Cudd_RecursiveDeref(dd_man, ddR);
+	std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+		  << std::endl;
+      }
+      for (FormulaList::const_iterator fi = properties.begin();
+	   fi != properties.end(); fi++) {
+	std::cout << std::endl << "Model checking " << **fi << " ..."
+		  << std::endl;
+	size_t accepts = 0;
+	std::vector<double> times;
+	double total_time = 0.0;
+	total_samples = 0;
+	samples.clear();
+	total_path_lengths = 0.0;
+	for (size_t i = 0; i < trials; i++) {
 	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
 	  itimerval stimer;
 #ifdef PROFILING
@@ -1105,8 +954,10 @@ int main(int argc, char* argv[]) {
 	  setitimer(ITIMER_PROF, &timer, 0);
 	  getitimer(ITIMER_PROF, &stimer);
 #endif
-          bool sol = Verify(property, compiled_model, &dd_model, params,
-                            &evaluator, &sampler, init_state, &stats);
+	  bool sol = (*fi)->verify(dd_man, *global_model, init_state,
+				   indifference_region, alpha, beta, algorithm,
+				   epsilon);
+	  (*fi)->clear_cache();
 #ifdef PROFILING
 	  getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1129,40 +980,49 @@ int main(int argc, char* argv[]) {
 	    if (sol) {
 	      accepts++;
 	    }
-            stats.time.AddObservation(t);
+	    total_time += t;
+	    times.push_back(t);
 	  }
 	}
 	if (trials > 1) {
-	  std::cout << "Model checking time mean: " << stats.time.mean()
+	  double time_avg = total_time/trials;
+	  double sample_avg = double(total_samples)/trials;
+	  double path_avg = total_path_lengths/total_samples;
+	  double time_var = 0.0;
+	  double sample_var = 0.0;
+	  for (size_t i = 0; i < trials; i++) {
+	    double diff = times[i] - time_avg;
+	    time_var += diff*diff;
+	    diff = samples[i] - sample_avg;
+	    sample_var += diff*diff;
+	  }
+	  time_var /= trials - 1;
+	  sample_var /= trials - 1;
+	  std::cout << "Average model checking time: " << time_avg
 		    << " seconds" << std::endl
-                    << "Model checking time min: " << stats.time.min()
-                    << " seconds" << std::endl
-                    << "Model checking time max: " << stats.time.max()
-                    << " seconds" << std::endl
-		    << "Model checking time std.dev.: "
-                    << stats.time.sample_stddev() << std::endl
-		    << "Sample size mean: " << stats.sample_size.mean()
-                    << std::endl
-                    << "Sample size min: " << stats.sample_size.min()
-                    << std::endl
-                    << "Sample size max: " << stats.sample_size.max()
-                    << std::endl
-                    << "Sample size std.dev.: "
-                    << stats.sample_size.sample_stddev() << std::endl
-		    << "Path length mean: " << stats.path_length.mean()
-                    << std::endl
-		    << "Path length min: " << stats.path_length.min()
-                    << std::endl
-		    << "Path length max: " << stats.path_length.max()
-                    << std::endl
-                    << "Path length std.dev.: "
-                    << stats.path_length.sample_stddev() << std::endl
+		    << "Time standard deviation: " << sqrt(time_var)
+		    << std::endl
+		    << "Average number of samples: " << sample_avg << std::endl
+		    << "Samples standard deviation: " << sqrt(sample_var)
+		    << std::endl
+		    << "Average path lengths: " << path_avg << std::endl
 		    << accepts << " accepted, " << (trials - accepts)
 		    << " rejected" << std::endl;
 	}
       }
+      global_model->uncache_dds(dd_man);
+      int unrel = Cudd_CheckZeroRef(dd_man);
+      if (unrel != 0) {
+	std::cerr << unrel << " unreleased DDs" << std::endl;
+      }
+      Cudd_DebugCheck(dd_man);
+      Cudd_Quit(dd_man);
     }
     delete global_model;
+    for (FormulaList::const_iterator fi = properties.begin();
+	 fi != properties.end(); fi++) {
+      StateFormula::destructive_deref(*fi);
+    }
     properties.clear();
   } catch (const std::exception& e) {
     std::cerr << std::endl << PACKAGE ": " << e.what() << std::endl;
@@ -1170,6 +1030,9 @@ int main(int argc, char* argv[]) {
   } catch (...) {
     std::cerr << std::endl << PACKAGE ": fatal error" << std::endl;
     return 1;
+  }
+  if (Distribution::mts != 0) {
+    free_mt_struct(Distribution::mts);
   }
 
   return 0;

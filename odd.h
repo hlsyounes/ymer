@@ -19,11 +19,15 @@
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#ifndef ODD_H
+#define ODD_H
 
-#ifndef ODD_H_
-#define ODD_H_
+//------------------------------------------------------------------------------
 
-#include "src/ddutil.h"
+#include <cstdio>
+#include <cudd.h>
+
+// odd definitions
 
 struct ODDNode {
   DdNode *dd;
@@ -34,8 +38,13 @@ struct ODDNode {
   long toff;
 };
 
-ODDNode *build_odd(const DecisionDiagramManager &ddman, const ADD &dd);
-int get_num_odd_nodes();
-void free_odd(ODDNode *odd);
+// function prototypes
 
-#endif  // ODD_H_
+ODDNode *build_odd(DdManager *ddman, DdNode *dd, DdNode **vars, int num_vars);
+int get_num_odd_nodes();
+
+//------------------------------------------------------------------------------
+
+#endif
+
+//------------------------------------------------------------------------------
