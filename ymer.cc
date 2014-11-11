@@ -197,7 +197,7 @@ static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003--2005 Carnegie Mellon University"
 	    << std::endl
-            << "Copyright (C) 2011--2012 Google Inc" << std::endl
+            << "Copyright (C) 2011--2014 Google Inc" << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl

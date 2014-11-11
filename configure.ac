@@ -1,7 +1,7 @@
 ## Process this file with autoconf to produce a configure script.
 ##
 ## Copyright (C) 2003--2005 Carnegie Mellon University
-## Copyright (C) 2011--2012 Google Inc
+## Copyright (C) 2011--2014 Google Inc
 ##
 ## This file is part of Ymer.
 ##
@@ -20,7 +20,7 @@
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 AC_PREREQ(2.57)
-AC_INIT(Ymer, 3.0.5, hlsyounes@gmail.com)
+AC_INIT(Ymer, 3.0.5.1, hlsyounes@gmail.com)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(ymer.cc)
 AM_INIT_AUTOMAKE
