@@ -1,3 +1,7 @@
+Version 3.0.5.1 (Nov 10, 2014):
+
+* Back port fix for memory corruption bug in parser.
+
 Version 3.0.5 (Mar 8, 2012):
 
 * Minor tweaks to make code compile on Mac OS X 10.6 Snow Leopard with XCode.
