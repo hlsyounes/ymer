@@ -89,11 +89,12 @@ host_triplet = @host@
 # These are x86-specific, having to do with frame-pointers
 @ENABLE_FRAME_POINTERS_TRUE@@X86_64_TRUE@am__append_2 = -fno-omit-frame-pointer
 @ENABLE_FRAME_POINTERS_FALSE@@X86_64_TRUE@am__append_3 = -DNO_FRAME_POINTER
+@DISABLE_RTTI_TRUE@am__append_4 = -fno-rtti
 TESTS = logging_unittest$(EXEEXT) demangle_unittest$(EXEEXT) \
 	stacktrace_unittest$(EXEEXT) symbolize_unittest$(EXEEXT) \
 	stl_logging_unittest$(EXEEXT) utilities_unittest$(EXEEXT) \
 	$(am__EXEEXT_1)
-@HAVE_GMOCK_TRUE@am__append_4 = mock_log_test
+@HAVE_GMOCK_TRUE@am__append_5 = mock_log_test
 noinst_PROGRAMS = $(am__EXEEXT_2) $(am__EXEEXT_3)
 subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
@@ -663,6 +664,7 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
+MINGW_CFLAGS = @MINGW_CFLAGS@
 MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
@@ -696,6 +698,7 @@ ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
+ac_cv___attribute___noinline = @ac_cv___attribute___noinline@
 ac_cv___attribute___noreturn = @ac_cv___attribute___noreturn@
 ac_cv___attribute___printf_4_5 = @ac_cv___attribute___printf_4_5@
 ac_cv_cxx_using_operator = @ac_cv_cxx_using_operator@
@@ -765,7 +768,8 @@ ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I$(top_srcdir)/src
 
 # This is mostly based on configure options
-AM_CXXFLAGS = $(am__append_1) $(am__append_2) $(am__append_3)
+AM_CXXFLAGS = $(am__append_1) $(am__append_2) $(am__append_3) \
+	$(am__append_4)
 glogincludedir = $(includedir)/glog
 gloginclude_HEADERS = src/glog/log_severity.h
 nodist_gloginclude_HEADERS = src/glog/logging.h src/glog/raw_logging.h src/glog/vlog_is_on.h src/glog/stl_logging.h
@@ -778,7 +782,9 @@ lib_LTLIBRARIES = libglog.la
 # The libraries libglog depends on.
 COMMON_LIBS = $(PTHREAD_LIBS) $(GFLAGS_LIBS) $(UNWIND_LIBS)
 # Compile switches for our unittest.
-TEST_CFLAGS = $(GTEST_CFLAGS) $(GMOCK_CFLAGS) $(GFLAGS_CFLAGS) $(AM_CXXFLAGS)
+TEST_CFLAGS = $(GTEST_CFLAGS) $(GMOCK_CFLAGS) $(GFLAGS_CFLAGS) \
+              $(MINGW_CFLAGS) $(AM_CXXFLAGS)
+
 # Libraries for our unittest.
 TEST_LIBS = $(GTEST_LIBS) $(GMOCK_LIBS) $(GFLAGS_LIBS)
 TESTS_ENVIRONMENT = 
@@ -885,14 +891,17 @@ libglog_la_SOURCES = $(gloginclude_HEADERS) \
                        src/base/commandlineflags.h src/googletest.h
 
 nodist_libglog_la_SOURCES = $(nodist_gloginclude_HEADERS)
-libglog_la_CXXFLAGS = $(PTRHEAD_CFLAGS) $(GFLAGS_CFLAGS) $(AM_CXXFLAGS) -DNDEBUG
+libglog_la_CXXFLAGS = $(PTRHEAD_CFLAGS) $(GFLAGS_CFLAGS) $(MINGW_CFLAGS) \
+                      $(AM_CXXFLAGS) -DNDEBUG
+
 libglog_la_LDFLAGS = $(PTRHEAD_CFLAGS) $(GFLAGS_LDFLAGS)
 libglog_la_LIBADD = $(COMMON_LIBS)
 WINDOWS_PROJECTS = google-glog.sln vsprojects/libglog/libglog.vcproj \
 	vsprojects/logging_unittest/logging_unittest.vcproj \
 	vsprojects/libglog_static/libglog_static.vcproj \
 	vsprojects/logging_unittest_static/logging_unittest_static.vcproj
-EXTRA_DIST = packages/rpm.sh packages/rpm/rpm.spec packages/deb.sh packages/deb \
+EXTRA_DIST = packages/rpm.sh packages/rpm/rpm.spec \
+	packages/deb.sh packages/deb/* \
 	$(SCRIPTS) src/logging_unittest.err src/demangle_unittest.txt \
 	src/windows/config.h src/windows/port.h src/windows/port.cc \
 	src/windows/preprocess.sh \
