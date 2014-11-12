@@ -80,7 +80,9 @@ class SamplingVerifier
   virtual void DoVisitCompiledUntilProperty(
       const CompiledUntilProperty& path_property);
 
-  bool VerifyHelper(const CompiledProperty& property, const BDD* ddf);
+  template <typename OutputIterator>
+  bool VerifyHelper(const CompiledProperty& property, const BDD* ddf,
+                    bool default_result, OutputIterator* state_inserter);
   std::string StateToString(const State& state) const;
 
   bool result_;
@@ -488,6 +490,13 @@ void SamplingVerifier::DoVisitCompiledExpressionProperty(
                                               state_->values());
 }
 
+class StateLess {
+ public:
+  bool operator()(const State& lhs, const State& rhs) const {
+    return lhs.values() < rhs.values();
+  }
+};
+
 void SamplingVerifier::DoVisitCompiledUntilProperty(
     const CompiledUntilProperty& path_property) {
   const BDD* dd1 = nullptr;
@@ -512,7 +521,18 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   const double t_min = path_property.min_time();
   const double t_max = path_property.max_time();
   size_t path_length = 1;
-  bool result = false, done = false, output = false;
+  bool done = false, output = false;
+  std::set<State, StateLess> unique_pre_states;
+  auto pre_states_inserter =
+      inserter(unique_pre_states, unique_pre_states.begin());
+  auto* pre_states_inserter_ptr =
+      path_property.pre_property().is_probabilistic() ? &pre_states_inserter
+                                                      : nullptr;
+  std::vector<State> post_states;
+  auto post_states_inserter = back_inserter(post_states);
+  auto* post_states_inserter_ptr =
+      path_property.post_property().is_probabilistic() ? &post_states_inserter
+                                                       : nullptr;
   while (!done && path_length < params_.max_path_length) {
     if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
@@ -522,21 +542,25 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);
     if (t_min <= t) {
-      if (VerifyHelper(path_property.post_property(), dd2)) {
-        result = true;
+      if (VerifyHelper(path_property.post_property(), dd2, false,
+                       post_states_inserter_ptr)) {
+        result_ = true;
         done = true;
-      } else if (!VerifyHelper(path_property.pre_property(), dd1)) {
-        result = false;
+      } else if (!VerifyHelper(path_property.pre_property(), dd1, true,
+                               false ? pre_states_inserter_ptr : nullptr)) {
+        result_ = false;
         done = true;
       }
     } else {
-      if (!VerifyHelper(path_property.pre_property(), dd1)) {
-        result = false;
+      if (!VerifyHelper(path_property.pre_property(), dd1, true,
+                        t_min < next_t ? nullptr : pre_states_inserter_ptr)) {
+        result_ = false;
         done = true;
-      } else if (t_min < next_t
-                 && VerifyHelper(path_property.post_property(), dd2)) {
+      } else if (t_min < next_t &&
+                 VerifyHelper(path_property.post_property(), dd2, false,
+                              post_states_inserter_ptr)) {
         t = t_min;
-        result = true;
+        result_ = true;
         done = true;
         output = true;
       }
@@ -546,18 +570,97 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       curr_state = std::move(next_state);
       t = next_t;
       if (t_max < t) {
-	result = false;
+	result_ = false;
 	done = true;
 	output = true;
       }
       path_length++;
     }
   }
+  if (!unique_pre_states.empty() || !post_states.empty()) {
+    if (path_property.pre_property().is_probabilistic()) {
+      if (path_property.post_property().is_probabilistic()) {
+        // For each post state, verify post_property in that state, and verify
+        // pre_property in unique_pre_states and all prior post states, treating
+        // each verification as a conjunct.  Each such verification is treated
+        // as a disjunct.
+        if (!post_states.empty()) {
+          double beta = params_.beta / post_states.size();
+          std::swap(params_.beta, beta);
+          for (size_t i = 0; i < post_states.size(); ++i) {
+            result_ = true;
+            double alpha = params_.alpha / (unique_pre_states.size() + i + 1);
+            std::swap(params_.alpha, alpha);
+            for (const State& state : unique_pre_states) {
+              const State* curr_state_ptr = &state;
+              std::swap(state_, curr_state_ptr);
+              path_property.pre_property().Accept(this);
+              std::swap(state_, curr_state_ptr);
+              if (result_ == false) {
+                break;
+              }
+            }
+            for (size_t j = 0; result_ == true && j < i; ++j) {
+              const State* curr_state_ptr = &post_states[j];
+              std::swap(state_, curr_state_ptr);
+              path_property.pre_property().Accept(this);
+              std::swap(state_, curr_state_ptr);
+            }
+            if (result_ == true) {
+              const State* curr_state_ptr = &post_states[i];
+              std::swap(state_, curr_state_ptr);
+              path_property.post_property().Accept(this);
+              std::swap(state_, curr_state_ptr);
+            }
+            std::swap(params_.alpha, alpha);
+            if (result_ == true) {
+              break;
+            }
+          }
+          std::swap(params_.beta, beta);
+        }
+      } else {
+        // Just verify pre_property in unique_pre_states, treating each
+        // verification as a conjunct.
+        result_ = true;
+        double alpha = params_.alpha / unique_pre_states.size();
+        std::swap(params_.alpha, alpha);
+        for (const State& state : unique_pre_states) {
+          const State* curr_state_ptr = &state;
+          std::swap(state_, curr_state_ptr);
+          path_property.pre_property().Accept(this);
+          std::swap(state_, curr_state_ptr);
+          if (result_ == false) {
+            break;
+          }
+        }
+        std::swap(params_.alpha, alpha);
+      }
+    } else if (path_property.post_property().is_probabilistic()) {
+      // Just verify post_property in unique_post_states, treating each
+      // verification as a disjunct.
+      std::set<State, StateLess> unique_post_states(post_states.begin(),
+                                                    post_states.end());
+      result_ = false;
+      double beta = params_.beta / unique_post_states.size();
+      std::swap(params_.beta, beta);
+      for (const State& state : unique_post_states) {
+        const State* curr_state_ptr = &state;
+        std::swap(state_, curr_state_ptr);
+        path_property.pre_property().Accept(this);
+        std::swap(state_, curr_state_ptr);
+        if (result_ == true) {
+          break;
+        }
+      }
+      std::swap(params_.beta, beta);
+    }
+  }
   if (VLOG_IS_ON(3)) {
     if (output) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
     }
-    if (result) {
+    if (result_) {
       LOG(INFO) << ">>positive sample";
     } else {
       LOG(INFO) << ">>negative sample";
@@ -566,17 +669,21 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   if (probabilistic_level_ == 1) {
     stats_->path_length.AddObservation(path_length);
   }
-  result_ = result;
 }
 
-bool SamplingVerifier::VerifyHelper(
-    const CompiledProperty& property, const BDD* ddf) {
+template <typename OutputIterator>
+bool SamplingVerifier::VerifyHelper(const CompiledProperty& property,
+                                    const BDD* ddf, bool default_result,
+                                    OutputIterator* state_inserter) {
   if (dd_model_ != nullptr) {
     return ddf->ValueInState(state_->values(), model_->variables());
-  } else {
+  } else if (!property.is_probabilistic()) {
     property.Accept(this);
     return result_;
+  } else if (state_inserter != nullptr) {
+    **state_inserter = *state_;
   }
+  return default_result;
 }
 
 std::string SamplingVerifier::StateToString(const State& state) const {
