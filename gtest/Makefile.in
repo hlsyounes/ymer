@@ -84,10 +84,12 @@ build_triplet = @build@
 host_triplet = @host@
 TESTS = samples/sample1_unittest$(EXEEXT) \
 	samples/sample10_unittest$(EXEEXT) \
-	test/gtest_all_test$(EXEEXT) test/fused_gtest_test$(EXEEXT)
+	test/gtest_all_test$(EXEEXT) $(am__EXEEXT_1)
 check_PROGRAMS = samples/sample1_unittest$(EXEEXT) \
 	samples/sample10_unittest$(EXEEXT) \
-	test/gtest_all_test$(EXEEXT) test/fused_gtest_test$(EXEEXT)
+	test/gtest_all_test$(EXEEXT) $(am__EXEEXT_1)
+@HAVE_PYTHON_TRUE@am__append_1 = test/fused_gtest_test
+@HAVE_PYTHON_TRUE@am__append_2 = test/fused_gtest_test
 subdir = .
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
@@ -95,10 +97,10 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/scripts/gtest-config.in \
 	$(top_srcdir)/build-aux/depcomp $(pkginclude_HEADERS) \
 	$(pkginclude_internal_HEADERS) \
-	$(top_srcdir)/build-aux/test-driver COPYING README \
-	build-aux/compile build-aux/config.guess build-aux/config.sub \
-	build-aux/depcomp build-aux/install-sh build-aux/missing \
-	build-aux/ltmain.sh $(top_srcdir)/build-aux/compile \
+	$(top_srcdir)/build-aux/test-driver README build-aux/compile \
+	build-aux/config.guess build-aux/config.sub build-aux/depcomp \
+	build-aux/install-sh build-aux/missing build-aux/ltmain.sh \
+	$(top_srcdir)/build-aux/compile \
 	$(top_srcdir)/build-aux/config.guess \
 	$(top_srcdir)/build-aux/config.sub \
 	$(top_srcdir)/build-aux/install-sh \
@@ -163,6 +165,7 @@ samples_libsamples_la_LIBADD =
 am_samples_libsamples_la_OBJECTS = samples/sample1.lo \
 	samples/sample2.lo samples/sample4.lo
 samples_libsamples_la_OBJECTS = $(am_samples_libsamples_la_OBJECTS)
+@HAVE_PYTHON_TRUE@am__EXEEXT_1 = test/fused_gtest_test$(EXEEXT)
 am_samples_sample10_unittest_OBJECTS =  \
 	samples/sample10_unittest.$(OBJEXT)
 samples_sample10_unittest_OBJECTS =  \
@@ -174,12 +177,15 @@ samples_sample1_unittest_OBJECTS =  \
 	$(am_samples_sample1_unittest_OBJECTS)
 samples_sample1_unittest_DEPENDENCIES = lib/libgtest_main.la \
 	lib/libgtest.la samples/libsamples.la
+am__test_fused_gtest_test_SOURCES_DIST = fused-src/gtest/gtest-all.cc \
+	fused-src/gtest/gtest.h fused-src/gtest/gtest_main.cc \
+	samples/sample1.cc samples/sample1_unittest.cc
 am__objects_1 =  \
 	fused-src/gtest/test_fused_gtest_test-gtest-all.$(OBJEXT) \
 	fused-src/gtest/test_fused_gtest_test-gtest_main.$(OBJEXT)
-am_test_fused_gtest_test_OBJECTS = $(am__objects_1) \
-	samples/test_fused_gtest_test-sample1.$(OBJEXT) \
-	samples/test_fused_gtest_test-sample1_unittest.$(OBJEXT)
+@HAVE_PYTHON_TRUE@am_test_fused_gtest_test_OBJECTS = $(am__objects_1) \
+@HAVE_PYTHON_TRUE@	samples/test_fused_gtest_test-sample1.$(OBJEXT) \
+@HAVE_PYTHON_TRUE@	samples/test_fused_gtest_test-sample1_unittest.$(OBJEXT)
 test_fused_gtest_test_OBJECTS = $(am_test_fused_gtest_test_OBJECTS)
 test_fused_gtest_test_LDADD = $(LDADD)
 am_test_gtest_all_test_OBJECTS = test/gtest_all_test.$(OBJEXT)
@@ -249,7 +255,7 @@ DIST_SOURCES = $(lib_libgtest_la_SOURCES) \
 	$(samples_libsamples_la_SOURCES) \
 	$(samples_sample10_unittest_SOURCES) \
 	$(samples_sample1_unittest_SOURCES) \
-	$(test_fused_gtest_test_SOURCES) \
+	$(am__test_fused_gtest_test_SOURCES_DIST) \
 	$(test_gtest_all_test_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -615,7 +621,7 @@ ACLOCAL_AMFLAGS = -I m4
 # xcode sample files
 
 # C++Builder project files
-EXTRA_DIST = CHANGES CONTRIBUTORS \
+EXTRA_DIST = CHANGES CONTRIBUTORS LICENSE \
 	include/gtest/gtest-param-test.h.pump \
 	include/gtest/internal/gtest-param-util-generated.h.pump \
 	include/gtest/internal/gtest-tuple.h.pump \
@@ -633,10 +639,10 @@ EXTRA_DIST = CHANGES CONTRIBUTORS \
 	test/gtest-param-test2_test.cc test/gtest-param-test2_test.cc \
 	test/gtest-param-test_test.cc test/gtest-param-test_test.cc \
 	test/gtest-param-test_test.h test/gtest-port_test.cc \
-	test/gtest-printers_test.cc test/gtest-test-part_test.cc \
-	test/gtest-tuple_test.cc test/gtest-typed-test2_test.cc \
-	test/gtest-typed-test_test.cc test/gtest-typed-test_test.h \
-	test/gtest-unittest-api_test.cc \
+	test/gtest_premature_exit_test.cc test/gtest-printers_test.cc \
+	test/gtest-test-part_test.cc test/gtest-tuple_test.cc \
+	test/gtest-typed-test2_test.cc test/gtest-typed-test_test.cc \
+	test/gtest-typed-test_test.h test/gtest-unittest-api_test.cc \
 	test/gtest_break_on_failure_unittest_.cc \
 	test/gtest_catch_exceptions_test_.cc test/gtest_color_test_.cc \
 	test/gtest_env_var_test_.cc test/gtest_environment_test.cc \
@@ -781,10 +787,10 @@ FUSED_GTEST_SRC = \
   fused-src/gtest/gtest.h \
   fused-src/gtest/gtest_main.cc
 
-test_fused_gtest_test_SOURCES = $(FUSED_GTEST_SRC) \
-                                samples/sample1.cc samples/sample1_unittest.cc
+@HAVE_PYTHON_TRUE@test_fused_gtest_test_SOURCES = $(FUSED_GTEST_SRC) \
+@HAVE_PYTHON_TRUE@                                samples/sample1.cc samples/sample1_unittest.cc
 
-test_fused_gtest_test_CPPFLAGS = -I"$(srcdir)/fused-src"
+@HAVE_PYTHON_TRUE@test_fused_gtest_test_CPPFLAGS = -I"$(srcdir)/fused-src"
 
 # Death tests may produce core dumps in the build directory. In case
 # this happens, clean them to keep distcleancheck happy.
@@ -1613,6 +1619,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+@HAVE_PYTHON_FALSE@maintainer-clean-local:
 clean: clean-am
 
 clean-am: clean-checkPROGRAMS clean-generic clean-libLTLIBRARIES \
@@ -1721,22 +1728,22 @@ uninstall-am: uninstall-libLTLIBRARIES uninstall-m4dataDATA \
 # Build rules for putting fused Google Test files into the distribution
 # package. The user can also create those files by manually running
 # scripts/fuse_gtest_files.py.
-$(test_fused_gtest_test_SOURCES): fused-gtest
+@HAVE_PYTHON_TRUE@$(test_fused_gtest_test_SOURCES): fused-gtest
 
-fused-gtest: $(pkginclude_HEADERS) $(pkginclude_internal_HEADERS) \
-             $(GTEST_SRC) src/gtest-all.cc src/gtest_main.cc \
-             scripts/fuse_gtest_files.py
-	mkdir -p "$(srcdir)/fused-src"
-	chmod -R u+w "$(srcdir)/fused-src"
-	rm -f "$(srcdir)/fused-src/gtest/gtest-all.cc"
-	rm -f "$(srcdir)/fused-src/gtest/gtest.h"
-	"$(srcdir)/scripts/fuse_gtest_files.py" "$(srcdir)/fused-src"
-	cp -f "$(srcdir)/src/gtest_main.cc" "$(srcdir)/fused-src/gtest/"
+@HAVE_PYTHON_TRUE@fused-gtest: $(pkginclude_HEADERS) $(pkginclude_internal_HEADERS) \
+@HAVE_PYTHON_TRUE@             $(GTEST_SRC) src/gtest-all.cc src/gtest_main.cc \
+@HAVE_PYTHON_TRUE@             scripts/fuse_gtest_files.py
+@HAVE_PYTHON_TRUE@	mkdir -p "$(srcdir)/fused-src"
+@HAVE_PYTHON_TRUE@	chmod -R u+w "$(srcdir)/fused-src"
+@HAVE_PYTHON_TRUE@	rm -f "$(srcdir)/fused-src/gtest/gtest-all.cc"
+@HAVE_PYTHON_TRUE@	rm -f "$(srcdir)/fused-src/gtest/gtest.h"
+@HAVE_PYTHON_TRUE@	"$(srcdir)/scripts/fuse_gtest_files.py" "$(srcdir)/fused-src"
+@HAVE_PYTHON_TRUE@	cp -f "$(srcdir)/src/gtest_main.cc" "$(srcdir)/fused-src/gtest/"
 
-maintainer-clean-local:
-	rm -rf "$(srcdir)/fused-src"
+@HAVE_PYTHON_TRUE@maintainer-clean-local:
+@HAVE_PYTHON_TRUE@	rm -rf "$(srcdir)/fused-src"
 
-# Modified for Ymer: Make install a no-op.
+# Modified for Ymer: Make 'make install' a no-op.
 
 install-exec-local:
 
