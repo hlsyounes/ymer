@@ -215,11 +215,11 @@ WINDOWS_PROJECTS += vsprojects/logging_unittest_static/logging_unittest_static.v
 ## binaries that you compile but don't want automatically installed.
 noinst_PROGRAMS = $(TESTS) $(TEST_BINARIES)
 
-rpm: dist-gzip packages/rpm.sh packages/rpm/rpm.spec
-	@cd packages && ./rpm.sh ${PACKAGE} ${VERSION}
+# Modified for Ymer: Make 'make rpm' and 'make deb' no-ops.
 
-deb: dist-gzip packages/deb.sh packages/deb/*
-	@cd packages && ./deb.sh ${PACKAGE} ${VERSION}
+rpm:
+
+deb:
 
 # Windows wants write permission to .vcproj files and maybe even sln files.
 dist-hook:
@@ -229,9 +229,7 @@ dist-hook:
 libtool: $(LIBTOOL_DEPS)
 	$(SHELL) ./config.status --recheck
 
-EXTRA_DIST = packages/rpm.sh packages/rpm/rpm.spec \
-	packages/deb.sh packages/deb/* \
-	$(SCRIPTS) src/logging_unittest.err src/demangle_unittest.txt \
+EXTRA_DIST = $(SCRIPTS) src/logging_unittest.err src/demangle_unittest.txt \
 	src/windows/config.h src/windows/port.h src/windows/port.cc \
 	src/windows/preprocess.sh \
 	src/windows/glog/log_severity.h src/windows/glog/logging.h \

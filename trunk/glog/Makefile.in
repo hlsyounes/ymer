@@ -900,9 +900,7 @@ WINDOWS_PROJECTS = google-glog.sln vsprojects/libglog/libglog.vcproj \
 	vsprojects/logging_unittest/logging_unittest.vcproj \
 	vsprojects/libglog_static/libglog_static.vcproj \
 	vsprojects/logging_unittest_static/logging_unittest_static.vcproj
-EXTRA_DIST = packages/rpm.sh packages/rpm/rpm.spec \
-	packages/deb.sh packages/deb/* \
-	$(SCRIPTS) src/logging_unittest.err src/demangle_unittest.txt \
+EXTRA_DIST = $(SCRIPTS) src/logging_unittest.err src/demangle_unittest.txt \
 	src/windows/config.h src/windows/port.h src/windows/port.cc \
 	src/windows/preprocess.sh \
 	src/windows/glog/log_severity.h src/windows/glog/logging.h \
@@ -2051,11 +2049,11 @@ signalhandler_unittest_sh: signalhandler_unittest
 	$(builddir)/signalhandler_unittest  # force to create lt-signalhandler_unittest
 	$(top_srcdir)/src/signalhandler_unittest.sh
 
-rpm: dist-gzip packages/rpm.sh packages/rpm/rpm.spec
-	@cd packages && ./rpm.sh ${PACKAGE} ${VERSION}
+# Modified for Ymer: Make 'make rpm' and 'make deb' no-ops.
 
-deb: dist-gzip packages/deb.sh packages/deb/*
-	@cd packages && ./deb.sh ${PACKAGE} ${VERSION}
+rpm:
+
+deb:
 
 # Windows wants write permission to .vcproj files and maybe even sln files.
 dist-hook:

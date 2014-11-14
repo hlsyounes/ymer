@@ -86,14 +86,12 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 # Ymer libraries.
 #
 
-# String utility library.
-noinst_LTLIBRARIES += src/libstrutil.la
-src_libstrutil_la_SOURCES = src/strutil.h
+HEADER_FILES = src/strutil.h src/unique-ptr-vector.h
 
 # Statistics library.
 noinst_LTLIBRARIES += src/libstatistics.la
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
-src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la src/libstrutil.la
+src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
 
 # Decision diagram utility library.
 noinst_LTLIBRARIES += src/libddutil.la
@@ -110,22 +108,17 @@ noinst_LTLIBRARIES += src/libtyped-value.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libtyped_value_la_LIBADD = glog/libglog.la
 
-# Unique-ptr-vector library.
-noinst_LTLIBRARIES += src/libunique-ptr-vector.la
-src_libunique_ptr_vector_la_SOURCES = src/unique-ptr-vector.h
-
 # Expression library.
 noinst_LTLIBRARIES += src/libexpression.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
-src_libexpression_la_LIBADD = src/libtyped-value.la \
-    src/libunique-ptr-vector.la glog/libglog.la
+src_libexpression_la_LIBADD = src/libtyped-value.la glog/libglog.la
 
 # Compiled expression library.
 noinst_LTLIBRARIES += src/libcompiled-expression.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
 src_libcompiled_expression_la_LIBADD = src/libexpression.la \
-    src/libstrutil.la src/libtyped-value.la glog/libglog.la
+    src/libtyped-value.la glog/libglog.la
 
 # Compiled distribution library.
 noinst_LTLIBRARIES += src/libcompiled-distribution.la
@@ -146,16 +139,16 @@ noinst_LTLIBRARIES += src/libcompiled-property.la
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
-    src/libddutil.la src/libunique-ptr-vector.la glog/libglog.la
+    src/libddutil.la glog/libglog.la
 
 #
 # Ymer binaries.
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll
+ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h states.cc states.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
-    src/libstrutil.la src/libstatistics.la src/libddutil.la src/librng.la \
+    src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libcompiled-model.la \
     src/libcompiled-property.la
 
@@ -175,7 +168,7 @@ check_PROGRAMS =
 # Test for string utility library.
 check_PROGRAMS += src/strutil_test
 src_strutil_test_SOURCES = src/strutil_test.cc
-src_strutil_test_LDADD = src/libstrutil.la src/libtest-main.la
+src_strutil_test_LDADD = src/libtest-main.la
 
 # Test for statistics library.
 check_PROGRAMS += src/statistics_test
@@ -195,14 +188,12 @@ src_rng_test_LDADD = src/librng.la src/libtest-main.la
 # Test for typed-value library.
 check_PROGRAMS += src/typed-value_test
 src_typed_value_test_SOURCES = src/typed-value_test.cc
-src_typed_value_test_LDADD = src/libtyped-value.la src/libstrutil.la \
-    src/libtest-main.la
+src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 
 # Test for expression library.
 check_PROGRAMS += src/expression_test
 src_expression_test_SOURCES = src/expression_test.cc
-src_expression_test_LDADD = src/libexpression.la src/libstrutil.la \
-    src/libtest-main.la
+src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
 
 # Test for compiled expression library.
 check_PROGRAMS += src/compiled-expression_test
@@ -225,7 +216,7 @@ src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
 check_PROGRAMS += src/compiled-property_test
 src_compiled_property_test_SOURCES = src/compiled-property_test.cc
 src_compiled_property_test_LDADD = src/libcompiled-property.la \
-     src/libstrutil.la src/libtest-main.la
+     src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
 TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
