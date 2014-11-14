@@ -25,8 +25,8 @@
 #include <string>
 #include <vector>
 
-class DdManager;
-class DdNode;
+struct DdManager;
+struct DdNode;
 
 template <typename DD> class VariableArray;
 

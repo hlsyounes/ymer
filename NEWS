@@ -1,3 +1,50 @@
+Version 3.1 (Nov 14, 2014):
+
+* Expression and property compilation, resulting in 5-25% speedup on select
+  benchmarks.
+
+* More efficient representation of non-memoryless trigger times in a simulation
+  state.
+
+* Switched to fixed-width sequential confidence intervals for probability
+  estimation.
+
+* Changed name of single sampling plan algorithm to SSP from SEQUENTIAL.
+
+* Switched to simple heuristic for picking nested error bounds for probabilistic
+  properties.
+
+* Improved support for PRISM expressions, including function calls and
+  conditional expressions.
+
+* Fixed bug in error bounds for conjunction, disjunction, and nested
+  probabilistic properties.
+
+* Code now uses C++11 language features.
+
+
+Version 3.0.9 (Jun 2, 2012):
+
+* More efficient representation for variable assignments in a state.  Up to
+  36% speedup on polling benchmarks.
+
+
+Version 3.0.8 (May 4, 2012):
+
+* Fixed memory corruption bug in parser.
+
+* Fixed test breakage when using GCC 4.2.
+
+
+Version 3.0.7 (Apr 14, 2012):
+
+* Fixed bug in parsing of constant overrides introduced in version 3.0.6,
+  where all constant overrides would be given the value 1.  The actual speedup
+  over version 3.0.5, with the bug fixed, is 10-15% on benchmarks.
+
+* Fixed long-standing memory leak in hybrid engine.
+
+
 Version 3.0.6 (Apr 10, 2012):
 
 * Replaced Rational with TypedValue.  10-30% speedup on benchmarks.

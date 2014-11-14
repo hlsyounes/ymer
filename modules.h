@@ -30,7 +30,7 @@
 
 #include "src/expression.h"
 
-struct Distribution;
+class Distribution;
 
 
 /* ====================================================================== */
