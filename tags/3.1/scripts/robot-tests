@@ -1,0 +1,39 @@
+#! /usr/local/bin/bash
+
+ulimit -v `expr 700 '*' 1024`
+echo memory limit: `ulimit -v` kbytes
+
+if (test ! -e data) then
+    mkdir data
+fi
+
+trials=10
+
+function mixed-test {
+    dst=data/robot$n-$T-$t-mixed-$i-$d
+    echo $dst
+    if (test ! -e $dst) then
+	scripts/robot-property $T $t | ./ymer -v1  -e mixed -T $trials -S 0 -A 1e-$i -B 1e-$i -D 0.$d -E 1e-6 models/robot$n.sm /dev/stdin > $dst
+    fi
+}
+
+function hybrid-test {
+    if (test $n -lt 1000000) then
+	dst=data/robot$n-$T-$t-hybrid
+	echo $dst
+	if (test ! -e $dst) then
+	    scripts/robot-property $T $t | ./ymer -v1 -e hybrid -E 1e-6 models/robot$n.sm /dev/stdin > $dst
+	fi
+    fi
+}
+
+i=2
+d=005
+for T in 50 100 200; do
+    for t in 3 6 7 8 14; do
+	for n in 5 10 15 20 25 30 35 40 45 50; do
+	    mixed-test
+	    hybrid-test
+	done
+    done
+done
