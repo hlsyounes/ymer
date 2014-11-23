@@ -246,6 +246,10 @@ src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = src/rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
+src_libsimulator_la_DEPENDENCIES = src/libcompiled-expression.la \
+	src/libcompiled-model.la glog/libglog.la
+am_src_libsimulator_la_OBJECTS = src/simulator.lo
+src_libsimulator_la_OBJECTS = $(am_src_libsimulator_la_OBJECTS)
 src_libstatistics_la_DEPENDENCIES = glog/libglog.la gsl/libgsl.la
 am_src_libstatistics_la_OBJECTS = src/statistics.lo
 src_libstatistics_la_OBJECTS = $(am_src_libstatistics_la_OBJECTS)
@@ -392,8 +396,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libsimulator_la_SOURCES) \
+	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
@@ -411,8 +415,8 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libsimulator_la_SOURCES) \
+	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
@@ -863,13 +867,16 @@ SUBDIRS = glog gsl gtest
 
 # Compiled model library.
 
+# Simulator library.
+
 # Compiled property library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
 	src/libtyped-value.la src/libexpression.la \
 	src/libcompiled-expression.la src/libcompiled-distribution.la \
-	src/libcompiled-model.la src/libcompiled-property.la
+	src/libcompiled-model.la src/libsimulator.la \
+	src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -950,6 +957,10 @@ src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
 src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
+
+src_libsimulator_la_SOURCES = src/simulator.h src/simulator.cc
+src_libsimulator_la_LIBADD = src/libcompiled-expression.la \
+    src/libcompiled-model.la glog/libglog.la
 
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
@@ -1338,6 +1349,10 @@ src/rng.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
+src/simulator.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+
+src/libsimulator.la: $(src_libsimulator_la_OBJECTS) $(src_libsimulator_la_DEPENDENCIES) $(EXTRA_src_libsimulator_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(AM_V_CXXLD)$(CXXLINK)  $(src_libsimulator_la_OBJECTS) $(src_libsimulator_la_LIBADD) $(LIBS)
 src/statistics.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libstatistics.la: $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_DEPENDENCIES) $(EXTRA_src_libstatistics_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1604,6 +1619,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/strutil_test.Po@am__quote@

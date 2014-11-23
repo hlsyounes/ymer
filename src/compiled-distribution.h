@@ -77,6 +77,7 @@ class CompiledDistributionSampler {
                 const std::vector<int>& state);
 
   double StandardUniform();
+  double Exponential(double lambda);
 
  private:
   CompiledExpressionEvaluator* evaluator_;
@@ -96,9 +97,8 @@ double CompiledDistributionSampler<Engine>::Sample(
   double sample = 0.0;
   switch (dist.type()) {
     case DistributionType::MEMORYLESS: {
-      double lambda =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
-      sample = -log(1.0 - StandardUniform()) / lambda;
+      sample = Exponential(
+          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state));
       break;
     }
     case DistributionType::WEIBULL: {
@@ -145,6 +145,11 @@ double CompiledDistributionSampler<Engine>::Sample(
 template <typename Engine>
 double CompiledDistributionSampler<Engine>::StandardUniform() {
   return ::StandardUniform(*engine_);
+}
+
+template <typename Engine>
+double CompiledDistributionSampler<Engine>::Exponential(double lambda) {
+  return -log(1.0 - StandardUniform()) / lambda;
 }
 
 #endif  // COMPILED_DISTRIBUTION_H_

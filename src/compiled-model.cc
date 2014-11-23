@@ -42,6 +42,24 @@ CompiledCommand::CompiledCommand(const CompiledExpression& guard,
     : guard_(guard), outcomes_(outcomes) {
 }
 
+CompiledMarkovOutcome::CompiledMarkovOutcome(
+    const CompiledExpression& weight,
+    const std::vector<CompiledUpdate>& updates)
+    : weight_(weight), updates_(updates) {}
+
+CompiledMarkovCommand::CompiledMarkovCommand(
+    const CompiledExpression& guard,
+    const std::vector<CompiledMarkovOutcome>& outcomes)
+    : guard_(guard), outcomes_(outcomes) {}
+
+CompiledGsmpCommand::CompiledGsmpCommand(
+    const CompiledExpression& guard, const CompiledDistribution& delay,
+    const std::vector<CompiledUpdate>& updates, int first_index)
+    : guard_(guard),
+      delay_(delay),
+      updates_(updates),
+      first_index_(first_index) {}
+
 void CompiledModel::AddVariable(
     const std::string& name, int min_value, int max_value, int init_value) {
   const int bit_count = Log2(max_value - min_value) + 1;
