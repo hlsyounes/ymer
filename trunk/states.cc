@@ -21,22 +21,16 @@
 
 #include <limits>
 
-State::State(const CompiledModel& model)
-    : time_(0.0),
-      values_(model.init_values()),
-      trigger_times_(model.trigger_time_count(),
-                     std::numeric_limits<double>::infinity()) {}
-
 namespace {
 
 const int kNoTrigger = -1;
 
 }  // namespace
 
-State State::Next(const CompiledModel& model,
-                  CompiledExpressionEvaluator* evaluator,
-                  CompiledDistributionSampler<DCEngine>* sampler) const {
-  State next_state(*this);
+State Next(const CompiledModel& model, const State& state,
+           CompiledExpressionEvaluator* evaluator,
+           CompiledDistributionSampler<DCEngine>* sampler) {
+  State next_state(state);
   const int num_commands = model.commands().size();
   int trigger = kNoTrigger;
   double trigger_time = std::numeric_limits<double>::infinity();
@@ -44,16 +38,16 @@ State State::Next(const CompiledModel& model,
   for (int i = 0; i < num_commands; ++i) {
     const CompiledCommand& command = model.commands()[i];
     const CompiledOutcome& outcome = command.outcomes()[0];
-    if (evaluator->EvaluateIntExpression(command.guard(), values_)) {
+    if (evaluator->EvaluateIntExpression(command.guard(), state.values())) {
       double t;
       if (outcome.delay().type() != DistributionType::MEMORYLESS) {
-        t = trigger_times_[outcome.first_index()];
+        t = state.trigger_times()[outcome.first_index()];
         if (t == std::numeric_limits<double>::infinity()) {
-          t = sampler->Sample(outcome.delay(), values_) + time_;
-          next_state.trigger_times_[outcome.first_index()] = t;
+          t = sampler->Sample(outcome.delay(), state.values()) + state.time();
+          next_state.set_trigger_time(outcome.first_index(), t);
         }
       } else {
-        t = sampler->Sample(outcome.delay(), values_) + time_;
+        t = sampler->Sample(outcome.delay(), state.values()) + state.time();
       }
       if (trigger == kNoTrigger || t < trigger_time) {
         streak = 1;
@@ -66,21 +60,22 @@ State State::Next(const CompiledModel& model,
         }
       }
     } else if (outcome.delay().type() != DistributionType::MEMORYLESS) {
-      next_state.trigger_times_[outcome.first_index()] =
-          std::numeric_limits<double>::infinity();
+      next_state.set_trigger_time(outcome.first_index(),
+                                  std::numeric_limits<double>::infinity());
     }
   }
-  next_state.time_ = trigger_time;
+  next_state.set_time(trigger_time);
   if (trigger != kNoTrigger) {
     const CompiledCommand& trigger_command = model.commands()[trigger];
     const CompiledOutcome& trigger_outcome = trigger_command.outcomes()[0];
     for (const CompiledUpdate& update : trigger_outcome.updates()) {
-      next_state.values_[update.variable()] =
-          evaluator->EvaluateIntExpression(update.expr(), values_);
+      next_state.set_value(
+          update.variable(),
+          evaluator->EvaluateIntExpression(update.expr(), state.values()));
     }
     if (trigger_outcome.delay().type() != DistributionType::MEMORYLESS) {
-      next_state.trigger_times_[trigger_outcome.first_index()] =
-          std::numeric_limits<double>::infinity();
+      next_state.set_trigger_time(trigger_outcome.first_index(),
+                                  std::numeric_limits<double>::infinity());
     }
   }
   return next_state;

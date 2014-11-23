@@ -537,7 +537,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
     }
-    State next_state = curr_state.Next(*model_, evaluator_, sampler_);
+    State next_state = Next(*model_, curr_state, evaluator_, sampler_);
     double next_t = t + (next_state.time() - curr_state.time());
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);

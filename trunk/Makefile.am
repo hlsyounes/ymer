@@ -134,6 +134,12 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
 
+# Simulator library.
+noinst_LTLIBRARIES += src/libsimulator.la
+src_libsimulator_la_SOURCES = src/simulator.h src/simulator.cc
+src_libsimulator_la_LIBADD = src/libcompiled-expression.la \
+    src/libcompiled-model.la glog/libglog.la
+
 # Compiled property library.
 noinst_LTLIBRARIES += src/libcompiled-property.la
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \

@@ -53,7 +53,7 @@ class CompiledOutcome {
   // Constructs a compiled outcome with the given delay distribution and
   // updates.
   CompiledOutcome(const CompiledDistribution& delay,
-                  const std::vector<CompiledUpdate>& updates, int first_index_);
+                  const std::vector<CompiledUpdate>& updates, int first_index);
 
   // Returns the delay distribution for this outcome.
   const CompiledDistribution& delay() const { return delay_; }
@@ -91,6 +91,84 @@ class CompiledCommand {
   std::vector<CompiledOutcome> outcomes_;
 };
 
+// A compiled outcome for a Markov command.
+class CompiledMarkovOutcome {
+ public:
+  // Constructs a compiled outcome for a Markov command with the given weight
+  // and updates.
+  CompiledMarkovOutcome(const CompiledExpression& weight,
+                        const std::vector<CompiledUpdate>& updates);
+
+  // Returns the weight for this outcome.
+  const CompiledExpression& weight() const { return weight_; }
+
+  // Returns the updates for this outcome.
+  const std::vector<CompiledUpdate>& updates() const { return updates_; }
+
+ private:
+  CompiledExpression weight_;
+  std::vector<CompiledUpdate> updates_;
+};
+
+// A compiled Markov command.
+class CompiledMarkovCommand {
+ public:
+  // Constructs a compiled Markov command with the given guard and outcomes.
+  CompiledMarkovCommand(const CompiledExpression& guard,
+                        const std::vector<CompiledMarkovOutcome>& outcomes);
+
+  // Returns the guard for this command.
+  const CompiledExpression& guard() const { return guard_; }
+
+  // Returns the outcomes for this command.
+  const std::vector<CompiledMarkovOutcome>& outcomes() const {
+    return outcomes_;
+  }
+
+ private:
+  CompiledExpression guard_;
+  std::vector<CompiledMarkovOutcome> outcomes_;
+};
+
+// A compiled GSMP command.
+class CompiledGsmpCommand {
+ public:
+  // Constructs a compiled GSMP command with the given guard, delay
+  // distribution, and updates.
+  CompiledGsmpCommand(const CompiledExpression& guard,
+                      const CompiledDistribution& delay,
+                      const std::vector<CompiledUpdate>& updates,
+                      int first_index);
+
+  // Returns the guard for this command.
+  const CompiledExpression& guard() const { return guard_; }
+
+  // Returns the delay distribution for this command.
+  const CompiledDistribution& delay() const { return delay_; }
+
+  // Returns the updates for this command.
+  const std::vector<CompiledUpdate>& updates() const { return updates_; }
+
+  // Returns the first index for the range of composite outcomes rooted at this
+  // compiled GSMP command.  The index is used to access the stored trigger time
+  // of an enabled event during model simulation.
+  int first_index() const { return first_index_; }
+
+ private:
+  CompiledExpression guard_;
+  CompiledDistribution delay_;
+  std::vector<CompiledUpdate> updates_;
+  int first_index_;
+};
+
+struct FactoredGsmpCommands {
+  std::vector<CompiledGsmpCommand> gsmp_commands;
+  std::vector<int> offsets;
+};
+
+// Supported compiled model types.
+enum class CompiledModelType { DTMC, CTMC, GSMP };
+
 // A compiled model.
 class CompiledModel {
  public:
@@ -105,6 +183,9 @@ class CompiledModel {
   // time during model simulation.
   void SetTriggerTimeCount(int trigger_time_count);
 
+  // Returns the type of this compiled model.
+  CompiledModelType model_type() const { return model_type_; }
+
   // Returns the variables for this compiled model.
   const std::vector<StateVariableInfo>& variables() const { return variables_; }
 
@@ -113,6 +194,27 @@ class CompiledModel {
 
   // Returns the commands for this compiled model.
   const std::vector<CompiledCommand>& commands() const { return commands_; }
+
+  // Returns the single Markov commands for this compiled model.
+  const std::vector<CompiledMarkovCommand>& single_markov_commands() const {
+    return single_markov_commands_;
+  }
+
+  // Returns the factored Markov commands for this compiled model.
+  const std::vector<std::vector<std::vector<CompiledMarkovCommand>>>&
+  factored_markov_commands() const {
+    return factored_markov_commands_;
+  }
+
+  // Returns the single GSMP commands for this compiled model.
+  const std::vector<CompiledGsmpCommand>& single_gsmp_commands() const {
+    return single_gsmp_commands_;
+  }
+
+  // Returns the factored GSMP commands for this compiled model.
+  const std::vector<FactoredGsmpCommands>& factored_gsmp_commands() const {
+    return factored_gsmp_commands_;
+  }
 
   // Returns the total number of events for which we may need to store a trigger
   // time during model simulation.
@@ -127,9 +229,25 @@ class CompiledModel {
   int BitCount() const;
 
  private:
+  CompiledModelType model_type_;
   std::vector<StateVariableInfo> variables_;
   std::vector<int> init_values_;
   std::vector<CompiledCommand> commands_;
+  // The single (non-factored) commands with memoryless distributions.
+  std::vector<CompiledMarkovCommand> single_markov_commands_;
+  // For every action, and every module where the action occurs, the factored
+  // commands with memoryless distributions.
+  std::vector<std::vector<std::vector<CompiledMarkovCommand>>>
+      factored_markov_commands_;
+  // The single (non-factored) commands with general distributions.
+  std::vector<CompiledGsmpCommand> single_gsmp_commands_;
+  // For every action, the first component of factored commands with general
+  // distributions.  Empty if no action has general distributions, otherwise
+  // has the same number of elements as factored_markov_commands_ even if some
+  // actions do not have any general-distribution commands.  Should be composed
+  // with factored_markov_commands_, ignoring the first module, to get the
+  // composite commands.
+  std::vector<FactoredGsmpCommands> factored_gsmp_commands_;
   int trigger_time_count_;
 };
 

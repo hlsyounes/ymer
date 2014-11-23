@@ -24,30 +24,13 @@
 
 #include <vector>
 
-#include "src/compiled-model.h"
+#include "src/simulator.h"
 #include "src/expression.h"
 #include "src/rng.h"
 
-// A simulator state.
-class State {
- public:
-  // Constructs an initial state for the given model.
-  explicit State(const CompiledModel& model);
-
-  // Returns the current time of this state.
-  double time() const { return time_; }
-
-  // Returns the variable values for this state.
-  const std::vector<int>& values() const { return values_; }
-
-  // Returns a sampled successor of this state.
-  State Next(const CompiledModel& model, CompiledExpressionEvaluator* evaluator,
-             CompiledDistributionSampler<DCEngine>* sampler) const;
-
-private:
-  double time_;
-  std::vector<int> values_;
-  std::vector<double> trigger_times_;
-};
+// Returns a sampled successor of the given state.
+State Next(const CompiledModel& model, const State& state,
+           CompiledExpressionEvaluator* evaluator,
+           CompiledDistributionSampler<DCEngine>* sampler);
 
 #endif  // STATES_H_
