@@ -47,7 +47,7 @@ TEST(NextStateSamplerTest, NoEvents) {
   CompiledModel model(CompiledModelType::DTMC);
   model.AddVariable("a", 0, 42, 17);
   CompiledExpressionEvaluator evaluator(0, 0);
-  FakeEngine engine(0, 0xffffffff, {});
+  FakeEngine engine(0, 0, {});
   CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -68,7 +68,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventDtmc) {
            MakeGuard(0, 18),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 19)})})});
   CompiledExpressionEvaluator evaluator(2, 1);
-  FakeEngine engine(0, 0xffffffff, {0, 0});
+  FakeEngine engine(0, 0, {0, 0});
   CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
