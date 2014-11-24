@@ -86,7 +86,7 @@ check_PROGRAMS = src/strutil_test$(EXEEXT) \
 	src/expression_test$(EXEEXT) \
 	src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
-	src/compiled-model_test$(EXEEXT) \
+	src/compiled-model_test$(EXEEXT) src/simulator_test$(EXEEXT) \
 	src/compiled-property_test$(EXEEXT)
 subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
@@ -246,10 +246,6 @@ src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = src/rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
-src_libsimulator_la_DEPENDENCIES = src/libcompiled-expression.la \
-	src/libcompiled-model.la glog/libglog.la
-am_src_libsimulator_la_OBJECTS = src/simulator.lo
-src_libsimulator_la_OBJECTS = $(am_src_libsimulator_la_OBJECTS)
 src_libstatistics_la_DEPENDENCIES = glog/libglog.la gsl/libgsl.la
 am_src_libstatistics_la_OBJECTS = src/statistics.lo
 src_libstatistics_la_OBJECTS = $(am_src_libstatistics_la_OBJECTS)
@@ -297,6 +293,11 @@ src_expression_test_DEPENDENCIES = src/libexpression.la \
 am_src_rng_test_OBJECTS = src/rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
+am_src_simulator_test_OBJECTS = src/simulator_test.$(OBJEXT)
+src_simulator_test_OBJECTS = $(am_src_simulator_test_OBJECTS)
+src_simulator_test_DEPENDENCIES = src/libcompiled-distribution.la \
+	src/libcompiled-expression.la src/libcompiled-model.la \
+	src/libtest-main.la
 am_src_statistics_test_OBJECTS = src/statistics_test.$(OBJEXT)
 src_statistics_test_OBJECTS = $(am_src_statistics_test_OBJECTS)
 src_statistics_test_DEPENDENCIES = src/libstatistics.la \
@@ -396,17 +397,17 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libsimulator_la_SOURCES) \
-	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_statistics_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
@@ -415,17 +416,17 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libsimulator_la_SOURCES) \
-	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
+	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
+	$(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_statistics_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -867,16 +868,13 @@ SUBDIRS = glog gsl gtest
 
 # Compiled model library.
 
-# Simulator library.
-
 # Compiled property library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
 	src/libtyped-value.la src/libexpression.la \
 	src/libcompiled-expression.la src/libcompiled-distribution.la \
-	src/libcompiled-model.la src/libsimulator.la \
-	src/libcompiled-property.la
+	src/libcompiled-model.la src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -958,10 +956,6 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
 
-src_libsimulator_la_SOURCES = src/simulator.h src/simulator.cc
-src_libsimulator_la_LIBADD = src/libcompiled-expression.la \
-    src/libcompiled-model.la glog/libglog.la
-
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 
@@ -1005,6 +999,10 @@ src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
 
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
+src_simulator_test_SOURCES = src/simulator_test.cc
+src_simulator_test_LDADD = src/libcompiled-distribution.la \
+    src/libcompiled-expression.la src/libcompiled-model.la src/libtest-main.la
+
 src_compiled_property_test_SOURCES = src/compiled-property_test.cc
 src_compiled_property_test_LDADD = src/libcompiled-property.la \
      src/libtest-main.la
@@ -1349,10 +1347,6 @@ src/rng.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
-src/simulator.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-
-src/libsimulator.la: $(src_libsimulator_la_OBJECTS) $(src_libsimulator_la_DEPENDENCIES) $(EXTRA_src_libsimulator_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(AM_V_CXXLD)$(CXXLINK)  $(src_libsimulator_la_OBJECTS) $(src_libsimulator_la_LIBADD) $(LIBS)
 src/statistics.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libstatistics.la: $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_DEPENDENCIES) $(EXTRA_src_libstatistics_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1465,6 +1459,12 @@ src/rng_test.$(OBJEXT): src/$(am__dirstamp) \
 src/rng_test$(EXEEXT): $(src_rng_test_OBJECTS) $(src_rng_test_DEPENDENCIES) $(EXTRA_src_rng_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/rng_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_rng_test_OBJECTS) $(src_rng_test_LDADD) $(LIBS)
+src/simulator_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/simulator_test$(EXEEXT): $(src_simulator_test_OBJECTS) $(src_simulator_test_DEPENDENCIES) $(EXTRA_src_simulator_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/simulator_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_simulator_test_OBJECTS) $(src_simulator_test_LDADD) $(LIBS)
 src/statistics_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1619,7 +1619,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/strutil_test.Po@am__quote@
@@ -2590,6 +2590,13 @@ src/compiled-distribution_test.log: src/compiled-distribution_test$(EXEEXT)
 src/compiled-model_test.log: src/compiled-model_test$(EXEEXT)
 	@p='src/compiled-model_test$(EXEEXT)'; \
 	b='src/compiled-model_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/simulator_test.log: src/simulator_test$(EXEEXT)
+	@p='src/simulator_test$(EXEEXT)'; \
+	b='src/simulator_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

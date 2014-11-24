@@ -421,7 +421,7 @@ std::map<std::string, IdentifierInfo> GetIdentifiersByName(
 
 CompiledModel CompileModel(const Model& model,
                            std::vector<std::string>* errors) {
-  CompiledModel compiled_model;
+  CompiledModel compiled_model(CompiledModelType::CTMC);
 
   for (const ParsedVariable& v : model.variables()) {
     compiled_model.AddVariable(

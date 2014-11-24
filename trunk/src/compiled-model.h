@@ -172,12 +172,21 @@ enum class CompiledModelType { DTMC, CTMC, GSMP };
 // A compiled model.
 class CompiledModel {
  public:
+  // Constructs an empty compiled model.
+  explicit CompiledModel(CompiledModelType model_type);
+
   // Adds a variable to this compiled model.
   void AddVariable(const std::string& name, int min_value, int max_value,
                    int init_value);
 
   // Adds a command to this compiled model.
   void AddCommand(const CompiledCommand& command);
+
+  // Sets the single (non-factored) Markov commands for this compiled model.
+  void set_single_markov_commands(
+      const std::vector<CompiledMarkovCommand>& single_markov_commands) {
+    single_markov_commands_ = single_markov_commands;
+  }
 
   // Sets the total number of events for which we may need to store a trigger
   // time during model simulation.
