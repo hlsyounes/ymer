@@ -32,6 +32,10 @@ class FakeEngine {
       : min_(min), max_(max), values_(values), last_value_(-1) {
   }
 
+  ~FakeEngine() {
+    CHECK_EQ(last_value_ + 1, values_.size());
+  }
+
   result_type min() { return min_; }
   result_type max() { return max_; }
 
@@ -44,7 +48,7 @@ class FakeEngine {
   result_type min_;
   result_type max_;
   std::vector<result_type> values_;
-  int last_value_;
+  std::vector<result_type>::size_type last_value_;
 };
 
 #endif  // FAKE_RNG_H_
