@@ -22,31 +22,11 @@
 #include <cmath>
 #include <vector>
 
+#include "fake_rng.h"
+
 #include "gtest/gtest.h"
 
 namespace {
-
-class FakeEngine {
- public:
-  typedef uint32_t result_type;
-
-  FakeEngine(result_type min, result_type max, std::vector<result_type> values)
-      : min_(min), max_(max), values_(values), last_value_(-1) {
-  }
-
-  result_type min() { return min_; }
-  result_type max() { return max_; }
-
-  result_type operator()() {
-    return values_[++last_value_];
-  }
-
- private:
-  result_type min_;
-  result_type max_;
-  std::vector<result_type> values_;
-  int last_value_;
-};
 
 TEST(StandardUniform, UInt32) {
   FakeEngine engine(0, 0xffffffff, { 0, 1, 2, 0xffffffff });

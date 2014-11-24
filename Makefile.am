@@ -134,12 +134,6 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
 
-# Simulator library.
-noinst_LTLIBRARIES += src/libsimulator.la
-src_libsimulator_la_SOURCES = src/simulator.h src/simulator.cc
-src_libsimulator_la_LIBADD = src/libcompiled-expression.la \
-    src/libcompiled-model.la glog/libglog.la
-
 # Compiled property library.
 noinst_LTLIBRARIES += src/libcompiled-property.la
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
@@ -217,6 +211,12 @@ src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
 check_PROGRAMS += src/compiled-model_test
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
+
+# Test for simulator library.
+check_PROGRAMS += src/simulator_test
+src_simulator_test_SOURCES = src/simulator_test.cc
+src_simulator_test_LDADD = src/libcompiled-distribution.la \
+    src/libcompiled-expression.la src/libcompiled-model.la src/libtest-main.la
 
 # Test for compiled property library.
 check_PROGRAMS += src/compiled-property_test

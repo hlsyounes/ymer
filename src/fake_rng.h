@@ -16,23 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+//
+// A fake random number engine, useful for testing.
 
-#include "compiled-model.h"
+#ifndef FAKE_RNG_H_
+#define FAKE_RNG_H_
 
-#include "gtest/gtest.h"
+#include "glog/logging.h"
 
-namespace {
+class FakeEngine {
+ public:
+  typedef uint32_t result_type;
 
-TEST(CompiledModelTest, BitCount) {
-  CompiledModel m1(CompiledModelType::CTMC);
-  m1.AddVariable("foo", 0, 1, 0);
-  EXPECT_EQ(1, m1.BitCount());
+  FakeEngine(result_type min, result_type max, std::vector<result_type> values)
+      : min_(min), max_(max), values_(values), last_value_(-1) {
+  }
 
-  CompiledModel m2(CompiledModelType::CTMC);
-  m2.AddVariable("foo", 0, 1, 0);
-  m2.AddVariable("bar", 1, 3, 1);
-  m2.AddVariable("baz", 8, 15, 8);
-  EXPECT_EQ(6, m2.BitCount());
-}
+  result_type min() { return min_; }
+  result_type max() { return max_; }
 
-}  // namespace
+  result_type operator()() {
+    CHECK_LT(last_value_ + 1, values_.size());
+    return values_[++last_value_];
+  }
+
+ private:
+  result_type min_;
+  result_type max_;
+  std::vector<result_type> values_;
+  int last_value_;
+};
+
+#endif  // FAKE_RNG_H_
