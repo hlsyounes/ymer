@@ -188,6 +188,13 @@ class CompiledModel {
     single_markov_commands_ = single_markov_commands;
   }
 
+  // Sets the factored Markov commands for this compiled model.
+  void set_factored_markov_commands(
+      const std::vector<std::vector<std::vector<CompiledMarkovCommand>>>&
+          factored_markov_commands) {
+    factored_markov_commands_ = factored_markov_commands;
+  }
+
   // Sets the total number of events for which we may need to store a trigger
   // time during model simulation.
   void SetTriggerTimeCount(int trigger_time_count);
