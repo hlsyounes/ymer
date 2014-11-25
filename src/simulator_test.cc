@@ -192,20 +192,20 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
   //
   //   choice 1: log(1 - 4/8) / 2 = -0.347
   //   choice 2: log(1 - 4/8) / 3 = -0.231  [winner]
-  //   time: -log(1 - 2/8) / 3
+  //   time: -log(1 - 2/8) / (2 + 3)
   //
   // 4 random numbers for the 2nd state transition:
   //
   //   choice 1: log(1 - 4/8) / 2 = -0.347
   //   choice 2: log(1 - 6/8) / 3 = -0.462
   //   choice 3: log(1 - 1/8) / 1 = -0.134  [winner]
-  //   time: -log(1 - 6/8) / 1
+  //   time: -log(1 - 6/8) / (2 + 3 + 1)
   //
   // 3 random numbers for the 3rd state transition:
   //
   //   choice 1: log(1 - 4/8) / 2 = -0.347  [winner]
   //   choice 2: log(1 - 6/8) / 3 = -0.462
-  //   time: -log(1 - 4/8) / 2
+  //   time: -log(1 - 4/8) / (2 + 3)
   //
   FakeEngine engine(0, 7, {4, 4, 2, 4, 6, 1, 6, 4, 6, 4});
   CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
@@ -213,15 +213,15 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
   State state(model);
   State next_state(model);
   simulator.NextState(state, &next_state);
-  EXPECT_EQ(-log(0.75) / 3.0, next_state.time());
+  EXPECT_EQ(-log(0.75) / 5.0, next_state.time());
   EXPECT_EQ(std::vector<int>({18}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
-  EXPECT_EQ(state.time() - log(0.25) / 1.0, next_state.time());
+  EXPECT_EQ(state.time() - log(0.25) / 6.0, next_state.time());
   EXPECT_EQ(std::vector<int>({17}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
-  EXPECT_EQ(state.time() - log(0.5) / 2.0, next_state.time());
+  EXPECT_EQ(state.time() - log(0.5) / 5.0, next_state.time());
   EXPECT_EQ(std::vector<int>({16}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
@@ -362,7 +362,8 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   //   outcome choice 1: log(1 - 3/8) / 1    = -0.470  [winner]
   //   outcome choice 2: log(1 - 6/8) / 2.75 = -0.504
   //   outcome choice 3: log(1 - 1/8) / 0.25 = -0.534
-  //   time: log(1 - 7/8) / 1
+  //   time: log(1 - 7/8) / ((2 + 3) + 1 * (1 + 2.75 + 0.25) +
+  //                         (0.75 + 1.25) * 2 + (0.75 + 1.25) * (1.25 + 1.75))
   //
   // 6 random numbers for the 2nd state transition:
   //
@@ -371,14 +372,15 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   //   command choice 3: log(1 - 4/8) / 4.5 = -0.154  [winner]
   //   outcome choice 1: log(1 - 7/8) / 1.25 = -1.66
   //   outcome choice 2: log(1 - 7/8) / 1.75 = -1.19  [winner]
-  //   time: log(1 - 5/8) / 2.625
+  //   time: log(1 - 5/8) / ((0.75 + 1.25) * (1.25 + 1.75) +
+  //                         1 * (1.25 + 1.75) + 1.5 * (1.25 + 1.75))
   //
   // 4 random number for the 3rd state transition:
   //
   //   command choice 1: log(1 - 0/8) / 6 = 0  [winner]
   //   outcome choice 1: log(1 - 4/8) / 2 = -0.347  [winner]
   //   outcome choice 2: log(1 - 6/8) / 3 = -0.462
-  //   time: log(1 - 3/8) / 2
+  //   time: log(1 - 3/8) / (2 + 3)
   //
   FakeEngine engine(0, 7,
                     {2, 1, 2, 2, 3, 6, 1, 7, 5, 3, 4, 7, 7, 5, 0, 4, 6, 3});
@@ -387,15 +389,15 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   State state(model);
   State next_state(model);
   simulator.NextState(state, &next_state);
-  EXPECT_EQ(-log(0.125) / 1.0, next_state.time());
+  EXPECT_EQ(-log(0.125) / 19.0, next_state.time());
   EXPECT_EQ(std::vector<int>({19, 3}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
-  EXPECT_EQ(state.time() - log(0.375) / 2.625, next_state.time());
+  EXPECT_EQ(state.time() - log(0.375) / 13.5, next_state.time());
   EXPECT_EQ(std::vector<int>({17, 4}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
-  EXPECT_EQ(state.time() - log(0.625) / 2.0, next_state.time());
+  EXPECT_EQ(state.time() - log(0.625) / 5.0, next_state.time());
   EXPECT_EQ(std::vector<int>({16, 4}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);

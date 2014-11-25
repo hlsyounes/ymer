@@ -126,9 +126,9 @@ class NextStateSampler {
   std::vector<const CompiledMarkovCommand*> selected_markov_commands_;
   double selected_markov_commands_key_;
   int markov_ties_;
+  double markov_weight_sum_;
   std::vector<const CompiledMarkovOutcome*> candidate_markov_outcomes_;
   std::vector<const CompiledMarkovOutcome*> selected_markov_outcomes_;
-  std::vector<double> selected_markov_outcome_weights_;
   const CompiledGsmpCommand* candidate_gsmp_command_;
   const CompiledGsmpCommand* selected_gsmp_command_;
   int selected_gsmp_index_;
@@ -147,6 +147,7 @@ void NextStateSampler<Engine>::NextState(const State& state,
   selected_markov_commands_.clear();
   selected_markov_commands_key_ = -std::numeric_limits<double>::infinity();
   markov_ties_ = 1;
+  markov_weight_sum_ = 0.0;
   selected_markov_outcomes_.clear();
   SampleMarkovCommands(state);
   next_state->set_time(std::numeric_limits<double>::infinity());
@@ -208,11 +209,7 @@ double NextStateSampler<Engine>::SampleMarkovTriggerTime() const {
       return 1;
     case CompiledModelType::CTMC:
     case CompiledModelType::GSMP: {
-      double weight_product = 1.0;
-      for (const auto& weight : selected_markov_outcome_weights_) {
-        weight_product *= weight;
-      }
-      return sampler_->Exponential(weight_product);
+      return sampler_->Exponential(markov_weight_sum_);
     }
   }
   LOG(FATAL) << "bad model type";
@@ -266,20 +263,17 @@ void NextStateSampler<Engine>::ConsiderCandidateMarkovCommands(double weight) {
       selected_markov_commands_ = candidate_markov_commands_;
     }
   }
+  markov_weight_sum_ += weight;
 }
 
 template <typename Engine>
 void NextStateSampler<Engine>::SampleMarkovOutcomes(const State& state) {
   selected_markov_outcomes_.resize(selected_markov_commands_.size());
-  selected_markov_outcome_weights_.resize(selected_markov_commands_.size());
   for (size_t i = 0; i < selected_markov_commands_.size(); ++i) {
     const auto& command = *selected_markov_commands_[i];
     if (command.outcomes().size() == 1) {
       const auto& outcome = command.outcomes()[0];
       selected_markov_outcomes_[i] = &outcome;
-      selected_markov_outcome_weights_[i] =
-          evaluator_->EvaluateDoubleExpression(outcome.weight(),
-                                               state.values());
     } else {
       double selected_key = -std::numeric_limits<double>::infinity();
       int ties = 1;
@@ -287,20 +281,15 @@ void NextStateSampler<Engine>::SampleMarkovOutcomes(const State& state) {
         const double weight = evaluator_->EvaluateDoubleExpression(
             outcome.weight(), state.values());
         const double key = log(1.0 - sampler_->StandardUniform()) / weight;
-        bool selected = false;
         if (key > selected_key) {
           ties = 1;
           selected_key = key;
-          selected = true;
+          selected_markov_outcomes_[i] = &outcome;
         } else if (key == selected_key) {
           ++ties;
           if (sampler_->StandardUniform() * ties < 1.0) {
-            selected = true;
+            selected_markov_outcomes_[i] = &outcome;
           }
-        }
-        if (selected) {
-          selected_markov_outcomes_[i] = &outcome;
-          selected_markov_outcome_weights_[i] = weight;
         }
       }
     }
