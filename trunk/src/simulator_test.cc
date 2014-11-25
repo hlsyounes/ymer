@@ -103,7 +103,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventCtmc) {
            MakeGuard(0, 18, 18),
            {CompiledMarkovOutcome(MakeWeight(3.0), {MakeUpdate(0, 1)})})});
   CompiledExpressionEvaluator evaluator(2, 1);
-  // One random number consumed per state transition.  No choice.
+  // Two random numbers consumed per state transition.  No choice.
   FakeEngine engine(0, 3, {0, 1, 0, 2});
   CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
@@ -356,10 +356,10 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   // 8 random numbers for the 1st state transition:
   //
   //   command choice 1: log(1 - 2/8) / 5 = -0.0575
-  //   command choice 2: log(1 - 1/8) / 4 = -0.0334 [winner]
+  //   command choice 2: log(1 - 1/8) / 4 = -0.0334  [winner]
   //   command choice 3: log(1 - 2/8) / 4 = -0.0719
   //   command choice 4: log(1 - 2/8) / 6 = -0.0479
-  //   outcome choice 1: log(1 - 3/8) / 1    = -0.470 [winner]
+  //   outcome choice 1: log(1 - 3/8) / 1    = -0.470  [winner]
   //   outcome choice 2: log(1 - 6/8) / 2.75 = -0.504
   //   outcome choice 3: log(1 - 1/8) / 0.25 = -0.534
   //   time: log(1 - 7/8) / 1
@@ -403,8 +403,92 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   EXPECT_EQ(std::vector<int>({16, 4}), next_state.values());
 }
 
-// TODO(hlsyounes): Add test that breaks ties for Markov commands.
-// TODO(hlsyounes): Add test that breaks ties for Markov outcomes.
+TEST(NextStateSamplerTest, BreaksTiesForMarkovCommands) {
+  CompiledModel model(CompiledModelType::DTMC);
+  model.AddVariable("a", 0, 42, 17);
+  model.set_single_markov_commands(
+      {CompiledMarkovCommand(
+           MakeGuard(0, 17, 18),
+           {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, -2)})}),
+       CompiledMarkovCommand(
+           MakeGuard(0, 17, 18),
+           {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 1)})})});
+  CompiledExpressionEvaluator evaluator(2, 1);
+  // 3 random numbers consumed per state transition:
+  //
+  //   1st transition: 2nd command wins tie because 1/4 * 2 < 1
+  //
+  //   2nd transition: 1st command wins tie because 2/4 * 2 >= 1
+  //
+  FakeEngine engine(0, 3, {0, 0, 1, 3, 3, 2});
+  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
+  State state(model);
+  State next_state(model);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(1, next_state.time());
+  EXPECT_EQ(std::vector<int>({18}), next_state.values());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(2, next_state.time());
+  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
+  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+}
+
+TEST(NextStateSamplerTest, BreaksTiesForMarkovOutcomes) {
+  CompiledModel model(CompiledModelType::DTMC);
+  model.AddVariable("a", 0, 42, 17);
+  model.set_single_markov_commands({CompiledMarkovCommand(
+      MakeGuard(0, 17, 19),
+      {CompiledMarkovOutcome(MakeWeight(0.25), {MakeUpdate(0, 2)}),
+       CompiledMarkovOutcome(MakeWeight(0.25), {MakeUpdate(0, 1)}),
+       CompiledMarkovOutcome(MakeWeight(0.25), {MakeUpdate(0, -1)}),
+       CompiledMarkovOutcome(MakeWeight(0.25), {MakeUpdate(0, -3)})})});
+  CompiledExpressionEvaluator evaluator(2, 1);
+  // 8 random numbers consumed per state transition:
+  //
+  //   1st transition: 2nd outcome wins tie because
+  //     3/8 * 2 < 1, 3/8 * 3 >= 1, 2/8 * 4 >= 1
+  //
+  //   2nd transition: 3rd outcome wins tie because
+  //     2/8 * 2 < 1, 2/8 * 3 < 1, 2/8 * 4 >= 1
+  //
+  //   3rd transition: 1st outcome wins tie because
+  //     4/8 * 2 >= 1, 3/8 * 3 >= 1, 2/8 * 4 >= 1
+  //
+  //   4th transition: 4th outcome wins tie because
+  //     0/8 * 2 < 1, 7/8 * 3 >= 1, 1/8 * 4 < 1
+  //
+  FakeEngine engine(0, 7, {0, 0, 0, 3, 0, 3, 0, 2, 1, 1, 1, 2, 1, 2, 1, 2, 2, 2,
+                           2, 4, 2, 3, 2, 2, 3, 3, 3, 0, 3, 7, 3, 1});
+  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
+  State state(model);
+  State next_state(model);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(1, next_state.time());
+  EXPECT_EQ(std::vector<int>({18}), next_state.values());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(2, next_state.time());
+  EXPECT_EQ(std::vector<int>({17}), next_state.values());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(3, next_state.time());
+  EXPECT_EQ(std::vector<int>({19}), next_state.values());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(4, next_state.time());
+  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
+  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+}
+
 // TODO(hlsyounes): Add tests for GSMP events.
 
 }  // namespace
