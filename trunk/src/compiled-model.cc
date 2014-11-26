@@ -61,7 +61,7 @@ CompiledGsmpCommand::CompiledGsmpCommand(
       first_index_(first_index) {}
 
 CompiledModel::CompiledModel(CompiledModelType model_type)
-    : model_type_(model_type), trigger_time_count_(0) {}
+    : model_type_(model_type), gsmp_event_count_(0) {}
 
 void CompiledModel::AddVariable(
     const std::string& name, int min_value, int max_value, int init_value) {
@@ -72,10 +72,6 @@ void CompiledModel::AddVariable(
 
 void CompiledModel::AddCommand(const CompiledCommand& command) {
   commands_.push_back(command);
-}
-
-void CompiledModel::SetTriggerTimeCount(int trigger_time_count) {
-  trigger_time_count_ = trigger_time_count;
 }
 
 namespace {

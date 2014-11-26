@@ -36,7 +36,7 @@ class State {
   explicit State(const CompiledModel& model)
       : time_(0.0),
         values_(model.init_values()),
-        trigger_times_(model.trigger_time_count(),
+        trigger_times_(model.gsmp_event_count(),
                        std::numeric_limits<double>::infinity()) {}
 
   // Sets the current time for this state.

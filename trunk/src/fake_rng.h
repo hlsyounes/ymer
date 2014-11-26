@@ -29,26 +29,27 @@ class FakeEngine {
   typedef uint32_t result_type;
 
   FakeEngine(result_type min, result_type max, std::vector<result_type> values)
-      : min_(min), max_(max), values_(values), last_value_(-1) {
+      : min_(min), max_(max), values_(values), next_value_(0) {
   }
 
   ~FakeEngine() {
-    CHECK_EQ(last_value_ + 1, values_.size());
+    CHECK_EQ(next_value_, values_.size()) << values_.size() - next_value_
+                                          << " unconsumed values";
   }
 
   result_type min() { return min_; }
   result_type max() { return max_; }
 
   result_type operator()() {
-    CHECK_LT(last_value_ + 1, values_.size());
-    return values_[++last_value_];
+    CHECK_LT(next_value_, values_.size()) << "insufficient values";
+    return values_[next_value_++];
   }
 
  private:
   result_type min_;
   result_type max_;
   std::vector<result_type> values_;
-  std::vector<result_type>::size_type last_value_;
+  std::vector<result_type>::size_type next_value_;
 };
 
 #endif  // FAKE_RNG_H_
