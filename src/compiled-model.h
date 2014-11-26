@@ -195,9 +195,21 @@ class CompiledModel {
     factored_markov_commands_ = factored_markov_commands;
   }
 
-  // Sets the total number of events for which we may need to store a trigger
-  // time during model simulation.
-  void SetTriggerTimeCount(int trigger_time_count);
+  // Sets the single (non-factored) GSMP commands for this compiled model.
+  void set_single_gsmp_commands(
+      const std::vector<CompiledGsmpCommand>& single_gsmp_commands) {
+    single_gsmp_commands_ = single_gsmp_commands;
+    for (const auto& command : single_gsmp_commands) {
+      gsmp_event_count_ =
+          std::max(gsmp_event_count_, command.first_index() + 1);
+    }
+  }
+
+  // Sets the total number of GSMP events for which we may need to store a
+  // trigger time during model simulation.
+  void set_gsmp_event_count(int gsmp_event_count) {
+    gsmp_event_count_ = gsmp_event_count;
+  }
 
   // Returns the type of this compiled model.
   CompiledModelType model_type() const { return model_type_; }
@@ -232,9 +244,9 @@ class CompiledModel {
     return factored_gsmp_commands_;
   }
 
-  // Returns the total number of events for which we may need to store a trigger
-  // time during model simulation.
-  int trigger_time_count() const { return trigger_time_count_; }
+  // Returns the total number of GSMP events for which we may need to store a
+  // trigger time during model simulation.
+  int gsmp_event_count() const { return gsmp_event_count_; }
 
   // Returns the number of integer and double registers referenced by this
   // compiled model.
@@ -264,7 +276,7 @@ class CompiledModel {
   // with factored_markov_commands_, ignoring the first module, to get the
   // composite commands.
   std::vector<FactoredGsmpCommands> factored_gsmp_commands_;
-  int trigger_time_count_;
+  int gsmp_event_count_;
 };
 
 #endif  // COMPILED_MODEL_H_

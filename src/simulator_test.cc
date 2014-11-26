@@ -128,7 +128,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 18),
-           {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, -1)})}),
+           {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, -2)})}),
        CompiledMarkovCommand(
            MakeGuard(0, 17, 19),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 1)})}),
@@ -167,11 +167,11 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
   state.swap(next_state);
   simulator.NextState(state, &next_state);
   EXPECT_EQ(3, next_state.time());
-  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  EXPECT_EQ(std::vector<int>({15}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
   EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
-  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  EXPECT_EQ(std::vector<int>({15}), next_state.values());
 }
 
 TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
@@ -180,7 +180,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 18),
-           {CompiledMarkovOutcome(MakeWeight(2.0), {MakeUpdate(0, -1)})}),
+           {CompiledMarkovOutcome(MakeWeight(2.0), {MakeUpdate(0, -2)})}),
        CompiledMarkovCommand(
            MakeGuard(0, 17, 19),
            {CompiledMarkovOutcome(MakeWeight(3.0), {MakeUpdate(0, 1)})}),
@@ -222,11 +222,11 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
   state.swap(next_state);
   simulator.NextState(state, &next_state);
   EXPECT_EQ(state.time() - log(0.5) / 5.0, next_state.time());
-  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  EXPECT_EQ(std::vector<int>({15}), next_state.values());
   state.swap(next_state);
   simulator.NextState(state, &next_state);
   EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
-  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  EXPECT_EQ(std::vector<int>({15}), next_state.values());
 }
 
 TEST(NextStateSamplerTest, ComplexMarkovEventsDtmc) {
@@ -491,6 +491,167 @@ TEST(NextStateSamplerTest, BreaksTiesForMarkovOutcomes) {
   EXPECT_EQ(std::vector<int>({16}), next_state.values());
 }
 
-// TODO(hlsyounes): Add tests for GSMP events.
+TEST(NextStateSamplerTest, OneEnabledGsmpEvent) {
+  CompiledModel model(CompiledModelType::GSMP);
+  model.AddVariable("a", 0, 42, 17);
+  model.set_single_gsmp_commands(
+      {CompiledGsmpCommand(
+           MakeGuard(0, 17, 17),
+           CompiledDistribution::MakeUniform(MakeWeight(3.0), MakeWeight(5.0)),
+           {MakeUpdate(0, 1)}, 0),
+       CompiledGsmpCommand(
+           MakeGuard(0, 18, 18),
+           CompiledDistribution::MakeUniform(MakeWeight(7.0), MakeWeight(11.0)),
+           {MakeUpdate(0, 1)}, 1)});
+  CompiledExpressionEvaluator evaluator(2, 1);
+  // One random number consumed per state transition.  No choice.
+  FakeEngine engine(0, 3, {1, 3});
+  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
+  State state(model);
+  State next_state(model);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(3.5, next_state.time());
+  EXPECT_EQ(std::vector<int>({18}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(13.5, next_state.time());
+  EXPECT_EQ(std::vector<int>({19}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
+  EXPECT_EQ(std::vector<int>({19}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+}
+
+TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
+  CompiledModel model(CompiledModelType::GSMP);
+  model.AddVariable("a", 0, 42, 17);
+  model.set_single_gsmp_commands(
+      {CompiledGsmpCommand(
+           MakeGuard(0, 17, 18),
+           CompiledDistribution::MakeUniform(MakeWeight(7.0), MakeWeight(11.0)),
+           {MakeUpdate(0, -2)}, 0),
+       CompiledGsmpCommand(
+           MakeGuard(0, 17, 19),
+           CompiledDistribution::MakeUniform(MakeWeight(3.0), MakeWeight(5.0)),
+           {MakeUpdate(0, 1)}, 1),
+       CompiledGsmpCommand(
+           MakeGuard(0, 18, 19),
+           CompiledDistribution::MakeUniform(MakeWeight(1.0), MakeWeight(2.0)),
+           {MakeUpdate(0, -1)}, 2)});
+  CompiledExpressionEvaluator evaluator(2, 1);
+  // 2 random numbers for the 1st state transition:
+  //
+  //   GSMP trigger time 1: (11 - 7) * 0/4 + 7 = 7
+  //   GSMP trigger time 2: (5 - 3) * 2/4 + 3 = 4   [winner]
+  //
+  // 2 random number for the 2nd state transition:
+  //
+  //   GSMP trigger time 1: 7 (saved)
+  //   GSMP trigger time 2: 4 + (5 - 3) * 3/4 + 3 = 8.5
+  //   GSMP trigger time 3: 4 + (2 - 1) * 1/4 + 1 = 5.25  [winner]
+  //
+  // 0 random numbers for the 3rd state transition:
+  //
+  //   GSMP trigger time 1: 7 (saved)    [winner]
+  //   GSMP trigger time 2: 8.5 (saved)
+  //
+  FakeEngine engine(0, 3, {0, 2, 3, 1});
+  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
+  State state(model);
+  State next_state(model);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(4, next_state.time());
+  EXPECT_EQ(std::vector<int>({18}), next_state.values());
+  EXPECT_EQ(std::vector<double>({7, std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(5.25, next_state.time());
+  EXPECT_EQ(std::vector<int>({17}), next_state.values());
+  EXPECT_EQ(
+      std::vector<double>({7, 8.5, std::numeric_limits<double>::infinity()}),
+      next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(7, next_state.time());
+  EXPECT_EQ(std::vector<int>({15}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(), 8.5,
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
+  EXPECT_EQ(std::vector<int>({15}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+}
+
+TEST(NextStateSamplerTest, ComplexGsmpEvents) {
+  // TODO(hlsyounes): implement.
+}
+
+TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {
+  CompiledModel model(CompiledModelType::GSMP);
+  model.AddVariable("a", 0, 42, 17);
+  model.set_single_gsmp_commands(
+      {CompiledGsmpCommand(
+           MakeGuard(0, 17, 18),
+           CompiledDistribution::MakeUniform(MakeWeight(1.0), MakeWeight(3.0)),
+           {MakeUpdate(0, -2)}, 0),
+       CompiledGsmpCommand(
+           MakeGuard(0, 17, 18),
+           CompiledDistribution::MakeUniform(MakeWeight(0.0), MakeWeight(4.0)),
+           {MakeUpdate(0, 1)}, 1)});
+  CompiledExpressionEvaluator evaluator(2, 1);
+  // 3 random numbers for the 1st state transition:
+  //
+  //   GSMP trigger time 1: (3 - 1) * 6/8 + 1 = 2.5
+  //   GSMP trigger time 2: (4 - 0) * 5/8 + 0 = 2.5
+  //   2nd command wins tie because 3/8 * 2 < 1
+  //
+  // 2 random numbers for the 2nd state transition:
+  //
+  //   GSMP trigger time 1: 2.5 (saved)
+  //   GSMP trigger time 2: 2.5 + (4 - 0) * 0/8 + 0 = 2.5
+  //   1st command wins tie because 4/8 * 2 >= 1
+  //
+  FakeEngine engine(0, 7, {6, 5, 3, 0, 4});
+  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
+  State state(model);
+  State next_state(model);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(2.5, next_state.time());
+  EXPECT_EQ(std::vector<int>({18}), next_state.values());
+  EXPECT_EQ(std::vector<double>({2.5, std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(2.5, next_state.time());
+  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(), 2.5}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
+  EXPECT_EQ(std::vector<int>({16}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+}
 
 }  // namespace

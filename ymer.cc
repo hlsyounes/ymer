@@ -435,7 +435,7 @@ CompiledModel CompileModel(const Model& model,
     compiled_model.AddCommand(
         CompileCommand(*c, identifiers_by_name, &next_outcome_index, errors));
   }
-  compiled_model.SetTriggerTimeCount(next_outcome_index);
+  compiled_model.set_gsmp_event_count(next_outcome_index);
 
   return compiled_model;
 }
