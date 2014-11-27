@@ -92,7 +92,7 @@ class CompiledGsmpCommand {
   // Constructs a compiled GSMP command with the given guard, delay
   // distribution, and updates.
   CompiledGsmpCommand(const CompiledExpression& guard,
-                      const CompiledDistribution& delay,
+                      const CompiledGsmpDistribution& delay,
                       const std::vector<CompiledUpdate>& updates,
                       int first_index);
 
@@ -100,7 +100,7 @@ class CompiledGsmpCommand {
   const CompiledExpression& guard() const { return guard_; }
 
   // Returns the delay distribution for this command.
-  const CompiledDistribution& delay() const { return delay_; }
+  const CompiledGsmpDistribution& delay() const { return delay_; }
 
   // Returns the updates for this command.
   const std::vector<CompiledUpdate>& updates() const { return updates_; }
@@ -112,7 +112,7 @@ class CompiledGsmpCommand {
 
  private:
   CompiledExpression guard_;
-  CompiledDistribution delay_;
+  CompiledGsmpDistribution delay_;
   std::vector<CompiledUpdate> updates_;
   int first_index_;
 };

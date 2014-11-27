@@ -124,8 +124,7 @@ src_libcompiled_expression_la_LIBADD = src/libexpression.la \
 noinst_LTLIBRARIES += src/libcompiled-distribution.la
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
     src/compiled-distribution.cc
-src_libcompiled_distribution_la_LIBADD = src/libcompiled-expression.la \
-    src/librng.la
+src_libcompiled_distribution_la_LIBADD = src/librng.la glog/libglog.la
 
 # Compiled model library.
 noinst_LTLIBRARIES += src/libcompiled-model.la
@@ -205,7 +204,7 @@ src_compiled_expression_test_LDADD = src/libcompiled-expression.la \
 check_PROGRAMS += src/compiled-distribution_test
 src_compiled_distribution_test_SOURCES = src/compiled-distribution_test.cc
 src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
-    src/libcompiled-expression.la src/libtest-main.la
+    src/libtest-main.la
 
 # Test for compiled model library.
 check_PROGRAMS += src/compiled-model_test

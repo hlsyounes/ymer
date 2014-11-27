@@ -43,7 +43,7 @@ CompiledMarkovCommand::CompiledMarkovCommand(
     : guard_(guard), outcomes_(outcomes) {}
 
 CompiledGsmpCommand::CompiledGsmpCommand(
-    const CompiledExpression& guard, const CompiledDistribution& delay,
+    const CompiledExpression& guard, const CompiledGsmpDistribution& delay,
     const std::vector<CompiledUpdate>& updates, int first_index)
     : guard_(guard),
       delay_(delay),
@@ -66,15 +66,6 @@ std::pair<int, int> ComponentMax(std::pair<int, int> left,
                                  std::pair<int, int> right) {
   return {std::max(left.first, right.first),
           std::max(left.second, right.second)};
-}
-
-std::pair<int, int> GetDistributionRegisterCounts(
-    const CompiledDistribution& dist) {
-  std::pair<int, int> reg_counts = {0, 0};
-  for (const auto& expr : dist.parameters()) {
-    reg_counts = ComponentMax(reg_counts, GetExpressionRegisterCounts(expr));
-  }
-  return reg_counts;
 }
 
 std::pair<int, int> GetUpdateRegisterCounts(const CompiledUpdate& update) {
@@ -103,9 +94,7 @@ std::pair<int, int> GetMarkovCommandRegisterCounts(
 
 std::pair<int, int> GetGsmpCommandRegisterCounts(
     const CompiledGsmpCommand& command) {
-  std::pair<int, int> reg_counts =
-      ComponentMax(GetExpressionRegisterCounts(command.guard()),
-                   GetDistributionRegisterCounts(command.delay()));
+  std::pair<int, int> reg_counts = GetExpressionRegisterCounts(command.guard());
   for (const auto& update : command.updates()) {
     reg_counts = ComponentMax(reg_counts, GetUpdateRegisterCounts(update));
   }

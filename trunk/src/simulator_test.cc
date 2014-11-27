@@ -53,7 +53,7 @@ TEST(NextStateSamplerTest, NoEvents) {
   CompiledExpressionEvaluator evaluator(0, 0);
   // No random numbers consumed.
   FakeEngine engine(0, 0, {});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -75,7 +75,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventDtmc) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // One random number consumed per state transition.  No choice.
   FakeEngine engine(0, 0, {0, 0});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -105,7 +105,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventCtmc) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // Two random numbers consumed per state transition.  No choice.
   FakeEngine engine(0, 3, {0, 1, 0, 2});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -153,7 +153,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
   //   choice 2: log(1 - 1/4) = -0.288
   //
   FakeEngine engine(0, 3, {1, 0, 1, 2, 0, 0, 1});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -208,7 +208,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
   //   time: -log(1 - 4/8) / (2 + 3)
   //
   FakeEngine engine(0, 7, {4, 4, 2, 4, 6, 1, 6, 4, 6, 4});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -293,7 +293,7 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsDtmc) {
   //   outcome choice 2: log(1 - 1/8) / 0.25 = -0.534
   //
   FakeEngine engine(0, 7, {2, 1, 3, 4, 2, 7, 4, 1, 2, 0, 6, 1, 0, 2, 1});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -384,7 +384,7 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   //
   FakeEngine engine(0, 7,
                     {2, 1, 2, 2, 3, 6, 1, 7, 5, 3, 4, 7, 7, 5, 0, 4, 6, 3});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -423,7 +423,7 @@ TEST(NextStateSamplerTest, BreaksTiesForMarkovCommands) {
   //   2nd transition: 1st command wins tie because 2/4 * 2 >= 1
   //
   FakeEngine engine(0, 3, {0, 0, 1, 3, 3, 2});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -466,7 +466,7 @@ TEST(NextStateSamplerTest, BreaksTiesForMarkovOutcomes) {
   //
   FakeEngine engine(0, 7, {0, 0, 0, 3, 0, 3, 0, 2, 1, 1, 1, 2, 1, 2, 1, 2, 2, 2,
                            2, 4, 2, 3, 2, 2, 3, 3, 3, 0, 3, 7, 3, 1});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -495,18 +495,16 @@ TEST(NextStateSamplerTest, OneEnabledGsmpEvent) {
   CompiledModel model(CompiledModelType::GSMP);
   model.AddVariable("a", 0, 42, 17);
   model.set_single_gsmp_commands(
-      {CompiledGsmpCommand(
-           MakeGuard(0, 17, 17),
-           CompiledDistribution::MakeUniform(MakeWeight(3.0), MakeWeight(5.0)),
-           {MakeUpdate(0, 1)}, 0),
-       CompiledGsmpCommand(
-           MakeGuard(0, 18, 18),
-           CompiledDistribution::MakeUniform(MakeWeight(7.0), MakeWeight(11.0)),
-           {MakeUpdate(0, 1)}, 1)});
+      {CompiledGsmpCommand(MakeGuard(0, 17, 17),
+                           CompiledGsmpDistribution::MakeUniform(3.0, 5.0),
+                           {MakeUpdate(0, 1)}, 0),
+       CompiledGsmpCommand(MakeGuard(0, 18, 18),
+                           CompiledGsmpDistribution::MakeUniform(7.0, 11.0),
+                           {MakeUpdate(0, 1)}, 1)});
   CompiledExpressionEvaluator evaluator(2, 1);
   // One random number consumed per state transition.  No choice.
   FakeEngine engine(0, 3, {1, 3});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -536,18 +534,15 @@ TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
   CompiledModel model(CompiledModelType::GSMP);
   model.AddVariable("a", 0, 42, 17);
   model.set_single_gsmp_commands(
-      {CompiledGsmpCommand(
-           MakeGuard(0, 17, 18),
-           CompiledDistribution::MakeUniform(MakeWeight(7.0), MakeWeight(11.0)),
-           {MakeUpdate(0, -2)}, 0),
-       CompiledGsmpCommand(
-           MakeGuard(0, 17, 19),
-           CompiledDistribution::MakeUniform(MakeWeight(3.0), MakeWeight(5.0)),
-           {MakeUpdate(0, 1)}, 1),
-       CompiledGsmpCommand(
-           MakeGuard(0, 18, 19),
-           CompiledDistribution::MakeUniform(MakeWeight(1.0), MakeWeight(2.0)),
-           {MakeUpdate(0, -1)}, 2)});
+      {CompiledGsmpCommand(MakeGuard(0, 17, 18),
+                           CompiledGsmpDistribution::MakeUniform(7.0, 11.0),
+                           {MakeUpdate(0, -2)}, 0),
+       CompiledGsmpCommand(MakeGuard(0, 17, 19),
+                           CompiledGsmpDistribution::MakeUniform(3.0, 5.0),
+                           {MakeUpdate(0, 1)}, 1),
+       CompiledGsmpCommand(MakeGuard(0, 18, 19),
+                           CompiledGsmpDistribution::MakeUniform(1.0, 2.0),
+                           {MakeUpdate(0, -1)}, 2)});
   CompiledExpressionEvaluator evaluator(2, 1);
   // 2 random numbers for the 1st state transition:
   //
@@ -566,7 +561,7 @@ TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
   //   GSMP trigger time 2: 8.5 (saved)
   //
   FakeEngine engine(0, 3, {0, 2, 3, 1});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
@@ -608,14 +603,12 @@ TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {
   CompiledModel model(CompiledModelType::GSMP);
   model.AddVariable("a", 0, 42, 17);
   model.set_single_gsmp_commands(
-      {CompiledGsmpCommand(
-           MakeGuard(0, 17, 18),
-           CompiledDistribution::MakeUniform(MakeWeight(1.0), MakeWeight(3.0)),
-           {MakeUpdate(0, -2)}, 0),
-       CompiledGsmpCommand(
-           MakeGuard(0, 17, 18),
-           CompiledDistribution::MakeUniform(MakeWeight(0.0), MakeWeight(4.0)),
-           {MakeUpdate(0, 1)}, 1)});
+      {CompiledGsmpCommand(MakeGuard(0, 17, 18),
+                           CompiledGsmpDistribution::MakeUniform(1.0, 3.0),
+                           {MakeUpdate(0, -2)}, 0),
+       CompiledGsmpCommand(MakeGuard(0, 17, 18),
+                           CompiledGsmpDistribution::MakeUniform(0.0, 4.0),
+                           {MakeUpdate(0, 1)}, 1)});
   CompiledExpressionEvaluator evaluator(2, 1);
   // 3 random numbers for the 1st state transition:
   //
@@ -630,7 +623,7 @@ TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {
   //   1st command wins tie because 4/8 * 2 >= 1
   //
   FakeEngine engine(0, 7, {6, 5, 3, 0, 4});
-  CompiledDistributionSampler<FakeEngine> sampler(&evaluator, &engine);
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
   State next_state(model);
