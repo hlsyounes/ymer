@@ -178,7 +178,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 394 "parser.yy" /* yacc.c:1909  */
+#line 396 "parser.yy" /* yacc.c:1909  */
 
   ModelType model_type;
   size_t synch;

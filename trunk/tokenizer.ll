@@ -21,7 +21,13 @@
  * Lexical analyzer for the PRISM language.
  */
 %{
-#include "formulas.h"
+#include <string>
+
+#include "distributions.h"
+#include "models.h"
+#include "src/expression.h"
+#include "src/typed-value.h"
+#include "src/unique-ptr-vector.h"
 
 #include "parser.hh"
 

@@ -23,15 +23,17 @@
 
 %{
 #include <config.h>
-#include "models.h"
-#include "distributions.h"
-#include "formulas.h"
-#include "glog/logging.h"
+
 #include <algorithm>
 #include <iostream>
 #include <map>
 #include <set>
 #include <string>
+
+#include "models.h"
+#include "distributions.h"
+
+#include "glog/logging.h"
 
 #include "parser.hh"
 
