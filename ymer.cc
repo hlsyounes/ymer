@@ -283,7 +283,13 @@ class DistributionCompiler : public DistributionVisitor {
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       std::vector<std::string>* errors);
 
-  CompiledDistribution release_dist() { return std::move(dist_); }
+  bool has_markov_weight() const {
+    return !markov_weight_.operations().empty();
+  }
+
+  CompiledExpression markov_weight() const { return markov_weight_; }
+
+  CompiledGsmpDistribution gsmp_delay() const { return gsmp_delay_; }
 
  private:
   virtual void DoVisitExponential(const Exponential& dist);
@@ -291,7 +297,10 @@ class DistributionCompiler : public DistributionVisitor {
   virtual void DoVisitLognormal(const Lognormal& dist);
   virtual void DoVisitUniform(const Uniform& dist);
 
-  CompiledDistribution dist_;
+  double GetDoubleValue(const Expression& expr);
+
+  CompiledExpression markov_weight_;
+  CompiledGsmpDistribution gsmp_delay_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   std::vector<std::string>* errors_;
 };
@@ -299,49 +308,47 @@ class DistributionCompiler : public DistributionVisitor {
 DistributionCompiler::DistributionCompiler(
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     std::vector<std::string>* errors)
-    : dist_(CompiledDistribution::MakeMemoryless(CompiledExpression({}))),
-      identifiers_by_name_(identifiers_by_name), errors_(errors) {
+    : markov_weight_({}),
+      gsmp_delay_(CompiledGsmpDistribution::MakeWeibull(0, 0)),
+      identifiers_by_name_(identifiers_by_name),
+      errors_(errors) {
   CHECK(identifiers_by_name);
   CHECK(errors);
 }
 
 void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
-  dist_ = CompiledDistribution::MakeMemoryless(
-      CompileAndOptimizeExpression(
-          dist.rate(), Type::DOUBLE, *identifiers_by_name_, errors_));
+  markov_weight_ = CompileAndOptimizeExpression(
+          dist.rate(), Type::DOUBLE, *identifiers_by_name_, errors_);
+}
+
+double DistributionCompiler::GetDoubleValue(const Expression& expr) {
+  CompiledExpression compiled_expr = CompileAndOptimizeExpression(
+      expr, Type::DOUBLE, *identifiers_by_name_, errors_);
+  if (compiled_expr.operations().size() == 1 &&
+      compiled_expr.operations()[0].opcode() == Opcode::DCONST &&
+      compiled_expr.operations()[0].operand2() == 0) {
+    return compiled_expr.operations()[0].doperand1();
+  }
+  errors_->push_back(StrCat("expecting constant expression; found ", expr));
+  return 0.0;
 }
 
 void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
-  dist_ = CompiledDistribution::MakeWeibull(
-      CompileAndOptimizeExpression(
-          dist.scale(), Type::DOUBLE, *identifiers_by_name_, errors_),
-      CompileAndOptimizeExpression(
-          dist.shape(), Type::DOUBLE, *identifiers_by_name_, errors_));
+  markov_weight_ = CompiledExpression({});
+  gsmp_delay_ = CompiledGsmpDistribution::MakeWeibull(
+      GetDoubleValue(dist.scale()), GetDoubleValue(dist.shape()));
 }
 
 void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
-  dist_ = CompiledDistribution::MakeLognormal(
-      CompileAndOptimizeExpression(
-          dist.scale(), Type::DOUBLE, *identifiers_by_name_, errors_),
-      CompileAndOptimizeExpression(
-          dist.shape(), Type::DOUBLE, *identifiers_by_name_, errors_));
+  markov_weight_ = CompiledExpression({});
+  gsmp_delay_ = CompiledGsmpDistribution::MakeLognormal(
+      GetDoubleValue(dist.scale()), GetDoubleValue(dist.shape()));
 }
 
 void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
-  dist_ = CompiledDistribution::MakeUniform(
-      CompileAndOptimizeExpression(
-          dist.low(), Type::DOUBLE, *identifiers_by_name_, errors_),
-      CompileAndOptimizeExpression(
-          dist.high(), Type::DOUBLE, *identifiers_by_name_, errors_));
-}
-
-CompiledDistribution CompileDistribution(
-    const Distribution& dist,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  DistributionCompiler compiler(&identifiers_by_name, errors);
-  dist.Accept(&compiler);
-  return compiler.release_dist();
+  markov_weight_ = CompiledExpression({});
+  gsmp_delay_ = CompiledGsmpDistribution::MakeUniform(
+      GetDoubleValue(dist.low()), GetDoubleValue(dist.high()));
 }
 
 CompiledUpdate CompileUpdate(
@@ -419,21 +426,21 @@ CompiledModel CompileModel(const Model& model,
       GetIdentifiersByName(compiled_model);
   std::vector<CompiledMarkovCommand> single_markov_commands;
   std::vector<CompiledGsmpCommand> single_gsmp_commands;
+  DistributionCompiler dist_compiler(&identifiers_by_name, errors);
   for (const Command* command : model.commands()) {
     const auto compiled_guard = CompileAndOptimizeExpression(
         command->guard(), Type::BOOL, identifiers_by_name, errors);
-    const auto compiled_delay =
-        CompileDistribution(command->delay(), identifiers_by_name, errors);
     const auto compiled_updates =
         CompileUpdates(command->updates(), identifiers_by_name, errors);
-    if (compiled_delay.type() == DistributionType::MEMORYLESS) {
+    command->delay().Accept(&dist_compiler);
+    if (dist_compiler.has_markov_weight()) {
       single_markov_commands.push_back(CompiledMarkovCommand(
-          compiled_guard, {CompiledMarkovOutcome(compiled_delay.parameters()[0],
+          compiled_guard, {CompiledMarkovOutcome(dist_compiler.markov_weight(),
                                                  compiled_updates)}));
     } else {
-      single_gsmp_commands.emplace_back(compiled_guard, compiled_delay,
-                                        compiled_updates,
-                                        single_gsmp_commands.size());
+      single_gsmp_commands.emplace_back(
+          compiled_guard, dist_compiler.gsmp_delay(), compiled_updates,
+          single_gsmp_commands.size());
     }
   }
   compiled_model.set_single_markov_commands(single_markov_commands);
@@ -751,7 +758,7 @@ int main(int argc, char* argv[]) {
 	FD_SET(sockfd, &master_fds);
         CompiledExpressionEvaluator evaluator(reg_counts.first,
                                               reg_counts.second);
-        CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
+        CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
 	const State init_state(compiled_model);
         const CompiledPathProperty* path_property = nullptr;
         ModelCheckingParams nested_params = params;
@@ -860,7 +867,7 @@ int main(int argc, char* argv[]) {
 #endif
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
-      CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
+      CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
       const State init_state(compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
@@ -1064,7 +1071,7 @@ int main(int argc, char* argv[]) {
           &dd_man, moments, *global_model);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
-      CompiledDistributionSampler<DCEngine> sampler(&evaluator, &dc_engine);
+      CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
       const State init_state(compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);

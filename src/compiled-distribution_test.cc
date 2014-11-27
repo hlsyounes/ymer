@@ -19,56 +19,29 @@
 
 #include "compiled-distribution.h"
 
-#include "compiled-expression.h"
-
 #include "gtest/gtest.h"
 
 namespace {
 
-class CompiledDistributionTest : public testing::Test {
- protected:
-  CompiledDistributionTest()
-      : e1(CompiledExpression({Operation::MakeDCONST(1, 0)})),
-        e2(CompiledExpression({Operation::MakeDCONST(2, 0)})),
-        evaluator_(0, 1) {}
-
-  std::vector<double> Evaluate(const std::vector<CompiledExpression>& exprs) {
-    std::vector<double> values;
-    for (const CompiledExpression& expr : exprs) {
-      values.push_back(evaluator_.EvaluateDoubleExpression(expr, {}));
-    }
-    return values;
-  }
-
-  CompiledExpression e1;
-  CompiledExpression e2;
-
- private:
-  CompiledExpressionEvaluator evaluator_;
-};
-
-TEST_F(CompiledDistributionTest, MakesMemoryless) {
-  const CompiledDistribution dist(CompiledDistribution::MakeMemoryless(e1));
-  EXPECT_EQ(DistributionType::MEMORYLESS, dist.type());
-  EXPECT_EQ(std::vector<double>({1}), Evaluate(dist.parameters()));
+TEST(CompiledDistributionTest, MakesWeibull) {
+  const CompiledGsmpDistribution dist(
+      CompiledGsmpDistribution::MakeWeibull(17.0, 0.5));
+  EXPECT_EQ(CompiledGsmpDistributionType::WEIBULL, dist.type());
+  EXPECT_EQ(std::vector<double>({17, 0.5}), dist.parameters());
 }
 
-TEST_F(CompiledDistributionTest, MakesWeibull) {
-  const CompiledDistribution dist(CompiledDistribution::MakeWeibull(e1, e2));
-  EXPECT_EQ(DistributionType::WEIBULL, dist.type());
-  EXPECT_EQ(std::vector<double>({1, 2}), Evaluate(dist.parameters()));
+TEST(CompiledDistributionTest, MakesLognormal) {
+  const CompiledGsmpDistribution dist(
+      CompiledGsmpDistribution::MakeLognormal(17.0, 0.5));
+  EXPECT_EQ(CompiledGsmpDistributionType::LOGNORMAL, dist.type());
+  EXPECT_EQ(std::vector<double>({17, 0.5}), dist.parameters());
 }
 
-TEST_F(CompiledDistributionTest, MakesLognormal) {
-  const CompiledDistribution dist(CompiledDistribution::MakeLognormal(e1, e2));
-  EXPECT_EQ(DistributionType::LOGNORMAL, dist.type());
-  EXPECT_EQ(std::vector<double>({1, 2}), Evaluate(dist.parameters()));
-}
-
-TEST_F(CompiledDistributionTest, MakesUniform) {
-  const CompiledDistribution dist(CompiledDistribution::MakeUniform(e1, e2));
-  EXPECT_EQ(DistributionType::UNIFORM, dist.type());
-  EXPECT_EQ(std::vector<double>({1, 2}), Evaluate(dist.parameters()));
+TEST(CompiledDistributionTest, MakesUniform) {
+  const CompiledGsmpDistribution dist(
+      CompiledGsmpDistribution::MakeUniform(0.5, 2));
+  EXPECT_EQ(CompiledGsmpDistributionType::UNIFORM, dist.type());
+  EXPECT_EQ(std::vector<double>({0.5, 2}), dist.parameters());
 }
 
 }  // namespace

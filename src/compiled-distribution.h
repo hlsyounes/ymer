@@ -26,42 +26,36 @@
 #include <initializer_list>
 #include <vector>
 
-#include "compiled-expression.h"
 #include "rng.h"
 
-// Supported distribution types.
-enum class DistributionType { MEMORYLESS, WEIBULL, LOGNORMAL, UNIFORM };
+#include "glog/logging.h"
 
-// A compiled distribution.
-class CompiledDistribution {
+// Supported compiled GSMP distribution types.
+enum class CompiledGsmpDistributionType { WEIBULL, LOGNORMAL, UNIFORM };
+
+// A compiled GSMP distribution.
+class CompiledGsmpDistribution {
  public:
-  // Returns a memoryless distribution with parameter p.
-  static CompiledDistribution MakeMemoryless(const CompiledExpression& p);
   // Returns a Weibull distribution with the given scale and shape parameters.
-  static CompiledDistribution MakeWeibull(const CompiledExpression& scale,
-                                          const CompiledExpression& shape);
+  static CompiledGsmpDistribution MakeWeibull(double scale, double shape);
   // Returns a lognormal distribution with the given scale and shape parameters.
-  static CompiledDistribution MakeLognormal(const CompiledExpression& scale,
-                                            const CompiledExpression& shape);
+  static CompiledGsmpDistribution MakeLognormal(double scale, double shape);
   // Returns a uniform distribution over the interval [low, high).
-  static CompiledDistribution MakeUniform(const CompiledExpression& low,
-                                          const CompiledExpression& high);
+  static CompiledGsmpDistribution MakeUniform(double low, double high);
 
   // Returns the type for this distribution.
-  DistributionType type() const { return type_; }
+  CompiledGsmpDistributionType type() const { return type_; }
 
   // Returns the parameters for this distribution.
-  const std::vector<CompiledExpression>& parameters() const {
-    return parameters_;
-  }
+  const std::vector<double>& parameters() const { return parameters_; }
 
  private:
-  // Constructs a compiled distribution with the given type and parameters.
-  CompiledDistribution(DistributionType type,
-                       std::initializer_list<CompiledExpression> parameters);
+  // Constructs a compiled GSMP distribution with the given type and parameters.
+  CompiledGsmpDistribution(CompiledGsmpDistributionType type,
+                           std::initializer_list<double> parameters);
 
-  DistributionType type_;
-  std::vector<CompiledExpression> parameters_;
+  CompiledGsmpDistributionType type_;
+  std::vector<double> parameters_;
 };
 
 // A sampler for compiled distributions.
@@ -69,56 +63,42 @@ template <typename Engine>
 class CompiledDistributionSampler {
  public:
   // Constructs a sampler for compiled distributions.
-  CompiledDistributionSampler(CompiledExpressionEvaluator* evaluator,
-                              Engine* engine);
+  CompiledDistributionSampler(Engine* engine);
 
   // Generates a sample for the given compiled distribution.
-  double Sample(const CompiledDistribution& dist,
+  double Sample(const CompiledGsmpDistribution& dist,
                 const std::vector<int>& state);
 
   double StandardUniform();
   double Exponential(double lambda);
 
  private:
-  CompiledExpressionEvaluator* evaluator_;
   Engine* engine_;
   bool has_unused_lognormal_;
   double unused_lognormal_;
 };
 
 template <typename Engine>
-CompiledDistributionSampler<Engine>::CompiledDistributionSampler(
-    CompiledExpressionEvaluator* evaluator, Engine* engine)
-    : evaluator_(evaluator), engine_(engine), has_unused_lognormal_(false) {}
+CompiledDistributionSampler<Engine>::CompiledDistributionSampler(Engine* engine)
+    : engine_(engine), has_unused_lognormal_(false) {}
 
 template <typename Engine>
 double CompiledDistributionSampler<Engine>::Sample(
-    const CompiledDistribution& dist, const std::vector<int>& state) {
-  double sample = 0.0;
+    const CompiledGsmpDistribution& dist, const std::vector<int>& state) {
   switch (dist.type()) {
-    case DistributionType::MEMORYLESS: {
-      sample = Exponential(
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state));
-      break;
+    case CompiledGsmpDistributionType::WEIBULL: {
+      double eta = dist.parameters()[0];
+      double beta = dist.parameters()[1];
+      return eta * pow(-log(1.0 - StandardUniform()), 1.0 / beta);
     }
-    case DistributionType::WEIBULL: {
-      double eta =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
-      double beta =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[1], state);
-      sample = eta * pow(-log(1.0 - StandardUniform()), 1.0 / beta);
-      break;
-    }
-    case DistributionType::LOGNORMAL: {
+    case CompiledGsmpDistributionType::LOGNORMAL: {
       if (has_unused_lognormal_) {
         has_unused_lognormal_ = false;
         return unused_lognormal_;
       }
       // Generate two N(0,1) samples using the Box-Muller transform.
-      double mu =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
-      double sigma =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[1], state);
+      double mu = dist.parameters()[0];
+      double sigma = dist.parameters()[1];
       double mean = log(mu) - 0.5 * sigma * sigma;
       double u1 = 1.0 - StandardUniform();
       double u2 = 1.0 - StandardUniform();
@@ -127,19 +107,15 @@ double CompiledDistributionSampler<Engine>::Sample(
       double x2 = tmp * sin(2 * M_PI * u1);
       unused_lognormal_ = exp(x2 * sigma + mean);
       has_unused_lognormal_ = true;
-      sample = exp(x1 * sigma + mean);
-      break;
+      return exp(x1 * sigma + mean);
     }
-    case DistributionType::UNIFORM: {
-      double a =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[0], state);
-      double b =
-          evaluator_->EvaluateDoubleExpression(dist.parameters()[1], state);
-      sample = (b - a) * StandardUniform() + a;
-      break;
+    case CompiledGsmpDistributionType::UNIFORM: {
+      double a = dist.parameters()[0];
+      double b = dist.parameters()[1];
+      return (b - a) * StandardUniform() + a;
     }
   }
-  return sample;
+  LOG(FATAL) << "bad distribution type";
 }
 
 template <typename Engine>

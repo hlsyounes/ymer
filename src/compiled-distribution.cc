@@ -23,26 +23,24 @@
 
 #include "compiled-expression.h"
 
-CompiledDistribution CompiledDistribution::MakeMemoryless(
-    const CompiledExpression& p) {
-  return CompiledDistribution(DistributionType::MEMORYLESS, {p});
+CompiledGsmpDistribution CompiledGsmpDistribution::MakeWeibull(double scale,
+                                                               double shape) {
+  return CompiledGsmpDistribution(CompiledGsmpDistributionType::WEIBULL,
+                                  {scale, shape});
 }
 
-CompiledDistribution CompiledDistribution::MakeWeibull(
-    const CompiledExpression& scale, const CompiledExpression& shape) {
-  return CompiledDistribution(DistributionType::WEIBULL, {scale, shape});
+CompiledGsmpDistribution CompiledGsmpDistribution::MakeLognormal(double scale,
+                                                                 double shape) {
+  return CompiledGsmpDistribution(CompiledGsmpDistributionType::LOGNORMAL,
+                                  {scale, shape});
 }
 
-CompiledDistribution CompiledDistribution::MakeLognormal(
-    const CompiledExpression& scale, const CompiledExpression& shape) {
-  return CompiledDistribution(DistributionType::LOGNORMAL, {scale, shape});
+CompiledGsmpDistribution CompiledGsmpDistribution::MakeUniform(double low,
+                                                               double high) {
+  return CompiledGsmpDistribution(CompiledGsmpDistributionType::UNIFORM,
+                                  {low, high});
 }
 
-CompiledDistribution CompiledDistribution::MakeUniform(
-    const CompiledExpression& low, const CompiledExpression& high) {
-  return CompiledDistribution(DistributionType::UNIFORM, {low, high});
-}
-
-CompiledDistribution::CompiledDistribution(
-    DistributionType type, std::initializer_list<CompiledExpression> parameters)
+CompiledGsmpDistribution::CompiledGsmpDistribution(
+    CompiledGsmpDistributionType type, std::initializer_list<double> parameters)
     : type_(type), parameters_(parameters) {}
