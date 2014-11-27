@@ -76,6 +76,7 @@ formula                    return FORMULA;
 func                       return FUNC;
 G                          return G;
 global                     return GLOBAL;
+gsmp                       return GSMP_TOKEN;
 I                          return I;
 init                       return INIT;
 int                        return INT_TOKEN;

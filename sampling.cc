@@ -34,9 +34,9 @@
 
 #include "comm.h"
 #include "models.h"
-#include "states.h"
 #include "src/compiled-property.h"
 #include "src/rng.h"
+#include "src/simulator.h"
 #include "src/statistics.h"
 #include "src/strutil.h"
 
@@ -91,6 +91,7 @@ class SamplingVerifier
   ModelCheckingParams params_;
   CompiledExpressionEvaluator* evaluator_;
   CompiledDistributionSampler<DCEngine>* sampler_;
+  NextStateSampler<DCEngine> simulator_;
   const State* state_;
   int probabilistic_level_;
   ModelCheckingStats* stats_;
@@ -113,6 +114,7 @@ SamplingVerifier::SamplingVerifier(
       params_(params),
       evaluator_(evaluator),
       sampler_(sampler),
+      simulator_(model, evaluator, sampler),
       state_(state),
       probabilistic_level_(probabilistic_level),
       stats_(stats),
@@ -518,6 +520,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   }
   double t = 0.0;
   State curr_state = *state_;
+  State next_state = *state_;
   const double t_min = path_property.min_time();
   const double t_max = path_property.max_time();
   size_t path_length = 1;
@@ -537,7 +540,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
     }
-    State next_state = Next(*model_, curr_state, evaluator_, sampler_);
+    simulator_.NextState(curr_state, &next_state);
     double next_t = t + (next_state.time() - curr_state.time());
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);
@@ -567,7 +570,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     }
     std::swap(state_, curr_state_ptr);
     if (!done) {
-      curr_state = std::move(next_state);
+      curr_state.swap(next_state);
       t = next_t;
       if (t_max < t) {
 	result_ = false;

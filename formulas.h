@@ -25,12 +25,12 @@
 #define FORMULAS_H
 
 #include "models.h"
-#include "states.h"
 #include "src/compiled-expression.h"
 #include "src/compiled-model.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/rng.h"
+#include "src/simulator.h"
 #include "src/statistics.h"
 
 /* Sampling algorithm. */
