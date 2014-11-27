@@ -32,16 +32,6 @@ CompiledUpdate::CompiledUpdate(int variable, const CompiledExpression& expr)
     : variable_(variable), expr_(expr) {
 }
 
-CompiledOutcome::CompiledOutcome(const CompiledDistribution& delay,
-                                 const std::vector<CompiledUpdate>& updates,
-                                 int first_index)
-    : delay_(delay), updates_(updates), first_index_(first_index) {}
-
-CompiledCommand::CompiledCommand(const CompiledExpression& guard,
-                                 const std::vector<CompiledOutcome>& outcomes)
-    : guard_(guard), outcomes_(outcomes) {
-}
-
 CompiledMarkovOutcome::CompiledMarkovOutcome(
     const CompiledExpression& weight,
     const std::vector<CompiledUpdate>& updates)
@@ -70,45 +60,54 @@ void CompiledModel::AddVariable(
   init_values_.push_back(init_value);
 }
 
-void CompiledModel::AddCommand(const CompiledCommand& command) {
-  commands_.push_back(command);
-}
-
 namespace {
+
+std::pair<int, int> ComponentMax(std::pair<int, int> left,
+                                 std::pair<int, int> right) {
+  return {std::max(left.first, right.first),
+          std::max(left.second, right.second)};
+}
 
 std::pair<int, int> GetDistributionRegisterCounts(
     const CompiledDistribution& dist) {
-  int ireg_count = 0;
-  int dreg_count = 0;
-  for (const CompiledExpression& expr : dist.parameters()) {
-    std::pair<int, int> expr_reg_counts = GetExpressionRegisterCounts(expr);
-    ireg_count = std::max(ireg_count, expr_reg_counts.first);
-    dreg_count = std::max(dreg_count, expr_reg_counts.second);
+  std::pair<int, int> reg_counts = {0, 0};
+  for (const auto& expr : dist.parameters()) {
+    reg_counts = ComponentMax(reg_counts, GetExpressionRegisterCounts(expr));
   }
-  return {ireg_count, dreg_count};
+  return reg_counts;
 }
 
 std::pair<int, int> GetUpdateRegisterCounts(const CompiledUpdate& update) {
   return GetExpressionRegisterCounts(update.expr());
 }
 
-std::pair<int, int> GetOutcomeRegisterCounts(const CompiledOutcome& outcome) {
+std::pair<int, int> GetMarkovOutcomeRegisterCounts(
+    const CompiledMarkovOutcome& outcome) {
   std::pair<int, int> reg_counts =
-      GetDistributionRegisterCounts(outcome.delay());
-  for (const CompiledUpdate& update : outcome.updates()) {
-    std::pair<int, int> update_reg_counts = GetUpdateRegisterCounts(update);
-    reg_counts.first = std::max(reg_counts.first, update_reg_counts.first);
-    reg_counts.second = std::max(reg_counts.second, update_reg_counts.second);
+      GetExpressionRegisterCounts(outcome.weight());
+  for (const auto& update : outcome.updates()) {
+    reg_counts = ComponentMax(reg_counts, GetUpdateRegisterCounts(update));
   }
   return reg_counts;
 }
 
-std::pair<int, int> GetCommandRegisterCounts(const CompiledCommand& command) {
+std::pair<int, int> GetMarkovCommandRegisterCounts(
+    const CompiledMarkovCommand& command) {
   std::pair<int, int> reg_counts = GetExpressionRegisterCounts(command.guard());
-  for (const CompiledOutcome& outcome : command.outcomes()) {
-    std::pair<int, int> outcome_reg_counts = GetOutcomeRegisterCounts(outcome);
-    reg_counts.first = std::max(reg_counts.first, outcome_reg_counts.first);
-    reg_counts.second = std::max(reg_counts.second, outcome_reg_counts.second);
+  for (const auto& outcome : command.outcomes()) {
+    reg_counts =
+        ComponentMax(reg_counts, GetMarkovOutcomeRegisterCounts(outcome));
+  }
+  return reg_counts;
+}
+
+std::pair<int, int> GetGsmpCommandRegisterCounts(
+    const CompiledGsmpCommand& command) {
+  std::pair<int, int> reg_counts =
+      ComponentMax(GetExpressionRegisterCounts(command.guard()),
+                   GetDistributionRegisterCounts(command.delay()));
+  for (const auto& update : command.updates()) {
+    reg_counts = ComponentMax(reg_counts, GetUpdateRegisterCounts(update));
   }
   return reg_counts;
 }
@@ -116,14 +115,30 @@ std::pair<int, int> GetCommandRegisterCounts(const CompiledCommand& command) {
 }  // namespace
 
 std::pair<int, int> CompiledModel::GetRegisterCounts() const {
-  int ireg_count = 0;
-  int dreg_count = 0;
-  for (const CompiledCommand& command : commands_) {
-    std::pair<int, int> command_reg_counts = GetCommandRegisterCounts(command);
-    ireg_count = std::max(ireg_count, command_reg_counts.first);
-    dreg_count = std::max(dreg_count, command_reg_counts.second);
+  std::pair<int, int> reg_counts = {0, 0};
+  for (const auto& command : single_markov_commands_) {
+    reg_counts =
+        ComponentMax(reg_counts, GetMarkovCommandRegisterCounts(command));
   }
-  return {ireg_count, dreg_count};
+  for (const auto& modules_by_action : factored_markov_commands_) {
+    for (const auto& commands_by_module : modules_by_action) {
+      for (const auto& command : commands_by_module) {
+        reg_counts =
+            ComponentMax(reg_counts, GetMarkovCommandRegisterCounts(command));
+      }
+    }
+  }
+  for (const auto& command : single_gsmp_commands_) {
+    reg_counts =
+        ComponentMax(reg_counts, GetGsmpCommandRegisterCounts(command));
+  }
+  for (const auto& factors : factored_gsmp_commands_) {
+    for (const auto& command : factors.gsmp_commands) {
+      reg_counts =
+          ComponentMax(reg_counts, GetGsmpCommandRegisterCounts(command));
+    }
+  }
+  return reg_counts;
 }
 
 int CompiledModel::BitCount() const {
