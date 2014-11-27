@@ -377,31 +377,6 @@ std::vector<CompiledUpdate> CompileUpdates(
   return compiled_updates;
 }
 
-CompiledOutcome CompileOutcome(
-    const Distribution& delay, const std::vector<const Update*>& updates,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    int* next_outcome_index, std::vector<std::string>* errors) {
-  CompiledOutcome outcome(
-      CompileDistribution(delay, identifiers_by_name, errors),
-      CompileUpdates(updates, identifiers_by_name, errors),
-      *next_outcome_index);
-  if (outcome.delay().type() != DistributionType::MEMORYLESS) {
-    ++*next_outcome_index;
-  }
-  return outcome;
-}
-
-CompiledCommand CompileCommand(
-    const Command& command,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    int* next_outcome_index, std::vector<std::string>* errors) {
-  return CompiledCommand(
-      CompileAndOptimizeExpression(command.guard(), Type::BOOL,
-                                   identifiers_by_name, errors),
-      {CompileOutcome(command.delay(), command.updates(), identifiers_by_name,
-                      next_outcome_index, errors)});
-}
-
 std::map<std::string, IdentifierInfo> GetIdentifiersByName(
     const CompiledModel& model) {
   std::map<std::string, IdentifierInfo> identifiers_by_name;
@@ -440,7 +415,6 @@ CompiledModel CompileModel(const Model& model,
         v.name(), v.min_value(), v.max_value(), v.init_value());
   }
 
-  int next_outcome_index = 0;
   std::map<std::string, IdentifierInfo> identifiers_by_name =
       GetIdentifiersByName(compiled_model);
   std::vector<CompiledMarkovCommand> single_markov_commands;
@@ -461,8 +435,6 @@ CompiledModel CompileModel(const Model& model,
                                         compiled_updates,
                                         single_gsmp_commands.size());
     }
-    compiled_model.AddCommand(CompileCommand(*command, identifiers_by_name,
-                                             &next_outcome_index, errors));
   }
   compiled_model.set_single_markov_commands(single_markov_commands);
   compiled_model.set_single_gsmp_commands(single_gsmp_commands);

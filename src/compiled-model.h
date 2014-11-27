@@ -47,50 +47,6 @@ class CompiledUpdate {
   CompiledExpression expr_;
 };
 
-// A compiled outcome.
-class CompiledOutcome {
- public:
-  // Constructs a compiled outcome with the given delay distribution and
-  // updates.
-  CompiledOutcome(const CompiledDistribution& delay,
-                  const std::vector<CompiledUpdate>& updates, int first_index);
-
-  // Returns the delay distribution for this outcome.
-  const CompiledDistribution& delay() const { return delay_; }
-
-  // Returns the updates for this outcome.
-  const std::vector<CompiledUpdate>& updates() const { return updates_; }
-
-  // Returns the first index for the range of composite outcomes rooted at this
-  // outcome.  Relevant only if the delay distribution is not memoryless.  The
-  // index is used to access the stored trigger time of an enabled event during
-  // model simulation.
-  int first_index() const { return first_index_; }
-
- private:
-  CompiledDistribution delay_;
-  std::vector<CompiledUpdate> updates_;
-  int first_index_;
-};
-
-// A compiled command.
-class CompiledCommand {
- public:
-  // Constructs a compiled command with the given guard expression and outcomes.
-  CompiledCommand(const CompiledExpression& guard,
-                  const std::vector<CompiledOutcome>& outcomes);
-
-  // Returns the guard expression for this command.
-  const CompiledExpression& guard() const { return guard_; }
-
-  // Returns the outcomes for this command.
-  const std::vector<CompiledOutcome>& outcomes() const { return outcomes_; }
-
- private:
-  CompiledExpression guard_;
-  std::vector<CompiledOutcome> outcomes_;
-};
-
 // A compiled outcome for a Markov command.
 class CompiledMarkovOutcome {
  public:
@@ -179,9 +135,6 @@ class CompiledModel {
   void AddVariable(const std::string& name, int min_value, int max_value,
                    int init_value);
 
-  // Adds a command to this compiled model.
-  void AddCommand(const CompiledCommand& command);
-
   // Sets the single (non-factored) Markov commands for this compiled model.
   void set_single_markov_commands(
       const std::vector<CompiledMarkovCommand>& single_markov_commands) {
@@ -213,9 +166,6 @@ class CompiledModel {
 
   // Returns the initial values for the variables of this compiled model.
   const std::vector<int>& init_values() const { return init_values_; }
-
-  // Returns the commands for this compiled model.
-  const std::vector<CompiledCommand>& commands() const { return commands_; }
 
   // Returns the single Markov commands for this compiled model.
   const std::vector<CompiledMarkovCommand>& single_markov_commands() const {
@@ -254,7 +204,6 @@ class CompiledModel {
   CompiledModelType model_type_;
   std::vector<StateVariableInfo> variables_;
   std::vector<int> init_values_;
-  std::vector<CompiledCommand> commands_;
   // The single (non-factored) commands with memoryless distributions.
   std::vector<CompiledMarkovCommand> single_markov_commands_;
   // For every action, and every module where the action occurs, the factored
