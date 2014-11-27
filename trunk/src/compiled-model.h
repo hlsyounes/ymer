@@ -205,12 +205,6 @@ class CompiledModel {
     }
   }
 
-  // Sets the total number of GSMP events for which we may need to store a
-  // trigger time during model simulation.
-  void set_gsmp_event_count(int gsmp_event_count) {
-    gsmp_event_count_ = gsmp_event_count;
-  }
-
   // Returns the type of this compiled model.
   CompiledModelType model_type() const { return model_type_; }
 

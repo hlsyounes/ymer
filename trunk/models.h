@@ -59,6 +59,9 @@ class ParsedVariable {
   int init_value_;
 };
 
+// Supported parsed model types.
+enum class ModelType { CTMC, GSMP };
+
 // A parsed model.
 class Model {
  public:
@@ -67,6 +70,9 @@ class Model {
 
   /* Deletes this model. */
   ~Model();
+
+  // Sets the type of this model.
+  void set_type(ModelType type) { type_ = type; }
 
   // Adds an int variable with the given name.
   void AddIntVariable(
@@ -84,6 +90,9 @@ class Model {
 
   /* Compiles the commands of this model. */
   void compile();
+
+  // Returns the type of this model.
+  ModelType type() const { return type_; }
 
   // Returns the variables for this model.
   const std::vector<ParsedVariable>& variables() const { return variables_; }
@@ -110,6 +119,7 @@ class Model {
   }
 
 private:
+  ModelType type_;
   std::vector<ParsedVariable> variables_;
   std::set<int> global_variables_;
   std::vector<std::set<int>> module_variables_;

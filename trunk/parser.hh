@@ -48,136 +48,139 @@ extern int yydebug;
     DTMC_TOKEN = 258,
     CTMC_TOKEN = 259,
     MDP_TOKEN = 260,
-    PROBABILISTIC = 261,
-    STOCHASTIC = 262,
-    NONDETERMINISTIC = 263,
-    CONST = 264,
-    INT_TOKEN = 265,
-    DOUBLE_TOKEN = 266,
-    BOOL_TOKEN = 267,
-    RATE = 268,
-    PROB = 269,
-    GLOBAL = 270,
-    DOTDOT = 271,
-    FORMULA = 272,
-    LABEL = 273,
-    INIT = 274,
-    ENDINIT = 275,
-    REWARDS = 276,
-    ENDREWARDS = 277,
-    MODULE = 278,
-    ENDMODULE = 279,
-    ARROW = 280,
-    PRIME = 281,
-    TRUE = 282,
-    FALSE = 283,
-    MAX_TOKEN = 284,
-    MIN_TOKEN = 285,
-    FUNC = 286,
-    IDENTIFIER = 287,
-    NUMBER = 288,
-    LABEL_NAME = 289,
-    SYSTEM = 290,
-    ENDSYSTEM = 291,
-    DOUBLE_BAR = 292,
-    TRIPLE_BAR = 293,
-    BACK_ARROW = 294,
-    A = 295,
-    C = 296,
-    E = 297,
-    F = 298,
-    G = 299,
-    I = 300,
-    PMAX = 301,
-    PMIN = 302,
-    P = 303,
-    RMAX = 304,
-    RMIN = 305,
-    R = 306,
-    S = 307,
-    U = 308,
-    W = 309,
-    X = 310,
-    EXP = 311,
-    L = 312,
-    IFF_TOKEN = 313,
-    IMPLY_TOKEN = 314,
-    NEQ = 315,
-    LEQ = 316,
-    GEQ = 317,
-    UMINUS = 318
+    GSMP_TOKEN = 261,
+    PROBABILISTIC = 262,
+    STOCHASTIC = 263,
+    NONDETERMINISTIC = 264,
+    CONST = 265,
+    INT_TOKEN = 266,
+    DOUBLE_TOKEN = 267,
+    BOOL_TOKEN = 268,
+    RATE = 269,
+    PROB = 270,
+    GLOBAL = 271,
+    DOTDOT = 272,
+    FORMULA = 273,
+    LABEL = 274,
+    INIT = 275,
+    ENDINIT = 276,
+    REWARDS = 277,
+    ENDREWARDS = 278,
+    MODULE = 279,
+    ENDMODULE = 280,
+    ARROW = 281,
+    PRIME = 282,
+    TRUE = 283,
+    FALSE = 284,
+    MAX_TOKEN = 285,
+    MIN_TOKEN = 286,
+    FUNC = 287,
+    IDENTIFIER = 288,
+    NUMBER = 289,
+    LABEL_NAME = 290,
+    SYSTEM = 291,
+    ENDSYSTEM = 292,
+    DOUBLE_BAR = 293,
+    TRIPLE_BAR = 294,
+    BACK_ARROW = 295,
+    A = 296,
+    C = 297,
+    E = 298,
+    F = 299,
+    G = 300,
+    I = 301,
+    PMAX = 302,
+    PMIN = 303,
+    P = 304,
+    RMAX = 305,
+    RMIN = 306,
+    R = 307,
+    S = 308,
+    U = 309,
+    W = 310,
+    X = 311,
+    EXP = 312,
+    L = 313,
+    IFF_TOKEN = 314,
+    IMPLY_TOKEN = 315,
+    NEQ = 316,
+    LEQ = 317,
+    GEQ = 318,
+    UMINUS = 319
   };
 #endif
 /* Tokens.  */
 #define DTMC_TOKEN 258
 #define CTMC_TOKEN 259
 #define MDP_TOKEN 260
-#define PROBABILISTIC 261
-#define STOCHASTIC 262
-#define NONDETERMINISTIC 263
-#define CONST 264
-#define INT_TOKEN 265
-#define DOUBLE_TOKEN 266
-#define BOOL_TOKEN 267
-#define RATE 268
-#define PROB 269
-#define GLOBAL 270
-#define DOTDOT 271
-#define FORMULA 272
-#define LABEL 273
-#define INIT 274
-#define ENDINIT 275
-#define REWARDS 276
-#define ENDREWARDS 277
-#define MODULE 278
-#define ENDMODULE 279
-#define ARROW 280
-#define PRIME 281
-#define TRUE 282
-#define FALSE 283
-#define MAX_TOKEN 284
-#define MIN_TOKEN 285
-#define FUNC 286
-#define IDENTIFIER 287
-#define NUMBER 288
-#define LABEL_NAME 289
-#define SYSTEM 290
-#define ENDSYSTEM 291
-#define DOUBLE_BAR 292
-#define TRIPLE_BAR 293
-#define BACK_ARROW 294
-#define A 295
-#define C 296
-#define E 297
-#define F 298
-#define G 299
-#define I 300
-#define PMAX 301
-#define PMIN 302
-#define P 303
-#define RMAX 304
-#define RMIN 305
-#define R 306
-#define S 307
-#define U 308
-#define W 309
-#define X 310
-#define EXP 311
-#define L 312
-#define IFF_TOKEN 313
-#define IMPLY_TOKEN 314
-#define NEQ 315
-#define LEQ 316
-#define GEQ 317
-#define UMINUS 318
+#define GSMP_TOKEN 261
+#define PROBABILISTIC 262
+#define STOCHASTIC 263
+#define NONDETERMINISTIC 264
+#define CONST 265
+#define INT_TOKEN 266
+#define DOUBLE_TOKEN 267
+#define BOOL_TOKEN 268
+#define RATE 269
+#define PROB 270
+#define GLOBAL 271
+#define DOTDOT 272
+#define FORMULA 273
+#define LABEL 274
+#define INIT 275
+#define ENDINIT 276
+#define REWARDS 277
+#define ENDREWARDS 278
+#define MODULE 279
+#define ENDMODULE 280
+#define ARROW 281
+#define PRIME 282
+#define TRUE 283
+#define FALSE 284
+#define MAX_TOKEN 285
+#define MIN_TOKEN 286
+#define FUNC 287
+#define IDENTIFIER 288
+#define NUMBER 289
+#define LABEL_NAME 290
+#define SYSTEM 291
+#define ENDSYSTEM 292
+#define DOUBLE_BAR 293
+#define TRIPLE_BAR 294
+#define BACK_ARROW 295
+#define A 296
+#define C 297
+#define E 298
+#define F 299
+#define G 300
+#define I 301
+#define PMAX 302
+#define PMIN 303
+#define P 304
+#define RMAX 305
+#define RMIN 306
+#define R 307
+#define S 308
+#define U 309
+#define W 310
+#define X 311
+#define EXP 312
+#define L 313
+#define IFF_TOKEN 314
+#define IMPLY_TOKEN 315
+#define NEQ 316
+#define LEQ 317
+#define GEQ 318
+#define UMINUS 319
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 393 "parser.yy" /* yacc.c:1909  */
+#line 394 "parser.yy" /* yacc.c:1909  */
 
+  ModelType model_type;
   size_t synch;
   const PathProperty* path;
   const Distribution* dist;
@@ -188,7 +191,7 @@ union YYSTYPE
   Function function;
   UniquePtrVector<const Expression>* arguments;
 
-#line 192 "parser.hh" /* yacc.c:1909  */
+#line 195 "parser.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

@@ -136,7 +136,7 @@ static void add_module();
 /* Prepares a module for parsing. */
 static void prepare_module(const std::string* ident);
 /* Prepares a model for parsing. */
-static void prepare_model();
+static void prepare_model(ModelType model_type);
 /* Compiles the current model. */
 static void compile_model();
 
@@ -358,7 +358,8 @@ const Uniform* NewUniform(const Expression* low,
 %parse-param {void* scanner}
 %error-verbose
 
-%token DTMC_TOKEN CTMC_TOKEN MDP_TOKEN PROBABILISTIC STOCHASTIC NONDETERMINISTIC
+%token DTMC_TOKEN CTMC_TOKEN MDP_TOKEN GSMP_TOKEN
+%token PROBABILISTIC STOCHASTIC NONDETERMINISTIC
 %token CONST INT_TOKEN DOUBLE_TOKEN BOOL_TOKEN RATE PROB
 %token GLOBAL DOTDOT
 %token FORMULA LABEL
@@ -391,6 +392,7 @@ const Uniform* NewUniform(const Expression* low,
 %right UMINUS '!'
 
 %union {
+  ModelType model_type;
   size_t synch;
   const PathProperty* path;
   const Distribution* dist;
@@ -402,6 +404,7 @@ const Uniform* NewUniform(const Expression* low,
   UniquePtrVector<const Expression>* arguments;
 }
 
+%type <model_type> model_type
 %type <synch> synchronization
 %type <expr> property
 %type <path> path_property
@@ -431,11 +434,16 @@ model_or_properties : model
 /* ====================================================================== */
 /* Model files. */
 
-model : model_type { prepare_model(); } declarations modules rewards
+model : model_type { prepare_model($1); } declarations modules rewards
           { compile_model(); }
       ;
 
-model_type : STOCHASTIC | CTMC_TOKEN
+model_type : STOCHASTIC
+               { $$ = ModelType::CTMC; }
+           | CTMC_TOKEN
+               { $$ = ModelType::CTMC; }
+           | GSMP_TOKEN
+               { $$ = ModelType::GSMP; }
            ;
 
 /* ====================================================================== */
@@ -1572,13 +1580,14 @@ static void prepare_module(const std::string* ident) {
 
 
 /* Prepares a model for parsing. */
-static void prepare_model() {
+static void prepare_model(ModelType model_type) {
   clear_declarations();
   properties.clear();
   if (model != nullptr) {
     delete model;
   }
   model = new Model();
+  model->set_type(model_type);
 }
 
 

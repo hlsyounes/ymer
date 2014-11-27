@@ -23,12 +23,12 @@
 #include <config.h>
 #include "comm.h"
 #include "distributions.h"
-#include "states.h"
 #include "models.h"
 #include "formulas.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/rng.h"
+#include "src/simulator.h"
 #include "src/strutil.h"
 #include "src/typed-value.h"
 #include "glog/logging.h"
@@ -419,9 +419,21 @@ std::map<std::string, IdentifierInfo> GetIdentifiersByName(
   return identifiers_by_name;
 }
 
+CompiledModelType CompileModelType(ModelType model_type,
+                                   std::vector<std::string>* errors) {
+  switch (model_type) {
+    case ModelType::CTMC:
+      return CompiledModelType::CTMC;
+    case ModelType::GSMP:
+      return CompiledModelType::GSMP;
+  }
+  errors->push_back("bad model type");
+  return CompiledModelType::CTMC;
+}
+
 CompiledModel CompileModel(const Model& model,
                            std::vector<std::string>* errors) {
-  CompiledModel compiled_model(CompiledModelType::CTMC);
+  CompiledModel compiled_model(CompileModelType(model.type(), errors));
 
   for (const ParsedVariable& v : model.variables()) {
     compiled_model.AddVariable(
@@ -431,11 +443,29 @@ CompiledModel CompileModel(const Model& model,
   int next_outcome_index = 0;
   std::map<std::string, IdentifierInfo> identifiers_by_name =
       GetIdentifiersByName(compiled_model);
-  for (const Command* c : model.commands()) {
-    compiled_model.AddCommand(
-        CompileCommand(*c, identifiers_by_name, &next_outcome_index, errors));
+  std::vector<CompiledMarkovCommand> single_markov_commands;
+  std::vector<CompiledGsmpCommand> single_gsmp_commands;
+  for (const Command* command : model.commands()) {
+    const auto compiled_guard = CompileAndOptimizeExpression(
+        command->guard(), Type::BOOL, identifiers_by_name, errors);
+    const auto compiled_delay =
+        CompileDistribution(command->delay(), identifiers_by_name, errors);
+    const auto compiled_updates =
+        CompileUpdates(command->updates(), identifiers_by_name, errors);
+    if (compiled_delay.type() == DistributionType::MEMORYLESS) {
+      single_markov_commands.push_back(CompiledMarkovCommand(
+          compiled_guard, {CompiledMarkovOutcome(compiled_delay.parameters()[0],
+                                                 compiled_updates)}));
+    } else {
+      single_gsmp_commands.emplace_back(compiled_guard, compiled_delay,
+                                        compiled_updates,
+                                        single_gsmp_commands.size());
+    }
+    compiled_model.AddCommand(CompileCommand(*command, identifiers_by_name,
+                                             &next_outcome_index, errors));
   }
-  compiled_model.set_gsmp_event_count(next_outcome_index);
+  compiled_model.set_single_markov_commands(single_markov_commands);
+  compiled_model.set_single_gsmp_commands(single_gsmp_commands);
 
   return compiled_model;
 }

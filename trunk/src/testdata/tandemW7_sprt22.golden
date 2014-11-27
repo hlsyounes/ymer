@@ -3,5 +3,5 @@ Variables: 2
 Events:    3
 
 Model checking P<0.22[ true U<=227 sc = 7 & sm = 7 ] ...
-Acceptance sampling.........:..1212 observations.
+Acceptance sampling.........:.........:.........:.....3531 observations.
 Property is true in the initial state.
