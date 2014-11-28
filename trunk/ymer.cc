@@ -435,8 +435,10 @@ CompiledModel CompileModel(const Model& model,
     command->delay().Accept(&dist_compiler);
     if (dist_compiler.has_markov_weight()) {
       single_markov_commands.push_back(CompiledMarkovCommand(
-          compiled_guard, {CompiledMarkovOutcome(dist_compiler.markov_weight(),
-                                                 compiled_updates)}));
+          compiled_guard, dist_compiler.markov_weight(),
+          {CompiledMarkovOutcome(
+              CompiledExpression({Operation::MakeDCONST(1.0, 0)}),
+              compiled_updates)}));
     } else {
       single_gsmp_commands.emplace_back(
           compiled_guard, dist_compiler.gsmp_delay(), compiled_updates,

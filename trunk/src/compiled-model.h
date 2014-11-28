@@ -71,10 +71,14 @@ class CompiledMarkovCommand {
  public:
   // Constructs a compiled Markov command with the given guard and outcomes.
   CompiledMarkovCommand(const CompiledExpression& guard,
+                        const CompiledExpression& weight_sum,
                         const std::vector<CompiledMarkovOutcome>& outcomes);
 
   // Returns the guard for this command.
   const CompiledExpression& guard() const { return guard_; }
+
+  // Returns the sum of outcome weights for this command.
+  const CompiledExpression& weight_sum() const { return weight_sum_; }
 
   // Returns the outcomes for this command.
   const std::vector<CompiledMarkovOutcome>& outcomes() const {
@@ -83,6 +87,7 @@ class CompiledMarkovCommand {
 
  private:
   CompiledExpression guard_;
+  CompiledExpression weight_sum_;
   std::vector<CompiledMarkovOutcome> outcomes_;
 };
 

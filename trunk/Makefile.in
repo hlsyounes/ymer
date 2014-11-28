@@ -996,7 +996,7 @@ src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
 
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
-src_simulator_test_SOURCES = src/simulator_test.cc
+src_simulator_test_SOURCES = src/simulator_test.cc src/simulator.h
 src_simulator_test_LDADD = src/libcompiled-distribution.la \
     src/libcompiled-expression.la src/libcompiled-model.la src/libtest-main.la
 

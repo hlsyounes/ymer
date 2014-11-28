@@ -213,7 +213,7 @@ src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
 
 # Test for simulator library.
 check_PROGRAMS += src/simulator_test
-src_simulator_test_SOURCES = src/simulator_test.cc
+src_simulator_test_SOURCES = src/simulator_test.cc src/simulator.h
 src_simulator_test_LDADD = src/libcompiled-distribution.la \
     src/libcompiled-expression.la src/libcompiled-model.la src/libtest-main.la
 
