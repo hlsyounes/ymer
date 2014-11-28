@@ -91,48 +91,41 @@ class NextStateSampler {
   void NextState(const State& state, State* next_state);
 
  private:
-  double GetMarkovCommandWeight(const State& state,
-                                const CompiledMarkovCommand& command,
-                                double factor) const;
-
-  double SampleMarkovTriggerTime() const;
-
-  void SampleMarkovCommands(const State& state);
-
-  void SampleFactoredMarkovCommands(
+  void SampleDtmcEvents(const State& state);
+  void SampleFactoredDtmcEvents(
       const State& state, const std::vector<std::vector<CompiledMarkovCommand>>&
                               commands_per_module,
-      size_t module, double factor);
+      size_t module);
+  void ConsiderCandidateDtmcEvent();
 
-  void ConsiderCandidateMarkovCommands(double weight);
+  void SampleCtmcEvents(const State& state, State* next_state);
+  void SampleFactoredCtmcEvents(
+      const State& state, const std::vector<std::vector<CompiledMarkovCommand>>&
+                              commands_per_module,
+      size_t module, double factor, State* next_state);
+  void ConsiderCandidateCtmcEvent(const State& state, double weight,
+                                  State* next_state);
 
-  void SampleMarkovOutcomes(const State& state);
-
-  void SampleGsmpCommands(const State& state, State* next_state);
-
-  void SampleFactoredGsmpCommands(
+  void SampleGsmpEvents(const State& state, State* next_state);
+  void SampleFactoredGsmpEvents(
       const State& state, const std::vector<int>& offsets_per_module,
       const std::vector<std::vector<CompiledMarkovCommand>>&
           commands_per_module,
       size_t module, int index, State* next_state);
+  void ConsiderCandidateGsmpEvent(const State& state, int index,
+                                  State* next_state);
 
-  void ConsiderCandidateGsmpCommands(const State& state, int index,
-                                     State* next_state);
+  void SampleMarkovOutcomes(const State& state, State* next_state);
 
   const CompiledModel* const model_;
   CompiledExpressionEvaluator* const evaluator_;
   CompiledDistributionSampler<Engine>* const sampler_;
+  int ties_;
   std::vector<const CompiledMarkovCommand*> candidate_markov_commands_;
   std::vector<const CompiledMarkovCommand*> selected_markov_commands_;
-  double selected_markov_commands_key_;
-  int markov_ties_;
-  double markov_weight_sum_;
-  std::vector<const CompiledMarkovOutcome*> candidate_markov_outcomes_;
-  std::vector<const CompiledMarkovOutcome*> selected_markov_outcomes_;
   const CompiledGsmpCommand* candidate_gsmp_command_;
   const CompiledGsmpCommand* selected_gsmp_command_;
   int selected_gsmp_index_;
-  int gsmp_ties_;
 };
 
 template <typename Engine>
@@ -144,165 +137,130 @@ NextStateSampler<Engine>::NextStateSampler(
 template <typename Engine>
 void NextStateSampler<Engine>::NextState(const State& state,
                                          State* next_state) {
-  selected_markov_commands_.clear();
-  selected_markov_commands_key_ = -std::numeric_limits<double>::infinity();
-  markov_ties_ = 1;
-  markov_weight_sum_ = 0.0;
-  selected_markov_outcomes_.clear();
-  SampleMarkovCommands(state);
   next_state->set_time(std::numeric_limits<double>::infinity());
   next_state->set_values(state.values());
+  ties_ = 1;
+  selected_markov_commands_.clear();
+  if (model_->model_type() == CompiledModelType::DTMC) {
+    SampleDtmcEvents(state);
+    if (!selected_markov_commands_.empty()) {
+      next_state->set_time(state.time() + 1);
+    }
+  } else {
+    SampleCtmcEvents(state, next_state);
+    if (model_->model_type() == CompiledModelType::GSMP) {
+      next_state->reset_trigger_times();
+      selected_gsmp_command_ = nullptr;
+      SampleGsmpEvents(state, next_state);
+    }
+  }
   if (!selected_markov_commands_.empty()) {
-    SampleMarkovOutcomes(state);
-    next_state->set_time(state.time() + SampleMarkovTriggerTime());
-  }
-  if (model_->model_type() == CompiledModelType::GSMP) {
-    next_state->reset_trigger_times();
-    selected_markov_commands_.clear();
-    selected_gsmp_command_ = nullptr;
-    gsmp_ties_ = 1;
-    SampleGsmpCommands(state, next_state);
-    if (selected_gsmp_command_ != nullptr) {
-      for (const auto& update : selected_gsmp_command_->updates()) {
-        next_state->set_value(
-            update.variable(),
-            evaluator_->EvaluateIntExpression(update.expr(), state.values()));
-      }
-      next_state->set_trigger_time(selected_gsmp_index_,
-                                   std::numeric_limits<double>::infinity());
-    }
-  }
-  for (const auto* outcome : selected_markov_outcomes_) {
-    for (const auto& update : outcome->updates()) {
-      next_state->set_value(
-          update.variable(),
-          evaluator_->EvaluateIntExpression(update.expr(), state.values()));
-    }
+    SampleMarkovOutcomes(state, next_state);
   }
 }
 
 template <typename Engine>
-double NextStateSampler<Engine>::GetMarkovCommandWeight(
-    const State& state, const CompiledMarkovCommand& command,
-    double factor) const {
-  switch (model_->model_type()) {
-    case CompiledModelType::DTMC:
-      return 1.0;
-    case CompiledModelType::CTMC:
-    case CompiledModelType::GSMP: {
-      double weight = 0.0;
-      for (const auto& outcome : command.outcomes()) {
-        weight += factor *
-                  evaluator_->EvaluateDoubleExpression(outcome.weight(),
-                                                       state.values());
-      }
-      return weight;
-    }
-  }
-  LOG(FATAL) << "bad model type";
-}
-
-template <typename Engine>
-double NextStateSampler<Engine>::SampleMarkovTriggerTime() const {
-  switch (model_->model_type()) {
-    case CompiledModelType::DTMC:
-      return 1;
-    case CompiledModelType::CTMC:
-    case CompiledModelType::GSMP: {
-      return sampler_->Exponential(markov_weight_sum_);
-    }
-  }
-  LOG(FATAL) << "bad model type";
-}
-
-template <typename Engine>
-void NextStateSampler<Engine>::SampleMarkovCommands(const State& state) {
+void NextStateSampler<Engine>::SampleDtmcEvents(const State& state) {
   for (const auto& command : model_->single_markov_commands()) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_markov_commands_.push_back(&command);
-      ConsiderCandidateMarkovCommands(
-          GetMarkovCommandWeight(state, command, 1.0));
+      ConsiderCandidateDtmcEvent();
       candidate_markov_commands_.pop_back();
     }
   }
   for (const auto& commands_per_module : model_->factored_markov_commands()) {
-    SampleFactoredMarkovCommands(state, commands_per_module, 0, 1.0);
+    SampleFactoredDtmcEvents(state, commands_per_module, 0);
   }
 }
 
 template <typename Engine>
-void NextStateSampler<Engine>::SampleFactoredMarkovCommands(
+void NextStateSampler<Engine>::SampleFactoredDtmcEvents(
     const State& state,
     const std::vector<std::vector<CompiledMarkovCommand>>& commands_per_module,
-    size_t module, double factor) {
+    size_t module) {
   if (module == commands_per_module.size()) {
-    ConsiderCandidateMarkovCommands(factor);
+    ConsiderCandidateDtmcEvent();
     return;
   }
   for (const auto& command : commands_per_module[module]) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_markov_commands_.push_back(&command);
-      SampleFactoredMarkovCommands(
-          state, commands_per_module, module + 1,
-          GetMarkovCommandWeight(state, command, factor));
+      SampleFactoredDtmcEvents(state, commands_per_module, module + 1);
       candidate_markov_commands_.pop_back();
     }
   }
 }
 
 template <typename Engine>
-void NextStateSampler<Engine>::ConsiderCandidateMarkovCommands(double weight) {
-  const double key = log(1 - sampler_->StandardUniform()) / weight;
-  if (key > selected_markov_commands_key_) {
-    markov_ties_ = 1;
-    selected_markov_commands_key_ = key;
+void NextStateSampler<Engine>::ConsiderCandidateDtmcEvent() {
+  if (ties_ == 1 || sampler_->StandardUniform() * ties_ < 1.0) {
     selected_markov_commands_ = candidate_markov_commands_;
-  } else if (key == selected_markov_commands_key_) {
-    ++markov_ties_;
-    if (sampler_->StandardUniform() * markov_ties_ < 1.0) {
+  }
+  ++ties_;
+}
+
+template <typename Engine>
+void NextStateSampler<Engine>::SampleCtmcEvents(const State& state,
+                                                State* next_state) {
+  for (const auto& command : model_->single_markov_commands()) {
+    if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
+      candidate_markov_commands_.push_back(&command);
+      const double weight = evaluator_->EvaluateDoubleExpression(
+          command.weight_sum(), state.values());
+      ConsiderCandidateCtmcEvent(state, weight, next_state);
+      candidate_markov_commands_.pop_back();
+    }
+  }
+  for (const auto& commands_per_module : model_->factored_markov_commands()) {
+    SampleFactoredCtmcEvents(state, commands_per_module, 0, 1.0, next_state);
+  }
+}
+
+template <typename Engine>
+void NextStateSampler<Engine>::SampleFactoredCtmcEvents(
+    const State& state,
+    const std::vector<std::vector<CompiledMarkovCommand>>& commands_per_module,
+    size_t module, double factor, State* next_state) {
+  if (module == commands_per_module.size()) {
+    ConsiderCandidateCtmcEvent(state, factor, next_state);
+    return;
+  }
+  for (const auto& command : commands_per_module[module]) {
+    if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
+      candidate_markov_commands_.push_back(&command);
+      const double weight = evaluator_->EvaluateDoubleExpression(
+          command.weight_sum(), state.values());
+      SampleFactoredCtmcEvents(state, commands_per_module, module + 1,
+                               factor * weight, next_state);
+      candidate_markov_commands_.pop_back();
+    }
+  }
+}
+
+template <typename Engine>
+void NextStateSampler<Engine>::ConsiderCandidateCtmcEvent(const State& state,
+                                                          double weight,
+                                                          State* next_state) {
+  double t = state.time() + sampler_->Exponential(weight);
+  if (t < next_state->time()) {
+    ties_ = 1;
+    next_state->set_time(t);
+    selected_markov_commands_ = candidate_markov_commands_;
+  } else if (t == next_state->time()) {
+    ++ties_;
+    if (sampler_->StandardUniform() * ties_ < 1.0) {
       selected_markov_commands_ = candidate_markov_commands_;
     }
   }
-  markov_weight_sum_ += weight;
 }
 
 template <typename Engine>
-void NextStateSampler<Engine>::SampleMarkovOutcomes(const State& state) {
-  selected_markov_outcomes_.resize(selected_markov_commands_.size());
-  for (size_t i = 0; i < selected_markov_commands_.size(); ++i) {
-    const auto& command = *selected_markov_commands_[i];
-    if (command.outcomes().size() == 1) {
-      const auto& outcome = command.outcomes()[0];
-      selected_markov_outcomes_[i] = &outcome;
-    } else {
-      double selected_key = -std::numeric_limits<double>::infinity();
-      int ties = 1;
-      for (const auto& outcome : command.outcomes()) {
-        const double weight = evaluator_->EvaluateDoubleExpression(
-            outcome.weight(), state.values());
-        const double key = log(1.0 - sampler_->StandardUniform()) / weight;
-        if (key > selected_key) {
-          ties = 1;
-          selected_key = key;
-          selected_markov_outcomes_[i] = &outcome;
-        } else if (key == selected_key) {
-          ++ties;
-          if (sampler_->StandardUniform() * ties < 1.0) {
-            selected_markov_outcomes_[i] = &outcome;
-          }
-        }
-      }
-    }
-  }
-}
-
-template <typename Engine>
-void NextStateSampler<Engine>::SampleGsmpCommands(const State& state,
-                                                  State* next_state) {
+void NextStateSampler<Engine>::SampleGsmpEvents(const State& state,
+                                                State* next_state) {
   for (const auto& command : model_->single_gsmp_commands()) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_gsmp_command_ = &command;
-      ConsiderCandidateGsmpCommands(state, command.first_index(), next_state);
+      ConsiderCandidateGsmpEvent(state, command.first_index(), next_state);
     }
   }
   for (size_t i = 0; i < model_->factored_gsmp_commands().size(); ++i) {
@@ -310,42 +268,48 @@ void NextStateSampler<Engine>::SampleGsmpCommands(const State& state,
     for (const auto& command :
          model_->factored_gsmp_commands()[i].gsmp_commands) {
       candidate_gsmp_command_ = &command;
-      SampleFactoredGsmpCommands(state, offsets,
-                                 model_->factored_markov_commands()[i], 1,
-                                 command.first_index(), next_state);
+      SampleFactoredGsmpEvents(state, offsets,
+                               model_->factored_markov_commands()[i], 1,
+                               command.first_index(), next_state);
     }
+  }
+  if (selected_gsmp_command_ != nullptr) {
+    for (const auto& update : selected_gsmp_command_->updates()) {
+      next_state->set_value(
+          update.variable(),
+          evaluator_->EvaluateIntExpression(update.expr(), state.values()));
+    }
+    next_state->set_trigger_time(selected_gsmp_index_,
+                                 std::numeric_limits<double>::infinity());
   }
 }
 
 template <typename Engine>
-void NextStateSampler<Engine>::SampleFactoredGsmpCommands(
+void NextStateSampler<Engine>::SampleFactoredGsmpEvents(
     const State& state, const std::vector<int>& offsets_per_module,
     const std::vector<std::vector<CompiledMarkovCommand>>& commands_per_module,
     size_t module, int index, State* next_state) {
   if (module == commands_per_module.size()) {
-    ConsiderCandidateGsmpCommands(state, index, next_state);
+    ConsiderCandidateGsmpEvent(state, index, next_state);
+    return;
   }
   int offset = offsets_per_module[module - 1];
   int i = 0;
   for (const auto& command : commands_per_module[module]) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
-      for (const auto& outcome : command.outcomes()) {
-        candidate_markov_outcomes_.push_back(&outcome);
-        SampleFactoredGsmpCommands(state, offsets_per_module,
-                                   commands_per_module, module + 1,
-                                   index + offset * i, next_state);
-        candidate_markov_outcomes_.pop_back();
-        ++i;
-      }
-    } else {
-      i += command.outcomes().size();
+      candidate_markov_commands_.push_back(&command);
+      SampleFactoredGsmpEvents(state, offsets_per_module, commands_per_module,
+                               module + 1, index + offset * i, next_state);
+      candidate_markov_commands_.pop_back();
     }
+    ++i;
   }
 }
 
 template <typename Engine>
-void NextStateSampler<Engine>::ConsiderCandidateGsmpCommands(
-    const State& state, int index, State* next_state) {
+void NextStateSampler<Engine>::ConsiderCandidateGsmpEvent(const State& state,
+                                                          int index,
+                                                          State* next_state) {
   double t = state.trigger_times()[index];
   if (t == std::numeric_limits<double>::infinity()) {
     t = state.time() +
@@ -354,19 +318,45 @@ void NextStateSampler<Engine>::ConsiderCandidateGsmpCommands(
   next_state->set_trigger_time(index, t);
   bool selected = false;
   if (t < next_state->time()) {
-    gsmp_ties_ = 1;
+    ties_ = 1;
     next_state->set_time(t);
     selected = true;
   } else if (t == next_state->time()) {
-    ++gsmp_ties_;
-    if (sampler_->StandardUniform() * gsmp_ties_ < 1.0) {
+    ++ties_;
+    if (sampler_->StandardUniform() * ties_ < 1.0) {
       selected = true;
     }
   }
   if (selected) {
     selected_gsmp_command_ = candidate_gsmp_command_;
-    selected_markov_outcomes_ = candidate_markov_outcomes_;
+    selected_markov_commands_ = candidate_markov_commands_;
     selected_gsmp_index_ = index;
+  }
+}
+
+template <typename Engine>
+void NextStateSampler<Engine>::SampleMarkovOutcomes(const State& state,
+                                                    State* next_state) {
+  for (size_t i = 0; i < selected_markov_commands_.size(); ++i) {
+    const auto& command = *selected_markov_commands_[i];
+    const CompiledMarkovOutcome* selected_outcome = &command.outcomes().back();
+    if (command.outcomes().size() > 1) {
+      double p = sampler_->StandardUniform();
+      double weight_sum = 0.0;
+      for (const auto& outcome : command.outcomes()) {
+        weight_sum += evaluator_->EvaluateDoubleExpression(outcome.weight(),
+                                                           state.values());
+        if (p < weight_sum) {
+          selected_outcome = &outcome;
+          break;
+        }
+      }
+    }
+    for (const auto& update : selected_outcome->updates()) {
+      next_state->set_value(
+          update.variable(),
+          evaluator_->EvaluateIntExpression(update.expr(), state.values()));
+    }
   }
 }
 

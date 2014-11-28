@@ -38,9 +38,9 @@ CompiledMarkovOutcome::CompiledMarkovOutcome(
     : weight_(weight), updates_(updates) {}
 
 CompiledMarkovCommand::CompiledMarkovCommand(
-    const CompiledExpression& guard,
+    const CompiledExpression& guard, const CompiledExpression& weight_sum,
     const std::vector<CompiledMarkovOutcome>& outcomes)
-    : guard_(guard), outcomes_(outcomes) {}
+    : guard_(guard), weight_sum_(weight_sum), outcomes_(outcomes) {}
 
 CompiledGsmpCommand::CompiledGsmpCommand(
     const CompiledExpression& guard, const CompiledGsmpDistribution& delay,
