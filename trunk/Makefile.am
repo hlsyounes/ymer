@@ -86,7 +86,8 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 # Ymer libraries.
 #
 
-HEADER_FILES = src/strutil.h src/unique-ptr-vector.h
+HEADER_FILES = src/fake_rng.h src/simulator.h src/strutil.h \
+    src/unique-ptr-vector.h
 
 # Statistics library.
 noinst_LTLIBRARIES += src/libstatistics.la
@@ -213,7 +214,7 @@ src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
 
 # Test for simulator library.
 check_PROGRAMS += src/simulator_test
-src_simulator_test_SOURCES = src/simulator_test.cc src/simulator.h
+src_simulator_test_SOURCES = src/simulator_test.cc
 src_simulator_test_LDADD = src/libcompiled-distribution.la \
     src/libcompiled-expression.la src/libcompiled-model.la src/libtest-main.la
 
@@ -228,6 +229,13 @@ TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
 TESTS = $(check_PROGRAMS)
 
 EXTRA_DIST = cudd examples scripts
+dist-hook:
+	rm -rf `find $(distdir)/cudd -type d -name .deps`
+	rm -rf `find $(distdir)/cudd -type d -name .libs`
+	rm -rf `find $(distdir)/cudd -type f -name .dirstamp`
+	rm -rf `find $(distdir)/cudd -type f -name *.la`
+	rm -rf `find $(distdir)/cudd -type f -name *.lo`
+	rm -rf `find $(distdir)/cudd -type f -name *.o`
 
 CLEANFILES = core
 
