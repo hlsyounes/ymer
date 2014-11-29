@@ -333,22 +333,22 @@ const UntilProperty* NewUntil(double min_time, double max_time,
 }
 
 const Exponential* NewExponential(const Expression* rate) {
-  return Exponential::make(WrapUnique(rate));
+  return new Exponential(WrapUnique(rate));
 }
 
 const Distribution* NewWeibull(const Expression* scale,
                                const Expression* shape) {
-  return Weibull::make(WrapUnique(scale), WrapUnique(shape));
+  return new Weibull(WrapUnique(scale), WrapUnique(shape));
 }
 
 const Lognormal* NewLognormal(const Expression* scale,
                               const Expression* shape) {
-  return Lognormal::make(WrapUnique(scale), WrapUnique(shape));
+  return new Lognormal(WrapUnique(scale), WrapUnique(shape));
 }
 
 const Uniform* NewUniform(const Expression* low,
                           const Expression* high) {
-  return Uniform::make(WrapUnique(low), WrapUnique(high));
+  return new Uniform(WrapUnique(low), WrapUnique(high));
 }
 
 }  // namespace
@@ -1271,7 +1271,7 @@ static void add_command() {
 static void prepare_command(int synch,
                             std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay) {
-  command = new Command(synch, std::move(guard), delay);
+  command = new Command(synch, std::move(guard), WrapUnique(delay));
 }
 
 namespace {
@@ -1320,9 +1320,9 @@ class DistributionIdentifierSubstituter : public DistributionVisitor {
   explicit DistributionIdentifierSubstituter(
       const std::map<std::string, std::string>& substitutions);
 
-  ~DistributionIdentifierSubstituter();
-
-  const Distribution* release_distribution();
+  std::unique_ptr<const Distribution> release_distribution() {
+    return std::move(distribution_);
+  }
 
  private:
   virtual void DoVisitExponential(const Exponential& distribution);
@@ -1331,10 +1331,10 @@ class DistributionIdentifierSubstituter : public DistributionVisitor {
   virtual void DoVisitUniform(const Uniform& distribution);
 
   std::map<std::string, std::string> substitutions_;
-  const Distribution* distribution_;
+  std::unique_ptr<const Distribution> distribution_;
 };
 
-const Distribution* SubstituteIdentifiers(
+std::unique_ptr<const Distribution> SubstituteIdentifiers(
     const Distribution& distribution,
     const std::map<std::string, std::string>& substitutions) {
   DistributionIdentifierSubstituter substituter(substitutions);
@@ -1458,44 +1458,33 @@ void ExpressionIdentifierSubstituter::DoVisitUntilProperty(
 
 DistributionIdentifierSubstituter::DistributionIdentifierSubstituter(
     const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions), distribution_(nullptr) {
-}
-
-DistributionIdentifierSubstituter::~DistributionIdentifierSubstituter() {
-  delete distribution_;
-}
-
-const Distribution* DistributionIdentifierSubstituter::release_distribution() {
-  const Distribution* distribution = distribution_;
-  distribution_ = nullptr;
-  return distribution;
-}
+    : substitutions_(substitutions) {}
 
 void DistributionIdentifierSubstituter::DoVisitExponential(
     const Exponential& distribution) {
-  distribution_ = Exponential::make(
+  distribution_ = Exponential::New(
       SubstituteIdentifiers(distribution.rate(), substitutions_));
 }
 
 void DistributionIdentifierSubstituter::DoVisitWeibull(
     const Weibull& distribution) {
-  distribution_ = Weibull::make(
-      SubstituteIdentifiers(distribution.scale(), substitutions_),
-      SubstituteIdentifiers(distribution.shape(), substitutions_));
+  distribution_ =
+      Weibull::New(SubstituteIdentifiers(distribution.scale(), substitutions_),
+                   SubstituteIdentifiers(distribution.shape(), substitutions_));
 }
 
 void DistributionIdentifierSubstituter::DoVisitLognormal(
     const Lognormal& distribution) {
-  distribution_ = Lognormal::make(
+  distribution_ = Lognormal::New(
       SubstituteIdentifiers(distribution.scale(), substitutions_),
       SubstituteIdentifiers(distribution.shape(), substitutions_));
 }
 
 void DistributionIdentifierSubstituter::DoVisitUniform(
     const Uniform& distribution) {
-  distribution_ = Uniform::make(
-      SubstituteIdentifiers(distribution.low(), substitutions_),
-      SubstituteIdentifiers(distribution.high(), substitutions_));
+  distribution_ =
+      Uniform::New(SubstituteIdentifiers(distribution.low(), substitutions_),
+                   SubstituteIdentifiers(distribution.high(), substitutions_));
 }
 
 }  // namespace

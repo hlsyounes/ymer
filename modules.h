@@ -28,10 +28,9 @@
 #include <set>
 #include <vector>
 
+#include "distributions.h"
 #include "src/expression.h"
 #include "src/model.h"
-
-class Distribution;
 
 
 /* ====================================================================== */
@@ -43,7 +42,7 @@ class Distribution;
 struct Command {
   /* Constructs a command. */
   Command(size_t synch, std::unique_ptr<const Expression>&& guard,
-          const Distribution* delay);
+          std::unique_ptr<const Distribution>&& delay);
 
   /* Deletes this command. */
   ~Command();
@@ -75,7 +74,7 @@ private:
   /* The guard for this command. */
   std::unique_ptr<const Expression> guard_;
   /* The rate for this command. */
-  const Distribution* delay_;
+  std::unique_ptr<const Distribution> delay_;
   /* The updates for this command. */
   std::vector<const Update*> updates_;
 };

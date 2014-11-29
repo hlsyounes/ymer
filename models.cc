@@ -55,6 +55,46 @@ typedef std::pair<SynchronizationMap::const_iterator,
 /* PHData */
 
 /*
+ * Parameters defining an acyclic continuous phase-type (ACPH)
+ * distribution that is either a Cox-2 distribution or a generalized
+ * Erlang distribution.
+ */
+struct ACPH2Parameters {
+  /* Number of phases of this distribution. */
+  size_t n;
+  /* Rate associated with either the first phase (Cox-2) or all phases
+     (Erlang). */
+  double r1;
+  /* Rate associated with the second phase. */
+  double r2;
+  /* Probability of transitioning from the first phase to the second
+     phase. */
+  double p;
+};
+
+/*
+ * Parameters defining an acyclic continuous phase-type (ACPH)
+ * distribution in the class of EC distributions with p=1.
+ */
+struct ECParameters {
+  /* Number of phases of this EC distribution. */
+  size_t n;
+  /* Rate associated with phases of the Erlang part of this EC
+     distribution. */
+  double re;
+  /* Rate associated with the first phase of the two-phase Coxian part
+     of this EC distribution. */
+  double rc1;
+  /* Rate associated with the second phase of the two-phase Coxian
+     part of this EC distribution. */
+  double rc2;
+  /* Probability of transitioning to from the first phase to the
+     second phase of the two-phase Coxian part of this EC distribution
+     (1-pc is the probability of bypassing the second phase). */
+  double pc;
+};
+
+/*
  * Data for phase-type distribution.
  */
 struct PHData {
@@ -78,6 +118,249 @@ namespace {
 // Invalid module index.
 const int kNoModule = -1;
 
+class ConstantExpressionEvaluator : public ExpressionVisitor {
+ public:
+  ConstantExpressionEvaluator();
+
+  TypedValue value() const { return value_; }
+
+ private:
+  virtual void DoVisitLiteral(const Literal& expr);
+  virtual void DoVisitIdentifier(const Identifier& expr);
+  virtual void DoVisitFunctionCall(const FunctionCall& expr);
+  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
+  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
+  virtual void DoVisitConditional(const Conditional& expr);
+  virtual void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr);
+
+  TypedValue value_;
+};
+
+ConstantExpressionEvaluator::ConstantExpressionEvaluator()
+    : value_(0) {
+}
+
+void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
+  value_ = expr.value();
+}
+
+void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
+  LOG(FATAL) << "expecting constant expression";
+}
+
+void ConstantExpressionEvaluator::DoVisitFunctionCall(
+    const FunctionCall& expr) {
+  std::vector<TypedValue> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(value_);
+  }
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      LOG(FATAL) << "bad function call";
+    case Function::MIN:
+      CHECK(!arguments.empty());
+      value_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        value_ = std::min(value_, arguments[i]);
+      }
+      break;
+    case Function::MAX:
+      CHECK(!arguments.empty());
+      value_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        value_ = std::max(value_, arguments[i]);
+      }
+      break;
+    case Function::FLOOR:
+      CHECK(arguments.size() == 1);
+      value_ = floor(arguments[0]);
+      break;
+    case Function::CEIL:
+      CHECK(arguments.size() == 2);
+      value_ = ceil(arguments[0]);
+      break;
+    case Function::POW:
+      CHECK(arguments.size() == 2);
+      value_ = pow(arguments[0], arguments[1]);
+      break;
+    case Function::LOG:
+      CHECK(arguments.size() == 2);
+      value_ = log(arguments[0]) / log(arguments[1]);
+      break;
+    case Function::MOD:
+      CHECK(arguments.size() == 2);
+      value_ = arguments[0] % arguments[1];
+      break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      value_ = -value_;
+      break;
+    case UnaryOperator::NOT:
+      value_ = !value_;
+      break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
+  expr.operand1().Accept(this);
+  TypedValue operand1 = value_;
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case BinaryOperator::PLUS:
+      value_ = operand1 + value_;
+      break;
+    case BinaryOperator::MINUS:
+      value_ = operand1 - value_;
+      break;
+    case BinaryOperator::MULTIPLY:
+      value_ = operand1 * value_;
+      break;
+    case BinaryOperator::DIVIDE:
+      value_ = operand1 / value_;
+      break;
+    case BinaryOperator::AND:
+      value_ = operand1.value<bool>() && value_.value<bool>();
+      break;
+    case BinaryOperator::OR:
+      value_ = operand1.value<bool>() || value_.value<bool>();
+      break;
+    case BinaryOperator::IMPLY:
+      value_ = !operand1.value<bool>() || value_.value<bool>();
+      break;
+    case BinaryOperator::IFF:
+      value_ = operand1.value<bool>() == value_.value<bool>();
+      break;
+    case BinaryOperator::LESS:
+      value_ = operand1 < value_;
+      break;
+    case BinaryOperator::LESS_EQUAL:
+      value_ = operand1 <= value_;
+      break;
+    case BinaryOperator::GREATER_EQUAL:
+      value_ = operand1 >= value_;
+      break;
+    case BinaryOperator::GREATER:
+      value_ = operand1 > value_;
+      break;
+    case BinaryOperator::EQUAL:
+      value_ = operand1 == value_;
+      break;
+    case BinaryOperator::NOT_EQUAL:
+      value_ = operand1 != value_;
+      break;
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  if (value_.value<bool>()) {
+    expr.if_branch().Accept(this);
+  } else {
+    expr.else_branch().Accept(this);
+  }
+}
+
+void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "expecting constant expression";
+}
+
+TypedValue EvaluateConstantExpression(const Expression& expr) {
+  ConstantExpressionEvaluator evaluator;
+  expr.Accept(&evaluator);
+  return evaluator.value();
+}
+
+class MomentsCalculator : public DistributionVisitor {
+ public:
+  explicit MomentsCalculator(int n);
+
+  const std::vector<double>& moments() const { return moments_; }
+
+ private:
+  void DoVisitExponential(const Exponential& dist) override;
+  void DoVisitWeibull(const Weibull& dist) override;
+  void DoVisitLognormal(const Lognormal& dist) override;
+  void DoVisitUniform(const Uniform& dist) override;
+
+  int n_;
+  std::vector<double> moments_;
+};
+
+MomentsCalculator::MomentsCalculator(int n) : n_(n) { moments_.reserve(n); }
+
+void MomentsCalculator::DoVisitExponential(const Exponential& dist) {
+  moments_.clear();
+  // N.B. this function should never be called for a distribution with
+  // non-constant parameters.
+  double lambda_inv =
+      1.0 / EvaluateConstantExpression(dist.rate()).value<double>();
+  double mi = 1.0;
+  for (int i = 1; i <= n_; i++) {
+    mi *= i * lambda_inv;
+    moments_.push_back(mi);
+  }
+}
+
+void MomentsCalculator::DoVisitWeibull(const Weibull& dist) {
+  moments_.clear();
+  // N.B. this function should never be called for a distribution with
+  // non-constant parameters.
+  double eta = EvaluateConstantExpression(dist.scale()).value<double>();
+  double beta_inv =
+      1.0 / EvaluateConstantExpression(dist.shape()).value<double>();
+  double ei = 1.0;
+  double bi = 1.0;
+  for (int i = 1; i <= n_; i++) {
+    ei *= eta;
+    bi += beta_inv;
+    moments_.push_back(ei * tgamma(bi));
+  }
+}
+
+void MomentsCalculator::DoVisitLognormal(const Lognormal& dist) {
+  moments_.clear();
+  // N.B. this function should never be called for a distribution with
+  // non-constant parameters.
+  double mu = EvaluateConstantExpression(dist.scale()).value<double>();
+  double sigma = EvaluateConstantExpression(dist.shape()).value<double>();
+  double mean = log(mu) - sigma * sigma / 2.0;
+  for (int i = 1; i <= n_; i++) {
+    moments_.push_back(exp(i * mean + i * i * sigma * sigma / 2.0));
+  }
+}
+
+void MomentsCalculator::DoVisitUniform(const Uniform& dist) {
+  moments_.clear();
+  // N.B. this function should never be called for a distribution with
+  // non-constant parameters.
+  double a = EvaluateConstantExpression(dist.low()).value<double>();
+  double b = EvaluateConstantExpression(dist.high()).value<double>();
+  double ai = a;
+  double bi = b;
+  for (int i = 1; i <= n_; i++) {
+    ai *= a;
+    bi *= b;
+    moments_.push_back((bi - ai) / ((i + 1) * (b - a)));
+  }
+}
+
+// Returns the n first moments of the given distribution.
+std::vector<double> GetMoments(const Distribution& dist, int n) {
+  MomentsCalculator calculator(n);
+  dist.Accept(&calculator);
+  return calculator.moments();
+}
+
 /* Returns the number of phases of the given PH distribution. */
 int ph_phases(const PHData& data) {
   if (data.params.n == 0) {
@@ -87,16 +370,119 @@ int ph_phases(const PHData& data) {
   }
 }
 
-/*
- * Returns the EC distribution matching the first moment of the given
- * distribution.
- */
-void match_first_moment(ECParameters& params, const Distribution& dist) {
+// Returns the EC distribution matching the first moment of the given
+// distribution.
+ECParameters MatchOneMoment(const Distribution& dist) {
+  ECParameters params;
   params.n = 2;
-  std::vector<double> mu;
-  dist.moments(mu, 1);
+  std::vector<double> mu = GetMoments(dist, 1);
   params.rc1 = 1.0/mu[0];
   params.pc = 0.0;
+  return params;
+}
+
+// Provides the parameters for an acyclic continuous phase-type (ACPH)
+// distribution matching the first two moments of this distribution.
+ACPH2Parameters MatchTwoMoments(const Distribution& dist) {
+  ACPH2Parameters params;
+  std::vector<double> m = GetMoments(dist, 2);
+  double mu = m[0];
+  double cv2 = m[1]/(mu*mu) - 1.0;
+  if (cv2 >= 0.5) {
+    params.n = 2;
+    params.p = 1/(2.0*cv2);
+    params.r1 = 2.0/mu;
+    params.r2 = 1.0/(mu*cv2);
+  } else {
+    double n = 1.0/cv2;
+    if (fabs(rint(n) - n) < 1e-10) {
+      n = rint(n);
+    } else {
+      n = ceil(n);
+    }
+    params.n = int(n + 0.5);
+    params.p = 1.0 - ((2.0*n*cv2 + n - 2.0 - sqrt(n*n + 4.0 - 4.0*n*cv2))
+		      /2.0/(n - 1.0)/(cv2 + 1.0));
+    params.r1 = (1.0 - params.p + n*params.p)/mu;
+    params.r2 = params.r1;
+  }
+  return params;
+}
+
+// Provides the paramters for an acyclic continuous phase-type (ACPH)
+// distribution in the class of EC distributions matching the first three
+// moments of this distribution using the moments matching algorithm described
+// in:
+//
+//   Osogami, Takayuki, and Mor Harchol-Balter.  2003.  "A closed-form solution
+//       for mapping general distributions to minimal PH distributions".  In
+//       Proceedings of the 13th International Conference on Tools and
+//       Algorithms for the Construnction and Analysis of Systems.
+//
+ECParameters MatchThreeMoments(const Distribution& dist) {
+  // This is a slightly modified version avoiding solutions with p<1, at the
+  // price that some positive distributions cannot be properly represented.  For
+  // a distribution that the original algorithm would map to an EC distribution
+  // with p<1, this algorithm modifies the second and third moments so that the
+  // modified distribution can be matched to an EC distribution with p=1.  This
+  // is to avoid EC distributions with mass probability at zero, which do not
+  // fit well with the model of discrete event systems that we are using.
+  ECParameters params;
+  std::vector<double> m = GetMoments(dist, 3);
+  double mu1G = m[0];
+  double mu2G = m[1];
+  double mu3G = m[2];
+  double m2G = mu2G/(mu1G*mu1G);
+  double m3G = mu3G/(mu1G*mu2G);
+  double x = 1.0/(m2G - 1.0);
+  if (fabs(rint(x) - x) < 1e-10) {
+    // Adjust second moment so that 1/(m2G - 1) is not an integer.
+    m2G *= (1.0 - 1e-5);
+    std::cerr << std::endl
+	      << PACKAGE ": second moment for " << dist << " is changed from "
+	      << mu2G << " to " << m2G*mu1G*mu1G << std::endl;
+  }
+  if (m3G < 2.0*m2G - 1.0) {
+    // Adjust third moment so that the resulting EC distribution has no mass
+    // probability at zero (p=1).
+    m3G = 2.0*m2G - 1.0;
+    std::cerr << std::endl
+	      << PACKAGE ": third moment for " << dist << " is changed from "
+	      << mu3G << " to " << m3G*mu1G*mu2G << std::endl;
+  }
+  double n;
+  if (m2G < 2.0 && fabs(m3G - (2.0*m2G - 1.0)) < 1e-10) {
+    n = floor(m2G/(m2G - 1.0));
+  } else {
+    n = floor(m2G/(m2G - 1.0) + 1.0);
+  }
+  double m2X = ((n - 3.0)*m2G - (n - 2.0))/((n - 2.0)*m2G - (n - 1.0));
+  double mu1X = mu1G/((n - 2.0)*m2X - (n - 3.0));
+  double alpha = (n - 2.0)*(m2X - 1.0)*(n*(n - 1.0)*m2X*m2X
+					- n*(2.0*n - 5.0)*m2X
+					+ (n - 1.0)*(n - 3.0));
+  double tmp = (n - 2.0)*m2X - (n - 3.0);
+  double beta = ((n - 1.0)*m2X - (n - 2.0))*tmp*tmp;
+  double m3X = (beta*m3G - alpha)/m2X;
+  double u, v;
+  if (fabs(3.0*m2X - 2.0*m3X) < 1e-10) {
+    u = 1.0;
+    v = 0.0;
+  } else {
+    u = (6.0 - 2.0*m3X)/(3.0*m2X - 2.0*m3X);
+    v = (12.0 - 6.0*m2X)/(m2X*(3.0*m2X - 2.0*m3X));
+  }
+  params.n = int(n + 0.5);
+  params.re = 1.0/((m2X - 1.0)*mu1X);
+  tmp = sqrt(u*u - 4.0*v);
+  params.rc1 = (u + tmp)/(2.0*mu1X);
+  if (fabs(params.rc1*mu1X - 1.0) < 1e-10) {
+    params.pc = 0.0;
+  } else {
+    params.rc2 = (u - tmp)/(2.0*mu1X);
+    params.pc = params.rc2*(params.rc1*mu1X - 1.0)/params.rc1;
+  }
+  return params;
 }
 
 /* Returns a reachability BDD for the given initial state and rate
@@ -310,11 +696,9 @@ bool IsUnitDistribution(const Distribution& dist) {
 
 class DistributionCopier : public DistributionVisitor {
  public:
-  DistributionCopier();
-
-  ~DistributionCopier();
-
-  const Distribution* release_distribution();
+  std::unique_ptr<const Distribution> release_distribution() {
+    return std::move(distribution_);
+  }
 
  private:
   virtual void DoVisitExponential(const Exponential& distribution);
@@ -322,10 +706,11 @@ class DistributionCopier : public DistributionVisitor {
   virtual void DoVisitLognormal(const Lognormal& distribution);
   virtual void DoVisitUniform(const Uniform& distribution);
 
-  const Distribution* distribution_;
+  std::unique_ptr<const Distribution> distribution_;
 };
 
-const Distribution* CopyDistribution(const Distribution& distribution) {
+std::unique_ptr<const Distribution> CopyDistribution(
+    const Distribution& distribution) {
   DistributionCopier copier;
   distribution.Accept(&copier);
   return copier.release_distribution();
@@ -354,37 +739,23 @@ std::unique_ptr<const Expression> CopyExpression(const Expression& expr) {
   return copier.release_expr();
 }
 
-DistributionCopier::DistributionCopier()
-    : distribution_(NULL) {
-}
-
-DistributionCopier::~DistributionCopier() {
-  delete distribution_;
-}
-
-const Distribution* DistributionCopier::release_distribution() {
-  const Distribution* distribution = distribution_;
-  distribution_ = NULL;
-  return distribution;
-}
-
 void DistributionCopier::DoVisitExponential(const Exponential& distribution) {
-  distribution_ = Exponential::make(CopyExpression(distribution.rate()));
+  distribution_ = Exponential::New(CopyExpression(distribution.rate()));
 }
 
 void DistributionCopier::DoVisitWeibull(const Weibull& distribution) {
-  distribution_ = Weibull::make(CopyExpression(distribution.scale()),
-                                CopyExpression(distribution.shape()));
+  distribution_ = Weibull::New(CopyExpression(distribution.scale()),
+                               CopyExpression(distribution.shape()));
 }
 
 void DistributionCopier::DoVisitLognormal(const Lognormal& distribution) {
-  distribution_ = Lognormal::make(CopyExpression(distribution.scale()),
-                                  CopyExpression(distribution.shape()));
+  distribution_ = Lognormal::New(CopyExpression(distribution.scale()),
+                                 CopyExpression(distribution.shape()));
 }
 
 void DistributionCopier::DoVisitUniform(const Uniform& distribution) {
-  distribution_ = Uniform::make(CopyExpression(distribution.low()),
-                                CopyExpression(distribution.high()));
+  distribution_ = Uniform::New(CopyExpression(distribution.low()),
+                               CopyExpression(distribution.high()));
 }
 
 void ExpressionCopier::DoVisitLiteral(const Literal& expr) {
@@ -659,15 +1030,15 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       PHData data(*manager);
       switch (moments) {
 	case 1:
-	  match_first_moment(data.params, dist);
+	  data.params = MatchOneMoment(dist);
 	  break;
 	case 2:
-	  dist.acph2(data.params2);
+	  data.params2 = MatchTwoMoments(dist);
 	  data.params.n = 0;
 	  break;
 	case 3:
 	default:
-	  dist.acph(data.params);
+	  data.params = MatchThreeMoments(dist);
 	  break;
       }
       int high = ph_phases(data) - 1;
