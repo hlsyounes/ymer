@@ -404,6 +404,13 @@ std::map<std::string, IdentifierInfo> GetIdentifiersByName(
 CompiledModelType CompileModelType(ModelType model_type,
                                    std::vector<std::string>* errors) {
   switch (model_type) {
+    case ModelType::DEFAULT:
+    case ModelType::MDP:
+      errors->push_back(
+          StrCat(model_type, " not supported for model checking"));
+      return CompiledModelType::DTMC;
+    case ModelType::DTMC:
+      return CompiledModelType::DTMC;
     case ModelType::CTMC:
       return CompiledModelType::CTMC;
     case ModelType::GSMP:

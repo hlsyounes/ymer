@@ -29,6 +29,7 @@
 #include "modules.h"
 #include "odd.h"
 #include "src/ddutil.h"
+#include "src/model.h"
 
 struct PHData;
 
@@ -58,9 +59,6 @@ class ParsedVariable {
   int max_value_;
   int init_value_;
 };
-
-// Supported parsed model types.
-enum class ModelType { CTMC, GSMP };
 
 // A parsed model.
 class Model {

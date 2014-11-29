@@ -378,7 +378,7 @@ const Uniform* NewUniform(const Expression* low,
 %token A C
 %token E F G I
 %token PMAX PMIN P RMAX
-%token RMIN R S U W X EXP L
+%token RMIN R S U W X L
 
 %left DOUBLE_BAR TRIPLE_BAR
 %right '?' ':'
@@ -440,7 +440,15 @@ model : model_type { prepare_model($1); } declarations modules rewards
           { compile_model(); }
       ;
 
-model_type : STOCHASTIC
+model_type : NONDETERMINISTIC
+               { $$ = ModelType::MDP; }
+           | MDP_TOKEN
+               { $$ = ModelType::MDP; }
+           | PROBABILISTIC
+               { $$ = ModelType::DTMC; }
+           | DTMC_TOKEN
+               { $$ = ModelType::DTMC; }
+           | STOCHASTIC
                { $$ = ModelType::CTMC; }
            | CTMC_TOKEN
                { $$ = ModelType::CTMC; }
@@ -567,8 +575,6 @@ transition_reward : '[' IDENTIFIER ']' expr ':' rate_expr ';'
 
 distribution : rate_expr
                  { $$ = NewExponential($1); }
-             | EXP '(' rate_expr ')'
-                 { $$ = NewExponential($3); }
              | W '(' const_rate_expr ',' const_rate_expr ')'
                  { $$ = NewWeibull($3, $5); }
              | L '(' const_rate_expr ',' const_rate_expr ')'
@@ -661,7 +667,11 @@ const_rate_expr : NUMBER
                 ;
 
 function : IDENTIFIER
-               { $$ = MakeFunction(*$1); delete $1; }
+             { $$ = MakeFunction(*$1); delete $1; }
+         | MIN_TOKEN
+             { $$ = Function::MIN; }
+         | MAX_TOKEN
+             { $$ = Function::MAX; }
          ;
 
 arguments : expr

@@ -114,6 +114,11 @@ noinst_LTLIBRARIES += src/libexpression.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = src/libtyped-value.la glog/libglog.la
 
+# Model library.
+noinst_LTLIBRARIES += src/libmodel.la
+src_libmodel_la_SOURCES = src/model.h src/model.cc
+src_libmodel_la_LIBADD = src/libexpression.la glog/libglog.la
+
 # Compiled expression library.
 noinst_LTLIBRARIES += src/libcompiled-expression.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
@@ -149,8 +154,8 @@ bin_PROGRAMS = ymer
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
-    src/libtyped-value.la src/libexpression.la src/libcompiled-model.la \
-    src/libcompiled-property.la
+    src/libtyped-value.la src/libexpression.la src/libmodel.la \
+    src/libcompiled-model.la src/libcompiled-property.la
 
 #
 # Ymer tests.
@@ -194,6 +199,11 @@ src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 check_PROGRAMS += src/expression_test
 src_expression_test_SOURCES = src/expression_test.cc
 src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+
+# Test for model library.
+check_PROGRAMS += src/model_test
+src_model_test_SOURCES = src/model_test.cc
+src_model_test_LDADD = src/libmodel.la src/libtest-main.la
 
 # Test for compiled expression library.
 check_PROGRAMS += src/compiled-expression_test
