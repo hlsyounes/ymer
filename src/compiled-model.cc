@@ -33,14 +33,14 @@ CompiledUpdate::CompiledUpdate(int variable, const CompiledExpression& expr)
 }
 
 CompiledMarkovOutcome::CompiledMarkovOutcome(
-    const CompiledExpression& weight,
+    const CompiledExpression& probability,
     const std::vector<CompiledUpdate>& updates)
-    : weight_(weight), updates_(updates) {}
+    : probability_(probability), updates_(updates) {}
 
 CompiledMarkovCommand::CompiledMarkovCommand(
-    const CompiledExpression& guard, const CompiledExpression& weight_sum,
+    const CompiledExpression& guard, const CompiledExpression& weight,
     const std::vector<CompiledMarkovOutcome>& outcomes)
-    : guard_(guard), weight_sum_(weight_sum), outcomes_(outcomes) {}
+    : guard_(guard), weight_(weight), outcomes_(outcomes) {}
 
 CompiledGsmpCommand::CompiledGsmpCommand(
     const CompiledExpression& guard, const CompiledGsmpDistribution& delay,
@@ -75,7 +75,7 @@ std::pair<int, int> GetUpdateRegisterCounts(const CompiledUpdate& update) {
 std::pair<int, int> GetMarkovOutcomeRegisterCounts(
     const CompiledMarkovOutcome& outcome) {
   std::pair<int, int> reg_counts =
-      GetExpressionRegisterCounts(outcome.weight());
+      GetExpressionRegisterCounts(outcome.probability());
   for (const auto& update : outcome.updates()) {
     reg_counts = ComponentMax(reg_counts, GetUpdateRegisterCounts(update));
   }
