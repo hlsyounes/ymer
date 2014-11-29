@@ -334,9 +334,15 @@ double DistributionCompiler::GetDoubleValue(const Expression& expr) {
 }
 
 void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
-  markov_weight_ = CompiledExpression({});
-  gsmp_delay_ = CompiledGsmpDistribution::MakeWeibull(
-      GetDoubleValue(dist.scale()), GetDoubleValue(dist.shape()));
+  const double scale = GetDoubleValue(dist.scale());
+  const double shape = GetDoubleValue(dist.shape());
+  if (shape == 1.0 && errors_->empty()) {
+    markov_weight_ =
+        CompiledExpression({Operation::MakeDCONST(1.0 / scale, 0)});
+  } else {
+    markov_weight_ = CompiledExpression({});
+    gsmp_delay_ = CompiledGsmpDistribution::MakeWeibull(scale, shape);
+  }
 }
 
 void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {

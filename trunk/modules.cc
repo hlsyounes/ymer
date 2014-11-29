@@ -28,14 +28,13 @@
 
 /* Constructs a command. */
 Command::Command(size_t synch, std::unique_ptr<const Expression>&& guard,
-		 const Distribution* delay)
-    : synch_(synch), guard_(std::move(guard)), delay_(delay) {
+		 std::unique_ptr<const Distribution>&& delay)
+    : synch_(synch), guard_(std::move(guard)), delay_(std::move(delay)) {
 }
 
 
 /* Deletes this command. */
 Command::~Command() {
-  delete delay_;
   for (const Update* update : updates()) {
     delete update;
   }
@@ -155,9 +154,9 @@ class DistributionConstantSubstituter : public DistributionVisitor {
   explicit DistributionConstantSubstituter(
       const std::map<std::string, TypedValue>* constant_values);
 
-  ~DistributionConstantSubstituter();
-
-  const Distribution* release_distribution();
+  std::unique_ptr<const Distribution> release_distribution() {
+    return std::move(distribution_);
+  }
 
  private:
   virtual void DoVisitExponential(const Exponential& distribution);
@@ -166,10 +165,10 @@ class DistributionConstantSubstituter : public DistributionVisitor {
   virtual void DoVisitUniform(const Uniform& distribution);
 
   const std::map<std::string, TypedValue>* constant_values_;
-  const Distribution* distribution_;
+  std::unique_ptr<const Distribution> distribution_;
 };
 
-const Distribution* SubstituteConstants(
+std::unique_ptr<const Distribution> SubstituteConstants(
     const Distribution& distribution,
     const std::map<std::string, TypedValue>& constant_values) {
   DistributionConstantSubstituter substituter(&constant_values);
@@ -274,44 +273,33 @@ void PathPropertyConstantSubstituter::DoVisitUntilProperty(
 
 DistributionConstantSubstituter::DistributionConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), distribution_(NULL) {
-}
-
-DistributionConstantSubstituter::~DistributionConstantSubstituter() {
-  delete distribution_;
-}
-
-const Distribution* DistributionConstantSubstituter::release_distribution() {
-  const Distribution* distribution = distribution_;
-  distribution_ = NULL;
-  return distribution;
-}
+    : constant_values_(constant_values) {}
 
 void DistributionConstantSubstituter::DoVisitExponential(
     const Exponential& distribution) {
-  distribution_ = Exponential::make(
+  distribution_ = Exponential::New(
       SubstituteConstants(distribution.rate(), *constant_values_));
 }
 
 void DistributionConstantSubstituter::DoVisitWeibull(
     const Weibull& distribution) {
-  distribution_ = Weibull::make(
+  distribution_ = Weibull::New(
       SubstituteConstants(distribution.scale(), *constant_values_),
       SubstituteConstants(distribution.shape(), *constant_values_));
 }
 
 void DistributionConstantSubstituter::DoVisitLognormal(
     const Lognormal& distribution) {
-  distribution_ = Lognormal::make(
+  distribution_ = Lognormal::New(
       SubstituteConstants(distribution.scale(), *constant_values_),
       SubstituteConstants(distribution.shape(), *constant_values_));
 }
 
 void DistributionConstantSubstituter::DoVisitUniform(
     const Uniform& distribution) {
-  distribution_ = Uniform::make(
-      SubstituteConstants(distribution.low(), *constant_values_),
-      SubstituteConstants(distribution.high(), *constant_values_));
+  distribution_ =
+      Uniform::New(SubstituteConstants(distribution.low(), *constant_values_),
+                   SubstituteConstants(distribution.high(), *constant_values_));
 }
 
 }  // namespace
