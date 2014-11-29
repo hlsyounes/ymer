@@ -141,14 +141,14 @@ void NextStateSampler<Engine>::NextState(const State& state,
   next_state->set_values(state.values());
   ties_ = 1;
   selected_markov_commands_.clear();
-  if (model_->model_type() == CompiledModelType::DTMC) {
+  if (model_->type() == CompiledModelType::DTMC) {
     SampleDtmcEvents(state);
     if (!selected_markov_commands_.empty()) {
       next_state->set_time(state.time() + 1);
     }
   } else {
     SampleCtmcEvents(state, next_state);
-    if (model_->model_type() == CompiledModelType::GSMP) {
+    if (model_->type() == CompiledModelType::GSMP) {
       next_state->reset_trigger_times();
       selected_gsmp_command_ = nullptr;
       SampleGsmpEvents(state, next_state);
