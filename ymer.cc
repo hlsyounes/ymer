@@ -701,6 +701,11 @@ int main(int argc, char* argv[]) {
     VLOG(2) << *global_model;
     std::vector<std::string> errors;
     const CompiledModel compiled_model = CompileModel(*global_model, &errors);
+    if (compiled_model.type() == CompiledModelType::DTMC &&
+        engine != SAMPLING_ENGINE) {
+      errors.push_back(
+          StrCat(global_model->type(), " only supported by sampling engine"));
+    }
     const std::map<std::string, IdentifierInfo> identifiers_by_name =
         GetIdentifiersByName(compiled_model);
     DecisionDiagramManager dd_man(2*compiled_model.BitCount());
@@ -719,7 +724,7 @@ int main(int argc, char* argv[]) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ": " << error << std::endl;
       }
-      return 0;
+      return 1;
     }
 
     std::cout.setf(std::ios::unitbuf);

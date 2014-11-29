@@ -50,8 +50,8 @@ CompiledGsmpCommand::CompiledGsmpCommand(
       updates_(updates),
       first_index_(first_index) {}
 
-CompiledModel::CompiledModel(CompiledModelType model_type)
-    : model_type_(model_type), gsmp_event_count_(0) {}
+CompiledModel::CompiledModel(CompiledModelType type)
+    : type_(type), gsmp_event_count_(0) {}
 
 void CompiledModel::AddVariable(
     const std::string& name, int min_value, int max_value, int init_value) {

@@ -134,7 +134,7 @@ enum class CompiledModelType { DTMC, CTMC, GSMP };
 class CompiledModel {
  public:
   // Constructs an empty compiled model.
-  explicit CompiledModel(CompiledModelType model_type);
+  explicit CompiledModel(CompiledModelType type);
 
   // Adds a variable to this compiled model.
   void AddVariable(const std::string& name, int min_value, int max_value,
@@ -164,7 +164,7 @@ class CompiledModel {
   }
 
   // Returns the type of this compiled model.
-  CompiledModelType model_type() const { return model_type_; }
+  CompiledModelType type() const { return type_; }
 
   // Returns the variables for this compiled model.
   const std::vector<StateVariableInfo>& variables() const { return variables_; }
@@ -206,7 +206,7 @@ class CompiledModel {
   int BitCount() const;
 
  private:
-  CompiledModelType model_type_;
+  CompiledModelType type_;
   std::vector<StateVariableInfo> variables_;
   std::vector<int> init_values_;
   // The single (non-factored) commands with memoryless distributions.
