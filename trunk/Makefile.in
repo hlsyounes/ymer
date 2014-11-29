@@ -83,7 +83,7 @@ bin_PROGRAMS = ymer$(EXEEXT)
 check_PROGRAMS = src/strutil_test$(EXEEXT) \
 	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
 	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
-	src/expression_test$(EXEEXT) \
+	src/expression_test$(EXEEXT) src/model_test$(EXEEXT) \
 	src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
 	src/compiled-model_test$(EXEEXT) src/simulator_test$(EXEEXT) \
@@ -243,6 +243,9 @@ src_libexpression_la_DEPENDENCIES = src/libtyped-value.la \
 	glog/libglog.la
 am_src_libexpression_la_OBJECTS = src/expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
+src_libmodel_la_DEPENDENCIES = src/libexpression.la glog/libglog.la
+am_src_libmodel_la_OBJECTS = src/model.lo
+src_libmodel_la_OBJECTS = $(am_src_libmodel_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = src/rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
@@ -289,6 +292,9 @@ am_src_expression_test_OBJECTS = src/expression_test.$(OBJEXT)
 src_expression_test_OBJECTS = $(am_src_expression_test_OBJECTS)
 src_expression_test_DEPENDENCIES = src/libexpression.la \
 	src/libtest-main.la
+am_src_model_test_OBJECTS = src/model_test.$(OBJEXT)
+src_model_test_OBJECTS = $(am_src_model_test_OBJECTS)
+src_model_test_DEPENDENCIES = src/libmodel.la src/libtest-main.la
 am_src_rng_test_OBJECTS = src/rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
@@ -317,7 +323,7 @@ am_ymer_OBJECTS = ymer.$(OBJEXT) formulas.$(OBJEXT) \
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
-	src/libtyped-value.la src/libexpression.la \
+	src/libtyped-value.la src/libexpression.la src/libmodel.la \
 	src/libcompiled-model.la src/libcompiled-property.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -396,17 +402,18 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_libmodel_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_model_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
@@ -415,17 +422,18 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libexpression_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_libmodel_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_expression_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_model_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -861,6 +869,8 @@ SUBDIRS = glog gsl gtest
 
 # Expression library.
 
+# Model library.
+
 # Compiled expression library.
 
 # Compiled distribution library.
@@ -871,7 +881,7 @@ SUBDIRS = glog gsl gtest
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
-	src/libtyped-value.la src/libexpression.la \
+	src/libtyped-value.la src/libexpression.la src/libmodel.la \
 	src/libcompiled-expression.la src/libcompiled-distribution.la \
 	src/libcompiled-model.la src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
@@ -940,6 +950,8 @@ src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libtyped_value_la_LIBADD = glog/libglog.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = src/libtyped-value.la glog/libglog.la
+src_libmodel_la_SOURCES = src/model.h src/model.cc
+src_libmodel_la_LIBADD = src/libexpression.la glog/libglog.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
 
@@ -964,8 +976,8 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 ymer_SOURCES = ymer.cc formulas.cc formulas.h distributions.cc distributions.h modules.cc modules.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
-    src/libtyped-value.la src/libexpression.la src/libcompiled-model.la \
-    src/libcompiled-property.la
+    src/libtyped-value.la src/libexpression.la src/libmodel.la \
+    src/libcompiled-model.la src/libcompiled-property.la
 
 
 #
@@ -988,6 +1000,8 @@ src_typed_value_test_SOURCES = src/typed-value_test.cc
 src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 src_expression_test_SOURCES = src/expression_test.cc
 src_expression_test_LDADD = src/libexpression.la src/libtest-main.la
+src_model_test_SOURCES = src/model_test.cc
+src_model_test_LDADD = src/libmodel.la src/libtest-main.la
 src_compiled_expression_test_SOURCES = src/compiled-expression_test.cc
 src_compiled_expression_test_LDADD = src/libcompiled-expression.la \
     src/libtest-main.la
@@ -1342,6 +1356,10 @@ src/expression.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libexpression.la: $(src_libexpression_la_OBJECTS) $(src_libexpression_la_DEPENDENCIES) $(EXTRA_src_libexpression_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_libexpression_la_OBJECTS) $(src_libexpression_la_LIBADD) $(LIBS)
+src/model.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+
+src/libmodel.la: $(src_libmodel_la_OBJECTS) $(src_libmodel_la_DEPENDENCIES) $(EXTRA_src_libmodel_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(AM_V_CXXLD)$(CXXLINK)  $(src_libmodel_la_OBJECTS) $(src_libmodel_la_LIBADD) $(LIBS)
 src/rng.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1452,6 +1470,12 @@ src/expression_test.$(OBJEXT): src/$(am__dirstamp) \
 src/expression_test$(EXEEXT): $(src_expression_test_OBJECTS) $(src_expression_test_DEPENDENCIES) $(EXTRA_src_expression_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/expression_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_expression_test_OBJECTS) $(src_expression_test_LDADD) $(LIBS)
+src/model_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/model_test$(EXEEXT): $(src_model_test_OBJECTS) $(src_model_test_DEPENDENCIES) $(EXTRA_src_model_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/model_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_model_test_OBJECTS) $(src_model_test_LDADD) $(LIBS)
 src/rng_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1615,6 +1639,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ddutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
@@ -2567,6 +2593,13 @@ src/typed-value_test.log: src/typed-value_test$(EXEEXT)
 src/expression_test.log: src/expression_test$(EXEEXT)
 	@p='src/expression_test$(EXEEXT)'; \
 	b='src/expression_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/model_test.log: src/model_test$(EXEEXT)
+	@p='src/model_test$(EXEEXT)'; \
+	b='src/model_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

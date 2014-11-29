@@ -520,7 +520,7 @@ void Model::compile() {
 }
 
 std::ostream& operator<<(std::ostream& os, const Model& m) {
-  os << "stochastic";
+  os << m.type();
   std::set<int>::const_iterator vi =
       m.global_variables().begin();
   if (vi != m.global_variables().end()) {

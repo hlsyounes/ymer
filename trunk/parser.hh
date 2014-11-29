@@ -99,14 +99,13 @@ extern int yydebug;
     U = 309,
     W = 310,
     X = 311,
-    EXP = 312,
-    L = 313,
-    IFF_TOKEN = 314,
-    IMPLY_TOKEN = 315,
-    NEQ = 316,
-    LEQ = 317,
-    GEQ = 318,
-    UMINUS = 319
+    L = 312,
+    IFF_TOKEN = 313,
+    IMPLY_TOKEN = 314,
+    NEQ = 315,
+    LEQ = 316,
+    GEQ = 317,
+    UMINUS = 318
   };
 #endif
 /* Tokens.  */
@@ -164,14 +163,13 @@ extern int yydebug;
 #define U 309
 #define W 310
 #define X 311
-#define EXP 312
-#define L 313
-#define IFF_TOKEN 314
-#define IMPLY_TOKEN 315
-#define NEQ 316
-#define LEQ 317
-#define GEQ 318
-#define UMINUS 319
+#define L 312
+#define IFF_TOKEN 313
+#define IMPLY_TOKEN 314
+#define NEQ 315
+#define LEQ 316
+#define GEQ 317
+#define UMINUS 318
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -191,7 +189,7 @@ union YYSTYPE
   Function function;
   UniquePtrVector<const Expression>* arguments;
 
-#line 195 "parser.hh" /* yacc.c:1909  */
+#line 193 "parser.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

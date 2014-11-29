@@ -24,16 +24,6 @@
 #include "src/expression.h"
 
 /* ====================================================================== */
-/* Update */
-
-/* Constructs a variable update. */
-Update::Update(const std::string& variable,
-               std::unique_ptr<const Expression>&& expr)
-    : variable_(variable), expr_(std::move(expr)) {
-}
-
-
-/* ====================================================================== */
 /* Command */
 
 /* Constructs a command. */

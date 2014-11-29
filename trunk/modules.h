@@ -29,32 +29,9 @@
 #include <vector>
 
 #include "src/expression.h"
+#include "src/model.h"
 
 class Distribution;
-
-
-/* ====================================================================== */
-/* Update */
-
-/*
- * A variable update.
- */
-struct Update {
-  /* Constructs a variable update. */
-  Update(const std::string& variable, std::unique_ptr<const Expression>&& expr);
-
-  /* Returns the variable for this update. */
-  const std::string& variable() const { return variable_; }
-
-  /* Returns the expression for this update. */
-  const Expression& expr() const { return *expr_; }
-
-private:
-  /* The variable for this update. */
-  std::string variable_;
-  /* The expression for this update. */
-  std::unique_ptr<const Expression> expr_;
-};
 
 
 /* ====================================================================== */

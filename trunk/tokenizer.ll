@@ -70,7 +70,6 @@ const                      return CONST;
 ctmc                       return CTMC_TOKEN;
 double                     return DOUBLE_TOKEN;
 dtmc                       return DTMC_TOKEN;
-Exp                        return EXP;
 E                          return E;
 endinit                    return ENDINIT;
 endmodule                  return ENDMODULE;
