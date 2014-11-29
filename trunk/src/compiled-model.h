@@ -50,19 +50,19 @@ class CompiledUpdate {
 // A compiled outcome for a Markov command.
 class CompiledMarkovOutcome {
  public:
-  // Constructs a compiled outcome for a Markov command with the given weight
-  // and updates.
-  CompiledMarkovOutcome(const CompiledExpression& weight,
+  // Constructs a compiled outcome for a Markov command with the given
+  // probability and updates.
+  CompiledMarkovOutcome(const CompiledExpression& probability,
                         const std::vector<CompiledUpdate>& updates);
 
-  // Returns the weight for this outcome.
-  const CompiledExpression& weight() const { return weight_; }
+  // Returns the probability for this outcome.
+  const CompiledExpression& probability() const { return probability_; }
 
   // Returns the updates for this outcome.
   const std::vector<CompiledUpdate>& updates() const { return updates_; }
 
  private:
-  CompiledExpression weight_;
+  CompiledExpression probability_;
   std::vector<CompiledUpdate> updates_;
 };
 
@@ -71,14 +71,14 @@ class CompiledMarkovCommand {
  public:
   // Constructs a compiled Markov command with the given guard and outcomes.
   CompiledMarkovCommand(const CompiledExpression& guard,
-                        const CompiledExpression& weight_sum,
+                        const CompiledExpression& weight,
                         const std::vector<CompiledMarkovOutcome>& outcomes);
 
   // Returns the guard for this command.
   const CompiledExpression& guard() const { return guard_; }
 
-  // Returns the sum of outcome weights for this command.
-  const CompiledExpression& weight_sum() const { return weight_sum_; }
+  // Returns the weight for this command.
+  const CompiledExpression& weight() const { return weight_; }
 
   // Returns the outcomes for this command.
   const std::vector<CompiledMarkovOutcome>& outcomes() const {
@@ -87,7 +87,7 @@ class CompiledMarkovCommand {
 
  private:
   CompiledExpression guard_;
-  CompiledExpression weight_sum_;
+  CompiledExpression weight_;
   std::vector<CompiledMarkovOutcome> outcomes_;
 };
 

@@ -206,7 +206,7 @@ void NextStateSampler<Engine>::SampleCtmcEvents(const State& state,
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_markov_commands_.push_back(&command);
       const double weight = evaluator_->EvaluateDoubleExpression(
-          command.weight_sum(), state.values());
+          command.weight(), state.values());
       ConsiderCandidateCtmcEvent(state, weight, next_state);
       candidate_markov_commands_.pop_back();
     }
@@ -229,7 +229,7 @@ void NextStateSampler<Engine>::SampleFactoredCtmcEvents(
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_markov_commands_.push_back(&command);
       const double weight = evaluator_->EvaluateDoubleExpression(
-          command.weight_sum(), state.values());
+          command.weight(), state.values());
       SampleFactoredCtmcEvents(state, commands_per_module, module + 1,
                                factor * weight, next_state);
       candidate_markov_commands_.pop_back();
@@ -342,11 +342,11 @@ void NextStateSampler<Engine>::SampleMarkovOutcomes(const State& state,
     const CompiledMarkovOutcome* selected_outcome = &command.outcomes().back();
     if (command.outcomes().size() > 1) {
       double p = sampler_->StandardUniform();
-      double weight_sum = 0.0;
+      double probability_sum = 0.0;
       for (const auto& outcome : command.outcomes()) {
-        weight_sum += evaluator_->EvaluateDoubleExpression(outcome.weight(),
-                                                           state.values());
-        if (p < weight_sum) {
+        probability_sum += evaluator_->EvaluateDoubleExpression(
+            outcome.probability(), state.values());
+        if (p < probability_sum) {
           selected_outcome = &outcome;
           break;
         }
