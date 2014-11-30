@@ -73,7 +73,7 @@
 #include <string>
 
 #include "models.h"
-#include "distributions.h"
+#include "src/distribution.h"
 
 #include "glog/logging.h"
 

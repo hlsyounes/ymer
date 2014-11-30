@@ -20,7 +20,7 @@
  * $Id: modules.cc,v 2.1 2004-01-25 12:37:53 lorens Exp $
  */
 #include "modules.h"
-#include "distributions.h"
+#include "src/distribution.h"
 #include "src/expression.h"
 
 /* ====================================================================== */

@@ -24,8 +24,8 @@
 #include <stdexcept>
 #include <typeinfo>
 
-#include "distributions.h"
 #include "formulas.h"
+#include "src/distribution.h"
 
 #include "cudd.h"
 #include "glog/logging.h"

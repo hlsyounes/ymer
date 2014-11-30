@@ -23,8 +23,8 @@
 %{
 #include <string>
 
-#include "distributions.h"
 #include "models.h"
+#include "src/distribution.h"
 #include "src/expression.h"
 #include "src/typed-value.h"
 #include "src/unique-ptr-vector.h"

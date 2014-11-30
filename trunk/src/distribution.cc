@@ -17,7 +17,7 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-#include "distributions.h"
+#include "distribution.h"
 
 Distribution::~Distribution() = default;
 
@@ -48,15 +48,15 @@ void DistributionPrinter::DoVisitExponential(const Exponential& distribution) {
 }
 
 void DistributionPrinter::DoVisitWeibull(const Weibull& distribution) {
-  *os_ << "W(" << distribution.scale() << "," << distribution.shape() << ")";
+  *os_ << "W(" << distribution.scale() << ", " << distribution.shape() << ")";
 }
 
 void DistributionPrinter::DoVisitLognormal(const Lognormal& distribution) {
-  *os_ << "L(" << distribution.scale() << "," << distribution.shape() << ")";
+  *os_ << "L(" << distribution.scale() << ", " << distribution.shape() << ")";
 }
 
 void DistributionPrinter::DoVisitUniform(const Uniform& distribution) {
-  *os_ << "U(" << distribution.low() << "," << distribution.high() << ")";
+  *os_ << "U(" << distribution.low() << ", " << distribution.high() << ")";
 }
 
 }  // namespace
