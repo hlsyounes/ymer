@@ -28,7 +28,7 @@
 #include <set>
 #include <vector>
 
-#include "distributions.h"
+#include "src/distribution.h"
 #include "src/expression.h"
 #include "src/model.h"
 
