@@ -42,8 +42,8 @@ double MaxNestedError(double delta);
 // A single sampling plan.
 class SingleSamplingPlan {
  public:
-  static SingleSamplingPlan Create(double theta0, double theta1,
-                                   double alpha, double beta);
+  static SingleSamplingPlan Create(double theta0, double theta1, double alpha,
+                                   double beta);
 
   int n() const { return n_; }
   int c() const { return c_; }
@@ -160,11 +160,9 @@ class FixedBernoulliTester : public BernoulliTester {
  public:
   FixedBernoulliTester(double theta0, double theta1, int sample_size);
 
-  virtual ~FixedBernoulliTester();
-
  private:
-  virtual void UpdateState();
-  virtual std::string StateToStringImpl() const;
+  void UpdateState() override;
+  std::string StateToStringImpl() const override;
 
   const int sample_size_;
 };
@@ -175,14 +173,12 @@ class FixedBernoulliTester : public BernoulliTester {
 // Respects error bounds alpha and beta.  Does not allow theta0 == theta1.
 class SingleSamplingBernoulliTester : public BernoulliTester {
  public:
-  SingleSamplingBernoulliTester(double theta0, double theta1,
-                                double alpha, double beta);
-
-  virtual ~SingleSamplingBernoulliTester();
+  SingleSamplingBernoulliTester(double theta0, double theta1, double alpha,
+                                double beta);
 
  private:
-  virtual void UpdateState();
-  virtual std::string StateToStringImpl() const;
+  void UpdateState() override;
+  std::string StateToStringImpl() const override;
 
   const SingleSamplingPlan ssp_;
 };
@@ -194,11 +190,9 @@ class SprtBernoulliTester : public BernoulliTester {
  public:
   SprtBernoulliTester(double theta0, double theta1, double alpha, double beta);
 
-  virtual ~SprtBernoulliTester();
-
  private:
-  virtual void UpdateState();
-  virtual std::string StateToStringImpl() const;
+  void UpdateState() override;
+  std::string StateToStringImpl() const override;
 
   const double positive_coefficient_;
   const double negative_coefficient_;
@@ -208,8 +202,7 @@ class SprtBernoulliTester : public BernoulliTester {
 
 template <typename T>
 Sample<T>::Sample()
-    : sum_(0), count_(0), mean_(0.0), m2_(0.0) {
-}
+    : sum_(0), count_(0), mean_(0.0), m2_(0.0) {}
 
 template <typename T>
 void Sample<T>::AddObservation(T x) {
@@ -224,9 +217,10 @@ void Sample<T>::AddObservation(T x) {
 
 template <typename T>
 SequentialEstimator<T>::SequentialEstimator(double delta, double alpha)
-    : delta_(delta), alpha_(alpha),
-      state_(std::numeric_limits<double>::infinity()), bound_(0) {
-}
+    : delta_(delta),
+      alpha_(alpha),
+      state_(std::numeric_limits<double>::infinity()),
+      bound_(0) {}
 
 template <typename T>
 void SequentialEstimator<T>::AddObservation(T x) {

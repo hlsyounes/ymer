@@ -29,8 +29,7 @@ class FakeEngine {
   typedef uint32_t result_type;
 
   FakeEngine(result_type min, result_type max, std::vector<result_type> values)
-      : min_(min), max_(max), values_(values), next_value_(0) {
-  }
+      : min_(min), max_(max), values_(values), next_value_(0) {}
 
   ~FakeEngine() {
     CHECK_EQ(next_value_, values_.size()) << values_.size() - next_value_

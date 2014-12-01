@@ -50,7 +50,7 @@ class DCEngine {
   std::mt19937 default_engine_;
 };
 
-template<typename Engine>
+template <typename Engine>
 double StandardUniform(Engine& engine) {
   return (engine() - engine.min()) / (engine.max() - engine.min() + 1.0);
 }

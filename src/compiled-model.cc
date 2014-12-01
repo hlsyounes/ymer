@@ -29,8 +29,7 @@
 #include "glog/logging.h"
 
 CompiledUpdate::CompiledUpdate(int variable, const CompiledExpression& expr)
-    : variable_(variable), expr_(expr) {
-}
+    : variable_(variable), expr_(expr) {}
 
 CompiledMarkovOutcome::CompiledMarkovOutcome(
     const CompiledExpression& probability,
@@ -53,10 +52,11 @@ CompiledGsmpCommand::CompiledGsmpCommand(
 CompiledModel::CompiledModel(CompiledModelType type)
     : type_(type), gsmp_event_count_(0) {}
 
-void CompiledModel::AddVariable(
-    const std::string& name, int min_value, int max_value, int init_value) {
+void CompiledModel::AddVariable(const std::string& name, Type type,
+                                int min_value, int max_value, int init_value) {
   const int bit_count = Log2(max_value - min_value) + 1;
   variables_.emplace_back(name, min_value, bit_count);
+  variable_types_.push_back(type);
   init_values_.push_back(init_value);
 }
 

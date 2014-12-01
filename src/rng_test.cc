@@ -29,7 +29,7 @@
 namespace {
 
 TEST(StandardUniform, UInt32) {
-  FakeEngine engine(0, 0xffffffff, { 0, 1, 2, 0xffffffff });
+  FakeEngine engine(0, 0xffffffff, {0, 1, 2, 0xffffffff});
   EXPECT_EQ(0.0, StandardUniform(engine));
   EXPECT_EQ(ldexp(1.0, -32), StandardUniform(engine));
   EXPECT_EQ(ldexp(2.0, -32), StandardUniform(engine));
@@ -37,7 +37,7 @@ TEST(StandardUniform, UInt32) {
 }
 
 TEST(StandardUniform, NonStandardRange) {
-  FakeEngine engine(3, 6, { 3, 4, 5, 6 });
+  FakeEngine engine(3, 6, {3, 4, 5, 6});
   EXPECT_EQ(0.0, StandardUniform(engine));
   EXPECT_EQ(0.25, StandardUniform(engine));
   EXPECT_EQ(0.5, StandardUniform(engine));

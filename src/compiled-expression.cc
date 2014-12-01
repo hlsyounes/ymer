@@ -769,14 +769,14 @@ class ExpressionCompiler : public ExpressionVisitor {
   Type type() const { return type_; }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
 
   std::vector<Operation> operations_;
   int dst_;

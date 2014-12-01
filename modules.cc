@@ -28,10 +28,8 @@
 
 /* Constructs a command. */
 Command::Command(size_t synch, std::unique_ptr<const Expression>&& guard,
-		 std::unique_ptr<const Distribution>&& delay)
-    : synch_(synch), guard_(std::move(guard)), delay_(std::move(delay)) {
-}
-
+                 std::unique_ptr<const Distribution>&& delay)
+    : synch_(synch), guard_(std::move(guard)), delay_(std::move(delay)) {}
 
 /* Deletes this command. */
 Command::~Command() {
@@ -40,12 +38,8 @@ Command::~Command() {
   }
 }
 
-
 /* Adds an update to this command. */
-void Command::add_update(const Update* update) {
-  updates_.push_back(update);
-}
-
+void Command::add_update(const Update* update) { updates_.push_back(update); }
 
 /* Output operator for commands. */
 std::ostream& operator<<(std::ostream& os, const Command& c) {
@@ -66,14 +60,11 @@ std::ostream& operator<<(std::ostream& os, const Command& c) {
   return os;
 }
 
-
 /* ====================================================================== */
 /* Module */
 
 /* Constructs a module. */
-Module::Module() {
-}
-
+Module::Module() {}
 
 /* Deletes this module. */
 Module::~Module() {
@@ -82,12 +73,10 @@ Module::~Module() {
   }
 }
 
-
 /* Adds a variable to this module. */
 void Module::add_variable(const std::string& variable) {
   variables_.push_back(variable);
 }
-
 
 /* Adds a command to this module. */
 void Module::add_command(const Command* command) {
@@ -104,14 +93,14 @@ class ExpressionConstantSubstituter : public ExpressionVisitor {
   std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
 
   const std::map<std::string, TypedValue>* constant_values_;
   std::unique_ptr<const Expression> expr_;
@@ -135,7 +124,7 @@ class PathPropertyConstantSubstituter : public PathPropertyVisitor {
   }
 
  private:
-  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
+  void DoVisitUntilProperty(const UntilProperty& path_property) override;
 
   const std::map<std::string, TypedValue>* constant_values_;
   std::unique_ptr<const PathProperty> path_property_;
@@ -159,10 +148,10 @@ class DistributionConstantSubstituter : public DistributionVisitor {
   }
 
  private:
-  virtual void DoVisitExponential(const Exponential& distribution);
-  virtual void DoVisitWeibull(const Weibull& distribution);
-  virtual void DoVisitLognormal(const Lognormal& distribution);
-  virtual void DoVisitUniform(const Uniform& distribution);
+  void DoVisitExponential(const Exponential& distribution) override;
+  void DoVisitWeibull(const Weibull& distribution) override;
+  void DoVisitLognormal(const Lognormal& distribution) override;
+  void DoVisitUniform(const Uniform& distribution) override;
 
   const std::map<std::string, TypedValue>* constant_values_;
   std::unique_ptr<const Distribution> distribution_;
@@ -188,10 +177,9 @@ const Command* SubstituteConstants(
     const std::map<std::string, TypedValue>& constant_values,
     const std::map<std::string, TypedValue>& rate_values) {
   Command* subst_comm = new Command(
-      command.synch(),
-      SubstituteConstants(command.guard(), constant_values),
+      command.synch(), SubstituteConstants(command.guard(), constant_values),
       SubstituteConstants(command.delay(), rate_values));
-  for (const Update* update: command.updates()) {
+  for (const Update* update : command.updates()) {
     subst_comm->add_update(SubstituteConstants(*update, constant_values));
   }
   return subst_comm;
@@ -199,8 +187,7 @@ const Command* SubstituteConstants(
 
 ExpressionConstantSubstituter::ExpressionConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values) {
-}
+    : constant_values_(constant_values) {}
 
 void ExpressionConstantSubstituter::DoVisitLiteral(const Literal& expr) {
   expr_.reset(new Literal(expr.value()));
@@ -247,8 +234,8 @@ void ExpressionConstantSubstituter::DoVisitConditional(
   expr.if_branch().Accept(this);
   std::unique_ptr<const Expression> if_branch = release_expr();
   expr.else_branch().Accept(this);
-  expr_ = Conditional::New(std::move(condition),
-                           std::move(if_branch), release_expr());
+  expr_ = Conditional::New(std::move(condition), std::move(if_branch),
+                           release_expr());
 }
 
 void ExpressionConstantSubstituter::DoVisitProbabilityThresholdOperation(
@@ -260,8 +247,7 @@ void ExpressionConstantSubstituter::DoVisitProbabilityThresholdOperation(
 
 PathPropertyConstantSubstituter::PathPropertyConstantSubstituter(
     const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values) {
-}
+    : constant_values_(constant_values) {}
 
 void PathPropertyConstantSubstituter::DoVisitUntilProperty(
     const UntilProperty& path_property) {

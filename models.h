@@ -28,36 +28,72 @@
 
 #include "modules.h"
 #include "odd.h"
+#include "src/compiled-model.h"
 #include "src/ddutil.h"
 #include "src/model.h"
 
 struct PHData;
 
+// A parsed constant.
+class ParsedConstant {
+ public:
+  // Constructs a parsed constant with the given name, type, and init
+  // expression.
+  explicit ParsedConstant(const std::string& name, Type type,
+                          std::unique_ptr<const Expression>&& init);
+
+  // Returns the name for this parsed constant.
+  const std::string& name() const { return name_; }
+
+  // Returns the type for this parsed constant.
+  Type type() const { return type_; }
+
+  // Returns true if this parsed constant has an init expression.
+  bool has_init() const { return init_ != nullptr; }
+
+  // Returns the init expression for this parsed constant.
+  const Expression& init() const { return *init_; }
+
+ private:
+  std::string name_;
+  Type type_;
+  std::unique_ptr<const Expression> init_;
+};
+
 // A parsed variable.
 class ParsedVariable {
  public:
-  // Constructs a parsed variable with the given name, value range and initial
-  // value.
-  ParsedVariable(
-      const std::string& name, int min_value, int max_value, int init_range);
+  // Constructs a parsed variable with the given name, type, and min, max, and
+  // init expressions.
+  explicit ParsedVariable(const std::string& name, Type type,
+                          std::unique_ptr<const Expression>&& min,
+                          std::unique_ptr<const Expression>&& max,
+                          std::unique_ptr<const Expression>&& init);
 
   // Returns the name for this parsed variable.
   const std::string& name() const { return name_; }
 
-  // Returns the minimum value for this parsed variable.
-  int min_value() const { return min_value_; }
+  // Returns the type for this parsed variable.
+  Type type() const { return type_; }
 
-  // Returns the maximum value for this parsed variable.
-  int max_value() const { return max_value_; }
+  // Returns the min expression for this parsed variable.
+  const Expression&  min() const { return *min_; }
 
-  // Returns the initial value for this parsed variable.
-  int init_value() const { return init_value_; }
+  // Returns the max expression for this parsed variable.
+  const Expression&  max() const { return *max_; }
+
+  // Returns true if this parsed variable has an init expression.
+  bool has_init() const { return init_ != nullptr; }
+
+  // Returns the init expression for this parsed variable.
+  const Expression& init() const { return *init_; }
 
  private:
   std::string name_;
-  int min_value_;
-  int max_value_;
-  int init_value_;
+  Type type_;
+  std::unique_ptr<const Expression> min_;
+  std::unique_ptr<const Expression> max_;
+  std::unique_ptr<const Expression> init_;
 };
 
 // A parsed model.
@@ -69,12 +105,33 @@ class Model {
   /* Deletes this model. */
   ~Model();
 
-  // Sets the type of this model.
-  void set_type(ModelType type) { type_ = type; }
+  // Sets the type of this model.  Returns false if the type has already been
+  // set for this model.
+  bool SetType(ModelType type);
 
-  // Adds an int variable with the given name.
-  void AddIntVariable(
-      const std::string& name, int min_value, int max_value, int init_value);
+  // Adds a constant with the given name, type, and init expression to this
+  // model.  The init expression is optional and may be null.  Returns false if
+  // an identifier with the given name has already been added.
+  bool AddConstant(const std::string& name, Type type,
+                   std::unique_ptr<const Expression>&& init);
+
+  // Adds an int variable with the given name, and min, max, and init
+  // expressions.  The init expression is optional and may be null.  Returns
+  // false if an identifier with the given name has already been added.  The
+  // variable becomes a module variable if this method is called between calls
+  // to OpenModuleScope() and CloseModuleScope().
+  bool AddIntVariable(const std::string& name,
+                      std::unique_ptr<const Expression>&& min,
+                      std::unique_ptr<const Expression>&& max,
+                      std::unique_ptr<const Expression>&& init);
+
+  // Adds a bool variable with the given name and init expression.  The init
+  // expression is optional and may be null.  Returns false if an identifier
+  // with the given name has already been added.  The variable becomes a module
+  // variable if this method is called between calls to OpenModuleScope() and
+  // CloseModuleScope().
+  bool AddBoolVariable(const std::string& name,
+                       std::unique_ptr<const Expression>&& init);
 
   // Opens a new module scope.  Requires that no module scope is currently open.
   void OpenModuleScope();
@@ -91,6 +148,9 @@ class Model {
 
   // Returns the type of this model.
   ModelType type() const { return type_; }
+
+  // Returns the constants for this model.
+  const std::vector<ParsedConstant>& constants() const { return constants_; }
 
   // Returns the variables for this model.
   const std::vector<ParsedVariable>& variables() const { return variables_; }
@@ -117,7 +177,19 @@ class Model {
   }
 
 private:
+  struct IdentifierIndex {
+    enum { kConstant, kVariable } type;
+    size_t index;
+  };
+
+  bool AddVariable(const std::string& name, Type type,
+                   std::unique_ptr<const Expression>&& min,
+                   std::unique_ptr<const Expression>&& max,
+                   std::unique_ptr<const Expression>&& init);
+
   ModelType type_;
+  std::map<std::string, IdentifierIndex> identifiers_;
+  std::vector<ParsedConstant> constants_;
   std::vector<ParsedVariable> variables_;
   std::set<int> global_variables_;
   std::vector<std::set<int>> module_variables_;
@@ -155,7 +227,8 @@ class DecisionDiagramModel {
   ~DecisionDiagramModel();
 
   static DecisionDiagramModel Create(const DecisionDiagramManager* manager,
-                                     size_t moments, const Model& model);
+                                     size_t moments, const Model& model,
+                                     const CompiledModel& compiled_model);
 
   const DecisionDiagramManager& manager() const { return *manager_; }
 

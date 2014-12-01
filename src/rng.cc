@@ -24,16 +24,11 @@
 DCEngine::DCEngine() = default;
 
 DCEngine::DCEngine(int id, result_type seed)
-    : mts_(get_mt_parameter_id_st(32, 521, id, seed)) {
-}
+    : mts_(get_mt_parameter_id_st(32, 521, id, seed)) {}
 
-DCEngine::result_type DCEngine::min() {
-  return 0;
-}
+DCEngine::result_type DCEngine::min() { return 0; }
 
-DCEngine::result_type DCEngine::max() {
-  return 0xffffffff;
-}
+DCEngine::result_type DCEngine::max() { return 0xffffffff; }
 
 void DCEngine::seed(result_type value) {
   if (mts_) {
