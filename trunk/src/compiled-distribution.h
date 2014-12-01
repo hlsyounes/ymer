@@ -63,7 +63,7 @@ template <typename Engine>
 class CompiledDistributionSampler {
  public:
   // Constructs a sampler for compiled distributions.
-  CompiledDistributionSampler(Engine* engine);
+  explicit CompiledDistributionSampler(Engine* engine);
 
   // Generates a sample for the given compiled distribution.
   double Sample(const CompiledGsmpDistribution& dist,

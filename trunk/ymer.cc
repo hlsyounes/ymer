@@ -89,27 +89,26 @@ int current_property;
 
 /* Program options. */
 static option long_options[] = {
-  { "alpha", required_argument, 0, 'A' },
-  { "beta", required_argument, 0, 'B' },
-  { "delta", required_argument, 0, 'D' },
-  { "epsilon", required_argument, 0, 'E' },
-  { "const", required_argument, 0, 'c' },
-  { "engine", required_argument, 0, 'e' },
-  { "host", required_argument, 0, 'H' },
-  { "max-path-length", required_argument, 0, 'L' },
-  { "memoization", no_argument, 0, 'M' },
-  { "matching-moments", required_argument, 0, 'm' },
-  { "fixed-sample-size", required_argument, 0, 'N' },
-  { "nested-error", required_argument, 0, 'n' },
-  { "estimate-probabilities", no_argument, 0, 'p' },
-  { "port", required_argument, 0, 'P' },
-  { "sampling-algorithm", required_argument, 0, 's' },
-  { "seed", required_argument, 0, 'S' },
-  { "trials", required_argument, 0, 'T' },
-  { "version", no_argument, 0, 'V' },
-  { "help", no_argument, 0, 'h' },
-  { 0, 0, 0, 0 }
-};
+    {"alpha", required_argument, 0, 'A'},
+    {"beta", required_argument, 0, 'B'},
+    {"delta", required_argument, 0, 'D'},
+    {"epsilon", required_argument, 0, 'E'},
+    {"const", required_argument, 0, 'c'},
+    {"engine", required_argument, 0, 'e'},
+    {"host", required_argument, 0, 'H'},
+    {"max-path-length", required_argument, 0, 'L'},
+    {"memoization", no_argument, 0, 'M'},
+    {"matching-moments", required_argument, 0, 'm'},
+    {"fixed-sample-size", required_argument, 0, 'N'},
+    {"nested-error", required_argument, 0, 'n'},
+    {"estimate-probabilities", no_argument, 0, 'p'},
+    {"port", required_argument, 0, 'P'},
+    {"sampling-algorithm", required_argument, 0, 's'},
+    {"seed", required_argument, 0, 'S'},
+    {"trials", required_argument, 0, 'T'},
+    {"version", no_argument, 0, 'V'},
+    {"help", no_argument, 0, 'h'},
+    {0, 0, 0, 0}};
 static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:pP:s:S:T:V";
 
 namespace {
@@ -117,91 +116,72 @@ namespace {
 /* Displays help. */
 void display_help() {
   std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
-	    << "options:" << std::endl
-	    << "  -A a,  --alpha=a\t"
-	    << "use bound a on false negatives with sampling engine"
-	    << std::endl
-	    << "\t\t\t  (default is 1e-2)" << std::endl
-	    << "  -B b,  --beta=b\t"
-	    << "use bound b on false positives with sampling engine"
-	    << std::endl
-	    << "\t\t\t  (default is 1e-2)" << std::endl
+            << "options:" << std::endl << "  -A a,  --alpha=a\t"
+            << "use bound a on false negatives with sampling engine"
+            << std::endl << "\t\t\t  (default is 1e-2)" << std::endl
+            << "  -B b,  --beta=b\t"
+            << "use bound b on false positives with sampling engine"
+            << std::endl << "\t\t\t  (default is 1e-2)" << std::endl
             << "  -c c,  --const=c\t"
             << "overrides for model constants" << std::endl
             << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
-	    << "  -D d,  --delta=d\t"
-	    << "use indifference region of width 2*d with sampling"
-	    << std::endl
-	    << "\t\t\t  engine (default is 1e-2)" << std::endl
-	    << "  -E e,  --epsilon=e\t"
-	    << "use precision e with hybrid engine (default is 1e-6)"
-	    << std::endl
-	    << "  -e e,  --engine=e\t"
-	    << "use engine e; can be `sampling' (default), `hybrid',"
-	    << std::endl
-	    << "\t\t\t  or `mixed'" << std::endl
-	    << "  -H h,  --host=h\t"
-	    << "connect to server on host h" << std::endl
+            << "  -D d,  --delta=d\t"
+            << "use indifference region of width 2*d with sampling" << std::endl
+            << "\t\t\t  engine (default is 1e-2)" << std::endl
+            << "  -E e,  --epsilon=e\t"
+            << "use precision e with hybrid engine (default is 1e-6)"
+            << std::endl << "  -e e,  --engine=e\t"
+            << "use engine e; can be `sampling' (default), `hybrid',"
+            << std::endl << "\t\t\t  or `mixed'" << std::endl
+            << "  -H h,  --host=h\t"
+            << "connect to server on host h" << std::endl
             << "  -L l,  --max_path-length=l" << std::endl
             << "\t\t\tlimit sample path to l states" << std::endl
-	    << "  -M,    --memoization\t"
-	    << "use memoization for sampling engine" << std::endl
-	    << "  -m m,  --matching-moments=m" << std::endl
-	    << "\t\t\tmatch the first m moments of general distributions"
-	    << std::endl
-            << "  -N n,  --fixed-sample-size=n" << std::endl
+            << "  -M,    --memoization\t"
+            << "use memoization for sampling engine" << std::endl
+            << "  -m m,  --matching-moments=m" << std::endl
+            << "\t\t\tmatch the first m moments of general distributions"
+            << std::endl << "  -N n,  --fixed-sample-size=n" << std::endl
             << "\t\t\tuse a fixed sample size" << std::endl
-	    << "  -p,    --estimate-probabilities" << std::endl
-	    << "\t\t\testimates probabilities of path formulae holding"
-	    << std::endl
-	    << "  -P p,  --port=p\t"
-	    << "communicate using port p" << std::endl
-	    << "  -s s,  --sampling-algorithm=s" << std::endl
-	    << "\t\t\tuse sampling algorithm s"
-	    << std::endl
-	    << "  -S s,  --seed=s\t"
-	    << "use seed s with random number generator" << std::endl
-	    << "\t\t\t  (sampling engine only)" << std::endl
-	    << "  -T t,  --trials=t\t"
-	    << "number of trials for sampling engine (default is 1)"
-	    << std::endl
-	    << "\t\t\t  default level is 1 if optional argument is left out"
-	    << std::endl
-	    << "  -V,    --version\t"
-	    << "display version information and exit" << std::endl
-	    << "  -h,    --help\t\t"
-	    << "display this help and exit" << std::endl
-	    << "  file ...\t\t"
-	    << "files containing models and properties;" << std::endl
-	    << "\t\t\t  if none, descriptions are read from standard input"
-	    << std::endl
-	    << std::endl
-	    << "Report bugs to <" PACKAGE_BUGREPORT ">." << std::endl;
+            << "  -p,    --estimate-probabilities" << std::endl
+            << "\t\t\testimates probabilities of path formulae holding"
+            << std::endl << "  -P p,  --port=p\t"
+            << "communicate using port p" << std::endl
+            << "  -s s,  --sampling-algorithm=s" << std::endl
+            << "\t\t\tuse sampling algorithm s" << std::endl
+            << "  -S s,  --seed=s\t"
+            << "use seed s with random number generator" << std::endl
+            << "\t\t\t  (sampling engine only)" << std::endl
+            << "  -T t,  --trials=t\t"
+            << "number of trials for sampling engine (default is 1)"
+            << std::endl
+            << "\t\t\t  default level is 1 if optional argument is left out"
+            << std::endl << "  -V,    --version\t"
+            << "display version information and exit" << std::endl
+            << "  -h,    --help\t\t"
+            << "display this help and exit" << std::endl << "  file ...\t\t"
+            << "files containing models and properties;" << std::endl
+            << "\t\t\t  if none, descriptions are read from standard input"
+            << std::endl << std::endl
+            << "Report bugs to <" PACKAGE_BUGREPORT ">." << std::endl;
 }
-
 
 /* Displays version information. */
 void display_version() {
   std::cout << PACKAGE_STRING << std::endl
-	    << "Copyright (C) 2003--2005 Carnegie Mellon University"
-	    << std::endl
-            << "Copyright (C) 2011--2012 Google Inc" << std::endl
-	    << PACKAGE_NAME
-	    << " comes with NO WARRANTY, to the extent permitted by law."
-	    << std::endl
-	    << "For information about the terms of redistribution,"
-	    << std::endl
-	    << "see the file named COPYING in the " PACKAGE_NAME
-	    << " distribution." << std::endl
-	    << std::endl
-	    << "Written by Haakan Younes." << std::endl;
+            << "Copyright (C) 2003--2005 Carnegie Mellon University"
+            << std::endl << "Copyright (C) 2011--2012 Google Inc" << std::endl
+            << PACKAGE_NAME
+            << " comes with NO WARRANTY, to the extent permitted by law."
+            << std::endl << "For information about the terms of redistribution,"
+            << std::endl << "see the file named COPYING in the " PACKAGE_NAME
+            << " distribution." << std::endl << std::endl
+            << "Written by Haakan Younes." << std::endl;
 }
 
-
 /* Parses spec for const overrides.  Returns true on success. */
-bool parse_const_overrides(
-    const std::string& spec,
-    std::map<std::string, TypedValue>* const_overrides) {
+bool parse_const_overrides(const std::string& spec,
+                           std::map<std::string, TypedValue>* const_overrides) {
   if (spec.empty()) {
     return true;
   }
@@ -242,7 +222,7 @@ bool read_file(const std::string& filename) {
   FILE* file = (filename == "-") ? stdin : fopen(filename.c_str(), "r");
   if (file == nullptr) {
     std::cerr << PACKAGE << ':' << filename << ": " << strerror(errno)
-	      << std::endl;
+              << std::endl;
     return false;
   }
   current_file = filename;
@@ -264,8 +244,8 @@ CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
-  CompileExpressionResult result = CompileExpression(expr, expected_type,
-                                                     identifiers_by_name);
+  CompileExpressionResult result =
+      CompileExpression(expr, expected_type, identifiers_by_name);
   if (!result.errors.empty()) {
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
     return CompiledExpression({});
@@ -292,10 +272,10 @@ class DistributionCompiler : public DistributionVisitor {
   CompiledGsmpDistribution gsmp_delay() const { return gsmp_delay_; }
 
  private:
-  virtual void DoVisitExponential(const Exponential& dist);
-  virtual void DoVisitWeibull(const Weibull& dist);
-  virtual void DoVisitLognormal(const Lognormal& dist);
-  virtual void DoVisitUniform(const Uniform& dist);
+  void DoVisitExponential(const Exponential& dist) override;
+  void DoVisitWeibull(const Weibull& dist) override;
+  void DoVisitLognormal(const Lognormal& dist) override;
+  void DoVisitUniform(const Uniform& dist) override;
 
   double GetDoubleValue(const Expression& expr);
 
@@ -317,19 +297,21 @@ DistributionCompiler::DistributionCompiler(
 }
 
 void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
-  markov_weight_ = CompileAndOptimizeExpression(
-          dist.rate(), Type::DOUBLE, *identifiers_by_name_, errors_);
+  markov_weight_ = CompileAndOptimizeExpression(dist.rate(), Type::DOUBLE,
+                                                *identifiers_by_name_, errors_);
 }
 
 double DistributionCompiler::GetDoubleValue(const Expression& expr) {
   CompiledExpression compiled_expr = CompileAndOptimizeExpression(
       expr, Type::DOUBLE, *identifiers_by_name_, errors_);
-  if (compiled_expr.operations().size() == 1 &&
-      compiled_expr.operations()[0].opcode() == Opcode::DCONST &&
-      compiled_expr.operations()[0].operand2() == 0) {
-    return compiled_expr.operations()[0].doperand1();
+  if (errors_->empty()) {
+    if (compiled_expr.operations().size() == 1 &&
+        compiled_expr.operations()[0].opcode() == Opcode::DCONST &&
+        compiled_expr.operations()[0].operand2() == 0) {
+      return compiled_expr.operations()[0].doperand1();
+    }
+    errors_->push_back(StrCat("expecting constant expression; found ", expr));
   }
-  errors_->push_back(StrCat("expecting constant expression; found ", expr));
   return 0.0;
 }
 
@@ -364,8 +346,8 @@ CompiledUpdate CompileUpdate(
   auto i = identifiers_by_name.find(update.variable());
   int variable;
   if (i == identifiers_by_name.end()) {
-    errors->push_back(StrCat(
-        "undefined variable '", update.variable(), "' in update"));
+    errors->push_back(
+        StrCat("undefined variable '", update.variable(), "' in update"));
     variable = -1;
   } else if (!i->second.is_variable()) {
     errors->push_back(StrCat("constant '", update.variable(), "' in update"));
@@ -390,21 +372,19 @@ std::vector<CompiledUpdate> CompileUpdates(
   return compiled_updates;
 }
 
-std::map<std::string, IdentifierInfo> GetIdentifiersByName(
-    const CompiledModel& model) {
-  std::map<std::string, IdentifierInfo> identifiers_by_name;
+void AddVariableIdentifiersByName(
+    const CompiledModel& model,
+    std::map<std::string, IdentifierInfo>* identifiers_by_name) {
   int index = 0;
   int low_bit = 0;
   for (const auto& v : model.variables()) {
-    // TODO(hlsyounes): propagate actual type of variable.
-    identifiers_by_name.emplace(
+    identifiers_by_name->emplace(
         v.name(),
-        IdentifierInfo::Variable(Type::INT, index, low_bit,
+        IdentifierInfo::Variable(model.variable_types()[index], index, low_bit,
                                  low_bit + v.bit_count() - 1, v.min_value()));
     ++index;
     low_bit += v.bit_count();
   }
-  return identifiers_by_name;
 }
 
 CompiledModelType CompileModelType(ModelType model_type,
@@ -426,17 +406,42 @@ CompiledModelType CompileModelType(ModelType model_type,
   return CompiledModelType::CTMC;
 }
 
+int GetIntValue(
+    const Expression& expr, Type expected_type,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    std::vector<std::string>* errors) {
+  CompiledExpression compiled_expr = CompileAndOptimizeExpression(
+      expr, expected_type, identifiers_by_name, errors);
+  if (errors->empty()) {
+    if (compiled_expr.operations().size() == 1 &&
+        compiled_expr.operations()[0].opcode() == Opcode::ICONST &&
+        compiled_expr.operations()[0].operand2() == 0) {
+      return compiled_expr.operations()[0].ioperand1();
+    }
+    errors->push_back(StrCat("expecting constant expression; found ", expr));
+  }
+  return 0;
+}
+
 CompiledModel CompileModel(const Model& model,
                            std::vector<std::string>* errors) {
   CompiledModel compiled_model(CompileModelType(model.type(), errors));
 
+  std::map<std::string, IdentifierInfo> identifiers_by_name;
+  // TODO(hlsyounes): Add constant identifiers by name.
   for (const ParsedVariable& v : model.variables()) {
-    compiled_model.AddVariable(
-        v.name(), v.min_value(), v.max_value(), v.init_value());
+    const int min = GetIntValue(v.min(), v.type(), identifiers_by_name, errors);
+    const int max = GetIntValue(v.max(), v.type(), identifiers_by_name, errors);
+    const int init = v.has_init() ? GetIntValue(v.init(), v.type(),
+                                                identifiers_by_name, errors)
+                                  : min;
+    if (!v.has_init()) {
+      errors->push_back(StrCat("no init expression for variable ", v.name()));
+    }
+    compiled_model.AddVariable(v.name(), v.type(), min, max, init);
   }
 
-  std::map<std::string, IdentifierInfo> identifiers_by_name =
-      GetIdentifiersByName(compiled_model);
+  AddVariableIdentifiersByName(compiled_model, &identifiers_by_name);
   std::vector<CompiledMarkovCommand> single_markov_commands;
   std::vector<CompiledGsmpCommand> single_gsmp_commands;
   DistributionCompiler dist_compiler(&identifiers_by_name, errors);
@@ -482,13 +487,13 @@ class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
   const CompiledPathProperty* PathProperty();
 
  private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
 
   std::vector<const CompiledPathProperty*> path_properties_;
 };
@@ -534,8 +539,11 @@ int main(int argc, char* argv[]) {
   /* Verification without estimation by default. */
   bool estimate = false;
   /* Set default engine. */
-  enum { SAMPLING_ENGINE, HYBRID_ENGINE, MIXED_ENGINE } engine =
-							  SAMPLING_ENGINE;
+  enum {
+    SAMPLING_ENGINE,
+    HYBRID_ENGINE,
+    MIXED_ENGINE
+  } engine = SAMPLING_ENGINE;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */
@@ -554,125 +562,125 @@ int main(int argc, char* argv[]) {
     while (1) {
       int option_index = 0;
 #if HAVE_GETOPT_LONG
-      int c = getopt_long(argc, argv, OPTION_STRING,
-			  long_options, &option_index);
+      int c =
+          getopt_long(argc, argv, OPTION_STRING, long_options, &option_index);
 #else
       int c = getopt(argc, argv, OPTION_STRING);
 #endif
       if (c == -1) {
-	break;
+        break;
       }
       switch (c) {
-      case 'A':
-	params.alpha = atof(optarg);
-	if (params.alpha < 1e-10) {
-	  throw std::invalid_argument("alpha < 1e-10");
-	} else if (params.alpha >= 0.5) {
-	  throw std::invalid_argument("alpha >= 0.5");
-	}
-	break;
-      case 'B':
-	params.beta = atof(optarg);
-	if (params.beta < 1e-10) {
-	  throw std::invalid_argument("beta < 1e-10");
-	} else if (params.beta >= 0.5) {
-	  throw std::invalid_argument("beta >= 0.5");
-	}
-	break;
-      case 'c':
-        if (!parse_const_overrides(optarg, &const_overrides)) {
-          throw std::invalid_argument("bad --const specification");
-        }
-        break;
-      case 'D':
-	params.delta = atof(optarg);
-	if (params.delta < 1e-10) {
-	  throw std::invalid_argument("delta < 1e-10");
-	} else if (params.delta > 0.5) {
-	  throw std::invalid_argument("delta > 0.5");
-	}
-	break;
-      case 'E':
-	params.epsilon = atof(optarg);
-	if (params.epsilon < 1e-10) {
-	  throw std::invalid_argument("epsilon < 1e-10");
-	} else if (params.epsilon > 1.0) {
-	  throw std::invalid_argument("epsilon > 1.0");
-	}
-	break;
-      case 'e':
-	if (strcasecmp(optarg, "sampling") == 0) {
-	  engine = SAMPLING_ENGINE;
-	} else if (strcasecmp(optarg, "hybrid") == 0) {
-	  engine = HYBRID_ENGINE;
-	} else if (strcasecmp(optarg, "mixed") == 0) {
-	  engine = MIXED_ENGINE;
-	} else {
-	  throw std::invalid_argument("unsupported engine `"
-				      + std::string(optarg) + "'");
-	}
-	break;
-      case 'H':
-	hostname = optarg;
-	break;
-      case 'L':
-        params.max_path_length = atoi(optarg);
-        break;
-      case 'M':
-	params.memoization = true;
-	break;
-      case 'm':
-	moments = atoi(optarg);
-	if (moments < 1) {
-	  throw std::invalid_argument("must match at least one moment");
-	} else if (moments > 3) {
-	  throw std::invalid_argument("cannot match more than three moments");
-	}
-	break;
-      case 'N':
-	params.algorithm = FIXED;
-        params.fixed_sample_size = atoi(optarg);
-	break;
-      case 'n':
-	params.nested_error = atof(optarg);
-	break;
-      case 'p':
-	estimate = true;
-	params.algorithm = ESTIMATE;
-	break;
-      case 'P':
-	port = atoi(optarg);
-	if (port < 0 || port > 0xffff) {
-	  throw std::invalid_argument("invalid port number");
-	}
-	break;
-      case 's':
-	if (strcasecmp(optarg, "ssp") == 0) {
-	  params.algorithm = SSP;
-	} else if (strcasecmp(optarg, "sprt") == 0) {
-	  params.algorithm = SPRT;
-	} else {
-	  throw std::invalid_argument("unsupported sampling algorithm `"
-				      + std::string(optarg) + "'");
-	}
-	break;
-      case 'S':
-	seed = atoi(optarg);
-	break;
-      case 'T':
-	trials = atoi(optarg);
-	break;
-      case 'V':
-	display_version();
-	return 0;
-      case 'h':
-        display_help();
-        return 0;
-      case ':':
-      default:
-	std::cerr << "Try `" PACKAGE " --help' for more information."
-		  << std::endl;
-	return 1;
+        case 'A':
+          params.alpha = atof(optarg);
+          if (params.alpha < 1e-10) {
+            throw std::invalid_argument("alpha < 1e-10");
+          } else if (params.alpha >= 0.5) {
+            throw std::invalid_argument("alpha >= 0.5");
+          }
+          break;
+        case 'B':
+          params.beta = atof(optarg);
+          if (params.beta < 1e-10) {
+            throw std::invalid_argument("beta < 1e-10");
+          } else if (params.beta >= 0.5) {
+            throw std::invalid_argument("beta >= 0.5");
+          }
+          break;
+        case 'c':
+          if (!parse_const_overrides(optarg, &const_overrides)) {
+            throw std::invalid_argument("bad --const specification");
+          }
+          break;
+        case 'D':
+          params.delta = atof(optarg);
+          if (params.delta < 1e-10) {
+            throw std::invalid_argument("delta < 1e-10");
+          } else if (params.delta > 0.5) {
+            throw std::invalid_argument("delta > 0.5");
+          }
+          break;
+        case 'E':
+          params.epsilon = atof(optarg);
+          if (params.epsilon < 1e-10) {
+            throw std::invalid_argument("epsilon < 1e-10");
+          } else if (params.epsilon > 1.0) {
+            throw std::invalid_argument("epsilon > 1.0");
+          }
+          break;
+        case 'e':
+          if (strcasecmp(optarg, "sampling") == 0) {
+            engine = SAMPLING_ENGINE;
+          } else if (strcasecmp(optarg, "hybrid") == 0) {
+            engine = HYBRID_ENGINE;
+          } else if (strcasecmp(optarg, "mixed") == 0) {
+            engine = MIXED_ENGINE;
+          } else {
+            throw std::invalid_argument("unsupported engine `" +
+                                        std::string(optarg) + "'");
+          }
+          break;
+        case 'H':
+          hostname = optarg;
+          break;
+        case 'L':
+          params.max_path_length = atoi(optarg);
+          break;
+        case 'M':
+          params.memoization = true;
+          break;
+        case 'm':
+          moments = atoi(optarg);
+          if (moments < 1) {
+            throw std::invalid_argument("must match at least one moment");
+          } else if (moments > 3) {
+            throw std::invalid_argument("cannot match more than three moments");
+          }
+          break;
+        case 'N':
+          params.algorithm = FIXED;
+          params.fixed_sample_size = atoi(optarg);
+          break;
+        case 'n':
+          params.nested_error = atof(optarg);
+          break;
+        case 'p':
+          estimate = true;
+          params.algorithm = ESTIMATE;
+          break;
+        case 'P':
+          port = atoi(optarg);
+          if (port < 0 || port > 0xffff) {
+            throw std::invalid_argument("invalid port number");
+          }
+          break;
+        case 's':
+          if (strcasecmp(optarg, "ssp") == 0) {
+            params.algorithm = SSP;
+          } else if (strcasecmp(optarg, "sprt") == 0) {
+            params.algorithm = SPRT;
+          } else {
+            throw std::invalid_argument("unsupported sampling algorithm `" +
+                                        std::string(optarg) + "'");
+          }
+          break;
+        case 'S':
+          seed = atoi(optarg);
+          break;
+        case 'T':
+          trials = atoi(optarg);
+          break;
+        case 'V':
+          display_version();
+          return 0;
+        case 'h':
+          display_help();
+          return 0;
+        case ':':
+        default:
+          std::cerr << "Try `" PACKAGE " --help' for more information."
+                    << std::endl;
+          return 1;
       }
     }
     if (params.nested_error > 0) {
@@ -687,16 +695,16 @@ int main(int argc, char* argv[]) {
        * Use remaining command line arguments as file names.
        */
       while (optind < argc) {
-	if (!read_file(argv[optind++])) {
-	  return 1;
-	}
+        if (!read_file(argv[optind++])) {
+          return 1;
+        }
       }
     } else {
       /*
        * No remaining command line argument, so read from standard input.
        */
       if (!read_file("-")) {
-	return 1;
+        return 1;
       }
     }
     clear_declarations();
@@ -712,9 +720,10 @@ int main(int argc, char* argv[]) {
       errors.push_back(
           StrCat(global_model->type(), " only supported by sampling engine"));
     }
-    const std::map<std::string, IdentifierInfo> identifiers_by_name =
-        GetIdentifiersByName(compiled_model);
-    DecisionDiagramManager dd_man(2*compiled_model.BitCount());
+    std::map<std::string, IdentifierInfo> identifiers_by_name;
+    // TODO(hlsyounes): Add constant identifiers by name.
+    AddVariableIdentifiersByName(compiled_model, &identifiers_by_name);
+    DecisionDiagramManager dd_man(2 * compiled_model.BitCount());
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;
     for (const Expression& property : properties) {
@@ -739,134 +748,134 @@ int main(int argc, char* argv[]) {
       srvaddr.sin_family = AF_INET;
       srvaddr.sin_port = htons(port);
       if (!hostname.empty()) {
-	/* Client mode. */
-	hostent* host = gethostbyname(hostname.c_str());
-	if (host == 0) {
-	  herror(PACKAGE);
-	  return 1;
-	}
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd == -1) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	srvaddr.sin_addr = *(in_addr*) host->h_addr;
-	if (-1 == connect(sockfd, (sockaddr*) &srvaddr, sizeof srvaddr)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	ServerMsg smsg;
-	int nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
-	if (nbytes == -1) {
-	  perror(PACKAGE);
-	  return 1;
-	} else if (nbytes == 0) {
-	  VLOG(1) << "Shutting down (server unavailable)";
-	  return 0;
-	}
-	if (smsg.id != ServerMsg::REGISTER) {
-	  throw std::logic_error("expecting register message");
-	}
-	int client_id = smsg.value;
+        /* Client mode. */
+        hostent* host = gethostbyname(hostname.c_str());
+        if (host == 0) {
+          herror(PACKAGE);
+          return 1;
+        }
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd == -1) {
+          perror(PACKAGE);
+          return 1;
+        }
+        srvaddr.sin_addr = *(in_addr*)host->h_addr;
+        if (-1 == connect(sockfd, (sockaddr*)&srvaddr, sizeof srvaddr)) {
+          perror(PACKAGE);
+          return 1;
+        }
+        ServerMsg smsg;
+        int nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
+        if (nbytes == -1) {
+          perror(PACKAGE);
+          return 1;
+        } else if (nbytes == 0) {
+          VLOG(1) << "Shutting down (server unavailable)";
+          return 0;
+        }
+        if (smsg.id != ServerMsg::REGISTER) {
+          throw std::logic_error("expecting register message");
+        }
+        int client_id = smsg.value;
         std::cout << "Client " << client_id << std::endl;
         std::cout << "Initializing random number generator...";
         DCEngine dc_engine(client_id, seed);
         dc_engine.seed(seed);
         std::cout << "done" << std::endl;
-	fd_set master_fds;
-	FD_ZERO(&master_fds);
-	FD_SET(sockfd, &master_fds);
+        fd_set master_fds;
+        FD_ZERO(&master_fds);
+        FD_SET(sockfd, &master_fds);
         CompiledExpressionEvaluator evaluator(reg_counts.first,
                                               reg_counts.second);
         CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
-	const State init_state(compiled_model);
+        const State init_state(compiled_model);
         const CompiledPathProperty* path_property = nullptr;
         ModelCheckingParams nested_params = params;
-	timeval timeout;
-	timeval* to = 0;
-	while (true) {
-	  if (to != 0) {
-	    to->tv_sec = 0;
-	    to->tv_usec = 0;
-	  }
-	  fd_set read_fds = master_fds;
-	  int result = select(sockfd + 1, &read_fds, 0, 0, to);
-	  if (result == -1) {
-	    perror(PACKAGE);
-	    exit(-1);
-	  } else if (result == 0) {
-	    if (path_property) {
-	      ClientMsg msg = { ClientMsg::SAMPLE };
+        timeval timeout;
+        timeval* to = 0;
+        while (true) {
+          if (to != 0) {
+            to->tv_sec = 0;
+            to->tv_usec = 0;
+          }
+          fd_set read_fds = master_fds;
+          int result = select(sockfd + 1, &read_fds, 0, 0, to);
+          if (result == -1) {
+            perror(PACKAGE);
+            exit(-1);
+          } else if (result == 0) {
+            if (path_property) {
+              ClientMsg msg = {ClientMsg::SAMPLE};
               ModelCheckingStats stats;
               msg.value = GetObservation(*path_property, compiled_model,
                                          nullptr, nested_params, &evaluator,
                                          &sampler, init_state, &stats);
               VLOG(2) << "Sending sample " << msg.value;
-	      nbytes = send(sockfd, &msg, sizeof msg, 0);
-	      if (nbytes == -1) {
-		perror(PACKAGE);
-		return 1;
-	      } else if (nbytes == 0) {
-		VLOG(1) << "Shutting down (server unavailable)";
-		return 0;
-	      }
-	    }
-	  } else {
-	    nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
-	    if (nbytes == -1) {
-	      perror(PACKAGE);
-	      return 1;
-	    } else if (nbytes == 0) {
-	      VLOG(1) << "Shutting down (server unavailable)";
-	      return 0;
-	    }
-	    if (smsg.id == ServerMsg::START) {
+              nbytes = send(sockfd, &msg, sizeof msg, 0);
+              if (nbytes == -1) {
+                perror(PACKAGE);
+                return 1;
+              } else if (nbytes == 0) {
+                VLOG(1) << "Shutting down (server unavailable)";
+                return 0;
+              }
+            }
+          } else {
+            nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
+            if (nbytes == -1) {
+              perror(PACKAGE);
+              return 1;
+            } else if (nbytes == 0) {
+              VLOG(1) << "Shutting down (server unavailable)";
+              return 0;
+            }
+            if (smsg.id == ServerMsg::START) {
               path_property =
                   ExtractPathProperty(compiled_properties[smsg.value]);
               if (path_property == nullptr) {
-		std::cerr << PACKAGE << ": zero or multiple path formulae"
-			  << std::endl;
-		return 1;
-	      }
+                std::cerr << PACKAGE << ": zero or multiple path formulae"
+                          << std::endl;
+                return 1;
+              }
               // Since we currently do not support distributed sampling for
               // properties with nested probabilistic operators, we can just
               // set the nested error bounds to 0.
               nested_params.alpha = 0;
               nested_params.beta = 0;
-	      to = &timeout;
-	      VLOG(1) << "Sampling started for property " << smsg.value;
-	    } else if (smsg.id == ServerMsg::STOP) {
-	      to = 0;
-	      VLOG(1) << "Sampling stopped.";
-	    } else {
-	      std::cerr << "Message with bad id (" << smsg.id << ") ignored."
-			<< std::endl;
-	    }
-	  }
-	}
+              to = &timeout;
+              VLOG(1) << "Sampling started for property " << smsg.value;
+            } else if (smsg.id == ServerMsg::STOP) {
+              to = 0;
+              VLOG(1) << "Sampling stopped.";
+            } else {
+              std::cerr << "Message with bad id (" << smsg.id << ") ignored."
+                        << std::endl;
+            }
+          }
+        }
       } else {
-	/* Server mode. */
-	server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (server_socket == -1) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	int yes = 1;
-	if (-1 == setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
-			     sizeof yes)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	srvaddr.sin_addr.s_addr = INADDR_ANY;
-	if (-1 == bind(server_socket, (sockaddr*) &srvaddr, sizeof srvaddr)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	if (-1 == listen(server_socket, 100)) {
-	  perror(PACKAGE);
-	  return 1;
-	}
-	VLOG(1) << "Server at port " << port;
+        /* Server mode. */
+        server_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (server_socket == -1) {
+          perror(PACKAGE);
+          return 1;
+        }
+        int yes = 1;
+        if (-1 == setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
+                             sizeof yes)) {
+          perror(PACKAGE);
+          return 1;
+        }
+        srvaddr.sin_addr.s_addr = INADDR_ANY;
+        if (-1 == bind(server_socket, (sockaddr*)&srvaddr, sizeof srvaddr)) {
+          perror(PACKAGE);
+          return 1;
+        }
+        if (-1 == listen(server_socket, 100)) {
+          perror(PACKAGE);
+          return 1;
+        }
+        VLOG(1) << "Server at port " << port;
       }
     }
 
@@ -876,7 +885,7 @@ int main(int argc, char* argv[]) {
       std::cout << "Sampling engine: alpha=" << params.alpha
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", seed=" << seed << std::endl;
-      itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
+      itimerval timer = {{0L, 0L}, {40000000L, 0L}};
       itimerval stimer;
 #ifdef PROFILING
       setitimer(ITIMER_VIRTUAL, &timer, 0);
@@ -896,108 +905,101 @@ int main(int argc, char* argv[]) {
 #endif
       long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-      double t = std::max(0.0, sec + usec*1e-6);
+      double t = std::max(0.0, sec + usec * 1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << global_model->commands().size()
                 << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
-	std::cout << std::endl << "Model checking " << *fi << " ..."
-		  << std::endl;
+        std::cout << std::endl << "Model checking " << *fi << " ..."
+                  << std::endl;
         current_property = fi - properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
         ModelCheckingStats stats;
-	for (size_t i = 0; i < trials; ++i) {
-	  timeval start_time;
-	  itimerval timer = { { 0, 0 }, { 40000000L, 0 } };
-	  itimerval stimer;
-	  if (server_socket != -1) {
-	    gettimeofday(&start_time, 0);
-	  } else {
+        for (size_t i = 0; i < trials; ++i) {
+          timeval start_time;
+          itimerval timer = {{0, 0}, {40000000L, 0}};
+          itimerval stimer;
+          if (server_socket != -1) {
+            gettimeofday(&start_time, 0);
+          } else {
 #ifdef PROFILING
-	    setitimer(ITIMER_VIRTUAL, &timer, 0);
-	    getitimer(ITIMER_VIRTUAL, &stimer);
+            setitimer(ITIMER_VIRTUAL, &timer, 0);
+            getitimer(ITIMER_VIRTUAL, &stimer);
 #else
-	    setitimer(ITIMER_PROF, &timer, 0);
-	    getitimer(ITIMER_PROF, &stimer);
+            setitimer(ITIMER_PROF, &timer, 0);
+            getitimer(ITIMER_PROF, &stimer);
 #endif
-	  }
+          }
           bool sol = Verify(property, compiled_model, nullptr, params,
                             &evaluator, &sampler, init_state, &stats);
           double t;
-	  if (server_socket != -1) {
-	    timeval end_time;
-	    gettimeofday(&end_time, 0);
-	    long sec = end_time.tv_sec - start_time.tv_sec;
-	    long usec = end_time.tv_usec - start_time.tv_usec;
-	    if (usec < 0) {
-	      sec--;
-	      usec = 1000000 + usec;
-	    }
-	    t = std::max(0.0, sec + usec*1e-6);
-	  } else {
+          if (server_socket != -1) {
+            timeval end_time;
+            gettimeofday(&end_time, 0);
+            long sec = end_time.tv_sec - start_time.tv_sec;
+            long usec = end_time.tv_usec - start_time.tv_usec;
+            if (usec < 0) {
+              sec--;
+              usec = 1000000 + usec;
+            }
+            t = std::max(0.0, sec + usec * 1e-6);
+          } else {
 #ifdef PROFILING
-	    getitimer(ITIMER_VIRTUAL, &timer);
+            getitimer(ITIMER_VIRTUAL, &timer);
 #else
-	    getitimer(ITIMER_PROF, &timer);
+            getitimer(ITIMER_PROF, &timer);
 #endif
-	    long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-	    long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-	    t = std::max(0.0, sec + usec*1e-6);
-	  }
-	  if (trials == 1) {
-	    std::cout << "Model checking completed in " << t << " seconds."
-		      << std::endl;
-	    if (sol) {
-	      std::cout << "Property is true in the initial state."
-			<< std::endl;
-	    } else {
-	      std::cout << "Property is false in the initial state."
-			<< std::endl;
-	    }
-	  } else {
-	    if (sol) {
-	      accepts++;
-	    }
+            long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
+            long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+            t = std::max(0.0, sec + usec * 1e-6);
+          }
+          if (trials == 1) {
+            std::cout << "Model checking completed in " << t << " seconds."
+                      << std::endl;
+            if (sol) {
+              std::cout << "Property is true in the initial state."
+                        << std::endl;
+            } else {
+              std::cout << "Property is false in the initial state."
+                        << std::endl;
+            }
+          } else {
+            if (sol) {
+              accepts++;
+            }
             stats.time.AddObservation(t);
-	  }
-	}
-	if (trials > 1) {
-	  std::cout << "Model checking time mean: " << stats.time.mean()
-		    << " seconds" << std::endl
-                    << "Model checking time min: " << stats.time.min()
-                    << " seconds" << std::endl
-                    << "Model checking time max: " << stats.time.max()
-                    << " seconds" << std::endl
-		    << "Model checking time std.dev.: "
-                    << stats.time.sample_stddev() << std::endl
-		    << "Sample size mean: " << stats.sample_size.mean()
-                    << std::endl
-                    << "Sample size min: " << stats.sample_size.min()
-                    << std::endl
-                    << "Sample size max: " << stats.sample_size.max()
-                    << std::endl
-                    << "Sample size std.dev.: "
-                    << stats.sample_size.sample_stddev() << std::endl
-		    << "Path length mean: " << stats.path_length.mean()
-                    << std::endl
-		    << "Path length min: " << stats.path_length.min()
-                    << std::endl
-		    << "Path length max: " << stats.path_length.max()
-                    << std::endl
-                    << "Path length std.dev.: "
-                    << stats.path_length.sample_stddev() << std::endl
-		    << accepts << " accepted, " << (trials - accepts)
-		    << " rejected" << std::endl
-		    << "Average cached: " << stats.sample_cache_size.mean()
-                    << std::endl;
-	}
+          }
+        }
+        if (trials > 1) {
+          std::cout
+              << "Model checking time mean: " << stats.time.mean() << " seconds"
+              << std::endl << "Model checking time min: " << stats.time.min()
+              << " seconds" << std::endl
+              << "Model checking time max: " << stats.time.max() << " seconds"
+              << std::endl
+              << "Model checking time std.dev.: " << stats.time.sample_stddev()
+              << std::endl << "Sample size mean: " << stats.sample_size.mean()
+              << std::endl << "Sample size min: " << stats.sample_size.min()
+              << std::endl << "Sample size max: " << stats.sample_size.max()
+              << std::endl
+              << "Sample size std.dev.: " << stats.sample_size.sample_stddev()
+              << std::endl << "Path length mean: " << stats.path_length.mean()
+              << std::endl << "Path length min: " << stats.path_length.min()
+              << std::endl << "Path length max: " << stats.path_length.max()
+              << std::endl
+              << "Path length std.dev.: " << stats.path_length.sample_stddev()
+              << std::endl << accepts << " accepted, " << (trials - accepts)
+              << " rejected" << std::endl
+              << "Average cached: " << stats.sample_cache_size.mean()
+              << std::endl;
+        }
       }
     } else if (engine == HYBRID_ENGINE) {
       std::cout << "Hybrid engine: epsilon=" << params.epsilon << std::endl;
-      itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
+      itimerval timer = {{0L, 0L}, {40000000L, 0L}};
       itimerval stimer;
 #ifdef PROFILING
       setitimer(ITIMER_VIRTUAL, &timer, 0);
@@ -1007,7 +1009,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model);
+          &dd_man, moments, *global_model, compiled_model);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1015,7 +1017,7 @@ int main(int argc, char* argv[]) {
 #endif
       long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-      double t = std::max(0.0, sec + usec*1e-6);
+      double t = std::max(0.0, sec + usec * 1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
@@ -1029,47 +1031,47 @@ int main(int argc, char* argv[]) {
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
-	std::cout << std::endl << "Model checking " << *fi << " ..."
-		  << std::endl;
+        std::cout << std::endl << "Model checking " << *fi << " ..."
+                  << std::endl;
         current_property = fi - properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         double total_time = 0.0;
-	bool accepted = false;
-	for (size_t i = 0; i < trials; ++i) {
-	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-	  itimerval stimer;
+        bool accepted = false;
+        for (size_t i = 0; i < trials; ++i) {
+          itimerval timer = {{0L, 0L}, {40000000L, 0L}};
+          itimerval stimer;
 #ifdef PROFILING
-	  setitimer(ITIMER_VIRTUAL, &timer, 0);
-	  getitimer(ITIMER_VIRTUAL, &stimer);
+          setitimer(ITIMER_VIRTUAL, &timer, 0);
+          getitimer(ITIMER_VIRTUAL, &stimer);
 #else
-	  setitimer(ITIMER_PROF, &timer, 0);
-	  getitimer(ITIMER_PROF, &stimer);
+          setitimer(ITIMER_PROF, &timer, 0);
+          getitimer(ITIMER_PROF, &stimer);
 #endif
-	  BDD ddf = Verify(property, dd_model, estimate, true, params.epsilon);
-	  BDD sol = ddf && dd_model.initial_state();
+          BDD ddf = Verify(property, dd_model, estimate, true, params.epsilon);
+          BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
-	  getitimer(ITIMER_VIRTUAL, &timer);
+          getitimer(ITIMER_VIRTUAL, &timer);
 #else
-	  getitimer(ITIMER_PROF, &timer);
+          getitimer(ITIMER_PROF, &timer);
 #endif
-	  long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-	  double t = std::max(0.0, sec + usec*1e-6);
-	  total_time += t;
-	  accepted = (sol.get() != dd_man.GetConstant(false).get());
-	  if (t > 1.0) {
-	    total_time *= trials;
-	    break;
-	  }
-	}
-	std::cout << "Model checking completed in " << total_time/trials
-		  << " seconds." << std::endl;
-	if (accepted) {
-	  std::cout << "Property is true in the initial state." << std::endl;
-	} else {
-	  std::cout << "Property is false in the initial state." << std::endl;
-	}
+          long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
+          long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+          double t = std::max(0.0, sec + usec * 1e-6);
+          total_time += t;
+          accepted = (sol.get() != dd_man.GetConstant(false).get());
+          if (t > 1.0) {
+            total_time *= trials;
+            break;
+          }
+        }
+        std::cout << "Model checking completed in " << total_time / trials
+                  << " seconds." << std::endl;
+        if (accepted) {
+          std::cout << "Property is true in the initial state." << std::endl;
+        } else {
+          std::cout << "Property is false in the initial state." << std::endl;
+        }
       }
     } else if (engine == MIXED_ENGINE) {
       DCEngine dc_engine;
@@ -1078,7 +1080,7 @@ int main(int argc, char* argv[]) {
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", epsilon=" << params.epsilon << ", seed=" << seed
                 << std::endl;
-      itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
+      itimerval timer = {{0L, 0L}, {40000000L, 0L}};
       itimerval stimer;
 #ifdef PROFILING
       setitimer(ITIMER_VIRTUAL, &timer, 0);
@@ -1088,7 +1090,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_PROF, &stimer);
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model);
+          &dd_man, moments, *global_model, compiled_model);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
@@ -1100,7 +1102,7 @@ int main(int argc, char* argv[]) {
 #endif
       long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
       long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-      double t = std::max(0.0, sec + usec*1e-6);
+      double t = std::max(0.0, sec + usec * 1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << global_model->commands().size()
@@ -1117,78 +1119,71 @@ int main(int argc, char* argv[]) {
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
-	std::cout << std::endl << "Model checking " << *fi << " ..."
-		  << std::endl;
+        std::cout << std::endl << "Model checking " << *fi << " ..."
+                  << std::endl;
         current_property = fi - properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
         ModelCheckingStats stats;
-	for (size_t i = 0; i < trials; ++i) {
-	  itimerval timer = { { 0L, 0L }, { 40000000L, 0L } };
-	  itimerval stimer;
+        for (size_t i = 0; i < trials; ++i) {
+          itimerval timer = {{0L, 0L}, {40000000L, 0L}};
+          itimerval stimer;
 #ifdef PROFILING
-	  setitimer(ITIMER_VIRTUAL, &timer, 0);
-	  getitimer(ITIMER_VIRTUAL, &stimer);
+          setitimer(ITIMER_VIRTUAL, &timer, 0);
+          getitimer(ITIMER_VIRTUAL, &stimer);
 #else
-	  setitimer(ITIMER_PROF, &timer, 0);
-	  getitimer(ITIMER_PROF, &stimer);
+          setitimer(ITIMER_PROF, &timer, 0);
+          getitimer(ITIMER_PROF, &stimer);
 #endif
           bool sol = Verify(property, compiled_model, &dd_model, params,
                             &evaluator, &sampler, init_state, &stats);
 #ifdef PROFILING
-	  getitimer(ITIMER_VIRTUAL, &timer);
+          getitimer(ITIMER_VIRTUAL, &timer);
 #else
-	  getitimer(ITIMER_PROF, &timer);
+          getitimer(ITIMER_PROF, &timer);
 #endif
-	  long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-	  long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-	  double t = std::max(0.0, sec + usec*1e-6);
-	  if (trials == 1) {
-	    std::cout << "Model checking completed in " << t << " seconds."
-		      << std::endl;
-	    if (sol) {
-	      std::cout << "Property is true in the initial state."
-			<< std::endl;
-	    } else {
-	      std::cout << "Property is false in the initial state."
-			<< std::endl;
-	    }
-	  } else {
-	    if (sol) {
-	      accepts++;
-	    }
+          long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
+          long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
+          double t = std::max(0.0, sec + usec * 1e-6);
+          if (trials == 1) {
+            std::cout << "Model checking completed in " << t << " seconds."
+                      << std::endl;
+            if (sol) {
+              std::cout << "Property is true in the initial state."
+                        << std::endl;
+            } else {
+              std::cout << "Property is false in the initial state."
+                        << std::endl;
+            }
+          } else {
+            if (sol) {
+              accepts++;
+            }
             stats.time.AddObservation(t);
-	  }
-	}
-	if (trials > 1) {
-	  std::cout << "Model checking time mean: " << stats.time.mean()
-		    << " seconds" << std::endl
-                    << "Model checking time min: " << stats.time.min()
-                    << " seconds" << std::endl
-                    << "Model checking time max: " << stats.time.max()
-                    << " seconds" << std::endl
-		    << "Model checking time std.dev.: "
-                    << stats.time.sample_stddev() << std::endl
-		    << "Sample size mean: " << stats.sample_size.mean()
-                    << std::endl
-                    << "Sample size min: " << stats.sample_size.min()
-                    << std::endl
-                    << "Sample size max: " << stats.sample_size.max()
-                    << std::endl
-                    << "Sample size std.dev.: "
-                    << stats.sample_size.sample_stddev() << std::endl
-		    << "Path length mean: " << stats.path_length.mean()
-                    << std::endl
-		    << "Path length min: " << stats.path_length.min()
-                    << std::endl
-		    << "Path length max: " << stats.path_length.max()
-                    << std::endl
-                    << "Path length std.dev.: "
-                    << stats.path_length.sample_stddev() << std::endl
-		    << accepts << " accepted, " << (trials - accepts)
-		    << " rejected" << std::endl;
-	}
+          }
+        }
+        if (trials > 1) {
+          std::cout
+              << "Model checking time mean: " << stats.time.mean() << " seconds"
+              << std::endl << "Model checking time min: " << stats.time.min()
+              << " seconds" << std::endl
+              << "Model checking time max: " << stats.time.max() << " seconds"
+              << std::endl
+              << "Model checking time std.dev.: " << stats.time.sample_stddev()
+              << std::endl << "Sample size mean: " << stats.sample_size.mean()
+              << std::endl << "Sample size min: " << stats.sample_size.min()
+              << std::endl << "Sample size max: " << stats.sample_size.max()
+              << std::endl
+              << "Sample size std.dev.: " << stats.sample_size.sample_stddev()
+              << std::endl << "Path length mean: " << stats.path_length.mean()
+              << std::endl << "Path length min: " << stats.path_length.min()
+              << std::endl << "Path length max: " << stats.path_length.max()
+              << std::endl
+              << "Path length std.dev.: " << stats.path_length.sample_stddev()
+              << std::endl << accepts << " accepted, " << (trials - accepts)
+              << " rejected" << std::endl;
+        }
       }
     }
     delete global_model;

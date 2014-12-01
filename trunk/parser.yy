@@ -32,6 +32,7 @@
 
 #include "models.h"
 #include "src/distribution.h"
+#include "src/strutil.h"
 
 #include "glog/logging.h"
 
@@ -349,6 +350,13 @@ const Lognormal* NewLognormal(const Expression* scale,
 const Uniform* NewUniform(const Expression* low,
                           const Expression* high) {
   return new Uniform(WrapUnique(low), WrapUnique(high));
+}
+
+void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
+                 std::unique_ptr<const Expression>&& init) {
+  if (!model->AddConstant(*name, type, std::move(init))) {
+    yyerror(StrCat("duplicate identifier: ", *name));
+  }
 }
 
 }  // namespace
@@ -793,14 +801,14 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   TypedValue value() const { return value_; }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
 
   const std::map<std::string, TypedValue>* constant_values_;
   TypedValue value_;
@@ -1170,8 +1178,7 @@ static void declare_constant(const std::string* ident,
     rate_values.insert({*ident, value});
     constant_values.insert({*ident, value});
   }
-  delete ident;
-  delete value_expr;
+  AddConstant(WrapUnique(ident), Type::INT, WrapUnique(value_expr));
 }
 
 static void declare_rate(const std::string* ident,
@@ -1200,8 +1207,7 @@ static void declare_rate(const std::string* ident,
         override->second : EvaluateConstantExpression(*value_expr, rate_values);
     rate_values.insert({*ident, value});
   }
-  delete ident;
-  delete value_expr;
+  AddConstant(WrapUnique(ident), Type::DOUBLE, WrapUnique(value_expr));
 }
 
 static bool declare_variable(const std::string* ident,
@@ -1245,7 +1251,8 @@ static bool declare_variable(const std::string* ident,
         std::make_pair(*ident, std::unique_ptr<const Expression>(high)));
     variable_starts.insert(
         std::make_pair(*ident, std::unique_ptr<const Expression>(start)));
-    model->AddIntVariable(*ident, l, h, s);
+    model->AddIntVariable(*ident, Literal::New(l), Literal::New(h),
+                          Literal::New(s));
     if (!delayed_addition) {
       if (module != nullptr) {
 	module->add_variable(*ident);
@@ -1292,15 +1299,15 @@ class ExpressionIdentifierSubstituter : public ExpressionVisitor,
   std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
-  virtual void DoVisitUntilProperty(const UntilProperty& path_property);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
+  void DoVisitUntilProperty(const UntilProperty& path_property) override;
 
   std::map<std::string, std::string> substitutions_;
   std::unique_ptr<const Expression> expr_;
@@ -1325,10 +1332,10 @@ class DistributionIdentifierSubstituter : public DistributionVisitor {
   }
 
  private:
-  virtual void DoVisitExponential(const Exponential& distribution);
-  virtual void DoVisitWeibull(const Weibull& distribution);
-  virtual void DoVisitLognormal(const Lognormal& distribution);
-  virtual void DoVisitUniform(const Uniform& distribution);
+  void DoVisitExponential(const Exponential& distribution) override;
+  void DoVisitWeibull(const Weibull& distribution) override;
+  void DoVisitLognormal(const Lognormal& distribution) override;
+  void DoVisitUniform(const Uniform& distribution) override;
 
   std::map<std::string, std::string> substitutions_;
   std::unique_ptr<const Distribution> distribution_;
@@ -1588,7 +1595,7 @@ static void prepare_model(ModelType model_type) {
     delete model;
   }
   model = new Model();
-  model->set_type(model_type);
+  model->SetType(model_type);
 }
 
 

@@ -34,7 +34,7 @@
 class CompiledUpdate {
  public:
   // Constructs a compiled update with the given variable index and expression.
-  CompiledUpdate(int variable, const CompiledExpression& expr);
+  explicit CompiledUpdate(int variable, const CompiledExpression& expr);
 
   // Returns the variable index for this update.
   int variable() const { return variable_; }
@@ -52,8 +52,8 @@ class CompiledMarkovOutcome {
  public:
   // Constructs a compiled outcome for a Markov command with the given
   // probability and updates.
-  CompiledMarkovOutcome(const CompiledExpression& probability,
-                        const std::vector<CompiledUpdate>& updates);
+  explicit CompiledMarkovOutcome(const CompiledExpression& probability,
+                                 const std::vector<CompiledUpdate>& updates);
 
   // Returns the probability for this outcome.
   const CompiledExpression& probability() const { return probability_; }
@@ -70,9 +70,9 @@ class CompiledMarkovOutcome {
 class CompiledMarkovCommand {
  public:
   // Constructs a compiled Markov command with the given guard and outcomes.
-  CompiledMarkovCommand(const CompiledExpression& guard,
-                        const CompiledExpression& weight,
-                        const std::vector<CompiledMarkovOutcome>& outcomes);
+  explicit CompiledMarkovCommand(
+      const CompiledExpression& guard, const CompiledExpression& weight,
+      const std::vector<CompiledMarkovOutcome>& outcomes);
 
   // Returns the guard for this command.
   const CompiledExpression& guard() const { return guard_; }
@@ -96,10 +96,10 @@ class CompiledGsmpCommand {
  public:
   // Constructs a compiled GSMP command with the given guard, delay
   // distribution, and updates.
-  CompiledGsmpCommand(const CompiledExpression& guard,
-                      const CompiledGsmpDistribution& delay,
-                      const std::vector<CompiledUpdate>& updates,
-                      int first_index);
+  explicit CompiledGsmpCommand(const CompiledExpression& guard,
+                               const CompiledGsmpDistribution& delay,
+                               const std::vector<CompiledUpdate>& updates,
+                               int first_index);
 
   // Returns the guard for this command.
   const CompiledExpression& guard() const { return guard_; }
@@ -137,8 +137,8 @@ class CompiledModel {
   explicit CompiledModel(CompiledModelType type);
 
   // Adds a variable to this compiled model.
-  void AddVariable(const std::string& name, int min_value, int max_value,
-                   int init_value);
+  void AddVariable(const std::string& name, Type type, int min_value,
+                   int max_value, int init_value);
 
   // Sets the single (non-factored) Markov commands for this compiled model.
   void set_single_markov_commands(
@@ -168,6 +168,9 @@ class CompiledModel {
 
   // Returns the variables for this compiled model.
   const std::vector<StateVariableInfo>& variables() const { return variables_; }
+
+  // Returns the variable types for this compiled model.
+  const std::vector<Type>& variable_types() const { return variable_types_; }
 
   // Returns the initial values for the variables of this compiled model.
   const std::vector<int>& init_values() const { return init_values_; }
@@ -208,6 +211,7 @@ class CompiledModel {
  private:
   CompiledModelType type_;
   std::vector<StateVariableInfo> variables_;
+  std::vector<Type> variable_types_;
   std::vector<int> init_values_;
   // The single (non-factored) commands with memoryless distributions.
   std::vector<CompiledMarkovCommand> single_markov_commands_;

@@ -54,8 +54,8 @@ void PrintProgress(int n) {
   }
 }
 
-class SamplingVerifier
-    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
+class SamplingVerifier : public CompiledPropertyVisitor,
+                         public CompiledPathPropertyVisitor {
  public:
   SamplingVerifier(const CompiledModel* model,
                    const DecisionDiagramModel* dd_model,
@@ -70,15 +70,15 @@ class SamplingVerifier
   int GetSampleCacheSize() const;
 
  private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& path_property);
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property) override;
 
   template <typename OutputIterator>
   bool VerifyHelper(const CompiledProperty& property, const BDD* ddf,
@@ -166,10 +166,10 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
             property.expr_operand().expr(), state_->values());
         has_result = true;
       }
-      double alpha = std::min(params_.alpha, params_.beta)
-          / property.other_operands().size();
-      double beta = std::min(params_.alpha, params_.beta)
-          / property.other_operands().size();
+      double alpha = std::min(params_.alpha, params_.beta) /
+                     property.other_operands().size();
+      double beta = std::min(params_.alpha, params_.beta) /
+                    property.other_operands().size();
       std::swap(params_.alpha, alpha);
       std::swap(params_.beta, beta);
       for (const CompiledProperty& operand : property.other_operands()) {
@@ -215,9 +215,9 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
   }
   const double theta = property.threshold();
   const double theta0 =
-      std::min(1.0, (theta + params_.delta)*(1.0 - nested_error));
-  const double theta1 =
-      std::max(0.0, 1.0 - (1.0 - (theta - params_.delta))*(1.0 - nested_error));
+      std::min(1.0, (theta + params_.delta) * (1.0 - nested_error));
+  const double theta1 = std::max(
+      0.0, 1.0 - (1.0 - (theta - params_.delta)) * (1.0 - nested_error));
   ModelCheckingParams nested_params = params_;
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
@@ -235,7 +235,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
         PrintProgress(estimator.count());
       }
       if (VLOG_IS_ON(2)) {
-        LOG(INFO) << std::string(2*(probabilistic_level_ - 1), ' ')
+        LOG(INFO) << std::string(2 * (probabilistic_level_ - 1), ' ')
                   << estimator.count() << '\t' << estimator.value() << '\t'
                   << estimator.state() << '\t' << estimator.bound();
       }
@@ -246,8 +246,8 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     std::swap(params_, nested_params);
     if (probabilistic_level_ == 1) {
       std::cout << estimator.count() << " observations." << std::endl;
-      std::cout << "Pr[" << property.path_property().string() << "] = "
-                << estimator.value() << " ("
+      std::cout << "Pr[" << property.path_property().string()
+                << "] = " << estimator.value() << " ("
                 << std::max(0.0, estimator.value() - params_.delta) << ','
                 << std::min(1.0, estimator.value() + params_.delta) << ")"
                 << std::endl;
@@ -267,14 +267,14 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
 
   std::unique_ptr<BernoulliTester> tester;
   if (params_.algorithm == FIXED) {
-    tester.reset(new FixedBernoulliTester(
-        theta, theta, params_.fixed_sample_size));
+    tester.reset(
+        new FixedBernoulliTester(theta, theta, params_.fixed_sample_size));
   } else if (params_.algorithm == SSP) {
     tester.reset(new SingleSamplingBernoulliTester(
         theta0, theta1, params_.alpha, params_.beta));
   } else { /* algorithm == SPRT */
-    tester.reset(new SprtBernoulliTester(
-        theta0, theta1, params_.alpha, params_.beta));
+    tester.reset(
+        new SprtBernoulliTester(theta0, theta1, params_.alpha, params_.beta));
   }
   if (probabilistic_level_ == 1) {
     std::cout << "Acceptance sampling";
@@ -287,7 +287,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     }
   }
   std::queue<short> schedule;
-  std::map<short, std::queue<bool> > buffer;
+  std::map<short, std::queue<bool>> buffer;
   std::map<short, size_t> sample_count;
   std::map<short, size_t> usage_count;
   std::set<short> dead_clients;
@@ -299,27 +299,27 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     fdmax = server_socket;
     std::set<int> closed_sockets;
     for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
-	 ci != registered_clients_.end(); ci++) {
+         ci != registered_clients_.end(); ci++) {
       int sockfd = (*ci).first;
       short client_id = (*ci).second;
-      ServerMsg smsg = { ServerMsg::START, current_property };
+      ServerMsg smsg = {ServerMsg::START, current_property};
       int nbytes = send(sockfd, &smsg, sizeof smsg, 0);
       if (nbytes == -1) {
-	perror(PACKAGE);
+        perror(PACKAGE);
         LOG(FATAL) << "server error";
       } else if (nbytes == 0) {
-	closed_sockets.insert(sockfd);
-	close(sockfd);
+        closed_sockets.insert(sockfd);
+        close(sockfd);
       } else {
-	schedule.push(client_id);
-	FD_SET(sockfd, &master_fds);
-	if (sockfd > fdmax) {
-	  fdmax = sockfd;
-	}
+        schedule.push(client_id);
+        FD_SET(sockfd, &master_fds);
+        if (sockfd > fdmax) {
+          fdmax = sockfd;
+        }
       }
     }
     for (std::set<int>::const_iterator ci = closed_sockets.begin();
-	 ci != closed_sockets.end(); ci++) {
+         ci != closed_sockets.end(); ci++) {
       registered_clients_.erase(*ci);
     }
   }
@@ -333,108 +333,108 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
       schedule.push(client_id);
       schedule.pop();
       if (VLOG_IS_ON(2)) {
-	LOG(INFO) << "Using sample (" << s << ") from client " << client_id;
+        LOG(INFO) << "Using sample (" << s << ") from client " << client_id;
       }
       usage_count[client_id]++;
       have_sample = true;
     } else if (server_socket != -1) {
       /* Server mode. */
-      while (!schedule.empty()
-	     && dead_clients.find(schedule.front()) != dead_clients.end()
-	     && buffer[schedule.front()].empty()) {
-	/* Do not expect messages from dead clients. */
-	schedule.pop();
+      while (!schedule.empty() &&
+             dead_clients.find(schedule.front()) != dead_clients.end() &&
+             buffer[schedule.front()].empty()) {
+        /* Do not expect messages from dead clients. */
+        schedule.pop();
       }
       fd_set read_fds = master_fds;
       if (-1 == select(fdmax + 1, &read_fds, NULL, NULL, NULL)) {
-	perror(PACKAGE);
-	exit(1);
+        perror(PACKAGE);
+        exit(1);
       }
       if (FD_ISSET(server_socket, &read_fds)) {
-	/* register a client */
-	sockaddr_in client_addr;
-	int addrlen = sizeof client_addr;
-	int sockfd = accept(server_socket, (sockaddr*) &client_addr,
-			    (socklen_t*) &addrlen);
-	if (sockfd == -1) {
-	  perror(PACKAGE);
-	}
-	FD_SET(sockfd, &master_fds);
-	if (sockfd > fdmax) {
-	  fdmax = sockfd;
-	}
-	int client_id = next_client_id_++;
-	ServerMsg smsg = { ServerMsg::REGISTER, client_id };
-	if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-	  perror(PACKAGE);
-	  close(sockfd);
-	} else {
-	  smsg.id = ServerMsg::START;
-	  smsg.value = current_property;
-	  if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-	    perror(PACKAGE);
-	    close(sockfd);
-	  } else {
-	    registered_clients_[sockfd] = client_id;
-	    schedule.push(client_id);
-	    unsigned long addr = ntohl(client_addr.sin_addr.s_addr);
-	    std::cout << "Registering client " << client_id << " @ "
-		      << (0xff & (addr >> 24UL)) << '.'
-		      << (0xff & (addr >> 16UL)) << '.'
-		      << (0xff & (addr >> 8UL)) << '.' << (0xff & addr)
-		      << std::endl;
-	  }
-	}
+        /* register a client */
+        sockaddr_in client_addr;
+        int addrlen = sizeof client_addr;
+        int sockfd = accept(server_socket, (sockaddr*)&client_addr,
+                            (socklen_t*)&addrlen);
+        if (sockfd == -1) {
+          perror(PACKAGE);
+        }
+        FD_SET(sockfd, &master_fds);
+        if (sockfd > fdmax) {
+          fdmax = sockfd;
+        }
+        int client_id = next_client_id_++;
+        ServerMsg smsg = {ServerMsg::REGISTER, client_id};
+        if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
+          perror(PACKAGE);
+          close(sockfd);
+        } else {
+          smsg.id = ServerMsg::START;
+          smsg.value = current_property;
+          if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
+            perror(PACKAGE);
+            close(sockfd);
+          } else {
+            registered_clients_[sockfd] = client_id;
+            schedule.push(client_id);
+            unsigned long addr = ntohl(client_addr.sin_addr.s_addr);
+            std::cout << "Registering client " << client_id << " @ "
+                      << (0xff & (addr >> 24UL)) << '.'
+                      << (0xff & (addr >> 16UL)) << '.'
+                      << (0xff & (addr >> 8UL)) << '.' << (0xff & addr)
+                      << std::endl;
+          }
+        }
       }
       std::set<int> closed_sockets;
       for (std::map<int, short>::const_iterator ci =
-	     registered_clients_.begin();
-	   ci != registered_clients_.end(); ci++) {
-	int sockfd = (*ci).first;
-	short client_id = (*ci).second;
-	if (FD_ISSET(sockfd, &read_fds)) {
-	  /* receive a sample */
-	  ClientMsg msg;
-	  int nbytes = recv(sockfd, &msg, sizeof msg, 0);
-	  if (nbytes <= 0) {
-	    if (nbytes == -1) {
-	      perror(PACKAGE);
-	    } else {
-	      std::cout << "Client " << client_id << " disconnected"
-			<< std::endl;
-	    }
-	    closed_sockets.insert(sockfd);
-	    dead_clients.insert(client_id);
-	    close(sockfd);
-	    FD_CLR(sockfd, &master_fds);
-	  } else if (msg.id == ClientMsg::SAMPLE) {
-	    s = msg.value;
-	    if (VLOG_IS_ON(2)) {
-	      LOG(INFO) << "Receiving sample (" << s << ") from client "
-			<< client_id;
-	    }
-	    sample_count[client_id]++;
-	    schedule.push(client_id);
-	    if (schedule.front() == client_id) {
-	      schedule.pop();
-	      if (VLOG_IS_ON(2)) {
-		LOG(INFO) << "Using sample (" << s << ") from client "
-			  << client_id;
-	      }
-	      usage_count[client_id]++;
-	      have_sample = true;
-	    } else {
-	      buffer[client_id].push(s);
-	    }
-	  } else {
-	    std::cerr << "Message with bad id (" << msg.id << ") ignored."
-		      << std::endl;
-	  }
-	}
+               registered_clients_.begin();
+           ci != registered_clients_.end(); ci++) {
+        int sockfd = (*ci).first;
+        short client_id = (*ci).second;
+        if (FD_ISSET(sockfd, &read_fds)) {
+          /* receive a sample */
+          ClientMsg msg;
+          int nbytes = recv(sockfd, &msg, sizeof msg, 0);
+          if (nbytes <= 0) {
+            if (nbytes == -1) {
+              perror(PACKAGE);
+            } else {
+              std::cout << "Client " << client_id << " disconnected"
+                        << std::endl;
+            }
+            closed_sockets.insert(sockfd);
+            dead_clients.insert(client_id);
+            close(sockfd);
+            FD_CLR(sockfd, &master_fds);
+          } else if (msg.id == ClientMsg::SAMPLE) {
+            s = msg.value;
+            if (VLOG_IS_ON(2)) {
+              LOG(INFO) << "Receiving sample (" << s << ") from client "
+                        << client_id;
+            }
+            sample_count[client_id]++;
+            schedule.push(client_id);
+            if (schedule.front() == client_id) {
+              schedule.pop();
+              if (VLOG_IS_ON(2)) {
+                LOG(INFO) << "Using sample (" << s << ") from client "
+                          << client_id;
+              }
+              usage_count[client_id]++;
+              have_sample = true;
+            } else {
+              buffer[client_id].push(s);
+            }
+          } else {
+            std::cerr << "Message with bad id (" << msg.id << ") ignored."
+                      << std::endl;
+          }
+        }
       }
       for (std::set<int>::const_iterator ci = closed_sockets.begin();
-	   ci != closed_sockets.end(); ci++) {
-	registered_clients_.erase(*ci);
+           ci != closed_sockets.end(); ci++) {
+        registered_clients_.erase(*ci);
       }
     } else {
       /* Local mode. */
@@ -450,7 +450,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
       PrintProgress(tester->sample().count());
     }
     if (VLOG_IS_ON(2)) {
-      LOG(INFO) << std::string(2*(probabilistic_level_ - 1), ' ')
+      LOG(INFO) << std::string(2 * (probabilistic_level_ - 1), ' ')
                 << tester->StateToString();
     }
   }
@@ -462,19 +462,18 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
   if (server_socket != -1) {
     if (VLOG_IS_ON(1)) {
       for (std::map<short, size_t>::const_iterator si = sample_count.begin();
-	   si != sample_count.end(); si++) {
-	LOG(INFO) << "Client " << (*si).first << ": "
-		  << (*si).second << " generated "
-		  << usage_count[(*si).first] << " used";
+           si != sample_count.end(); si++) {
+        LOG(INFO) << "Client " << (*si).first << ": " << (*si).second
+                  << " generated " << usage_count[(*si).first] << " used";
       }
     }
     for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
-	 ci != registered_clients_.end(); ci++) {
+         ci != registered_clients_.end(); ci++) {
       int sockfd = (*ci).first;
-      ServerMsg smsg = { ServerMsg::STOP };
+      ServerMsg smsg = {ServerMsg::STOP};
       if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-	perror(PACKAGE);
-	exit(1);
+        perror(PACKAGE);
+        exit(1);
       }
     }
   }
@@ -488,8 +487,8 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
 
 void SamplingVerifier::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
-  result_ = evaluator_->EvaluateIntExpression(property.expr(),
-                                              state_->values());
+  result_ =
+      evaluator_->EvaluateIntExpression(property.expr(), state_->values());
 }
 
 class StateLess {
@@ -509,11 +508,11 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     cached_dds = dd_cache_.find(path_property.index());
     if (cached_dds == dd_cache_.end()) {
       BDD dd1 = Verify(path_property.pre_property(), *dd_model_, false, false,
-          params_.epsilon);
+                       params_.epsilon);
       BDD dd2 = Verify(path_property.post_property(), *dd_model_, false, false,
                        params_.epsilon);
-      cached_dds = dd_cache_.insert(
-          {path_property.index(), std::make_pair(dd1, dd2)}).first;
+      cached_dds = dd_cache_.insert({path_property.index(),
+                                     std::make_pair(dd1, dd2)}).first;
     }
     dd1 = &cached_dds->second.first;
     dd2 = &cached_dds->second.second;
@@ -573,9 +572,9 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       curr_state.swap(next_state);
       t = next_t;
       if (t_max < t) {
-	result_ = false;
-	done = true;
-	output = true;
+        result_ = false;
+        done = true;
+        output = true;
       }
       path_length++;
     }
@@ -684,7 +683,7 @@ bool SamplingVerifier::VerifyHelper(const CompiledProperty& property,
     property.Accept(this);
     return result_;
   } else if (state_inserter != nullptr) {
-    **state_inserter = *state_;
+    ** state_inserter = *state_;
   }
   return default_result;
 }

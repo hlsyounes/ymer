@@ -30,11 +30,19 @@
 #include "cudd.h"
 #include "glog/logging.h"
 
-ParsedVariable::ParsedVariable(
-    const std::string& name, int min_value, int max_value, int init_value)
+ParsedConstant::ParsedConstant(const std::string& name, Type type,
+                               std::unique_ptr<const Expression>&& init)
+    : name_(name), type_(type), init_(std::move(init)) {}
+
+ParsedVariable::ParsedVariable(const std::string& name, Type type,
+                               std::unique_ptr<const Expression>&& min,
+                               std::unique_ptr<const Expression>&& max,
+                               std::unique_ptr<const Expression>&& init)
     : name_(name),
-      min_value_(min_value), max_value_(max_value), init_value_(init_value) {
-}
+      type_(type),
+      min_(std::move(min)),
+      max_(std::move(max)),
+      init_(std::move(init)) {}
 
 /* ====================================================================== */
 /* SynchronizationMap */
@@ -43,13 +51,11 @@ ParsedVariable::ParsedVariable(
  * A synchronization map.
  */
 struct SynchronizationMap
-  : public std::multimap<std::pair<const Module*, size_t>, const Command*> {
-};
+    : public std::multimap<std::pair<const Module*, size_t>, const Command*> {};
 
 /* Range for synchronization map. */
 typedef std::pair<SynchronizationMap::const_iterator,
-		  SynchronizationMap::const_iterator> SynchronizationMapRange;
-
+                  SynchronizationMap::const_iterator> SynchronizationMapRange;
 
 /* ====================================================================== */
 /* PHData */
@@ -99,8 +105,7 @@ struct ECParameters {
  */
 struct PHData {
   explicit PHData(const DecisionDiagramManager& manager)
-      : low_bit(-1), update_bdd(manager.GetConstant(true)) {
-  }
+      : low_bit(-1), update_bdd(manager.GetConstant(true)) {}
 
   ECParameters params;
   ACPH2Parameters params2;
@@ -108,7 +113,6 @@ struct PHData {
   int high_bit;
   BDD update_bdd;
 };
-
 
 /* ====================================================================== */
 /* Model */
@@ -125,21 +129,19 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   TypedValue value() const { return value_; }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
 
   TypedValue value_;
 };
 
-ConstantExpressionEvaluator::ConstantExpressionEvaluator()
-    : value_(0) {
-}
+ConstantExpressionEvaluator::ConstantExpressionEvaluator() : value_(0) {}
 
 void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
   value_ = expr.value();
@@ -376,7 +378,7 @@ ECParameters MatchOneMoment(const Distribution& dist) {
   ECParameters params;
   params.n = 2;
   std::vector<double> mu = GetMoments(dist, 1);
-  params.rc1 = 1.0/mu[0];
+  params.rc1 = 1.0 / mu[0];
   params.pc = 0.0;
   return params;
 }
@@ -387,23 +389,24 @@ ACPH2Parameters MatchTwoMoments(const Distribution& dist) {
   ACPH2Parameters params;
   std::vector<double> m = GetMoments(dist, 2);
   double mu = m[0];
-  double cv2 = m[1]/(mu*mu) - 1.0;
+  double cv2 = m[1] / (mu * mu) - 1.0;
   if (cv2 >= 0.5) {
     params.n = 2;
-    params.p = 1/(2.0*cv2);
-    params.r1 = 2.0/mu;
-    params.r2 = 1.0/(mu*cv2);
+    params.p = 1 / (2.0 * cv2);
+    params.r1 = 2.0 / mu;
+    params.r2 = 1.0 / (mu * cv2);
   } else {
-    double n = 1.0/cv2;
+    double n = 1.0 / cv2;
     if (fabs(rint(n) - n) < 1e-10) {
       n = rint(n);
     } else {
       n = ceil(n);
     }
     params.n = int(n + 0.5);
-    params.p = 1.0 - ((2.0*n*cv2 + n - 2.0 - sqrt(n*n + 4.0 - 4.0*n*cv2))
-		      /2.0/(n - 1.0)/(cv2 + 1.0));
-    params.r1 = (1.0 - params.p + n*params.p)/mu;
+    params.p =
+        1.0 - ((2.0 * n * cv2 + n - 2.0 - sqrt(n * n + 4.0 - 4.0 * n * cv2)) /
+               2.0 / (n - 1.0) / (cv2 + 1.0));
+    params.r1 = (1.0 - params.p + n * params.p) / mu;
     params.r2 = params.r1;
   }
   return params;
@@ -432,75 +435,75 @@ ECParameters MatchThreeMoments(const Distribution& dist) {
   double mu1G = m[0];
   double mu2G = m[1];
   double mu3G = m[2];
-  double m2G = mu2G/(mu1G*mu1G);
-  double m3G = mu3G/(mu1G*mu2G);
-  double x = 1.0/(m2G - 1.0);
+  double m2G = mu2G / (mu1G * mu1G);
+  double m3G = mu3G / (mu1G * mu2G);
+  double x = 1.0 / (m2G - 1.0);
   if (fabs(rint(x) - x) < 1e-10) {
     // Adjust second moment so that 1/(m2G - 1) is not an integer.
     m2G *= (1.0 - 1e-5);
-    std::cerr << std::endl
-	      << PACKAGE ": second moment for " << dist << " is changed from "
-	      << mu2G << " to " << m2G*mu1G*mu1G << std::endl;
+    std::cerr << std::endl << PACKAGE ": second moment for " << dist
+              << " is changed from " << mu2G << " to " << m2G* mu1G* mu1G
+              << std::endl;
   }
-  if (m3G < 2.0*m2G - 1.0) {
+  if (m3G < 2.0 * m2G - 1.0) {
     // Adjust third moment so that the resulting EC distribution has no mass
     // probability at zero (p=1).
-    m3G = 2.0*m2G - 1.0;
-    std::cerr << std::endl
-	      << PACKAGE ": third moment for " << dist << " is changed from "
-	      << mu3G << " to " << m3G*mu1G*mu2G << std::endl;
+    m3G = 2.0 * m2G - 1.0;
+    std::cerr << std::endl << PACKAGE ": third moment for " << dist
+              << " is changed from " << mu3G << " to " << m3G* mu1G* mu2G
+              << std::endl;
   }
   double n;
-  if (m2G < 2.0 && fabs(m3G - (2.0*m2G - 1.0)) < 1e-10) {
-    n = floor(m2G/(m2G - 1.0));
+  if (m2G < 2.0 && fabs(m3G - (2.0 * m2G - 1.0)) < 1e-10) {
+    n = floor(m2G / (m2G - 1.0));
   } else {
-    n = floor(m2G/(m2G - 1.0) + 1.0);
+    n = floor(m2G / (m2G - 1.0) + 1.0);
   }
-  double m2X = ((n - 3.0)*m2G - (n - 2.0))/((n - 2.0)*m2G - (n - 1.0));
-  double mu1X = mu1G/((n - 2.0)*m2X - (n - 3.0));
-  double alpha = (n - 2.0)*(m2X - 1.0)*(n*(n - 1.0)*m2X*m2X
-					- n*(2.0*n - 5.0)*m2X
-					+ (n - 1.0)*(n - 3.0));
-  double tmp = (n - 2.0)*m2X - (n - 3.0);
-  double beta = ((n - 1.0)*m2X - (n - 2.0))*tmp*tmp;
-  double m3X = (beta*m3G - alpha)/m2X;
+  double m2X = ((n - 3.0) * m2G - (n - 2.0)) / ((n - 2.0) * m2G - (n - 1.0));
+  double mu1X = mu1G / ((n - 2.0) * m2X - (n - 3.0));
+  double alpha = (n - 2.0) * (m2X - 1.0) *
+                 (n * (n - 1.0) * m2X * m2X - n * (2.0 * n - 5.0) * m2X +
+                  (n - 1.0) * (n - 3.0));
+  double tmp = (n - 2.0) * m2X - (n - 3.0);
+  double beta = ((n - 1.0) * m2X - (n - 2.0)) * tmp * tmp;
+  double m3X = (beta * m3G - alpha) / m2X;
   double u, v;
-  if (fabs(3.0*m2X - 2.0*m3X) < 1e-10) {
+  if (fabs(3.0 * m2X - 2.0 * m3X) < 1e-10) {
     u = 1.0;
     v = 0.0;
   } else {
-    u = (6.0 - 2.0*m3X)/(3.0*m2X - 2.0*m3X);
-    v = (12.0 - 6.0*m2X)/(m2X*(3.0*m2X - 2.0*m3X));
+    u = (6.0 - 2.0 * m3X) / (3.0 * m2X - 2.0 * m3X);
+    v = (12.0 - 6.0 * m2X) / (m2X * (3.0 * m2X - 2.0 * m3X));
   }
   params.n = int(n + 0.5);
-  params.re = 1.0/((m2X - 1.0)*mu1X);
-  tmp = sqrt(u*u - 4.0*v);
-  params.rc1 = (u + tmp)/(2.0*mu1X);
-  if (fabs(params.rc1*mu1X - 1.0) < 1e-10) {
+  params.re = 1.0 / ((m2X - 1.0) * mu1X);
+  tmp = sqrt(u * u - 4.0 * v);
+  params.rc1 = (u + tmp) / (2.0 * mu1X);
+  if (fabs(params.rc1 * mu1X - 1.0) < 1e-10) {
     params.pc = 0.0;
   } else {
-    params.rc2 = (u - tmp)/(2.0*mu1X);
-    params.pc = params.rc2*(params.rc1*mu1X - 1.0)/params.rc1;
+    params.rc2 = (u - tmp) / (2.0 * mu1X);
+    params.pc = params.rc2 * (params.rc1 * mu1X - 1.0) / params.rc1;
   }
   return params;
 }
 
 /* Returns a reachability BDD for the given initial state and rate
    matrix. */
-BDD reachability_bdd(const DecisionDiagramManager& dd_man,
-                     const BDD& init, const ADD& rates) {
+BDD reachability_bdd(const DecisionDiagramManager& dd_man, const BDD& init,
+                     const ADD& rates) {
   std::cout << "Computing reachable states";
   /*
    * Precompute variable permutations and cubes.
    */
-  size_t nvars = dd_man.GetVariableCount()/2;
-  std::vector<int> row_to_col(2*nvars);
-  std::vector<int> col_to_row(2*nvars);
+  size_t nvars = dd_man.GetVariableCount() / 2;
+  std::vector<int> row_to_col(2 * nvars);
+  std::vector<int> col_to_row(2 * nvars);
   for (size_t i = 0; i < nvars; i++) {
-    row_to_col[2*i] = 2*i + 1;
-    row_to_col[2*i + 1] = 2*i + 1;
-    col_to_row[2*i] = 2*i;
-    col_to_row[2*i + 1] = 2*i;
+    row_to_col[2 * i] = 2 * i + 1;
+    row_to_col[2 * i + 1] = 2 * i + 1;
+    col_to_row[2 * i] = 2 * i;
+    col_to_row[2 * i + 1] = 2 * i;
   }
   BDD row_cube = dd_man.GetCube(dd_man.GetBddVariableArray(0, 2, 2 * nvars));
 
@@ -533,21 +536,19 @@ BDD reachability_bdd(const DecisionDiagramManager& dd_man,
 
 // Returns a BDD representing identity between the `current state' and `next
 // state' versions of the given variable.
-BDD identity_bdd(const DecisionDiagramManager& manager,
-                 int low, int low_bit, int high_bit) {
-  return variable_mtbdd(manager, low, low_bit, high_bit)
-      == variable_primed_mtbdd(manager, low, low_bit, high_bit);
+BDD identity_bdd(const DecisionDiagramManager& manager, int low, int low_bit,
+                 int high_bit) {
+  return variable_mtbdd(manager, low, low_bit, high_bit) ==
+         variable_primed_mtbdd(manager, low, low_bit, high_bit);
 }
 
 /* Returns a BDD representing the conjunction of dd_start with the
    identity BDDs for the given variables. */
 BDD variable_identities(
-    const DecisionDiagramManager& dd_man,
-    const BDD& dd_start,
+    const DecisionDiagramManager& dd_man, const BDD& dd_start,
     const Model& model,
     const std::map<std::string, VariableProperties>& variable_properties,
-    const std::set<int>& variables,
-    const std::set<std::string>& excluded) {
+    const std::set<int>& variables, const std::set<std::string>& excluded) {
   BDD ddu = dd_start;
   for (std::set<int>::const_reverse_iterator i = variables.rbegin();
        i != variables.rend(); i++) {
@@ -556,8 +557,8 @@ BDD variable_identities(
       auto j = variable_properties.find(v.name());
       CHECK(j != variable_properties.end());
       const VariableProperties& p = j->second;
-      ddu = identity_bdd(dd_man, v.min_value(), p.low_bit(), p.high_bit())
-          && ddu;
+      ddu =
+          identity_bdd(dd_man, p.min_value(), p.low_bit(), p.high_bit()) && ddu;
     }
   }
   return ddu;
@@ -570,9 +571,9 @@ BDD update_bdd(
     const Update& update) {
   auto i = variable_properties.find(update.variable());
   const VariableProperties& p = i->second;
-  return variable_primed_mtbdd(manager,
-                               p.min_value(), p.low_bit(), p.high_bit())
-      == mtbdd(manager, variable_properties, update.expr());
+  return variable_primed_mtbdd(manager, p.min_value(), p.low_bit(),
+                               p.high_bit()) ==
+         mtbdd(manager, variable_properties, update.expr());
 }
 
 // Returns a BDD representation of the given command and fills the provided
@@ -580,8 +581,7 @@ BDD update_bdd(
 BDD command_bdd(
     const DecisionDiagramManager& manager,
     const std::map<std::string, VariableProperties>& variable_properties,
-    const Command& command,
-    std::set<std::string>* updated_variables) {
+    const Command& command, std::set<std::string>* updated_variables) {
   BDD ddu = manager.GetConstant(true);
   for (const Update* update : command.updates()) {
     ddu = update_bdd(manager, variable_properties, *update) && ddu;
@@ -590,17 +590,14 @@ BDD command_bdd(
   return BDD(mtbdd(manager, variable_properties, command.guard())) && ddu;
 }
 
-
 // Returns a BDD representing the conjunction of dd_start with the BDDs for
 // updates of all variables for the given model not explicitly mentioned.
 BDD variable_updates(
-    const DecisionDiagramManager& manager,
-    const BDD& dd_start,
+    const DecisionDiagramManager& manager, const BDD& dd_start,
     const Model& model,
     const std::map<std::string, VariableProperties>& variable_properties,
     const std::set<const Module*>& touched_modules,
-    const std::set<std::string>& updated_variables,
-    int command_index,
+    const std::set<std::string>& updated_variables, int command_index,
     const std::map<int, PHData>& ph_commands) {
   BDD ddu = dd_start;
   // Conjunction with identity BDD for untouched module variables.
@@ -617,8 +614,8 @@ BDD variable_updates(
         auto i = variable_properties.find(v.name());
         CHECK(i != variable_properties.end());
         const VariableProperties& p = i->second;
-        ddu = identity_bdd(manager, v.max_value(), p.low_bit(), p.high_bit())
-            && ddu;
+        ddu = identity_bdd(manager, p.min_value(), p.low_bit(), p.high_bit()) &&
+              ddu;
       }
     }
   }
@@ -637,13 +634,8 @@ BDD variable_updates(
 
 }  // namespace
 
-/* Constructs a model. */
-Model::Model()
-    : current_module_(kNoModule) {
-}
+Model::Model() : type_(ModelType::DEFAULT), current_module_(kNoModule) {}
 
-
-/* Deletes this model. */
 Model::~Model() {
   for (const Command* command : commands()) {
     if (command->synch() != 0) {
@@ -655,15 +647,55 @@ Model::~Model() {
   }
 }
 
-void Model::AddIntVariable(
-    const std::string& name, int min_value, int max_value, int init_value) {
-  const int index = variables_.size();
-  variables_.push_back(ParsedVariable(name, min_value, max_value, init_value));
+bool Model::SetType(ModelType type) {
+  if (type_ == ModelType::DEFAULT) {
+    type_ = type;
+    return true;
+  }
+  return false;
+}
+
+bool Model::AddConstant(const std::string& name, Type type,
+                 std::unique_ptr<const Expression>&& init) {
+  if (identifiers_.find(name) != identifiers_.end()) {
+    return false;
+  }
+  identifiers_.insert({name, {IdentifierIndex::kConstant, constants_.size()}});
+  constants_.emplace_back(name, type, std::move(init));
+  return true;
+}
+
+bool Model::AddIntVariable(const std::string& name,
+                           std::unique_ptr<const Expression>&& min,
+                           std::unique_ptr<const Expression>&& max,
+                           std::unique_ptr<const Expression>&& init) {
+  return AddVariable(name, Type::INT, std::move(min), std::move(max),
+                     std::move(init));
+}
+
+bool Model::AddBoolVariable(const std::string& name,
+                            std::unique_ptr<const Expression>&& init) {
+  return AddVariable(name, Type::BOOL, Literal::New(false), Literal::New(true),
+                     std::move(init));
+}
+
+bool Model::AddVariable(const std::string& name, Type type,
+                        std::unique_ptr<const Expression>&& min,
+                        std::unique_ptr<const Expression>&& max,
+                        std::unique_ptr<const Expression>&& init) {
+  if (identifiers_.find(name) != identifiers_.end()) {
+    return false;
+  }
+  const size_t index = variables_.size();
+  identifiers_.insert({name, {IdentifierIndex::kVariable, index}});
+  variables_.emplace_back(name, type, std::move(min), std::move(max),
+                          std::move(init));
   if (current_module_ == kNoModule) {
     global_variables_.insert(index);
   } else {
     module_variables_[current_module_].insert(index);
   }
+  return true;
 }
 
 void Model::OpenModuleScope() {
@@ -677,11 +709,8 @@ void Model::CloseModuleScope() {
   current_module_ = kNoModule;
 }
 
-
 /* Adds a module to this model. */
-void Model::add_module(const Module& module) {
-  modules_.push_back(&module);
-}
+void Model::add_module(const Module& module) { modules_.push_back(&module); }
 
 namespace {
 
@@ -701,10 +730,10 @@ class DistributionCopier : public DistributionVisitor {
   }
 
  private:
-  virtual void DoVisitExponential(const Exponential& distribution);
-  virtual void DoVisitWeibull(const Weibull& distribution);
-  virtual void DoVisitLognormal(const Lognormal& distribution);
-  virtual void DoVisitUniform(const Uniform& distribution);
+  void DoVisitExponential(const Exponential& distribution) override;
+  void DoVisitWeibull(const Weibull& distribution) override;
+  void DoVisitLognormal(const Lognormal& distribution) override;
+  void DoVisitUniform(const Uniform& distribution) override;
 
   std::unique_ptr<const Distribution> distribution_;
 };
@@ -721,14 +750,14 @@ class ExpressionCopier : public ExpressionVisitor {
   std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
 
   std::unique_ptr<const Expression> expr_;
 };
@@ -793,8 +822,8 @@ void ExpressionCopier::DoVisitConditional(const Conditional& expr) {
   expr.if_branch().Accept(this);
   std::unique_ptr<const Expression> if_branch = release_expr();
   expr.else_branch().Accept(this);
-  expr_ = Conditional::New(std::move(condition),
-                           std::move(if_branch), release_expr());
+  expr_ = Conditional::New(std::move(condition), std::move(if_branch),
+                           release_expr());
 }
 
 void ExpressionCopier::DoVisitProbabilityThresholdOperation(
@@ -825,66 +854,66 @@ void Model::compile() {
     for (const Command* command : (*mi)->commands()) {
       size_t synch = command->synch();
       if (synch != 0) {
-	/* Command is synchronized so store it for later processing. */
-	synch_commands.insert({ { *mi, synch }, command });
-	synchs.insert(synch);
+        /* Command is synchronized so store it for later processing. */
+        synch_commands.insert({{*mi, synch}, command});
+        synchs.insert(synch);
       } else { /* synch == 0 */
-	/* Command is not synchronized. */
-	commands_.push_back(command);
-	command_modules_.push_back({});
-	command_modules_.back().insert(*mi);
+        /* Command is not synchronized. */
+        commands_.push_back(command);
+        command_modules_.push_back({});
+        command_modules_.back().insert(*mi);
       }
     }
   }
   /*
    * Add synchronized commands.
    */
-  for (std::set<size_t>::const_iterator si = synchs.begin();
-       si != synchs.end(); si++) {
+  for (std::set<size_t>::const_iterator si = synchs.begin(); si != synchs.end();
+       si++) {
     for (auto mi = modules().rbegin(); mi != modules().rend(); mi++) {
       SynchronizationMapRange sri =
-	synch_commands.equal_range(std::make_pair(*mi, *si));
+          synch_commands.equal_range(std::make_pair(*mi, *si));
       for (SynchronizationMap::const_iterator smi = sri.first;
-	   smi != sri.second; smi++) {
-	const Command& ci = *(*smi).second;
-	for (auto mj = mi + 1; mj != modules().rend(); mj++) {
-	  SynchronizationMapRange srj =
-	    synch_commands.equal_range(std::make_pair(*mj, *si));
-	  for (SynchronizationMap::const_iterator smj = srj.first;
-	       smj != srj.second; smj++) {
-	    const Command& cj = *(*smj).second;
-	    /*
-	     * Synchronize ci with cj.
-	     */
-            std::unique_ptr<const Expression> guard =
-                BinaryOperation::New(BinaryOperator::AND,
-                                     CopyExpression(ci.guard()),
-                                     CopyExpression(cj.guard()));
-	    Command* c;
-	    if (IsUnitDistribution(ci.delay())) {
-	      c = new Command(*si, std::move(guard),
+           smi != sri.second; smi++) {
+        const Command& ci = *(*smi).second;
+        for (auto mj = mi + 1; mj != modules().rend(); mj++) {
+          SynchronizationMapRange srj =
+              synch_commands.equal_range(std::make_pair(*mj, *si));
+          for (SynchronizationMap::const_iterator smj = srj.first;
+               smj != srj.second; smj++) {
+            const Command& cj = *(*smj).second;
+            /*
+             * Synchronize ci with cj.
+             */
+            std::unique_ptr<const Expression> guard = BinaryOperation::New(
+                BinaryOperator::AND, CopyExpression(ci.guard()),
+                CopyExpression(cj.guard()));
+            Command* c;
+            if (IsUnitDistribution(ci.delay())) {
+              c = new Command(*si, std::move(guard),
                               CopyDistribution(cj.delay()));
-	    } else if (IsUnitDistribution(cj.delay())) {
+            } else if (IsUnitDistribution(cj.delay())) {
               c = new Command(*si, std::move(guard),
                               CopyDistribution(ci.delay()));
-	    } else {
-	      throw std::logic_error("at least one command in a"
-				     " synchronization pair must have rate 1");
-	    }
-	    for (const Update* update : ci.updates()) {
-	      c->add_update(new Update(update->variable(),
+            } else {
+              throw std::logic_error(
+                  "at least one command in a"
+                  " synchronization pair must have rate 1");
+            }
+            for (const Update* update : ci.updates()) {
+              c->add_update(new Update(update->variable(),
                                        CopyExpression(update->expr())));
-	    }
-	    for (const Update* update : cj.updates()) {
-	      c->add_update(new Update(update->variable(),
+            }
+            for (const Update* update : cj.updates()) {
+              c->add_update(new Update(update->variable(),
                                        CopyExpression(update->expr())));
-	    }
-	    commands_.push_back(c);
-	    command_modules_.push_back({});
-	    command_modules_.back().insert(*mi);
-	    command_modules_.back().insert(*mj);
-	  }
-	}
+            }
+            commands_.push_back(c);
+            command_modules_.push_back({});
+            command_modules_.back().insert(*mi);
+            command_modules_.back().insert(*mj);
+          }
+        }
       }
     }
   }
@@ -892,16 +921,25 @@ void Model::compile() {
 
 std::ostream& operator<<(std::ostream& os, const Model& m) {
   os << m.type();
-  std::set<int>::const_iterator vi =
-      m.global_variables().begin();
+  if (!m.constants().empty()) {
+    os << std::endl;
+    for (const auto& c : m.constants()) {
+      os << std::endl << "const " << c.type() << " " << c.name();
+      if (c.has_init()) {
+        os << " = " << c.init();
+      }
+      os << ";";
+    }
+  }
+  std::set<int>::const_iterator vi = m.global_variables().begin();
   if (vi != m.global_variables().end()) {
     os << std::endl;
     for (; vi != m.global_variables().end(); vi++) {
       const ParsedVariable& v = m.variables()[*vi];
       os << std::endl << "global " << v.name();
-      os << " : [" << v.min_value() << ".." << v.max_value() << "]";
-      if (v.min_value() != v.init_value()) {
-	os << " init " << v.init_value();
+      os << " : [" << v.min() << ".." << v.max() << "]";
+      if (v.has_init()) {
+        os << " init " << v.init();
       }
       os << ';';
     }
@@ -913,20 +951,20 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
     if (vi != m.module_variables(i).end()) {
       os << std::endl;
       for (; vi != m.module_variables(i).end(); vi++) {
-	const ParsedVariable& v = m.variables()[*vi];
-	os << std::endl << "  " << v.name();
-	os << " : [" << v.min_value() << ".." << v.max_value() << "]";
-	if (v.min_value() != v.init_value()) {
-	  os << " init " << v.init_value();
-	}
-	os << ';';
+        const ParsedVariable& v = m.variables()[*vi];
+        os << std::endl << "  " << v.name();
+        os << " : [" << v.min() << ".." << v.max() << "]";
+        if (v.has_init()) {
+          os << " init " << v.init();
+        }
+        os << ';';
       }
     }
     auto ci = module.commands().begin();
     if (ci != module.commands().end()) {
       os << std::endl;
       for (; ci != module.commands().end(); ci++) {
-	os << std::endl << "  " << **ci << ';';
+        os << std::endl << "  " << **ci << ';';
       }
     }
     os << std::endl << std::endl << "endmodule";
@@ -940,9 +978,9 @@ VariableProperties::VariableProperties(int min_value, int low_bit, int high_bit)
 }
 
 DecisionDiagramModel::DecisionDiagramModel(
-    const DecisionDiagramManager* manager,
-    const ADD& rate_matrix, const BDD& reachable_states,
-    const BDD& initial_state, int initial_state_index, ODDNode* odd)
+    const DecisionDiagramManager* manager, const ADD& rate_matrix,
+    const BDD& reachable_states, const BDD& initial_state,
+    int initial_state_index, ODDNode* odd)
     : manager_(manager),
       rate_matrix_(rate_matrix),
       reachable_states_(reachable_states),
@@ -950,14 +988,12 @@ DecisionDiagramModel::DecisionDiagramModel(
       initial_state_index_(initial_state_index),
       odd_(odd) {}
 
-DecisionDiagramModel::~DecisionDiagramModel() {
-  free_odd(odd_);
-}
+DecisionDiagramModel::~DecisionDiagramModel() { free_odd(odd_); }
 
 namespace {
 
-int GetInitIndex(const DecisionDiagramManager& dd_man,
-                 const BDD& initial_state, ODDNode* odd) {
+int GetInitIndex(const DecisionDiagramManager& dd_man, const BDD& initial_state,
+                 ODDNode* odd) {
   int init_index = 0;
   ADD init_add(initial_state);
   DdNode* d = init_add.get();
@@ -990,7 +1026,8 @@ int GetInitIndex(const DecisionDiagramManager& dd_man,
 }  // namespace
 
 DecisionDiagramModel DecisionDiagramModel::Create(
-    const DecisionDiagramManager* manager, size_t moments, const Model& model) {
+    const DecisionDiagramManager* manager, size_t moments, const Model& model,
+    const CompiledModel& compiled_model) {
   CHECK(manager);
   std::cout << "Building model...";
   /*
@@ -998,30 +1035,29 @@ DecisionDiagramModel DecisionDiagramModel::Create(
    */
   std::map<std::string, VariableProperties> variable_properties;
   int low_bit = 0;
-  for (auto i = model.variables().begin(); i != model.variables().end(); ++i) {
-    const ParsedVariable& v = *i;
-    int high_bit = low_bit + Log2(v.max_value() - v.min_value());
+  for (const auto& v : compiled_model.variables()) {
+    int high_bit = low_bit + v.bit_count() - 1;
     variable_properties.insert(std::make_pair(
         v.name(), VariableProperties(v.min_value(), low_bit, high_bit)));
     low_bit = high_bit + 1;
   }
   /* BDD for initial state. */
   BDD init_bdd = manager->GetConstant(true);
-  for (auto i = model.variables().rbegin();
-       i != model.variables().rend(); ++i) {
-    const ParsedVariable& v = *i;
+  for (size_t i = compiled_model.variables().size(); i > 0; --i) {
+    const auto& v = compiled_model.variables()[i - 1];
+    const int init_value = compiled_model.init_values()[i - 1];
     auto j = variable_properties.find(v.name());
     CHECK(j != variable_properties.end());
     const VariableProperties& p = j->second;
-    BDD dds = variable_mtbdd(*manager, v.min_value(), p.low_bit(), p.high_bit())
-        .Interval(v.init_value(), v.init_value());
+    BDD dds = variable_mtbdd(*manager, p.min_value(), p.low_bit(), p.high_bit())
+                  .Interval(init_value, init_value);
     init_bdd = dds && init_bdd;
   }
   /*
    * Generate phase-type distributions for commands with
    * non-exponential delay.
    */
-  size_t nvars = manager->GetVariableCount()/2;
+  size_t nvars = manager->GetVariableCount() / 2;
   std::map<int, PHData> ph_commands;
   for (int i = model.commands().size() - 1; i >= 0; i--) {
     const Command& command = *model.commands()[i];
@@ -1029,17 +1065,17 @@ DecisionDiagramModel DecisionDiagramModel::Create(
     if (typeid(dist) != typeid(Exponential)) {
       PHData data(*manager);
       switch (moments) {
-	case 1:
-	  data.params = MatchOneMoment(dist);
-	  break;
-	case 2:
-	  data.params2 = MatchTwoMoments(dist);
-	  data.params.n = 0;
-	  break;
-	case 3:
-	default:
-	  data.params = MatchThreeMoments(dist);
-	  break;
+        case 1:
+          data.params = MatchOneMoment(dist);
+          break;
+        case 2:
+          data.params2 = MatchTwoMoments(dist);
+          data.params.n = 0;
+          break;
+        case 3:
+        default:
+          data.params = MatchThreeMoments(dist);
+          break;
       }
       int high = ph_phases(data) - 1;
       if (high > 0) {
@@ -1061,12 +1097,14 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          *   (!phi -> s=0) & (phi' -> s'=s) & (!phi' -> s'=0)
          */
         data.update_bdd =
-            (BDD(mtbdd(*manager, variable_properties, command.guard()))
-             || ddv.Interval(0, 0)) &&
-            (BDD(primed_mtbdd(*manager, variable_properties, command.guard()))
-             || ddvp.Interval(0, 0)) &&
-            (!BDD(primed_mtbdd(*manager, variable_properties, command.guard()))
-             || ddid);
+            (BDD(mtbdd(*manager, variable_properties, command.guard())) ||
+             ddv.Interval(0, 0)) &&
+            (BDD(primed_mtbdd(*manager, variable_properties,
+                              command.guard())) ||
+             ddvp.Interval(0, 0)) &&
+            (!BDD(primed_mtbdd(*manager, variable_properties,
+                               command.guard())) ||
+             ddid);
       }
       ph_commands.insert(std::make_pair(i, data));
     }
@@ -1084,37 +1122,35 @@ DecisionDiagramModel DecisionDiagramModel::Create(
     BDD ddg = BDD(mtbdd(*manager, variable_properties, command.guard()));
     /* BDD for command. */
     std::set<std::string> updated_variables;
-    BDD ddc = command_bdd(*manager, variable_properties, command,
-                          &updated_variables);
+    BDD ddc =
+        command_bdd(*manager, variable_properties, command, &updated_variables);
     const Exponential* exp_delay =
-	dynamic_cast<const Exponential*>(&command.delay());
-    PHData* ph_data =
-        (exp_delay != NULL) ? NULL : &ph_commands.find(i)->second;
+        dynamic_cast<const Exponential*>(&command.delay());
+    PHData* ph_data = (exp_delay != NULL) ? NULL : &ph_commands.find(i)->second;
     if (ph_data != NULL && ph_data->params.n == 0) {
       if (VLOG_IS_ON(2)) {
-        LOG(INFO) << "n=" << ph_data->params2.n
-                  << " p=" << ph_data->params2.p
+        LOG(INFO) << "n=" << ph_data->params2.n << " p=" << ph_data->params2.p
                   << " r1=" << ph_data->params2.r1
                   << " r2=" << ph_data->params2.r2;
       }
       /*
        * Event 1: phi & s=0 => s'=1
        */
-      ADD ddv = variable_mtbdd(
-          *manager, 0, ph_data->low_bit, ph_data->high_bit);
+      ADD ddv =
+          variable_mtbdd(*manager, 0, ph_data->low_bit, ph_data->high_bit);
       BDD dds = ddv.Interval(0, 0);
-      ADD ddvp = variable_primed_mtbdd(
-          *manager, 0, ph_data->low_bit, ph_data->high_bit);
+      ADD ddvp = variable_primed_mtbdd(*manager, 0, ph_data->low_bit,
+                                       ph_data->high_bit);
       BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
       ddu = variable_updates(*manager, ddu, model, variable_properties, {}, {},
                              i, ph_commands);
-      ADD ddr = manager->GetConstant(ph_data->params2.p*ph_data->params2.r1);
+      ADD ddr = manager->GetConstant(ph_data->params2.p * ph_data->params2.r1);
       ADD ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
-        Cudd_PrintDebug(manager->manager(),
-                        ddq.get(), manager->GetVariableCount(), 2);
+        Cudd_PrintDebug(manager->manager(), ddq.get(),
+                        manager->GetVariableCount(), 2);
       }
-      ddR = ddq +  ddR;
+      ddR = ddq + ddR;
       /*
        * Event 2: phi & s=0 => s'=0 & effects
        */
@@ -1123,12 +1159,12 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       ddu = variable_updates(*manager, ddu, model, variable_properties,
                              model.command_modules()[i], updated_variables, i,
                              ph_commands);
-      ddr = manager->GetConstant(
-          (1.0 - ph_data->params2.p) * ph_data->params2.r1);
+      ddr = manager->GetConstant((1.0 - ph_data->params2.p) *
+                                 ph_data->params2.r1);
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
-        Cudd_PrintDebug(manager->manager(),
-                        ddq.get(), manager->GetVariableCount(), 2);
+        Cudd_PrintDebug(manager->manager(), ddq.get(),
+                        manager->GetVariableCount(), 2);
       }
       ddR = ddq + ddR;
       /*
@@ -1142,8 +1178,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       ddr = manager->GetConstant(ph_data->params2.r2);
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
-        Cudd_PrintDebug(manager->manager(),
-                        ddq.get(), manager->GetVariableCount(), 2);
+        Cudd_PrintDebug(manager->manager(), ddq.get(),
+                        manager->GetVariableCount(), 2);
       }
       ddR = ddq + ddR;
       if (ph_data->params2.n > 2) {
@@ -1157,8 +1193,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ddr = manager->GetConstant(ph_data->params2.r1);
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetVariableCount(), 2);
+          Cudd_PrintDebug(manager->manager(), ddq.get(),
+                          manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -1181,19 +1217,19 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          *
          *   phi & s<n-2 => s'=s+1
          */
-        ADD ddv = variable_mtbdd(
-            *manager, 0, ph_data->low_bit, ph_data->high_bit);
+        ADD ddv =
+            variable_mtbdd(*manager, 0, ph_data->low_bit, ph_data->high_bit);
         BDD dds = ddv.Interval(0, ph_data->params.n - 3);
-        ADD ddvp = variable_primed_mtbdd(
-            *manager, 0, ph_data->low_bit, ph_data->high_bit);
+        ADD ddvp = variable_primed_mtbdd(*manager, 0, ph_data->low_bit,
+                                         ph_data->high_bit);
         ADD ddp = ddv + manager->GetConstant(1);
         BDD ddu = dds && ddvp == ddp && ddg;
         ddu = variable_updates(*manager, ddu, model, variable_properties, {},
                                {}, i, ph_commands);
         ADD ddq = ADD(ddu) * manager->GetConstant(ph_data->params.re);
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetVariableCount(), 2);
+          Cudd_PrintDebug(manager->manager(), ddq.get(),
+                          manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -1204,20 +1240,21 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          *
          *   phi & s=n-2 => s'=n-1
          */
-        ADD ddv = variable_mtbdd(
-            *manager, 0, ph_data->low_bit, ph_data->high_bit);
+        ADD ddv =
+            variable_mtbdd(*manager, 0, ph_data->low_bit, ph_data->high_bit);
         BDD dds = ddv.Interval(ph_data->params.n - 2, ph_data->params.n - 2);
-        ADD ddvp = variable_primed_mtbdd(
-            *manager, 0, ph_data->low_bit, ph_data->high_bit);
+        ADD ddvp = variable_primed_mtbdd(*manager, 0, ph_data->low_bit,
+                                         ph_data->high_bit);
         BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
         ddu = dds && ddu && ddg;
         ddu = variable_updates(*manager, ddu, model, variable_properties, {},
                                {}, i, ph_commands);
-        ADD ddr = manager->GetConstant(ph_data->params.pc*ph_data->params.rc1);
+        ADD ddr =
+            manager->GetConstant(ph_data->params.pc * ph_data->params.rc1);
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetVariableCount(), 2);
+          Cudd_PrintDebug(manager->manager(), ddq.get(),
+                          manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
         /*
@@ -1231,12 +1268,12 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         ddu = variable_updates(*manager, ddu, model, variable_properties,
                                model.command_modules()[i], updated_variables, i,
                                ph_commands);
-        ddr = manager->GetConstant(
-            (1.0 - ph_data->params.pc)*ph_data->params.rc1);
+        ddr = manager->GetConstant((1.0 - ph_data->params.pc) *
+                                   ph_data->params.rc1);
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetVariableCount(), 2);
+          Cudd_PrintDebug(manager->manager(), ddq.get(),
+                          manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
         /*
@@ -1252,8 +1289,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
                                ph_commands);
         ddq = ADD(ddu) * manager->GetConstant(ph_data->params.rc2);
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetVariableCount(), 2);
+          Cudd_PrintDebug(manager->manager(), ddq.get(),
+                          manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       } else {
@@ -1263,12 +1300,11 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         BDD dda = manager->GetConstant(false);
         if (ph_data != NULL && ph_data->low_bit >= 0) {
           /* Coxian: s=n-2 => s'=0 */
-          BDD dds = variable_mtbdd(
-              *manager, 0, ph_data->low_bit, ph_data->high_bit)
-              .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
-          BDD ddp = variable_primed_mtbdd(
-              *manager, 0, ph_data->low_bit, ph_data->high_bit)
-              .Interval(0, 0);
+          BDD dds =
+              variable_mtbdd(*manager, 0, ph_data->low_bit, ph_data->high_bit)
+                  .Interval(ph_data->params.n - 2, ph_data->params.n - 2);
+          BDD ddp = variable_primed_mtbdd(*manager, 0, ph_data->low_bit,
+                                          ph_data->high_bit).Interval(0, 0);
           dda = dds && ddp;
           dda = variable_updates(*manager, dda, model, variable_properties,
                                  model.command_modules()[i], updated_variables,
@@ -1281,12 +1317,12 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         }
         BDD ddu = ddc && dda;
         ADD ddr = (exp_delay != NULL)
-            ? mtbdd(*manager, variable_properties, exp_delay->rate())
-            : manager->GetConstant(ph_data->params.rc1);
+                      ? mtbdd(*manager, variable_properties, exp_delay->rate())
+                      : manager->GetConstant(ph_data->params.rc1);
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
-          Cudd_PrintDebug(manager->manager(),
-                          ddq.get(), manager->GetVariableCount(), 2);
+          Cudd_PrintDebug(manager->manager(), ddq.get(),
+                          manager->GetVariableCount(), 2);
         }
         ddR = ddq + ddR;
       }
@@ -1308,12 +1344,12 @@ DecisionDiagramModel DecisionDiagramModel::Create(
 
 namespace {
 
-ADD CompileVariable(const DecisionDiagramManager& manager,
-                    int low, int low_bit, int high_bit, bool primed) {
+ADD CompileVariable(const DecisionDiagramManager& manager, int low, int low_bit,
+                    int high_bit, bool primed) {
   ADD result = manager.GetConstant(0);
   const int offset = primed ? 1 : 0;
   for (int i = high_bit; i >= low_bit; --i) {
-    result = result + (manager.GetAddVariable(2*i + offset) *
+    result = result + (manager.GetAddVariable(2 * i + offset) *
                        manager.GetConstant(1 << (high_bit - i)));
   }
   return result + manager.GetConstant(low);
@@ -1329,14 +1365,14 @@ class ExpressionCompiler : public ExpressionVisitor {
   ADD mtbdd() const { return mtbdd_; }
 
  private:
-  virtual void DoVisitLiteral(const Literal& expr);
-  virtual void DoVisitIdentifier(const Identifier& expr);
-  virtual void DoVisitFunctionCall(const FunctionCall& expr);
-  virtual void DoVisitUnaryOperation(const UnaryOperation& expr);
-  virtual void DoVisitBinaryOperation(const BinaryOperation& expr);
-  virtual void DoVisitConditional(const Conditional& expr);
-  virtual void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr);
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
 
   const DecisionDiagramManager* manager_;
   const std::map<std::string, VariableProperties>* variable_properties_;
@@ -1348,9 +1384,10 @@ ExpressionCompiler::ExpressionCompiler(
     const DecisionDiagramManager* manager,
     const std::map<std::string, VariableProperties>* variable_properties,
     bool primed)
-    : manager_(manager), variable_properties_(variable_properties),
-      primed_(primed), mtbdd_(manager->GetConstant(0)) {
-}
+    : manager_(manager),
+      variable_properties_(variable_properties),
+      primed_(primed),
+      mtbdd_(manager->GetConstant(0)) {}
 
 void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
   mtbdd_ = manager_->GetConstant(expr.value().value<double>());
@@ -1360,8 +1397,8 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
   auto i = variable_properties_->find(expr.name());
   CHECK(i != variable_properties_->end());
   const VariableProperties& p = i->second;
-  mtbdd_ = CompileVariable(
-      *manager_, p.min_value(), p.low_bit(), p.high_bit(), primed_);
+  mtbdd_ = CompileVariable(*manager_, p.min_value(), p.low_bit(), p.high_bit(),
+                           primed_);
 }
 
 void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -1488,12 +1525,11 @@ void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
 
 }  // namespace
 
-ADD mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e) {
-  ExpressionCompiler compiler(
-      &manager, &variable_properties, false /* primed */);
+ADD mtbdd(const DecisionDiagramManager& manager,
+          const std::map<std::string, VariableProperties>& variable_properties,
+          const Expression& e) {
+  ExpressionCompiler compiler(&manager, &variable_properties,
+                              false /* primed */);
   e.Accept(&compiler);
   return compiler.mtbdd();
 }
@@ -1502,18 +1538,18 @@ ADD primed_mtbdd(
     const DecisionDiagramManager& manager,
     const std::map<std::string, VariableProperties>& variable_properties,
     const Expression& e) {
-  ExpressionCompiler compiler(
-      &manager, &variable_properties, true /* primed */);
+  ExpressionCompiler compiler(&manager, &variable_properties,
+                              true /* primed */);
   e.Accept(&compiler);
   return compiler.mtbdd();
 }
 
-ADD variable_mtbdd(const DecisionDiagramManager& manager,
-                   int low, int low_bit, int high_bit) {
+ADD variable_mtbdd(const DecisionDiagramManager& manager, int low, int low_bit,
+                   int high_bit) {
   return CompileVariable(manager, low, low_bit, high_bit, false /* primed */);
 }
 
-ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
-                          int low, int low_bit, int high_bit) {
+ADD variable_primed_mtbdd(const DecisionDiagramManager& manager, int low,
+                          int low_bit, int high_bit) {
   return CompileVariable(manager, low, low_bit, high_bit, true /* primed */);
 }

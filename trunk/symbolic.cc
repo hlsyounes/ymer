@@ -37,25 +37,24 @@
 
 namespace {
 
-class SymbolicVerifier
-    : public CompiledPropertyVisitor, public CompiledPathPropertyVisitor {
+class SymbolicVerifier : public CompiledPropertyVisitor,
+                         public CompiledPathPropertyVisitor {
  public:
-  explicit SymbolicVerifier(const DecisionDiagramModel* dd_model,
-                            bool estimate, bool top_level_property,
-                            double epsilon);
+  explicit SymbolicVerifier(const DecisionDiagramModel* dd_model, bool estimate,
+                            bool top_level_property, double epsilon);
 
   BDD result() const { return result_; }
 
  private:
-  virtual void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property);
-  virtual void DoVisitCompiledNotProperty(const CompiledNotProperty& property);
-  virtual void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property);
-  virtual void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property);
-  virtual void DoVisitCompiledUntilProperty(
-      const CompiledUntilProperty& path_property);
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property) override;
 
   const DecisionDiagramModel* dd_model_;
   bool estimate_;
@@ -69,10 +68,11 @@ class SymbolicVerifier
 SymbolicVerifier::SymbolicVerifier(const DecisionDiagramModel* dd_model,
                                    bool estimate, bool top_level_property,
                                    double epsilon)
-    : dd_model_(dd_model), estimate_(estimate),
-      top_level_property_(top_level_property), epsilon_(epsilon),
-      result_(dd_model->manager().GetConstant(false)) {
-}
+    : dd_model_(dd_model),
+      estimate_(estimate),
+      top_level_property_(top_level_property),
+      epsilon_(epsilon),
+      result_(dd_model->manager().GetConstant(false)) {}
 
 void SymbolicVerifier::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
@@ -140,8 +140,8 @@ void SymbolicVerifier::DoVisitCompiledExpressionProperty(
 
 // Recursive component of mtbdd_to_double_vector.
 static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
-                                       DdNode* dd, int level,
-				       ODDNode* odd, long o, double* res) {
+                                       DdNode* dd, int level, ODDNode* odd,
+                                       long o, double* res) {
   if (dd != Cudd_ReadZero(ddman.manager())) {
     DdNode* e;
     DdNode* t;
@@ -155,8 +155,7 @@ static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
       t = Cudd_T(dd);
     }
     mtbdd_to_double_vector_rec(ddman, e, level + 1, odd->e, o, res);
-    mtbdd_to_double_vector_rec(ddman, t, level + 1, odd->t, o+odd->eoff,
-                               res);
+    mtbdd_to_double_vector_rec(ddman, t, level + 1, odd->t, o + odd->eoff, res);
   }
 }
 
@@ -177,21 +176,21 @@ static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
 
 // Recursive component of double_vector_to_bdd.
 static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
-                                    const std::vector<double>& vec,
-                                    bool strict, double bound,
-                                    int level, ODDNode* odd, long o) {
+                                    const std::vector<double>& vec, bool strict,
+                                    double bound, int level, ODDNode* odd,
+                                    long o) {
   if (level == ddman.GetVariableCount() / 2) {
-    return ddman.GetConstant((strict && vec[o] > bound)
-                             || (!strict && vec[o] >= bound));
+    return ddman.GetConstant((strict && vec[o] > bound) ||
+                             (!strict && vec[o] >= bound));
   } else {
     BDD e = (odd->eoff > 0)
-        ? double_vector_to_bdd_rec(
-            ddman, vec, strict, bound, level + 1, odd->e, o)
-        : ddman.GetConstant(false);
+                ? double_vector_to_bdd_rec(ddman, vec, strict, bound, level + 1,
+                                           odd->e, o)
+                : ddman.GetConstant(false);
     BDD t = (odd->toff > 0)
-        ? double_vector_to_bdd_rec(
-            ddman, vec, strict, bound, level + 1, odd->t, o+odd->eoff)
-        : ddman.GetConstant(false);
+                ? double_vector_to_bdd_rec(ddman, vec, strict, bound, level + 1,
+                                           odd->t, o + odd->eoff)
+                : ddman.GetConstant(false);
     if (e.get() == t.get()) {
       return e;
     } else {
@@ -202,16 +201,14 @@ static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
 
 // Converts a double vector to a BDD.
 static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
-                                const std::vector<double>& vec,
-                                bool strict, double bound,
-                                ODDNode* odd) {
+                                const std::vector<double>& vec, bool strict,
+                                double bound, ODDNode* odd) {
   return double_vector_to_bdd_rec(ddman, vec, strict, bound, 0, odd, 0);
 }
 
 // Matrix vector multiplication stuff.
 static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
-		     HDDNode* hdd, int level, long row, long col)
-{
+                     HDDNode* hdd, int level, long row, long col) {
   if (hdd == hddm->zero) {
     // It is the zero node.
     return;
@@ -224,47 +221,48 @@ static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
     int* row_starts = sb->row_starts;
     for (int i = 0; i < n; i++) {
       int l = row_starts[i];
-      int h = row_starts[i+1];
+      int h = row_starts[i + 1];
       for (int j = l; j < h; j++) {
-	soln2[row + i] += soln[col + cols[j]]*non_zeros[j]*unif;
+        soln2[row + i] += soln[col + cols[j]] * non_zeros[j] * unif;
       }
     }
     return;
   } else if (level == hddm->num_levels) {
     // We have reached the bottom.
-    soln2[row] += soln[col]*hdd->type.val*unif;
+    soln2[row] += soln[col] * hdd->type.val * unif;
     return;
   }
   HDDNode* e = hdd->type.kids.e;
   if (e != hddm->zero) {
     mult_rec(soln2, soln, unif, hddm, e->type.kids.e, level + 1, row, col);
-    mult_rec(soln2, soln, unif, hddm,
-	     e->type.kids.t, level + 1, row, col + e->off);
+    mult_rec(soln2, soln, unif, hddm, e->type.kids.t, level + 1, row,
+             col + e->off);
   }
   HDDNode* t = hdd->type.kids.t;
   if (t != hddm->zero) {
-    mult_rec(soln2, soln, unif, hddm,
-	     t->type.kids.e, level + 1, row + hdd->off, col);
-    mult_rec(soln2, soln, unif, hddm,
-	     t->type.kids.t, level + 1, row + hdd->off, col + t->off);
+    mult_rec(soln2, soln, unif, hddm, t->type.kids.e, level + 1, row + hdd->off,
+             col);
+    mult_rec(soln2, soln, unif, hddm, t->type.kids.t, level + 1, row + hdd->off,
+             col + t->off);
   }
 }
 
 // Poisson tail bounds.
 static double tail_bound(int n, double lambda, int left, int right,
-			 double epsilon) {
-  int m = (int) lambda;
+                         double epsilon) {
+  int m = (int)lambda;
   if (m >= 2 && n >= 2 + m) {
     double sqrt_lambda = sqrt(lambda);
-    double sqrt_2pi = sqrt(2.0*M_PI);
-    double k = (n - m - 3.0/2.0)/M_SQRT2/sqrt_lambda;
-    double a = (1.0 - 1.0/lambda)*exp(1.0/16.0)*M_SQRT2;
-    double d = 1.0/(1.0 - exp(-2.0/9.0*(k*M_SQRT2*sqrt_lambda + 3.0/2.0)));
-    double tail = a*d*exp(-k*k/2.0)/k/sqrt_2pi;
+    double sqrt_2pi = sqrt(2.0 * M_PI);
+    double k = (n - m - 3.0 / 2.0) / M_SQRT2 / sqrt_lambda;
+    double a = (1.0 - 1.0 / lambda) * exp(1.0 / 16.0) * M_SQRT2;
+    double d =
+        1.0 / (1.0 - exp(-2.0 / 9.0 * (k * M_SQRT2 * sqrt_lambda + 3.0 / 2.0)));
+    double tail = a * d * exp(-k * k / 2.0) / k / sqrt_2pi;
     if (left > 0) {
-      k = (m - n - 3.0/2.0)/sqrt_lambda;
-      double b = (1.0 + 1.0/lambda)*exp(1.0/8.0/lambda);
-      tail += b*exp(-k*k/2.0)/k/sqrt_2pi;
+      k = (m - n - 3.0 / 2.0) / sqrt_lambda;
+      double b = (1.0 + 1.0 / lambda) * exp(1.0 / 8.0 / lambda);
+      tail += b * exp(-k * k / 2.0) / k / sqrt_2pi;
     }
     return (tail < 1.0) ? tail : 1.0;
   } else {
@@ -276,8 +274,8 @@ static double tail_bound(int n, double lambda, int left, int right,
 // Poisson probabilities with rate lambda given an error bound of
 // epsilon (Fox & Glynn, CACM 31(4):440-445, 1988).
 static void fox_glynn_weighter(int& left, int& right, double*& weights,
-			       double& weight_sum, double lambda,
-			       double epsilon) {
+                               double& weight_sum, double lambda,
+                               double epsilon) {
   // Set the mode.
   int m = int(lambda);
 
@@ -288,7 +286,7 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 
   // Find truncation points L and R.
   double sqrt_lambda = sqrt(lambda);
-  double sqrt_2pi = sqrt(2.0*M_PI);
+  double sqrt_2pi = sqrt(2.0 * M_PI);
   if (lambda < 25.0) {
     left = 0;
     if (exp(-lambda) < DBL_MIN) {
@@ -296,42 +294,45 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
     }
   } else {  // lambda >= 25.0
     // Find left using Corollary 2 with actual lambda.
-    double b = (1.0 + 1.0/lambda)*exp(1.0/8.0/lambda);
+    double b = (1.0 + 1.0 / lambda) * exp(1.0 / 8.0 / lambda);
     int i = 2;
     for (; i < m; i++) {
-      double k = (i - 3.0/2.0)/sqrt_lambda;
-      double T = b*exp(-k*k/2.0)/k/sqrt_2pi;
-      if (T < epsilon/2) {
-	break;
+      double k = (i - 3.0 / 2.0) / sqrt_lambda;
+      double T = b * exp(-k * k / 2.0) / k / sqrt_2pi;
+      if (T < epsilon / 2) {
+        break;
       }
     }
     left = m - i;
   }
   if (lambda < 400.0) {
     // Find right using Corollary 1 with lambda=400.
-    double a = (1.0 + 1.0/400.0)*exp(1.0/16.0)*M_SQRT2;
+    double a = (1.0 + 1.0 / 400.0) * exp(1.0 / 16.0) * M_SQRT2;
     int i = 2;
-    int i_max = (400 + 3)/2;
+    int i_max = (400 + 3) / 2;
     for (; i < i_max; i++) {
-      double k = (i - 3.0/2.0)/M_SQRT2/20.0;
-      double d = 1.0/(1.0 - exp(-2.0/9.0*(k*M_SQRT2*20.0 + 3.0/2.0)));
-      double Q = a*d*exp(-k*k/2.0)/k/sqrt_2pi;
-      if ((left == 0 && Q < epsilon) || (left > 0 && Q < epsilon/2)) {
-	break;
+      double k = (i - 3.0 / 2.0) / M_SQRT2 / 20.0;
+      double d =
+          1.0 / (1.0 - exp(-2.0 / 9.0 * (k * M_SQRT2 * 20.0 + 3.0 / 2.0)));
+      double Q = a * d * exp(-k * k / 2.0) / k / sqrt_2pi;
+      if ((left == 0 && Q < epsilon) || (left > 0 && Q < epsilon / 2)) {
+        break;
       }
     }
     right = m + i;
   } else {  // lambda >= 400.0
     // Find right using Corollary 1 with actual lambda.
-    double a = (1.0 + 1.0/lambda)*exp(1.0/16.0)*M_SQRT2;
+    double a = (1.0 + 1.0 / lambda) * exp(1.0 / 16.0) * M_SQRT2;
     int i = 2;
-    int i_max = int((lambda + 3.0)/2.0);
+    int i_max = int((lambda + 3.0) / 2.0);
     for (; i < i_max; i++) {
-      double k = (i - 3.0/2.0)/M_SQRT2/sqrt_lambda;
-      double d = 1.0/(1.0 - exp(-2.0/9.0*(k*M_SQRT2*sqrt_lambda + 3.0/2.0)));
-      double Q = a*d*exp(-k*k/2.0)/k/sqrt_2pi;
-      if ((left == 0 && Q < epsilon) || (left > 0 && Q < epsilon/2)) {
-	break;
+      double k = (i - 3.0 / 2.0) / M_SQRT2 / sqrt_lambda;
+      double d =
+          1.0 /
+          (1.0 - exp(-2.0 / 9.0 * (k * M_SQRT2 * sqrt_lambda + 3.0 / 2.0)));
+      double Q = a * d * exp(-k * k / 2.0) / k / sqrt_2pi;
+      if ((left == 0 && Q < epsilon) || (left > 0 && Q < epsilon / 2)) {
+        break;
       }
     }
     right = m + i;
@@ -339,29 +340,29 @@ static void fox_glynn_weighter(int& left, int& right, double*& weights,
 
   // Compute weights.
   weights = new double[right - left + 1];
-  weights[m - left] = (DBL_MAX*1e-10)/(right - left);
+  weights[m - left] = (DBL_MAX * 1e-10) / (right - left);
   // Down.
   for (int j = m; j > left; j--) {
-    weights[j - 1 - left] = (j/lambda)*weights[j - left];
+    weights[j - 1 - left] = (j / lambda) * weights[j - left];
   }
   // Up.
   if (lambda < 400.0) {
     if (right > 600) {
       throw std::underflow_error("potential undeflow for Fox-Glynn");
     } else {
-      for (int j = m; j < right; ) {
-	double q = lambda/(j + 1.0);
-	if (weights[j - left] > DBL_MIN/q) {
-	  weights[j + 1 - left] = q*weights[j - left];
-	  j++;
-	} else {
-	  right = j;
-	}
+      for (int j = m; j < right;) {
+        double q = lambda / (j + 1.0);
+        if (weights[j - left] > DBL_MIN / q) {
+          weights[j + 1 - left] = q * weights[j - left];
+          j++;
+        } else {
+          right = j;
+        }
       }
     }
   } else {
     for (int j = m; j < right; j++) {
-      weights[j + 1 - left] = (lambda/(j + 1.0))*weights[j - left];
+      weights[j + 1 - left] = (lambda / (j + 1.0)) * weights[j - left];
     }
   }
 
@@ -487,13 +488,13 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   max_diag = -max_diag;
 
   /* Uniformization constant. */
-  double unif = 1.0/(1.01*max_diag);
+  double unif = 1.0 / (1.01 * max_diag);
 
   /*
    * Modify diagonals.
    */
   for (size_t i = 0; i < nstates; i++) {
-    diags[i] = unif*diags[i] + 1;
+    diags[i] = unif * diags[i] + 1;
   }
 
   /*
@@ -512,10 +513,10 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   double weight_sum;
   if (top_level_property_) {
     std::cout << "Uniformization: " << max_diag << "*" << time << " = "
-              << (max_diag*time) << std::endl;
+              << (max_diag * time) << std::endl;
   }
-  fox_glynn_weighter(left, right, weights, weight_sum,
-		     1.01*max_diag*time, epsilon_);
+  fox_glynn_weighter(left, right, weights, weight_sum, 1.01 * max_diag * time,
+                     epsilon_);
   if (top_level_property_) {
     std::cout << "Fox-Glynn: left = " << left << ", right = " << right
               << std::endl;
@@ -542,7 +543,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
      * Matrix vector multiplication.
      */
     for (size_t i = 0; i < nstates; i++) {
-      soln2[i] = diags[i]*soln[i];
+      soln2[i] = diags[i] * soln[i];
     }
     mult_rec(soln2, soln, unif, hddm, hddm->top, 0, 0, 0);
     /*
@@ -553,23 +554,23 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       double sqnorm = 0.0;
       double sqbound = epsilon_ * epsilon_ / 64.0;
       for (size_t i = 0; i < nstates; i++) {
-	double diff = soln2[i] - soln[i];
-	sqnorm += diff*diff;
-	if (sqnorm > sqbound) {
-	  done = false;
-	  break;
-	}
+        double diff = soln2[i] - soln[i];
+        sqnorm += diff * diff;
+        if (sqnorm > sqbound) {
+          done = false;
+          break;
+        }
       }
       if (done) {
-	steady = true;
-	if (init >= 0) {
-	  sum[0] = soln2[init];
-	} else {
-	for (size_t i = 0; i < nstates; i++) {
-	  sum[i] = soln2[i];
-	}
-	}
-	break;
+        steady = true;
+        if (init >= 0) {
+          sum[0] = soln2[init];
+        } else {
+          for (size_t i = 0; i < nstates; i++) {
+            sum[i] = soln2[i];
+          }
+        }
+        break;
       }
     }
     /*
@@ -596,39 +597,39 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
        * Matrix vector multiplication.
        */
       for (size_t i = 0; i < nstates; i++) {
-	soln2[i] = diags[i]*soln[i];
+        soln2[i] = diags[i] * soln[i];
       }
       mult_rec(soln2, soln, unif, hddm, hddm->top, 0, 0, 0);
       /*
        * Check for steady state convergence.
        */
       if (!estimate_) {
-	done = true;
-	double sqnorm = 0.0;
-	double sqbound = epsilon_ * epsilon_ / 64.0;
-	for (size_t i = 0; i < nstates; i++) {
-	  double diff = soln2[i] - soln[i];
-	  sqnorm += diff*diff;
-	  if (sqnorm > sqbound) {
-	    done = false;
-	    break;
-	  }
-	}
-	if (done) {
-	  steady = true;
-	  double weight = 0.0;
-	  for (int i = iters; i <= right; i++) {
-	    weight += weights[i - left]/weight_sum;
-	  }
-	  if (init >= 0) {
-	    sum[0] += weight*soln2[init];
-	  } else {
-	    for (size_t i = 0; i < nstates; i++) {
-	      sum[i] += weight*soln2[i];
-	    }
-	  }
-	  break;
-	}
+        done = true;
+        double sqnorm = 0.0;
+        double sqbound = epsilon_ * epsilon_ / 64.0;
+        for (size_t i = 0; i < nstates; i++) {
+          double diff = soln2[i] - soln[i];
+          sqnorm += diff * diff;
+          if (sqnorm > sqbound) {
+            done = false;
+            break;
+          }
+        }
+        if (done) {
+          steady = true;
+          double weight = 0.0;
+          for (int i = iters; i <= right; i++) {
+            weight += weights[i - left] / weight_sum;
+          }
+          if (init >= 0) {
+            sum[0] += weight * soln2[init];
+          } else {
+            for (size_t i = 0; i < nstates; i++) {
+              sum[i] += weight * soln2[i];
+            }
+          }
+          break;
+        }
       }
       /*
        * Prepare for next iteration.
@@ -643,34 +644,34 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
     size_t num_pass = 0;
     for (size_t i = 0; i < nstates; i++) {
       if (init >= 0) {
-	sum[0] += weights[iters - left]/weight_sum*soln[init];
+        sum[0] += weights[iters - left] / weight_sum * soln[init];
       } else {
-	sum[i] += weights[iters - left]/weight_sum*soln[i];
+        sum[i] += weights[iters - left] / weight_sum * soln[i];
       }
-      double slack = tail_bound(iters, 1.01*max_diag*time,
-				left, right, epsilon_);
+      double slack =
+          tail_bound(iters, 1.01 * max_diag * time, left, right, epsilon_);
       if (VLOG_IS_ON(2) && init >= 0) {
-	LOG(INFO) << iters
-		  << " p_init in [" << sum[0] << ',' << (sum[0] + slack) << "]"
-		  << "; threshold = " << threshold_;
+        LOG(INFO) << iters << " p_init in [" << sum[0] << ','
+                  << (sum[0] + slack) << "]"
+                  << "; threshold = " << threshold_;
       }
       if (!estimate_) {
-	bool pass = false;
-	if (strict_) {
-	  pass = (sum[i] + slack <= threshold_ || sum[i] > threshold_);
-	} else {
-	  pass = (sum[i] + slack < threshold_ || sum[i] >= threshold_);
-	}
-	if (pass) {
-	  num_pass++;
-	  if (init >= 0 || num_pass == nstates) {
-	    done = true;
-	    break;
-	  }
-	}
+        bool pass = false;
+        if (strict_) {
+          pass = (sum[i] + slack <= threshold_ || sum[i] > threshold_);
+        } else {
+          pass = (sum[i] + slack < threshold_ || sum[i] >= threshold_);
+        }
+        if (pass) {
+          num_pass++;
+          if (init >= 0 || num_pass == nstates) {
+            done = true;
+            break;
+          }
+        }
       }
       if (init >= 0) {
-	break;
+        break;
       }
     }
     if (done) {
@@ -702,8 +703,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   delete weights;
 
   if (init >= 0) {
-    if ((strict_ && sum[0] > threshold_)
-      || (!strict_ && sum[0] >= threshold_)) {
+    if ((strict_ && sum[0] > threshold_) ||
+        (!strict_ && sum[0] >= threshold_)) {
       result_ = dd_model_->initial_state();
       return;
     } else {
@@ -711,8 +712,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       return;
     }
   } else {
-    result_ = double_vector_to_bdd(
-        dd_model_->manager(), sum, strict_, threshold_, odd);
+    result_ = double_vector_to_bdd(dd_model_->manager(), sum, strict_,
+                                   threshold_, odd);
     return;
   }
 }
@@ -720,8 +721,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
 }  // namespace
 
 BDD Verify(const CompiledProperty& property,
-           const DecisionDiagramModel& dd_model,
-           bool estimate, bool top_level_property, double epsilon) {
+           const DecisionDiagramModel& dd_model, bool estimate,
+           bool top_level_property, double epsilon) {
   SymbolicVerifier verifier(&dd_model, estimate, top_level_property, epsilon);
   property.Accept(&verifier);
   return verifier.result();

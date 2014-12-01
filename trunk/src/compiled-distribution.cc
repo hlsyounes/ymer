@@ -19,9 +19,9 @@
 
 #include "compiled-distribution.h"
 
-#include <vector>
-
-#include "compiled-expression.h"
+CompiledGsmpDistribution::CompiledGsmpDistribution(
+    CompiledGsmpDistributionType type, std::initializer_list<double> parameters)
+    : type_(type), parameters_(parameters) {}
 
 CompiledGsmpDistribution CompiledGsmpDistribution::MakeWeibull(double scale,
                                                                double shape) {
@@ -40,7 +40,3 @@ CompiledGsmpDistribution CompiledGsmpDistribution::MakeUniform(double low,
   return CompiledGsmpDistribution(CompiledGsmpDistributionType::UNIFORM,
                                   {low, high});
 }
-
-CompiledGsmpDistribution::CompiledGsmpDistribution(
-    CompiledGsmpDistributionType type, std::initializer_list<double> parameters)
-    : type_(type), parameters_(parameters) {}

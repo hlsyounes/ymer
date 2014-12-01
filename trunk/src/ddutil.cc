@@ -27,9 +27,7 @@
 
 namespace {
 
-size_t ManagerSize(DdManager* manager) {
-  return Cudd_ReadSize(manager);
-}
+size_t ManagerSize(DdManager* manager) { return Cudd_ReadSize(manager); }
 
 template <typename ValueType>
 ValueType NodeValue(DdNode* dd);
@@ -91,9 +89,8 @@ DdNode* AddNegate(DdManager* manager, DdNode* node) {
 // ADD operator for modulo.
 DdNode* AddMod(DdManager* manager, DdNode** node1, DdNode** node2) {
   if (Cudd_IsConstant(*node1) && Cudd_IsConstant(*node2)) {
-    return Cudd_addConst(manager,
-                         static_cast<int>(Cudd_V(*node1)) %
-                         static_cast<int>(Cudd_V(*node2)));
+    return Cudd_addConst(manager, static_cast<int>(Cudd_V(*node1)) %
+                                      static_cast<int>(Cudd_V(*node2)));
   }
   return nullptr;
 }
@@ -152,9 +149,7 @@ DecisionDiagram& DecisionDiagram::operator=(const DecisionDiagram& dd) {
   return *this;
 }
 
-DecisionDiagram::~DecisionDiagram() {
-  Deref();
-}
+DecisionDiagram::~DecisionDiagram() { Deref(); }
 
 void DecisionDiagram::Ref() {
   if (node_) {
@@ -169,21 +164,16 @@ void DecisionDiagram::Deref() {
   }
 }
 
-bool DecisionDiagram::IsConstant() const {
-  return Cudd_IsConstant(node_);
-}
+bool DecisionDiagram::IsConstant() const { return Cudd_IsConstant(node_); }
 
 double DecisionDiagram::MintermCount(int variable_count) const {
   return Cudd_CountMinterm(manager_, node_, variable_count);
 }
 
-BDD::BDD(DdManager* manager, DdNode* node)
-    : DecisionDiagram(manager, node) {
-}
+BDD::BDD(DdManager* manager, DdNode* node) : DecisionDiagram(manager, node) {}
 
 BDD::BDD(const ADD& dd)
-    : DecisionDiagram(dd.manager(), (!dd.Interval(0, 0)).node()) {
-}
+    : DecisionDiagram(dd.manager(), (!dd.Interval(0, 0)).node()) {}
 
 bool BDD::Value() const {
   CHECK(IsConstant());
@@ -209,9 +199,7 @@ BDD BDD::ExistAbstract(const BDD& cube) const {
   return BDD(manager(), Cudd_bddExistAbstract(manager(), node(), cube.node()));
 }
 
-BDD BDD::operator!() const {
-  return BDD(manager(), Cudd_Not(node()));
-}
+BDD BDD::operator!() const { return BDD(manager(), Cudd_Not(node())); }
 
 BDD BDD::operator&&(const BDD& dd) const {
   return Apply(Cudd_bddAnd, *this, dd);
@@ -225,25 +213,15 @@ BDD BDD::operator==(const BDD& dd) const {
   return Apply(Cudd_bddXnor, *this, dd);
 }
 
-BDD BDD::operator!=(const BDD& dd) const {
-  return !(*this == dd);
-}
+BDD BDD::operator!=(const BDD& dd) const { return !(*this == dd); }
 
-BDD BDD::operator<(const BDD& dd) const {
-  return !*this && dd;
-}
+BDD BDD::operator<(const BDD& dd) const { return !*this && dd; }
 
-BDD BDD::operator<=(const BDD& dd) const {
-  return !(*this > dd);
-}
+BDD BDD::operator<=(const BDD& dd) const { return !(*this > dd); }
 
-BDD BDD::operator>=(const BDD& dd) const {
-  return !(*this < dd);
-}
+BDD BDD::operator>=(const BDD& dd) const { return !(*this < dd); }
 
-BDD BDD::operator>(const BDD& dd) const {
-  return *this && !dd;
-}
+BDD BDD::operator>(const BDD& dd) const { return *this && !dd; }
 
 BDD BDD::Apply(Op op, const BDD& dd1, const BDD& dd2) {
   DdManager* const manager = dd1.manager();
@@ -255,13 +233,10 @@ BDD Ite(const BDD& dd1, const BDD& dd2, const BDD& dd3) {
   return BDD(manager, Cudd_bddIte(manager, dd1.node(), dd2.node(), dd3.node()));
 }
 
-ADD::ADD(DdManager* manager, DdNode* node)
-    : DecisionDiagram(manager, node) {
-}
+ADD::ADD(DdManager* manager, DdNode* node) : DecisionDiagram(manager, node) {}
 
 ADD::ADD(const BDD& dd)
-    : DecisionDiagram(dd.manager(), Cudd_BddToAdd(dd.manager(), dd.node())) {
-}
+    : DecisionDiagram(dd.manager(), Cudd_BddToAdd(dd.manager(), dd.node())) {}
 
 double ADD::Value() const {
   CHECK(IsConstant());
@@ -288,9 +263,7 @@ BDD ADD::StrictThreshold(double threshold) const {
              Cudd_addBddStrictThreshold(manager(), node(), threshold));
 }
 
-ADD ADD::operator-() const {
-  return MonadicApply(AddNegate, *this);
-}
+ADD ADD::operator-() const { return MonadicApply(AddNegate, *this); }
 
 ADD ADD::operator+(const ADD& dd) const {
   return Apply(Cudd_addPlus, *this, dd);
@@ -308,29 +281,21 @@ ADD ADD::operator/(const ADD& dd) const {
   return Apply(Cudd_addDivide, *this, dd);
 }
 
-ADD ADD::operator%(const ADD& dd) const {
-  return Apply(AddMod, *this, dd);
-}
+ADD ADD::operator%(const ADD& dd) const { return Apply(AddMod, *this, dd); }
 
 BDD ADD::operator==(const ADD& dd) const {
   return (*this - dd).Interval(0.0, 0.0);
 }
 
-BDD ADD::operator!=(const ADD& dd) const {
-  return !(*this == dd);
-}
+BDD ADD::operator!=(const ADD& dd) const { return !(*this == dd); }
 
 BDD ADD::operator<(const ADD& dd) const {
   return (dd - *this).StrictThreshold(0);
 }
 
-BDD ADD::operator<=(const ADD& dd) const {
-  return !(*this > dd);
-}
+BDD ADD::operator<=(const ADD& dd) const { return !(*this > dd); }
 
-BDD ADD::operator>=(const ADD& dd) const {
-  return !(*this < dd);
-}
+BDD ADD::operator>=(const ADD& dd) const { return !(*this < dd); }
 
 BDD ADD::operator>(const ADD& dd) const {
   return (*this - dd).StrictThreshold(0);
@@ -342,8 +307,7 @@ ADD ADD::Apply(Op op, const ADD& dd1, const ADD& dd2) {
 }
 
 ADD ADD::MonadicApply(MonadicOp op, const ADD& dd) {
-  return ADD(dd.manager(),
-             Cudd_addMonadicApply(dd.manager(), op, dd.node()));
+  return ADD(dd.manager(), Cudd_addMonadicApply(dd.manager(), op, dd.node()));
 }
 
 ADD Ite(const BDD& dd1, const ADD& dd2, const ADD& dd3) {
@@ -361,21 +325,13 @@ ADD max(const ADD& dd1, const ADD& dd2) {
   return ADD::Apply(Cudd_addMaximum, dd1, dd2);
 }
 
-ADD floor(const ADD& dd) {
-  return ADD::MonadicApply(AddFloor, dd);
-}
+ADD floor(const ADD& dd) { return ADD::MonadicApply(AddFloor, dd); }
 
-ADD ceil(const ADD& dd) {
-  return ADD::MonadicApply(AddCeil, dd);
-}
+ADD ceil(const ADD& dd) { return ADD::MonadicApply(AddCeil, dd); }
 
-ADD pow(const ADD& dd1, const ADD& dd2) {
-  return ADD::Apply(AddPow, dd1, dd2);
-}
+ADD pow(const ADD& dd1, const ADD& dd2) { return ADD::Apply(AddPow, dd1, dd2); }
 
-ADD log(const ADD& dd) {
-  return ADD::MonadicApply(Cudd_addLog, dd);
-}
+ADD log(const ADD& dd) { return ADD::MonadicApply(Cudd_addLog, dd); }
 
 DecisionDiagramManager::DecisionDiagramManager(int variable_count)
     : manager_(Cudd_Init(variable_count, 0 /* zdd_variable_count */,
@@ -422,8 +378,9 @@ ADD DecisionDiagramManager::GetAddVariable(int i) const {
   return ADD(manager_, Cudd_addIthVar(manager_, i));
 }
 
-VariableArray<BDD> DecisionDiagramManager::GetBddVariableArray(
-    int start, int incr, int end) const {
+VariableArray<BDD> DecisionDiagramManager::GetBddVariableArray(int start,
+                                                               int incr,
+                                                               int end) const {
   std::vector<BDD> variables;
   for (int i = start; i < end; i += incr) {
     variables.push_back(GetBddVariable(i));

@@ -91,8 +91,8 @@ TEST(BinoInvTest, All) {
 }
 
 TEST(MaxNestedErrorTest, All) {
-  EXPECT_EQ(0.2/0.7, MaxNestedError(0.2));
-  EXPECT_EQ(0.1/0.6, MaxNestedError(0.1));
+  EXPECT_EQ(0.2 / 0.7, MaxNestedError(0.2));
+  EXPECT_EQ(0.1 / 0.6, MaxNestedError(0.1));
 }
 
 TEST(SingleSamplingPlanTest, All) {

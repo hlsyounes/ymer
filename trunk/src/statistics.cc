@@ -53,12 +53,9 @@ int binoinv(double y, int n, double p) {
   return x;
 }
 
-double MaxNestedError(double delta) {
-  return delta / (0.5 + delta);
-}
+double MaxNestedError(double delta) { return delta / (0.5 + delta); }
 
-SingleSamplingPlan::SingleSamplingPlan(int n, int c)
-    : n_(n), c_(c) {
+SingleSamplingPlan::SingleSamplingPlan(int n, int c) : n_(n), c_(c) {
   CHECK_LE(0, c_);
   CHECK_LE(c_, n_);
 }
@@ -121,8 +118,6 @@ FixedBernoulliTester::FixedBernoulliTester(double theta0, double theta1,
   CHECK_GT(sample_size_, 0);
 }
 
-FixedBernoulliTester::~FixedBernoulliTester() = default;
-
 void FixedBernoulliTester::UpdateState() {
   done_ = sample().count() >= sample_size_;
   if (done_) {
@@ -134,14 +129,14 @@ std::string FixedBernoulliTester::StateToStringImpl() const {
   return StrCat(sample().count(), '\t', sample().sum());
 }
 
-SingleSamplingBernoulliTester::SingleSamplingBernoulliTester(
-    double theta0, double theta1, double alpha, double beta)
+SingleSamplingBernoulliTester::SingleSamplingBernoulliTester(double theta0,
+                                                             double theta1,
+                                                             double alpha,
+                                                             double beta)
     : BernoulliTester(theta0, theta1),
       ssp_(SingleSamplingPlan::Create(theta0, theta1, alpha, beta)) {
   CHECK_NE(theta0, theta1);
 }
-
-SingleSamplingBernoulliTester::~SingleSamplingBernoulliTester() = default;
 
 namespace {
 
@@ -186,12 +181,12 @@ namespace {
 
 double SprtPositiveCoefficient(double theta0, double theta1) {
   return (theta1 > 0) ? log(theta1) - log(theta0)
-      : -std::numeric_limits<double>::infinity();
+                      : -std::numeric_limits<double>::infinity();
 }
 
 double SprtNegativeCoefficient(double theta0, double theta1) {
   return (theta0 < 1) ? log(1 - theta1) - log(1 - theta0)
-      : std::numeric_limits<double>::infinity();
+                      : std::numeric_limits<double>::infinity();
 }
 
 double SprtAcceptThreshold(double theta0, double alpha, double beta) {
@@ -221,8 +216,6 @@ SprtBernoulliTester::SprtBernoulliTester(double theta0, double theta1,
       reject_threshold_(SprtRejectThreshold(theta1, alpha, beta)) {
   CHECK_NE(theta0, theta1);
 }
-
-SprtBernoulliTester::~SprtBernoulliTester() = default;
 
 namespace {
 
@@ -257,6 +250,6 @@ void SprtBernoulliTester::UpdateState() {
 std::string SprtBernoulliTester::StateToStringImpl() const {
   const double state =
       SprtState(sample(), positive_coefficient_, negative_coefficient_);
-  return StrCat(sample().count(), '\t', state, '\t',
-                accept_threshold_, '\t', reject_threshold_);
+  return StrCat(sample().count(), '\t', state, '\t', accept_threshold_, '\t',
+                reject_threshold_);
 }

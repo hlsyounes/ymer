@@ -128,9 +128,7 @@ class CompiledNaryProperty : public CompiledProperty {
 
   CompiledNaryOperator op() const { return op_; }
 
-  bool has_expr_operand() const {
-    return optional_expr_operand_ != nullptr;
-  }
+  bool has_expr_operand() const { return optional_expr_operand_ != nullptr; }
 
   const CompiledExpressionProperty& expr_operand() const {
     return *optional_expr_operand_;

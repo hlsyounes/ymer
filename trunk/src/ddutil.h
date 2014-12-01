@@ -28,7 +28,8 @@
 struct DdManager;
 struct DdNode;
 
-template <typename DD> class VariableArray;
+template <typename DD>
+class VariableArray;
 
 // Information for a state variable, used for evaluating a decision diagram in a
 // state represented by integer-valued state variables.
@@ -79,7 +80,8 @@ class DecisionDiagram {
   // The decision-diagram node.
   DdNode* node_;
 
-  template <typename DD> friend class VariableArray;
+  template <typename DD>
+  friend class VariableArray;
 };
 
 class ADD;
@@ -239,7 +241,7 @@ class VariableArray {
  private:
   VariableArray(std::vector<DD> variables);
 
-  DdNode* const * data() const { return variables_.data(); }
+  DdNode* const* data() const { return variables_.data(); }
 
   std::vector<DdNode*> variables_;
 
