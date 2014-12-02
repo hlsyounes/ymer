@@ -1026,7 +1026,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model, compiled_model);
+          &dd_man, moments, *global_model, compiled_model, identifiers_by_name);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1107,7 +1107,7 @@ int main(int argc, char* argv[]) {
       getitimer(ITIMER_PROF, &stimer);
 #endif
       DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model, compiled_model);
+          &dd_man, moments, *global_model, compiled_model, identifiers_by_name);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);

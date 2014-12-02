@@ -179,30 +179,15 @@ private:
 /* Output operator for models. */
 std::ostream& operator<<(std::ostream& os, const Model& m);
 
-class VariableProperties {
- public:
-  VariableProperties(int min_value, int low_bit, int high_bit);
-
-  int min_value() const { return min_value_; }
-
-  int low_bit() const { return low_bit_; }
-
-  int high_bit() const { return high_bit_; }
-
- private:
-  int min_value_;
-  int low_bit_;
-  int high_bit_;
-};
-
 // A model compiled into decision diagrams.
 class DecisionDiagramModel {
  public:
   ~DecisionDiagramModel();
 
-  static DecisionDiagramModel Create(const DecisionDiagramManager* manager,
-                                     size_t moments, const Model& model,
-                                     const CompiledModel& compiled_model);
+  static DecisionDiagramModel Create(
+      const DecisionDiagramManager* manager, size_t moments, const Model& model,
+      const CompiledModel& compiled_model,
+      const std::map<std::string, IdentifierInfo>& identifiers_by_name);
 
   const DecisionDiagramManager& manager() const { return *manager_; }
 
@@ -225,25 +210,5 @@ class DecisionDiagramModel {
   int initial_state_index_;
   ODDNode* odd_;
 };
-
-// Returns the 'current state' MTBDD representation for an expression.
-ADD mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e);
-
-// Returns the 'next state' MTBDD representation for an expression.
-ADD primed_mtbdd(
-    const DecisionDiagramManager& manager,
-    const std::map<std::string, VariableProperties>& variable_properties,
-    const Expression& e);
-
-// Returns the 'current state' MTBDD representation for a variable.
-ADD variable_mtbdd(const DecisionDiagramManager& manager,
-                   int low, int low_bit, int high_bit);
-
-// Returns the 'next state' MTBDD representation for a variable.
-ADD variable_primed_mtbdd(const DecisionDiagramManager& manager,
-                          int low, int low_bit, int high_bit);
 
 #endif  // MODELS_H_

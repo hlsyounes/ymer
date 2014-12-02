@@ -102,10 +102,6 @@ struct Module {
   /* Adds a command to this module. */
   void add_command(const Command* command);
 
-  /* Substitutes constants with values. */
-  void compile(const std::map<std::string, TypedValue>& constant_values,
-               const std::map<std::string, TypedValue>& rate_values);
-
   /* Returns the variables for this module. */
   const std::vector<std::string>& variables() const { return variables_; }
 
