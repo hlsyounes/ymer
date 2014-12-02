@@ -97,8 +97,6 @@ static int integer_value(const TypedValue* q);
 static const Identifier* find_constant(const std::string* ident);
 /* Returns an identifier representing a rate constant. */
 static const Identifier* find_rate(const std::string* ident);
-/* Returns an identifier representing a rate constant or an integer variable. */
-static const Identifier* find_rate_or_variable(const std::string* ident);
 /* Returns a literal expression. */
 static const Literal* make_literal(int n);
 /* Returns a literal expression. */
@@ -419,7 +417,7 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 %type <expr> property
 %type <path> path_property
 %type <dist> distribution
-%type <expr> expr rate_expr const_rate_expr const_expr
+%type <expr> expr const_rate_expr const_expr
 %type <nat> integer
 %type <str> IDENTIFIER
 %type <number> NUMBER
@@ -569,11 +567,11 @@ reward_rules : /* empty */
              | reward_rules transition_reward
              ;
 
-state_reward : expr ':' rate_expr ';'
+state_reward : expr ':' expr ';'
                  { delete $1; delete $3; }
              ;
 
-transition_reward : '[' IDENTIFIER ']' expr ':' rate_expr ';'
+transition_reward : '[' IDENTIFIER ']' expr ':' expr ';'
                       { delete $2; delete $4; delete $6; }
                   ;
 
@@ -581,13 +579,13 @@ transition_reward : '[' IDENTIFIER ']' expr ':' rate_expr ';'
 /* ====================================================================== */
 /* Distributions. */
 
-distribution : rate_expr
+distribution : expr
                  { $$ = NewExponential($1); }
-             | W '(' const_rate_expr ',' const_rate_expr ')'
+             | W '(' expr ',' expr ')'
                  { $$ = NewWeibull($3, $5); }
-             | L '(' const_rate_expr ',' const_rate_expr ')'
+             | L '(' expr ',' expr ')'
                  { $$ = NewLognormal($3, $5); }
-             | U '(' const_rate_expr ',' const_rate_expr ')'
+             | U '(' expr ',' expr ')'
                  { $$ = NewUniform($3, $5); }
              ;
 
@@ -643,24 +641,6 @@ expr : NUMBER
      | '(' expr ')'
          { $$ = $2; }
      ;
-
-rate_expr : NUMBER
-              { $$ = make_literal($1); }
-          | IDENTIFIER
-              { $$ = find_rate_or_variable($1); }
-          | '-' rate_expr %prec UMINUS
-              { $$ = NewNegate($2); }
-          | rate_expr '+' rate_expr
-              { $$ = NewPlus($1, $3); }
-          | rate_expr '-' rate_expr
-              { $$ = NewMinus($1, $3); }
-          | rate_expr '*' rate_expr
-              { $$ = NewMultiply($1, $3); }
-          | rate_expr '/' rate_expr
-              { $$ = NewDivide($1, $3); }
-          | '(' rate_expr ')'
-              { $$ = $2; }
-          ;
 
 const_rate_expr : NUMBER
                     { $$ = make_literal($1); }
@@ -1045,16 +1025,6 @@ static const Identifier* find_rate(const std::string* ident) {
   const Identifier* identifier = new Identifier(*ident);
   delete ident;
   return identifier;
-}
-
-static const Identifier* find_rate_or_variable(const std::string* ident) {
-  if (rates.find(*ident) != rates.end()) {
-    const Identifier* identifier = new Identifier(*ident);
-    delete ident;
-    return identifier;
-  } else {
-    return find_variable(ident);
-  }
 }
 
 static const Literal* make_literal(int n) {
