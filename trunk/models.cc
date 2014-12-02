@@ -30,10 +30,6 @@
 #include "cudd.h"
 #include "glog/logging.h"
 
-ParsedConstant::ParsedConstant(const std::string& name, Type type,
-                               std::unique_ptr<const Expression>&& init)
-    : name_(name), type_(type), init_(std::move(init)) {}
-
 ParsedVariable::ParsedVariable(const std::string& name, Type type,
                                std::unique_ptr<const Expression>&& min,
                                std::unique_ptr<const Expression>&& max,
@@ -925,8 +921,8 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
     os << std::endl;
     for (const auto& c : m.constants()) {
       os << std::endl << "const " << c.type() << " " << c.name();
-      if (c.has_init()) {
-        os << " = " << c.init();
+      if (c.init() != nullptr) {
+        os << " = " << *c.init();
       }
       os << ";";
     }

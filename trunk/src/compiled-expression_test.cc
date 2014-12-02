@@ -85,30 +85,18 @@ TEST(OperationTest, Shift) {
             Operation::MakeDMUL(15, 40).Shift(3, 2));
   EXPECT_EQ(Operation::MakeDDIV(17, 42),
             Operation::MakeDDIV(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeIEQ(17, 42),
-            Operation::MakeIEQ(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeDEQ(17, 42),
-            Operation::MakeDEQ(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeINE(17, 42),
-            Operation::MakeINE(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeDNE(17, 42),
-            Operation::MakeDNE(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeILT(17, 42),
-            Operation::MakeILT(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeDLT(17, 42),
-            Operation::MakeDLT(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeILE(17, 42),
-            Operation::MakeILE(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeDLE(17, 42),
-            Operation::MakeDLE(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeIGE(17, 42),
-            Operation::MakeIGE(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeDGE(17, 42),
-            Operation::MakeDGE(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeIGT(17, 42),
-            Operation::MakeIGT(15, 40).Shift(3, 2));
-  EXPECT_EQ(Operation::MakeDGT(17, 42),
-            Operation::MakeDGT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIEQ(17, 42), Operation::MakeIEQ(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDEQ(17, 42), Operation::MakeDEQ(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeINE(17, 42), Operation::MakeINE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDNE(17, 42), Operation::MakeDNE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeILT(17, 42), Operation::MakeILT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDLT(17, 42), Operation::MakeDLT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeILE(17, 42), Operation::MakeILE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDLE(17, 42), Operation::MakeDLE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIGE(17, 42), Operation::MakeIGE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDGE(17, 42), Operation::MakeDGE(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeIGT(17, 42), Operation::MakeIGT(15, 40).Shift(3, 2));
+  EXPECT_EQ(Operation::MakeDGT(17, 42), Operation::MakeDGT(15, 40).Shift(3, 2));
   EXPECT_EQ(Operation::MakeIFFALSE(17, 42),
             Operation::MakeIFFALSE(15, 39).Shift(3, 2));
   EXPECT_EQ(Operation::MakeIFTRUE(17, 42),

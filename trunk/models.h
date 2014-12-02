@@ -34,32 +34,6 @@
 
 struct PHData;
 
-// A parsed constant.
-class ParsedConstant {
- public:
-  // Constructs a parsed constant with the given name, type, and init
-  // expression.
-  explicit ParsedConstant(const std::string& name, Type type,
-                          std::unique_ptr<const Expression>&& init);
-
-  // Returns the name for this parsed constant.
-  const std::string& name() const { return name_; }
-
-  // Returns the type for this parsed constant.
-  Type type() const { return type_; }
-
-  // Returns true if this parsed constant has an init expression.
-  bool has_init() const { return init_ != nullptr; }
-
-  // Returns the init expression for this parsed constant.
-  const Expression& init() const { return *init_; }
-
- private:
-  std::string name_;
-  Type type_;
-  std::unique_ptr<const Expression> init_;
-};
-
 // A parsed variable.
 class ParsedVariable {
  public:
