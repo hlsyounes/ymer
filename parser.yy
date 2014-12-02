@@ -1601,10 +1601,6 @@ static void prepare_model(ModelType model_type) {
 
 /* Compiles the current model. */
 static void compile_model() {
-  for (std::map<std::string, Module*>::const_iterator mi = modules.begin();
-       mi != modules.end(); mi++) {
-    mi->second->compile(constant_values, rate_values);
-  }
   model->compile();
   global_model = model;
 }
