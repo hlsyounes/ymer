@@ -22,11 +22,14 @@
 #ifndef MODEL_H_
 #define MODEL_H_
 
+#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include "expression.h"
+#include "typed-value.h"
 
 // A variable update.
 class Update {
@@ -53,5 +56,38 @@ enum class ModelType { DEFAULT, MDP, DTMC, CTMC, GSMP };
 
 // Output operator for model types.
 std::ostream& operator<<(std::ostream& os, ModelType model_type);
+
+// A parsed constant.
+class ParsedConstant {
+ public:
+  // Constructs a parsed constant with the given name, type, and init
+  // expression.
+  explicit ParsedConstant(const std::string& name, Type type,
+                          std::unique_ptr<const Expression>&& init);
+
+  // Returns the name for this parsed constant.
+  const std::string& name() const { return name_; }
+
+  // Returns the type for this parsed constant.
+  Type type() const { return type_; }
+
+  // Returns a pointer to the init expression for this parsed constant, or null
+  // if this parsed constant does not have an init expression.
+  const Expression* init() const { return init_.get(); }
+
+ private:
+  std::string name_;
+  Type type_;
+  std::unique_ptr<const Expression> init_;
+};
+
+// Resolves the given constants by evaluating their init expressions, and
+// populates constant_values.  constant_values may be pre-populated with
+// overrides for init expressions, and this is required for constants with no
+// init expression.  Populates errors with messages describing any errors that
+// are detected during constant resolution.
+void ResolveConstants(const std::vector<ParsedConstant>& constants,
+                      std::map<std::string, TypedValue>* constant_values,
+                      std::vector<std::string>* errors);
 
 #endif  // MODEL_H_

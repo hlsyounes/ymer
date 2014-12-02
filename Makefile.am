@@ -122,7 +122,8 @@ src_libdistribution_la_LIBADD = src/libexpression.la
 # Model library.
 noinst_LTLIBRARIES += src/libmodel.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
-src_libmodel_la_LIBADD = src/libexpression.la glog/libglog.la
+src_libmodel_la_LIBADD = src/libexpression.la src/libtyped-value.la \
+    glog/libglog.la
 
 # Compiled expression library.
 noinst_LTLIBRARIES += src/libcompiled-expression.la

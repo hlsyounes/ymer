@@ -372,6 +372,20 @@ std::vector<CompiledUpdate> CompileUpdates(
   return compiled_updates;
 }
 
+std::map<std::string, IdentifierInfo> GetConstantIdentifiersByName(
+    const std::vector<ParsedConstant>& constants,
+    const std::map<std::string, TypedValue>& constant_overrides,
+    std::vector<std::string>* errors) {
+  std::map<std::string, IdentifierInfo> identifiers_by_name;
+  std::map<std::string, TypedValue> constant_values = constant_overrides;
+  ResolveConstants(constants, &constant_values, errors);
+  for (const auto& entry : constant_values) {
+    identifiers_by_name.emplace(entry.first,
+                                IdentifierInfo::Constant(entry.second));
+  }
+  return identifiers_by_name;
+}
+
 void AddVariableIdentifiersByName(
     const CompiledModel& model,
     std::map<std::string, IdentifierInfo>* identifiers_by_name) {
@@ -423,17 +437,19 @@ int GetIntValue(
   return 0;
 }
 
-CompiledModel CompileModel(const Model& model,
-                           std::vector<std::string>* errors) {
+CompiledModel CompileModel(
+    const Model& model,
+    std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    std::vector<std::string>* errors) {
   CompiledModel compiled_model(CompileModelType(model.type(), errors));
 
-  std::map<std::string, IdentifierInfo> identifiers_by_name;
-  // TODO(hlsyounes): Add constant identifiers by name.
   for (const ParsedVariable& v : model.variables()) {
-    const int min = GetIntValue(v.min(), v.type(), identifiers_by_name, errors);
-    const int max = GetIntValue(v.max(), v.type(), identifiers_by_name, errors);
+    const int min =
+        GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
+    const int max =
+        GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
     const int init = v.has_init() ? GetIntValue(v.init(), v.type(),
-                                                identifiers_by_name, errors)
+                                                *identifiers_by_name, errors)
                                   : min;
     if (!v.has_init()) {
       errors->push_back(StrCat("no init expression for variable ", v.name()));
@@ -441,15 +457,15 @@ CompiledModel CompileModel(const Model& model,
     compiled_model.AddVariable(v.name(), v.type(), min, max, init);
   }
 
-  AddVariableIdentifiersByName(compiled_model, &identifiers_by_name);
+  AddVariableIdentifiersByName(compiled_model, identifiers_by_name);
   std::vector<CompiledMarkovCommand> single_markov_commands;
   std::vector<CompiledGsmpCommand> single_gsmp_commands;
-  DistributionCompiler dist_compiler(&identifiers_by_name, errors);
+  DistributionCompiler dist_compiler(identifiers_by_name, errors);
   for (const Command* command : model.commands()) {
     const auto compiled_guard = CompileAndOptimizeExpression(
-        command->guard(), Type::BOOL, identifiers_by_name, errors);
+        command->guard(), Type::BOOL, *identifiers_by_name, errors);
     const auto compiled_updates =
-        CompileUpdates(command->updates(), identifiers_by_name, errors);
+        CompileUpdates(command->updates(), *identifiers_by_name, errors);
     command->delay().Accept(&dist_compiler);
     if (dist_compiler.has_markov_weight()) {
       single_markov_commands.push_back(CompiledMarkovCommand(
@@ -714,15 +730,16 @@ int main(int argc, char* argv[]) {
     }
     VLOG(2) << *global_model;
     std::vector<std::string> errors;
-    const CompiledModel compiled_model = CompileModel(*global_model, &errors);
+    std::map<std::string, IdentifierInfo> identifiers_by_name =
+        GetConstantIdentifiersByName(global_model->constants(), const_overrides,
+                                     &errors);
+    const CompiledModel compiled_model =
+        CompileModel(*global_model, &identifiers_by_name, &errors);
     if (compiled_model.type() == CompiledModelType::DTMC &&
         engine != SAMPLING_ENGINE) {
       errors.push_back(
           StrCat(global_model->type(), " only supported by sampling engine"));
     }
-    std::map<std::string, IdentifierInfo> identifiers_by_name;
-    // TODO(hlsyounes): Add constant identifiers by name.
-    AddVariableIdentifiersByName(compiled_model, &identifiers_by_name);
     DecisionDiagramManager dd_man(2 * compiled_model.BitCount());
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;
