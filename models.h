@@ -32,44 +32,6 @@
 #include "src/ddutil.h"
 #include "src/model.h"
 
-struct PHData;
-
-// A parsed variable.
-class ParsedVariable {
- public:
-  // Constructs a parsed variable with the given name, type, and min, max, and
-  // init expressions.
-  explicit ParsedVariable(const std::string& name, Type type,
-                          std::unique_ptr<const Expression>&& min,
-                          std::unique_ptr<const Expression>&& max,
-                          std::unique_ptr<const Expression>&& init);
-
-  // Returns the name for this parsed variable.
-  const std::string& name() const { return name_; }
-
-  // Returns the type for this parsed variable.
-  Type type() const { return type_; }
-
-  // Returns the min expression for this parsed variable.
-  const Expression&  min() const { return *min_; }
-
-  // Returns the max expression for this parsed variable.
-  const Expression&  max() const { return *max_; }
-
-  // Returns true if this parsed variable has an init expression.
-  bool has_init() const { return init_ != nullptr; }
-
-  // Returns the init expression for this parsed variable.
-  const Expression& init() const { return *init_; }
-
- private:
-  std::string name_;
-  Type type_;
-  std::unique_ptr<const Expression> min_;
-  std::unique_ptr<const Expression> max_;
-  std::unique_ptr<const Expression> init_;
-};
-
 // A parsed model.
 class Model {
  public:
@@ -107,12 +69,28 @@ class Model {
   bool AddBoolVariable(const std::string& name,
                        std::unique_ptr<const Expression>&& init);
 
-  // Opens a new module scope.  Requires that no module scope is currently open.
-  void OpenModuleScope();
+  // Marks the start of a new module with the given.  Returns false if a module
+  // with the given name already exists.  Requires that no module is currently
+  // open.
+  bool StartModule(const std::string& name);
 
-  // Closes the current module scope.  Requires that a module scope is
+  // Adds a command to the current module.  Returns false if the command could
+  // not be added and adds a reason for the failure to errors.  Requires that a
+  // module is currently open.
+  bool AddCommand(Command&& command, std::vector<std::string>* errors);
+
+  // Adds commands and variables from an existing module to the current module,
+  // applying the given substitutions to identifiers.  All variables for the
+  // existing module must be renamed to unused names.  Returns false on failure
+  // and adds a reason for the failure to errors.  Requires that a module is
   // currently open.
-  void CloseModuleScope();
+  bool AddFromModule(const std::string& from_name,
+                     const std::map<std::string, std::string>& substitutions,
+                     std::vector<std::string>* errors);
+
+  // Marks the end of the current module.  Requires that a module is currently
+  // open.
+  void EndModule();
 
   /* Adds a module to this model. */
   void add_module(const Module& module);
@@ -141,7 +119,7 @@ class Model {
   const std::string& variable_name(int i) const { return variables_[i].name(); }
 
   /* Returns the modules for this model */
-  const std::vector<const Module*>& modules() const { return modules_; }
+  const std::vector<const Module*>& modules() const { return legacy_modules_; }
 
   /* Returns all commands for this model. */
   const std::vector<const Command*>& commands() const { return commands_; }
@@ -166,10 +144,12 @@ private:
   std::vector<ParsedConstant> constants_;
   std::vector<ParsedVariable> variables_;
   std::set<int> global_variables_;
-  std::vector<std::set<int>> module_variables_;
   int current_module_;
+  std::map<std::string, int> modules_;
+  std::vector<std::set<int>> module_variables_;
+  std::vector<std::vector<Command>> module_commands_;
   /* The modules for this model */
-  std::vector<const Module*> modules_;
+  std::vector<const Module*> legacy_modules_;
   /* Compiled commands for this model. */
   std::vector<const Command*> commands_;
   /* Modules that the above commands are associated with. */
