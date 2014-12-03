@@ -1467,6 +1467,9 @@ void DistributionIdentifierSubstituter::DoVisitUniform(
 }  // namespace
 
 static void add_module(const std::string* ident1, const std::string* ident2) {
+  if (!model->StartModule(*ident1)) {
+    yyerror(StrCat("duplicate module ", *ident1));
+  }
   std::map<std::string, Module*>::const_iterator mi = modules.find(*ident1);
   if (mi != modules.end()) {
     yyerror("ignoring repeated declaration of module `" + *ident1 + "'");
@@ -1489,7 +1492,6 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 	}
       }
       std::map<std::string, std::string> v_subst;
-      model->OpenModuleScope();
       for (const std::string& variable : src_module.variables()) {
 	auto si = subst.find(variable);
 	if (si == subst.end()) {
@@ -1525,7 +1527,7 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
       Module* mod = SubstituteIdentifiers(src_module, v_subst, synch_subst);
       modules.insert(std::make_pair(*ident1, mod));
       model->add_module(*mod);
-      model->CloseModuleScope();
+      model->EndModule();
     }
   }
   subst.clear();
@@ -1539,19 +1541,21 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 static void add_module() {
   model->add_module(*module);
   module = nullptr;
-  model->CloseModuleScope();
+  model->EndModule();
 }
 
 
 /* Prepares a module for parsing. */
 static void prepare_module(const std::string* ident) {
+  if (!model->StartModule(*ident)) {
+    yyerror(StrCat("duplicate module ", *ident));
+  }
   std::map<std::string, Module*>::const_iterator mi = modules.find(*ident);
   if (mi != modules.end()) {
     yyerror("ignoring repeated declaration of module `" + *ident + "'");
   } else {
     module = new Module();
     modules.insert(std::make_pair(*ident, module));
-    model->OpenModuleScope();
   }
   delete ident;
 }

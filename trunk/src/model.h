@@ -90,4 +90,42 @@ void ResolveConstants(const std::vector<ParsedConstant>& constants,
                       std::map<std::string, TypedValue>* constant_values,
                       std::vector<std::string>* errors);
 
+// A parsed variable.
+class ParsedVariable {
+ public:
+  // Constructs a parsed variable with the given name, type, and min, max, and
+  // init expressions.
+  explicit ParsedVariable(const std::string& name, Type type,
+                          std::unique_ptr<const Expression>&& min,
+                          std::unique_ptr<const Expression>&& max,
+                          std::unique_ptr<const Expression>&& init);
+
+  // Returns the name for this parsed variable.
+  const std::string& name() const { return name_; }
+
+  // Returns the type for this parsed variable.
+  Type type() const { return type_; }
+
+  // Returns the min expression for this parsed variable.
+  const Expression&  min() const { return *min_; }
+
+  // Returns the max expression for this parsed variable.
+  const Expression&  max() const { return *max_; }
+
+  // Returns true if this parsed variable has an explicit init expression.
+  bool has_explicit_init() const { return init_ != nullptr; }
+
+  // Returns the init expression for this parsed variable.  Returns the min
+  // expression if this parsed variable does not have an explicit init
+  // expression.
+  const Expression& init() const { return (init_ == nullptr) ? *min_ : *init_; }
+
+ private:
+  std::string name_;
+  Type type_;
+  std::unique_ptr<const Expression> min_;
+  std::unique_ptr<const Expression> max_;
+  std::unique_ptr<const Expression> init_;
+};
+
 #endif  // MODEL_H_

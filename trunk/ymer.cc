@@ -448,12 +448,8 @@ CompiledModel CompileModel(
         GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
     const int max =
         GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
-    const int init = v.has_init() ? GetIntValue(v.init(), v.type(),
-                                                *identifiers_by_name, errors)
-                                  : min;
-    if (!v.has_init()) {
-      errors->push_back(StrCat("no init expression for variable ", v.name()));
-    }
+    const int init =
+        GetIntValue(v.init(), v.type(), *identifiers_by_name, errors);
     compiled_model.AddVariable(v.name(), v.type(), min, max, init);
   }
 

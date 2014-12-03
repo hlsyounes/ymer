@@ -911,19 +911,26 @@ bool Model::AddVariable(const std::string& name, Type type,
   return true;
 }
 
-void Model::OpenModuleScope() {
+bool Model::StartModule(const std::string& name) {
   CHECK_EQ(current_module_, kNoModule);
-  current_module_ = module_variables_.size();
+  current_module_ = modules_.size();
+  if (!modules_.emplace(name, current_module_).second) {
+    return false;
+  }
   module_variables_.emplace_back();
+  module_commands_.emplace_back();
+  return true;
 }
 
-void Model::CloseModuleScope() {
+void Model::EndModule() {
   CHECK_NE(current_module_, kNoModule);
   current_module_ = kNoModule;
 }
 
 /* Adds a module to this model. */
-void Model::add_module(const Module& module) { modules_.push_back(&module); }
+void Model::add_module(const Module& module) {
+  legacy_modules_.push_back(&module);
+}
 
 namespace {
 
@@ -1151,7 +1158,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       const ParsedVariable& v = m.variables()[*vi];
       os << std::endl << "global " << v.name();
       os << " : [" << v.min() << ".." << v.max() << "]";
-      if (v.has_init()) {
+      if (v.has_explicit_init()) {
         os << " init " << v.init();
       }
       os << ';';
@@ -1167,7 +1174,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
         const ParsedVariable& v = m.variables()[*vi];
         os << std::endl << "  " << v.name();
         os << " : [" << v.min() << ".." << v.max() << "]";
-        if (v.has_init()) {
+        if (v.has_explicit_init()) {
           os << " init " << v.init();
         }
         os << ';';

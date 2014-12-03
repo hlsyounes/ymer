@@ -64,10 +64,6 @@ struct Command {
   const std::vector<const Update*>& updates() const { return updates_; }
 
 private:
-  // Disallow copy and assign.
-  Command(const Command&);
-  Command& operator=(const Command&);
-
   /* The synchronization for this command; 0 if this command requires
      no synchronization. */
   size_t synch_;
