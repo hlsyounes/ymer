@@ -176,10 +176,9 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 402 "parser.yy" /* yacc.c:1909  */
+#line 405 "parser.yy" /* yacc.c:1909  */
 
   ModelType model_type;
-  size_t synch;
   const PathProperty* path;
   const Distribution* dist;
   const Expression* expr;
@@ -189,7 +188,7 @@ union YYSTYPE
   Function function;
   UniquePtrVector<const Expression>* arguments;
 
-#line 193 "parser.hh" /* yacc.c:1909  */
+#line 192 "parser.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

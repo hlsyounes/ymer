@@ -108,7 +108,7 @@ static const Identifier* find_variable(const std::string* ident);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression* expr);
 /* Returns the value of the given synchronization. */
-static size_t synchronization_value(const std::string* ident);
+static size_t synchronization_value(const std::string& ident);
 /* Adds a substitution to the current substitution map. */
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2);
@@ -127,7 +127,7 @@ static bool declare_variable(const std::string* ident,
 /* Adds a command to the current module. */
 static void add_command();
 /* Prepares a command for parsing. */
-static void prepare_command(int synch,
+static void prepare_command(std::unique_ptr<const std::string>&& action,
                             std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay);
 /* Adds a module to the current model defined by renaming. */
@@ -352,8 +352,11 @@ const Uniform* NewUniform(const Expression* low,
 
 void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
                  std::unique_ptr<const Expression>&& init) {
-  if (!model->AddConstant(*name, type, std::move(init))) {
-    yyerror(StrCat("duplicate identifier: ", *name));
+  std::vector<std::string> errors;
+  if (!model->AddConstant(*name, type, std::move(init), &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
   }
 }
 
@@ -401,7 +404,6 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 
 %union {
   ModelType model_type;
-  size_t synch;
   const PathProperty* path;
   const Distribution* dist;
   const Expression* expr;
@@ -413,13 +415,12 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 }
 
 %type <model_type> model_type
-%type <synch> synchronization
 %type <expr> property
 %type <path> path_property
 %type <dist> distribution
 %type <expr> expr const_rate_expr const_expr
 %type <nat> integer
-%type <str> IDENTIFIER
+%type <str> IDENTIFIER synchronization
 %type <number> NUMBER
 %type <function> function
 %type <arguments> arguments
@@ -534,12 +535,12 @@ commands : /* empty */
          ;
 
 command : synchronization expr ARROW distribution ':'
-            { prepare_command($1, WrapUnique($2), $4); } update ';'
+            { prepare_command(WrapUnique($1), WrapUnique($2), $4); } update ';'
             { add_command(); }
         ;
 
-synchronization : '[' ']' { $$ = 0; }
-                | '[' IDENTIFIER ']' { $$ = synchronization_value($2); }
+synchronization : '[' ']' { $$ = new std::string(); }
+                | '[' IDENTIFIER ']' { $$ = $2; }
                 ;
 
 update : IDENTIFIER PRIME '=' expr { add_update($1, $4); }
@@ -1078,22 +1079,23 @@ static void add_update(const std::string* ident, const Expression* expr) {
                             *ident)) {
     yyerror("updating variable belonging to other module");
   }
-  command->add_update(new Update(*ident,
-                                 std::unique_ptr<const Expression>(expr)));
+  command->add_update(Update(*ident, std::unique_ptr<const Expression>(expr)));
   delete ident;
 }
 
-static size_t synchronization_value(const std::string* ident) {
+static size_t synchronization_value(const std::string& ident) {
+  if (ident.empty()) {
+    return 0;
+  }
   size_t s;
   std::map<std::string, size_t>::const_iterator si =
-    synchronizations.find(*ident);
+    synchronizations.find(ident);
   if (si == synchronizations.end()) {
     s = synchronizations.size() + 1;
-    synchronizations.insert(std::make_pair(*ident, s));
+    synchronizations.insert(std::make_pair(ident, s));
   } else {
     s = si->second;
   }
-  delete ident;
   return s;
 }
 
@@ -1102,20 +1104,19 @@ static void add_substitution(const std::string* ident1,
   if (variables.find(*ident1) != variables.end()) {
     /* Variable substitution. */
     subst.insert(std::make_pair(*ident1, *ident2));
-    delete ident2;
   } else {
     std::map<std::string, size_t>::const_iterator si =
       synchronizations.find(*ident1);
     if (si != synchronizations.end()) {
       /* Synchronization substitution. */
-      size_t s = synchronization_value(ident2);
+      size_t s = synchronization_value(*ident2);
       synch_subst.insert({si->second, s});
     } else {
       yyerror("illegal substitution `" + *ident1 + "=" + *ident2 + "'");
-      delete ident2;
     }
   }
   delete ident1;
+  delete ident2;
 }
 
 static void declare_constant(const std::string* ident,
@@ -1221,8 +1222,9 @@ static bool declare_variable(const std::string* ident,
         std::make_pair(*ident, std::unique_ptr<const Expression>(high)));
     variable_starts.insert(
         std::make_pair(*ident, std::unique_ptr<const Expression>(start)));
+    std::vector<std::string> errors;
     model->AddIntVariable(*ident, Literal::New(l), Literal::New(h),
-                          Literal::New(s));
+                          Literal::New(s), &errors);
     if (!delayed_addition) {
       if (module != nullptr) {
 	module->add_variable(*ident);
@@ -1237,18 +1239,12 @@ static bool declare_variable(const std::string* ident,
   return declared;
 }
 
-
-/* Adds a command to the current module. */
-static void add_command() {
-  module->add_command(command);
-}
-
-
 /* Prepares a command for parsing. */
-static void prepare_command(int synch,
+static void prepare_command(std::unique_ptr<const std::string>&& action,
                             std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay) {
-  command = new Command(synch, std::move(guard), WrapUnique(delay));
+  command = new Command(synchronization_value(*action), *action,
+                        std::move(guard), WrapUnique(delay));
 }
 
 namespace {
@@ -1319,11 +1315,11 @@ std::unique_ptr<const Distribution> SubstituteIdentifiers(
   return substituter.release_distribution();
 }
 
-const Update* SubstituteIdentifiers(
+Update SubstituteIdentifiers(
     const Update& update,
     const std::map<std::string, std::string>& substitutions) {
-  return new Update(SubstituteName(update.variable(), substitutions),
-                    SubstituteIdentifiers(update.expr(), substitutions));
+  return Update(SubstituteName(update.variable(), substitutions),
+                SubstituteIdentifiers(update.expr(), substitutions));
 }
 
 const Command* SubstituteIdentifiers(
@@ -1337,12 +1333,12 @@ const Command* SubstituteIdentifiers(
   } else {
     s = si->second;
   }
-  Command* subst_comm = new Command(
-      s,
-      SubstituteIdentifiers(command.guard(), substitutions),
-      SubstituteIdentifiers(command.delay(), substitutions));
-  for (const Update* update : command.updates()) {
-    subst_comm->add_update(SubstituteIdentifiers(*update, substitutions));
+  Command* subst_comm =
+      new Command(s, command.action(),
+                  SubstituteIdentifiers(command.guard(), substitutions),
+                  SubstituteIdentifiers(command.delay(), substitutions));
+  for (const Update& update : command.updates()) {
+    subst_comm->add_update(SubstituteIdentifiers(update, substitutions));
   }
   return subst_comm;
 }
@@ -1465,6 +1461,22 @@ void DistributionIdentifierSubstituter::DoVisitUniform(
 }
 
 }  // namespace
+
+static void add_command() {
+  module->add_command(command);
+  Command copy(command->synch(), command->action(),
+               SubstituteIdentifiers(command->guard(), {}),
+               SubstituteIdentifiers(command->delay(), {}));
+  for (const Update& update : command->updates()) {
+    copy.add_update(SubstituteIdentifiers(update, {}));
+  }
+  std::vector<std::string> errors;
+  if (!model->AddCommand(std::move(copy), &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
+  }
+}
 
 static void add_module(const std::string* ident1, const std::string* ident2) {
   if (!model->StartModule(*ident1)) {

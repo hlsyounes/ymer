@@ -27,34 +27,29 @@
 /* Command */
 
 /* Constructs a command. */
-Command::Command(size_t synch, std::unique_ptr<const Expression>&& guard,
+Command::Command(size_t synch, const std::string& action,
+                 std::unique_ptr<const Expression>&& guard,
                  std::unique_ptr<const Distribution>&& delay)
-    : synch_(synch), guard_(std::move(guard)), delay_(std::move(delay)) {}
-
-/* Deletes this command. */
-Command::~Command() {
-  for (const Update* update : updates()) {
-    delete update;
-  }
-}
+    : synch_(synch),
+      action_(action),
+      guard_(std::move(guard)),
+      delay_(std::move(delay)) {}
 
 /* Adds an update to this command. */
-void Command::add_update(const Update* update) { updates_.push_back(update); }
+void Command::add_update(Update&& update) {
+  updates_.push_back(std::move(update));
+}
 
 /* Output operator for commands. */
 std::ostream& operator<<(std::ostream& os, const Command& c) {
-  os << "[";
-  if (c.synch() != 0) {
-    os << 's' << c.synch();
-  }
-  os << "] " << c.guard() << " -> " << c.delay() << " : ";
+  os << "[" << c.action() << "] " << c.guard() << " -> " << c.delay() << " : ";
   auto ui = c.updates().begin();
   if (ui != c.updates().end()) {
-    const Update* u = *ui;
-    os << u->variable() << "\'=" << u->expr();
+    const Update& u0 = *ui;
+    os << u0.variable() << "\'=" << u0.expr();
     for (ui++; ui != c.updates().end(); ui++) {
-      u = *ui;
-      os << " & " << u->variable() << "\'=" << u->expr();
+      const Update& u = *ui;
+      os << " & " << u.variable() << "\'=" << u.expr();
     }
   }
   return os;

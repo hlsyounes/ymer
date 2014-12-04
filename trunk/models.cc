@@ -26,6 +26,7 @@
 
 #include "formulas.h"
 #include "src/distribution.h"
+#include "src/strutil.h"
 
 #include "cudd.h"
 #include "glog/logging.h"
@@ -795,9 +796,9 @@ BDD command_bdd(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Command& command, std::set<std::string>* updated_variables) {
   BDD ddu = manager.GetConstant(true);
-  for (const Update* update : command.updates()) {
-    ddu = update_bdd(manager, identifiers_by_name, *update) && ddu;
-    updated_variables->insert(update->variable());
+  for (const Update& update : command.updates()) {
+    ddu = update_bdd(manager, identifiers_by_name, update) && ddu;
+    updated_variables->insert(update.variable());
   }
   return BDD(mtbdd(manager, identifiers_by_name, command.guard())) && ddu;
 }
@@ -868,9 +869,29 @@ bool Model::SetType(ModelType type) {
   return false;
 }
 
+std::string Model::IdentifierIndexTypeToString(IdentifierIndex::Type type) {
+  switch (type) {
+    case IdentifierIndex::kConstant:
+      return "constant";
+    case IdentifierIndex::kVariable:
+      return "variable";
+    case IdentifierIndex::kAction:
+      return "action";
+  }
+  LOG(FATAL) << "bad identifier index type";
+}
+
 bool Model::AddConstant(const std::string& name, Type type,
-                 std::unique_ptr<const Expression>&& init) {
-  if (identifiers_.find(name) != identifiers_.end()) {
+                        std::unique_ptr<const Expression>&& init,
+                        std::vector<std::string>* errors) {
+  auto i = identifiers_.find(name);
+  if (i != identifiers_.end()) {
+    if (i->second.type == IdentifierIndex::kConstant) {
+      errors->push_back(StrCat("duplicate constant ", name));
+    } else {
+      errors->push_back(StrCat("constant ", name, " previously defined as ",
+                               IdentifierIndexTypeToString(i->second.type)));
+    }
     return false;
   }
   identifiers_.insert({name, {IdentifierIndex::kConstant, constants_.size()}});
@@ -881,22 +902,32 @@ bool Model::AddConstant(const std::string& name, Type type,
 bool Model::AddIntVariable(const std::string& name,
                            std::unique_ptr<const Expression>&& min,
                            std::unique_ptr<const Expression>&& max,
-                           std::unique_ptr<const Expression>&& init) {
+                           std::unique_ptr<const Expression>&& init,
+                           std::vector<std::string>* errors) {
   return AddVariable(name, Type::INT, std::move(min), std::move(max),
-                     std::move(init));
+                     std::move(init), errors);
 }
 
 bool Model::AddBoolVariable(const std::string& name,
-                            std::unique_ptr<const Expression>&& init) {
+                            std::unique_ptr<const Expression>&& init,
+                            std::vector<std::string>* errors) {
   return AddVariable(name, Type::BOOL, Literal::New(false), Literal::New(true),
-                     std::move(init));
+                     std::move(init), errors);
 }
 
 bool Model::AddVariable(const std::string& name, Type type,
                         std::unique_ptr<const Expression>&& min,
                         std::unique_ptr<const Expression>&& max,
-                        std::unique_ptr<const Expression>&& init) {
-  if (identifiers_.find(name) != identifiers_.end()) {
+                        std::unique_ptr<const Expression>&& init,
+                        std::vector<std::string>* errors) {
+  auto i = identifiers_.find(name);
+  if (i != identifiers_.end()) {
+    if (i->second.type == IdentifierIndex::kVariable) {
+      errors->push_back(StrCat("duplicate variable ", name));
+    } else {
+      errors->push_back(StrCat("variable ", name, " previously defined as ",
+                               IdentifierIndexTypeToString(i->second.type)));
+    }
     return false;
   }
   const size_t index = variables_.size();
@@ -911,6 +942,23 @@ bool Model::AddVariable(const std::string& name, Type type,
   return true;
 }
 
+bool Model::AddAction(const std::string& name,
+                      std::vector<std::string>* errors) {
+  if (!name.empty()) {
+    // We reuse the same index for all actions, since we just need to ensure
+    // that actions do not clash with other identifier kinds.
+    auto result = identifiers_.insert({name, {IdentifierIndex::kAction, 0}});
+    if (!result.second &&
+        result.first->second.type != IdentifierIndex::kAction) {
+      errors->push_back(
+          StrCat("action ", name, " previously defined as ",
+                 IdentifierIndexTypeToString(result.first->second.type)));
+      return false;
+    }
+  }
+  return true;
+}
+
 bool Model::StartModule(const std::string& name) {
   CHECK_EQ(current_module_, kNoModule);
   current_module_ = modules_.size();
@@ -919,6 +967,43 @@ bool Model::StartModule(const std::string& name) {
   }
   module_variables_.emplace_back();
   module_commands_.emplace_back();
+  return true;
+}
+
+bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
+  CHECK_NE(current_module_, kNoModule);
+  if (!AddAction(command.action(), errors)) {
+    return false;
+  }
+  for (const auto& update : command.updates()) {
+    auto i = identifiers_.find(update.variable());
+    if (i == identifiers_.end()) {
+      errors->push_back(
+          StrCat("command is updating undefined variable ", update.variable()));
+      return false;
+    } else if (i->second.type != IdentifierIndex::kVariable) {
+      errors->push_back(StrCat("command is updating ",
+                               IdentifierIndexTypeToString(i->second.type), " ",
+                               update.variable()));
+      return false;
+    } else if (!command.action().empty() &&
+               global_variables_.find(i->second.index) !=
+                   global_variables_.end()) {
+      errors->push_back(StrCat("command with action ", command.action(),
+                               " is updating global variable ",
+                               update.variable()));
+      return false;
+    } else if (module_variables_[current_module_].find(i->second.index) ==
+                   module_variables_[current_module_].end() &&
+               global_variables_.find(i->second.index) ==
+                   global_variables_.end()) {
+      errors->push_back(StrCat("command is updating variable ",
+                               update.variable(),
+                               " that belongs to a different module"));
+      return false;
+    }
+  }
+  module_commands_[current_module_].push_back(std::move(command));
   return true;
 }
 
@@ -1110,23 +1195,23 @@ void Model::compile() {
                 CopyExpression(cj.guard()));
             Command* c;
             if (IsUnitDistribution(ci.delay())) {
-              c = new Command(*si, std::move(guard),
+              c = new Command(*si, cj.action(), std::move(guard),
                               CopyDistribution(cj.delay()));
             } else if (IsUnitDistribution(cj.delay())) {
-              c = new Command(*si, std::move(guard),
+              c = new Command(*si, ci.action(), std::move(guard),
                               CopyDistribution(ci.delay()));
             } else {
               throw std::logic_error(
                   "at least one command in a"
                   " synchronization pair must have rate 1");
             }
-            for (const Update* update : ci.updates()) {
-              c->add_update(new Update(update->variable(),
-                                       CopyExpression(update->expr())));
+            for (const Update& update : ci.updates()) {
+              c->add_update(
+                  Update(update.variable(), CopyExpression(update.expr())));
             }
-            for (const Update* update : cj.updates()) {
-              c->add_update(new Update(update->variable(),
-                                       CopyExpression(update->expr())));
+            for (const Update& update : cj.updates()) {
+              c->add_update(
+                  Update(update.variable(), CopyExpression(update.expr())));
             }
             commands_.push_back(c);
             command_modules_.push_back({});

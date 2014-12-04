@@ -47,27 +47,31 @@ class Model {
 
   // Adds a constant with the given name, type, and init expression to this
   // model.  The init expression is optional and may be null.  Returns false if
-  // an identifier with the given name has already been added.
+  // an identifier with the given name has already been added and adds a reason
+  // for the failure to errors.
   bool AddConstant(const std::string& name, Type type,
-                   std::unique_ptr<const Expression>&& init);
+                   std::unique_ptr<const Expression>&& init,
+                   std::vector<std::string>* errors);
 
   // Adds an int variable with the given name, and min, max, and init
   // expressions.  The init expression is optional and may be null.  Returns
-  // false if an identifier with the given name has already been added.  The
-  // variable becomes a module variable if this method is called between calls
-  // to OpenModuleScope() and CloseModuleScope().
+  // false if an identifier with the given name has already been added and adds
+  // a reason for the failure to errors.  The variable becomes a module variable
+  // if this method is called between calls to StartModule() and EndModule().
   bool AddIntVariable(const std::string& name,
                       std::unique_ptr<const Expression>&& min,
                       std::unique_ptr<const Expression>&& max,
-                      std::unique_ptr<const Expression>&& init);
+                      std::unique_ptr<const Expression>&& init,
+                      std::vector<std::string>* errors);
 
   // Adds a bool variable with the given name and init expression.  The init
   // expression is optional and may be null.  Returns false if an identifier
-  // with the given name has already been added.  The variable becomes a module
-  // variable if this method is called between calls to OpenModuleScope() and
-  // CloseModuleScope().
+  // with the given name has already been added and adds a reason for the
+  // failure to errors.  The variable becomes a module variable if this method
+  // is called between calls to StartModule() and EndModule().
   bool AddBoolVariable(const std::string& name,
-                       std::unique_ptr<const Expression>&& init);
+                       std::unique_ptr<const Expression>&& init,
+                       std::vector<std::string>* errors);
 
   // Marks the start of a new module with the given.  Returns false if a module
   // with the given name already exists.  Requires that no module is currently
@@ -130,14 +134,19 @@ class Model {
 
 private:
   struct IdentifierIndex {
-    enum { kConstant, kVariable } type;
+    enum Type { kConstant, kVariable, kAction } type;
     size_t index;
   };
+
+  static std::string IdentifierIndexTypeToString(IdentifierIndex::Type type);
 
   bool AddVariable(const std::string& name, Type type,
                    std::unique_ptr<const Expression>&& min,
                    std::unique_ptr<const Expression>&& max,
-                   std::unique_ptr<const Expression>&& init);
+                   std::unique_ptr<const Expression>&& init,
+                   std::vector<std::string>* errors);
+
+  bool AddAction(const std::string& name, std::vector<std::string>* errors);
 
   ModelType type_;
   std::map<std::string, IdentifierIndex> identifiers_;
