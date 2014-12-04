@@ -361,13 +361,13 @@ CompiledUpdate CompileUpdate(
 }
 
 std::vector<CompiledUpdate> CompileUpdates(
-    const std::vector<const Update*>& updates,
+    const std::vector<Update>& updates,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
   std::vector<CompiledUpdate> compiled_updates;
-  for (const Update* update : updates) {
+  for (const auto& update : updates) {
     compiled_updates.push_back(
-        CompileUpdate(*update, identifiers_by_name, errors));
+        CompileUpdate(update, identifiers_by_name, errors));
   }
   return compiled_updates;
 }

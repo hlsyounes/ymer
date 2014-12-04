@@ -41,18 +41,20 @@
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, std::unique_ptr<const Expression>&& guard,
+  Command(size_t synch, const std::string& action,
+          std::unique_ptr<const Expression>&& guard,
           std::unique_ptr<const Distribution>&& delay);
 
-  /* Deletes this command. */
-  ~Command();
-
   /* Adds an update to this command. */
-  void add_update(const Update* update);
+  void add_update(Update&& update);
 
   /* Returns the synchronization for this command; 0 if this command
      requires no synchronization. */
   size_t synch() const { return synch_; }
+
+  // Returns the action label for this command, or an empty string if the
+  // command does not have an action label.
+  const std::string& action() const { return action_; }
 
   /* Returns the guard for this command. */
   const Expression& guard() const { return *guard_; }
@@ -61,18 +63,14 @@ struct Command {
   const Distribution& delay() const { return *delay_; }
 
   /* Returns the updates for this command. */
-  const std::vector<const Update*>& updates() const { return updates_; }
+  const std::vector<Update>& updates() const { return updates_; }
 
 private:
-  /* The synchronization for this command; 0 if this command requires
-     no synchronization. */
   size_t synch_;
-  /* The guard for this command. */
+  std::string action_;
   std::unique_ptr<const Expression> guard_;
-  /* The rate for this command. */
   std::unique_ptr<const Distribution> delay_;
-  /* The updates for this command. */
-  std::vector<const Update*> updates_;
+  std::vector<Update> updates_;
 };
 
 /* Output operator for commands. */
