@@ -448,3 +448,13 @@ void ResolveConstants(const std::vector<ParsedConstant>& constants,
     Identifier(c.name()).Accept(&evaluator);
   }
 }
+
+ParsedVariable::ParsedVariable(const std::string& name, Type type,
+                               std::unique_ptr<const Expression>&& min,
+                               std::unique_ptr<const Expression>&& max,
+                               std::unique_ptr<const Expression>&& init)
+    : name_(name),
+      type_(type),
+      min_(std::move(min)),
+      max_(std::move(max)),
+      init_(std::move(init)) {}

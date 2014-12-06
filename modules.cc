@@ -23,12 +23,11 @@
 #include "src/distribution.h"
 #include "src/expression.h"
 
-Command::Command(size_t synch, const std::string& action,
+Command::Command(const std::string& action,
                  std::unique_ptr<const Expression>&& guard,
                  std::unique_ptr<const Distribution>&& delay,
                  std::vector<Update>&& updates)
-    : synch_(synch),
-      action_(action),
+    : action_(action),
       guard_(std::move(guard)),
       delay_(std::move(delay)),
       updates_(std::move(updates)) {}
@@ -49,27 +48,4 @@ std::ostream& operator<<(std::ostream& os, const Command& c) {
     }
   }
   return os;
-}
-
-/* ====================================================================== */
-/* Module */
-
-/* Constructs a module. */
-Module::Module() {}
-
-/* Deletes this module. */
-Module::~Module() {
-  for (const Command* command : commands()) {
-    delete command;
-  }
-}
-
-/* Adds a variable to this module. */
-void Module::add_variable(const std::string& variable) {
-  variables_.push_back(variable);
-}
-
-/* Adds a command to this module. */
-void Module::add_command(const Command* command) {
-  commands_.push_back(command);
 }

@@ -32,6 +32,35 @@
 #include "src/ddutil.h"
 #include "src/model.h"
 
+// A parsed module.
+class ParsedModule {
+ public:
+  // Constructs a parsed module with the given name.
+  explicit ParsedModule(const std::string& name);
+
+  // Makes the variable with the given index a variable of this parsed module.
+  void add_variable(int variable_index) { variables_.insert(variable_index); }
+
+  // Adds the given command to this parsed module.
+  void add_command(Command&& command) {
+    commands_.push_back(std::move(command));
+  }
+
+  // Returns the name for this parsed module.
+  const std::string& name() const { return name_; }
+
+  // Returns the indices of variables for this parsed module.
+  std::set<int> variables() const { return variables_; }
+
+  // Returns the commands for this parsed module.
+  const std::vector<Command>& commands() const { return commands_; }
+
+ private:
+  std::string name_;
+  std::set<int> variables_;
+  std::vector<Command> commands_;
+};
+
 // A parsed model.
 class Model {
  public:
@@ -96,9 +125,6 @@ class Model {
   // open.
   void EndModule();
 
-  /* Adds a module to this model. */
-  void add_module(const Module& module);
-
   /* Compiles the commands of this model. */
   void compile();
 
@@ -114,16 +140,11 @@ class Model {
   // Returns the global variables (just indices) for this model.
   const std::set<int>& global_variables() const { return global_variables_; }
 
-  // Returns the module variables (just indices) for the ith module.
-  const std::set<int>& module_variables(int i) const {
-    return module_variables_[i];
-  }
+  // Returns the modules for this model.
+  const std::vector<ParsedModule>& modules() const { return modules_; }
 
   /* Returns the name of the variable with index i. */
   const std::string& variable_name(int i) const { return variables_[i].name(); }
-
-  /* Returns the modules for this model */
-  const std::vector<const Module*>& modules() const { return legacy_modules_; }
 
   /* Returns all commands for this model. */
   const std::vector<const Command*>& commands() const { return commands_; }
@@ -145,16 +166,13 @@ private:
   bool AddAction(const std::string& name, std::vector<std::string>* errors);
 
   ModelType type_;
-  std::map<std::string, IdentifierIndex> identifiers_;
+  std::map<std::string, IdentifierIndex> identifier_indices_;
   std::vector<ParsedConstant> constants_;
   std::vector<ParsedVariable> variables_;
   std::set<int> global_variables_;
   int current_module_;
-  std::map<std::string, int> modules_;
-  std::vector<std::set<int>> module_variables_;
-  std::vector<std::vector<Command>> module_commands_;
-  /* The modules for this model */
-  std::vector<const Module*> legacy_modules_;
+  std::map<std::string, int> module_indices_;
+  std::vector<ParsedModule> modules_;
   /* Compiled commands for this model. */
   std::vector<const Command*> commands_;
 };

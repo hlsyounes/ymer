@@ -31,24 +31,14 @@
 #include "cudd.h"
 #include "glog/logging.h"
 
-ParsedVariable::ParsedVariable(const std::string& name, Type type,
-                               std::unique_ptr<const Expression>&& min,
-                               std::unique_ptr<const Expression>&& max,
-                               std::unique_ptr<const Expression>&& init)
-    : name_(name),
-      type_(type),
-      min_(std::move(min)),
-      max_(std::move(max)),
-      init_(std::move(init)) {}
-
-/* ====================================================================== */
-/* SynchronizationMap */
+ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
 
 /*
  * A synchronization map.
  */
 struct SynchronizationMap
-    : public std::multimap<std::pair<const Module*, size_t>, const Command*> {};
+    : public std::multimap<std::pair<const ParsedModule*, std::string>,
+                           const Command*> {};
 
 /* Range for synchronization map. */
 typedef std::pair<SynchronizationMap::const_iterator,
@@ -813,9 +803,9 @@ BDD variable_updates(
     const std::map<int, PHData>& ph_commands) {
   BDD ddu = dd_start;
   // Conjunction with identity BDD for untouched module variables.
-  for (int i = model.modules().size() - 1; i >= 0; --i) {
+  for (auto i = model.modules().rbegin(); i != model.modules().rend(); ++i) {
     ddu = variable_identities(manager, ddu, model, identifiers_by_name,
-                              model.module_variables(i), updated_variables);
+                              i->variables(), updated_variables);
   }
   // Conjunction with identity BDD for untouched global variables.
   ddu = variable_identities(manager, ddu, model, identifiers_by_name,
@@ -836,12 +826,9 @@ Model::Model() : type_(ModelType::DEFAULT), current_module_(kNoModule) {}
 
 Model::~Model() {
   for (const Command* command : commands()) {
-    if (command->synch() != 0) {
+    if (!command->action().empty()) {
       delete command;
     }
-  }
-  for (const Module* module : modules()) {
-    delete module;
   }
 }
 
@@ -868,8 +855,8 @@ std::string Model::IdentifierIndexTypeToString(IdentifierIndex::Type type) {
 bool Model::AddConstant(const std::string& name, Type type,
                         std::unique_ptr<const Expression>&& init,
                         std::vector<std::string>* errors) {
-  auto i = identifiers_.find(name);
-  if (i != identifiers_.end()) {
+  auto i = identifier_indices_.find(name);
+  if (i != identifier_indices_.end()) {
     if (i->second.type == IdentifierIndex::kConstant) {
       errors->push_back(StrCat("duplicate constant ", name));
     } else {
@@ -878,7 +865,8 @@ bool Model::AddConstant(const std::string& name, Type type,
     }
     return false;
   }
-  identifiers_.insert({name, {IdentifierIndex::kConstant, constants_.size()}});
+  identifier_indices_.insert(
+      {name, {IdentifierIndex::kConstant, constants_.size()}});
   constants_.emplace_back(name, type, std::move(init));
   return true;
 }
@@ -904,8 +892,8 @@ bool Model::AddVariable(const std::string& name, Type type,
                         std::unique_ptr<const Expression>&& max,
                         std::unique_ptr<const Expression>&& init,
                         std::vector<std::string>* errors) {
-  auto i = identifiers_.find(name);
-  if (i != identifiers_.end()) {
+  auto i = identifier_indices_.find(name);
+  if (i != identifier_indices_.end()) {
     if (i->second.type == IdentifierIndex::kVariable) {
       errors->push_back(StrCat("duplicate variable ", name));
     } else {
@@ -915,13 +903,13 @@ bool Model::AddVariable(const std::string& name, Type type,
     return false;
   }
   const size_t index = variables_.size();
-  identifiers_.insert({name, {IdentifierIndex::kVariable, index}});
+  identifier_indices_.insert({name, {IdentifierIndex::kVariable, index}});
   variables_.emplace_back(name, type, std::move(min), std::move(max),
                           std::move(init));
   if (current_module_ == kNoModule) {
     global_variables_.insert(index);
   } else {
-    module_variables_[current_module_].insert(index);
+    modules_[current_module_].add_variable(index);
   }
   return true;
 }
@@ -931,7 +919,8 @@ bool Model::AddAction(const std::string& name,
   if (!name.empty()) {
     // We reuse the same index for all actions, since we just need to ensure
     // that actions do not clash with other identifier kinds.
-    auto result = identifiers_.insert({name, {IdentifierIndex::kAction, 0}});
+    auto result =
+        identifier_indices_.insert({name, {IdentifierIndex::kAction, 0}});
     if (!result.second &&
         result.first->second.type != IdentifierIndex::kAction) {
       errors->push_back(
@@ -946,11 +935,10 @@ bool Model::AddAction(const std::string& name,
 bool Model::StartModule(const std::string& name) {
   CHECK_EQ(current_module_, kNoModule);
   current_module_ = modules_.size();
-  if (!modules_.emplace(name, current_module_).second) {
+  if (!module_indices_.emplace(name, current_module_).second) {
     return false;
   }
-  module_variables_.emplace_back();
-  module_commands_.emplace_back();
+  modules_.emplace_back(name);
   return true;
 }
 
@@ -960,8 +948,8 @@ bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
     return false;
   }
   for (const auto& update : command.updates()) {
-    auto i = identifiers_.find(update.variable());
-    if (i == identifiers_.end()) {
+    auto i = identifier_indices_.find(update.variable());
+    if (i == identifier_indices_.end()) {
       errors->push_back(
           StrCat("command is updating undefined variable ", update.variable()));
       return false;
@@ -977,8 +965,8 @@ bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
                                " is updating global variable ",
                                update.variable()));
       return false;
-    } else if (module_variables_[current_module_].find(i->second.index) ==
-                   module_variables_[current_module_].end() &&
+    } else if (modules_[current_module_].variables().find(i->second.index) ==
+                   modules_[current_module_].variables().end() &&
                global_variables_.find(i->second.index) ==
                    global_variables_.end()) {
       errors->push_back(StrCat("command is updating variable ",
@@ -987,7 +975,7 @@ bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
       return false;
     }
   }
-  module_commands_[current_module_].push_back(std::move(command));
+  modules_[current_module_].add_command(std::move(command));
   return true;
 }
 
@@ -1140,8 +1128,7 @@ std::vector<Update> RewriteUpdates(
 Command RewriteCommand(
     const Command& command,
     const std::map<std::string, std::string>& substitutions) {
-  return Command(command.synch(),
-                 RewriteIdentifier(command.action(), substitutions),
+  return Command(RewriteIdentifier(command.action(), substitutions),
                  RewriteExpression(command.guard(), substitutions),
                  RewriteDistribution(command.delay(), substitutions),
                  RewriteUpdates(command.updates(), substitutions));
@@ -1154,15 +1141,15 @@ bool Model::AddFromModule(
     const std::map<std::string, std::string>& substitutions,
     std::vector<std::string>* errors) {
   CHECK_NE(current_module_, kNoModule);
-  auto i = modules_.find(from_name);
-  if (i == modules_.end()) {
+  auto i = module_indices_.find(from_name);
+  if (i == module_indices_.end()) {
     errors->push_back(StrCat("undefined module ", from_name));
     return false;
   }
-  const int from_index = i->second;
+  const ParsedModule& from_module = modules_[i->second];
   // Add renamed module variables, maintaining the same order as in the source
   // module.
-  for (int from_variable_index : module_variables(from_index)) {
+  for (int from_variable_index : from_module.variables()) {
     const auto& from_variable = variables_[from_variable_index];
     auto j = substitutions.find(from_variable.name());
     if (j == substitutions.end()) {
@@ -1171,30 +1158,19 @@ bool Model::AddFromModule(
       return false;
     }
     const std::string& to_variable_name = j->second;
-    if (from_variable.type() == Type::INT) {
-      if (!AddIntVariable(
-              to_variable_name,
-              RewriteExpression(from_variable.min(), substitutions),
-              RewriteExpression(from_variable.max(), substitutions),
-              from_variable.has_explicit_init()
-                  ? RewriteExpression(from_variable.init(), substitutions)
-                  : nullptr,
-              errors)) {
-        return false;
-      }
-    } else {
-      if (!AddBoolVariable(
-              to_variable_name,
-              from_variable.has_explicit_init()
-                  ? RewriteExpression(from_variable.init(), substitutions)
-                  : nullptr,
-              errors)) {
-        return false;
-      }
+    if (!AddVariable(
+            to_variable_name, from_variable.type(),
+            RewriteExpression(from_variable.min(), substitutions),
+            RewriteExpression(from_variable.max(), substitutions),
+            from_variable.has_explicit_init()
+                ? RewriteExpression(from_variable.init(), substitutions)
+                : nullptr,
+            errors)) {
+      return false;
     }
   }
   // Add module commands.
-  for (const auto& from_command : module_commands_[from_index]) {
+  for (const auto& from_command : from_module.commands()) {
     if (!AddCommand(RewriteCommand(from_command, substitutions), errors)) {
       return false;
     }
@@ -1206,11 +1182,6 @@ bool Model::AddFromModule(
 void Model::EndModule() {
   CHECK_NE(current_module_, kNoModule);
   current_module_ = kNoModule;
-}
-
-/* Adds a module to this model. */
-void Model::add_module(const Module& module) {
-  legacy_modules_.push_back(&module);
 }
 
 namespace {
@@ -1339,8 +1310,8 @@ void Model::compile() {
   /*
    * Clear currently compiled commands.
    */
-  for (const Command* command : commands()) {
-    if (command->synch() != 0) {
+  for (const Command* command : commands_) {
+    if (!command->action().empty()) {
       delete command;
     }
   }
@@ -1348,35 +1319,34 @@ void Model::compile() {
   /*
    * Process the commands of each module.
    */
-  std::set<size_t> synchs;
+  std::set<std::string> actions;
   SynchronizationMap synch_commands;
-  for (auto mi = modules().rbegin(); mi != modules().rend(); mi++) {
-    for (const Command* command : (*mi)->commands()) {
-      size_t synch = command->synch();
-      if (synch != 0) {
+  for (auto mi = modules_.rbegin(); mi != modules_.rend(); mi++) {
+    for (const Command& command : mi->commands()) {
+      const std::string& action = command.action();
+      if (!action.empty()) {
         /* Command is synchronized so store it for later processing. */
-        synch_commands.insert({{*mi, synch}, command});
-        synchs.insert(synch);
-      } else { /* synch == 0 */
+        synch_commands.insert({{&*mi, action}, &command});
+        actions.insert(action);
+      } else {
         /* Command is not synchronized. */
-        commands_.push_back(command);
+        commands_.push_back(&command);
       }
     }
   }
   /*
    * Add synchronized commands.
    */
-  for (std::set<size_t>::const_iterator si = synchs.begin(); si != synchs.end();
-       si++) {
-    for (auto mi = modules().rbegin(); mi != modules().rend(); mi++) {
+  for (auto si = actions.begin(); si != actions.end(); si++) {
+    for (auto mi = modules_.rbegin(); mi != modules_.rend(); mi++) {
       SynchronizationMapRange sri =
-          synch_commands.equal_range(std::make_pair(*mi, *si));
+          synch_commands.equal_range(std::make_pair(&*mi, *si));
       for (SynchronizationMap::const_iterator smi = sri.first;
            smi != sri.second; smi++) {
         const Command& ci = *(*smi).second;
-        for (auto mj = mi + 1; mj != modules().rend(); mj++) {
+        for (auto mj = mi + 1; mj != modules_.rend(); mj++) {
           SynchronizationMapRange srj =
-              synch_commands.equal_range(std::make_pair(*mj, *si));
+              synch_commands.equal_range(std::make_pair(&*mj, *si));
           for (SynchronizationMap::const_iterator smj = srj.first;
                smj != srj.second; smj++) {
             const Command& cj = *(*smj).second;
@@ -1388,10 +1358,10 @@ void Model::compile() {
                 CopyExpression(cj.guard()));
             Command* c;
             if (IsUnitDistribution(ci.delay())) {
-              c = new Command(*si, cj.action(), std::move(guard),
+              c = new Command(cj.action(), std::move(guard),
                               CopyDistribution(cj.delay()), {});
             } else if (IsUnitDistribution(cj.delay())) {
-              c = new Command(*si, ci.action(), std::move(guard),
+              c = new Command(ci.action(), std::move(guard),
                               CopyDistribution(ci.delay()), {});
             } else {
               throw std::logic_error(
@@ -1426,11 +1396,10 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << ";";
     }
   }
-  std::set<int>::const_iterator vi = m.global_variables().begin();
-  if (vi != m.global_variables().end()) {
+  if (!m.global_variables().empty()) {
     os << std::endl;
-    for (; vi != m.global_variables().end(); vi++) {
-      const ParsedVariable& v = m.variables()[*vi];
+    for (int variable_index : m.global_variables()) {
+      const ParsedVariable& v = m.variables()[variable_index];
       os << std::endl << "global " << v.name();
       os << " : [" << v.min() << ".." << v.max() << "]";
       if (v.has_explicit_init()) {
@@ -1439,30 +1408,24 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << ';';
     }
   }
-  for (size_t i = 0; i < m.modules().size(); ++i) {
-    const Module& module = *m.modules()[i];
-    os << std::endl << std::endl << "module M" << i;
-    vi = m.module_variables(i).begin();
-    if (vi != m.module_variables(i).end()) {
-      os << std::endl;
-      for (; vi != m.module_variables(i).end(); vi++) {
-        const ParsedVariable& v = m.variables()[*vi];
-        os << std::endl << "  " << v.name();
-        os << " : [" << v.min() << ".." << v.max() << "]";
-        if (v.has_explicit_init()) {
-          os << " init " << v.init();
-        }
-        os << ';';
+  for (const auto& module : m.modules()) {
+    os << std::endl << std::endl << "module " << module.name();
+    for (int variable_index : module.variables()) {
+      const ParsedVariable& v = m.variables()[variable_index];
+      os << std::endl << "  " << v.name();
+      os << " : [" << v.min() << ".." << v.max() << "]";
+      if (v.has_explicit_init()) {
+        os << " init " << v.init();
       }
+      os << ';';
     }
-    auto ci = module.commands().begin();
-    if (ci != module.commands().end()) {
+    if (!module.variables().empty() && !module.commands().empty()) {
       os << std::endl;
-      for (; ci != module.commands().end(); ci++) {
-        os << std::endl << "  " << **ci << ';';
-      }
     }
-    os << std::endl << std::endl << "endmodule";
+    for (const auto& command : module.commands()) {
+      os << std::endl << "  " << command << ';';
+    }
+    os << std::endl << "endmodule";
   }
   return os;
 }

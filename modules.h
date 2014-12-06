@@ -41,17 +41,12 @@
  */
 struct Command {
   /* Constructs a command. */
-  Command(size_t synch, const std::string& action,
-          std::unique_ptr<const Expression>&& guard,
+  Command(const std::string& action, std::unique_ptr<const Expression>&& guard,
           std::unique_ptr<const Distribution>&& delay,
           std::vector<Update>&& updates);
 
   /* Adds an update to this command. */
   void add_update(Update&& update);
-
-  /* Returns the synchronization for this command; 0 if this command
-     requires no synchronization. */
-  size_t synch() const { return synch_; }
 
   // Returns the action label for this command, or an empty string if the
   // command does not have an action label.
@@ -67,7 +62,6 @@ struct Command {
   const std::vector<Update>& updates() const { return updates_; }
 
 private:
-  size_t synch_;
   std::string action_;
   std::unique_ptr<const Expression> guard_;
   std::unique_ptr<const Distribution> delay_;
@@ -76,38 +70,5 @@ private:
 
 /* Output operator for commands. */
 std::ostream& operator<<(std::ostream& os, const Command& c);
-
-
-/* ====================================================================== */
-/* Module */
-
-/*
- * A module.
- */
-struct Module {
-  /* Constructs a module. */
-  Module();
-
-  /* Deletes this module. */
-  ~Module();
-
-  /* Adds a variable to this module. */
-  void add_variable(const std::string& variable);
-
-  /* Adds a command to this module. */
-  void add_command(const Command* command);
-
-  /* Returns the variables for this module. */
-  const std::vector<std::string>& variables() const { return variables_; }
-
-  /* Returns the commands for this module. */
-  const std::vector<const Command*>& commands() const { return commands_; }
-
-private:
-  /* The variables for this module. */
-  std::vector<std::string> variables_;
-  /* The commands for this module. */
-  std::vector<const Command*> commands_;
-};
 
 #endif /* MODULES_H */
