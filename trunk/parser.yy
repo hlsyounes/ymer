@@ -66,8 +66,6 @@ static std::set<std::string> constants;
 static std::map<std::string, TypedValue> constant_values;
 /* Declared rate constants. */
 static std::set<std::string> rates;
-/* Rate values. */
-static std::map<std::string, TypedValue> rate_values;
 /* All state variables. */
 static std::set<std::string> variables;
 /* Variables lows. */
@@ -972,7 +970,6 @@ static void check_undeclared() {
   }
   undeclared.clear();
   rates.clear();
-  rate_values.clear();
   modules.clear();
   synchronizations.clear();
   variable_lows.clear();
@@ -1004,7 +1001,6 @@ static const Identifier* find_constant(const std::string* ident) {
     variables.insert(*ident);
     rates.insert(*ident);
     constants.insert(*ident);
-    rate_values.insert({*ident, 0});
     constant_values.insert({*ident, 0});
   }
   const Identifier* identifier = new Identifier(*ident);
@@ -1021,7 +1017,6 @@ static const Identifier* find_rate(const std::string* ident) {
     }
     variables.insert(*ident);
     rates.insert(*ident);
-    rate_values.insert({*ident, 0});
   }
   const Identifier* identifier = new Identifier(*ident);
   delete ident;
@@ -1146,7 +1141,6 @@ static void declare_constant(const std::string* ident,
         ((override != const_overrides.end()) ?
          override->second :
          EvaluateConstantExpression(*value_expr, constant_values)).value<int>();
-    rate_values.insert({*ident, value});
     constant_values.insert({*ident, value});
   }
   AddConstant(WrapUnique(ident), Type::INT, WrapUnique(value_expr));
@@ -1174,9 +1168,6 @@ static void declare_rate(const std::string* ident,
     }
     variables.insert(*ident);
     rates.insert(*ident);
-    const TypedValue value = (override != const_overrides.end()) ?
-        override->second : EvaluateConstantExpression(*value_expr, rate_values);
-    rate_values.insert({*ident, value});
   }
   AddConstant(WrapUnique(ident), Type::DOUBLE, WrapUnique(value_expr));
 }
@@ -1244,7 +1235,7 @@ static void prepare_command(std::unique_ptr<const std::string>&& action,
                             std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay) {
   command = new Command(synchronization_value(*action), *action,
-                        std::move(guard), WrapUnique(delay));
+                        std::move(guard), WrapUnique(delay), {});
 }
 
 namespace {
@@ -1336,7 +1327,7 @@ const Command* SubstituteIdentifiers(
   Command* subst_comm =
       new Command(s, command.action(),
                   SubstituteIdentifiers(command.guard(), substitutions),
-                  SubstituteIdentifiers(command.delay(), substitutions));
+                  SubstituteIdentifiers(command.delay(), substitutions), {});
   for (const Update& update : command.updates()) {
     subst_comm->add_update(SubstituteIdentifiers(update, substitutions));
   }
@@ -1466,7 +1457,7 @@ static void add_command() {
   module->add_command(command);
   Command copy(command->synch(), command->action(),
                SubstituteIdentifiers(command->guard(), {}),
-               SubstituteIdentifiers(command->delay(), {}));
+               SubstituteIdentifiers(command->delay(), {}), {});
   for (const Update& update : command->updates()) {
     copy.add_update(SubstituteIdentifiers(update, {}));
   }
@@ -1481,6 +1472,12 @@ static void add_command() {
 static void add_module(const std::string* ident1, const std::string* ident2) {
   if (!model->StartModule(*ident1)) {
     yyerror(StrCat("duplicate module ", *ident1));
+  }
+  std::vector<std::string> errors;
+  if (!model->AddFromModule(*ident2, subst, &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
   }
   std::map<std::string, Module*>::const_iterator mi = modules.find(*ident1);
   if (mi != modules.end()) {

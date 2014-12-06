@@ -43,7 +43,8 @@ struct Command {
   /* Constructs a command. */
   Command(size_t synch, const std::string& action,
           std::unique_ptr<const Expression>&& guard,
-          std::unique_ptr<const Distribution>&& delay);
+          std::unique_ptr<const Distribution>&& delay,
+          std::vector<Update>&& updates);
 
   /* Adds an update to this command. */
   void add_update(Update&& update);
