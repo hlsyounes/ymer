@@ -109,11 +109,6 @@ void yyerror(void* scanner, const std::string& msg) {
   yyerror(msg);
 }
 
-void yywarning(const std::string& msg) {
-  std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
-            << msg << std::endl;
-}
-
 template <typename T>
 std::unique_ptr<T> WrapUnique(T* ptr) {
   return std::unique_ptr<T>(ptr);
