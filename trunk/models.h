@@ -128,10 +128,6 @@ class Model {
   /* Returns all commands for this model. */
   const std::vector<const Command*>& commands() const { return commands_; }
 
-  const std::vector<std::set<const Module*>>& command_modules() const {
-    return command_modules_;
-  }
-
 private:
   struct IdentifierIndex {
     enum Type { kConstant, kVariable, kAction } type;
@@ -161,8 +157,6 @@ private:
   std::vector<const Module*> legacy_modules_;
   /* Compiled commands for this model. */
   std::vector<const Command*> commands_;
-  /* Modules that the above commands are associated with. */
-  std::vector<std::set<const Module*>> command_modules_;
 };
 
 /* Output operator for models. */
