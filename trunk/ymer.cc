@@ -78,8 +78,6 @@ extern UniquePtrVector<const Expression> properties;
 
 /* Name of current file. */
 std::string current_file;
-/* Constant overrides. */
-std::map<std::string, TypedValue> const_overrides;
 /* Sockets for communication. */
 int server_socket = -1;
 /* Current property. */
@@ -569,6 +567,8 @@ int main(int argc, char* argv[]) {
   std::string hostname;
   /* Server port. */
   int port = -1;
+  /* Constant overrides. */
+  std::map<std::string, TypedValue> const_overrides;
 
   try {
     /*

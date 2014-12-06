@@ -42,8 +42,6 @@
 extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
 /* Name of current file. */
 extern std::string current_file;
-/* Constant overrides. */
-extern std::map<std::string, TypedValue> const_overrides;
 
 /* Last model parsed. */
 const Model* global_model = nullptr;
