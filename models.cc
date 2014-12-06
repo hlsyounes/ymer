@@ -809,29 +809,13 @@ BDD variable_updates(
     const DecisionDiagramManager& manager, const BDD& dd_start,
     const Model& model,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const std::set<const Module*>& touched_modules,
     const std::set<std::string>& updated_variables, int command_index,
     const std::map<int, PHData>& ph_commands) {
   BDD ddu = dd_start;
   // Conjunction with identity BDD for untouched module variables.
   for (int i = model.modules().size() - 1; i >= 0; --i) {
-    const Module* module = model.modules()[i];
-    if (touched_modules.find(module) != touched_modules.end()) {
-      ddu = variable_identities(manager, ddu, model, identifiers_by_name,
-                                model.module_variables(i), updated_variables);
-    } else {
-      for (std::set<int>::const_reverse_iterator vi =
-               model.module_variables(i).rbegin();
-           vi != model.module_variables(i).rend(); ++vi) {
-        const ParsedVariable& v = model.variables()[*vi];
-        auto i = identifiers_by_name.find(v.name());
-        CHECK(i != identifiers_by_name.end());
-        const IdentifierInfo& p = i->second;
-        CHECK(p.is_variable());
-        ddu = identity_bdd(manager, p.min_value(), p.low_bit(), p.high_bit()) &&
-              ddu;
-      }
-    }
+    ddu = variable_identities(manager, ddu, model, identifiers_by_name,
+                              model.module_variables(i), updated_variables);
   }
   // Conjunction with identity BDD for untouched global variables.
   ddu = variable_identities(manager, ddu, model, identifiers_by_name,
@@ -1361,7 +1345,6 @@ void Model::compile() {
     }
   }
   commands_.clear();
-  command_modules_.clear();
   /*
    * Process the commands of each module.
    */
@@ -1377,8 +1360,6 @@ void Model::compile() {
       } else { /* synch == 0 */
         /* Command is not synchronized. */
         commands_.push_back(command);
-        command_modules_.push_back({});
-        command_modules_.back().insert(*mi);
       }
     }
   }
@@ -1426,9 +1407,6 @@ void Model::compile() {
                   Update(update.variable(), CopyExpression(update.expr())));
             }
             commands_.push_back(c);
-            command_modules_.push_back({});
-            command_modules_.back().insert(*mi);
-            command_modules_.back().insert(*mj);
           }
         }
       }
@@ -1645,8 +1623,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       ADD ddvp = variable_primed_mtbdd(*manager, 0, ph_data->low_bit,
                                        ph_data->high_bit);
       BDD ddu = dds && ddvp.Interval(1, 1) && ddg;
-      ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {}, {},
-                             i, ph_commands);
+      ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {}, i,
+                             ph_commands);
       ADD ddr = manager->GetConstant(ph_data->params2.p * ph_data->params2.r1);
       ADD ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
@@ -1660,8 +1638,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       BDD ddp = ddvp.Interval(0, 0);
       ddu = ddc && dds && ddp;
       ddu = variable_updates(*manager, ddu, model, identifiers_by_name,
-                             model.command_modules()[i], updated_variables, i,
-                             ph_commands);
+                             updated_variables, i, ph_commands);
       ddr = manager->GetConstant((1.0 - ph_data->params2.p) *
                                  ph_data->params2.r1);
       ddq = ADD(ddu) * ddr;
@@ -1676,8 +1653,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
       dds = ddv.Interval(ph_data->params2.n - 1, ph_data->params2.n - 1);
       ddu = ddc && dds && ddp;
       ddu = variable_updates(*manager, ddu, model, identifiers_by_name,
-                             model.command_modules()[i], updated_variables, i,
-                             ph_commands);
+                             updated_variables, i, ph_commands);
       ddr = manager->GetConstant(ph_data->params2.r2);
       ddq = ADD(ddu) * ddr;
       if (VLOG_IS_ON(2)) {
@@ -1691,8 +1667,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
          */
         dds = ddv.Interval(1, ph_data->params2.n - 2);
         ddu = dds && ddvp == ddv + manager->GetConstant(1) && ddg;
-        ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {},
-                               {}, i, ph_commands);
+        ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {}, i,
+                               ph_commands);
         ddr = manager->GetConstant(ph_data->params2.r1);
         ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
@@ -1727,8 +1703,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
                                          ph_data->high_bit);
         ADD ddp = ddv + manager->GetConstant(1);
         BDD ddu = dds && ddvp == ddp && ddg;
-        ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {},
-                               {}, i, ph_commands);
+        ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {}, i,
+                               ph_commands);
         ADD ddq = ADD(ddu) * manager->GetConstant(ph_data->params.re);
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(), ddq.get(),
@@ -1750,8 +1726,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
                                          ph_data->high_bit);
         BDD ddu = ddvp.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
         ddu = dds && ddu && ddg;
-        ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {},
-                               {}, i, ph_commands);
+        ddu = variable_updates(*manager, ddu, model, identifiers_by_name, {}, i,
+                               ph_commands);
         ADD ddr =
             manager->GetConstant(ph_data->params.pc * ph_data->params.rc1);
         ADD ddq = ADD(ddu) * ddr;
@@ -1769,8 +1745,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         BDD ddp = ddvp.Interval(0, 0);
         ddu = ddc && dds && ddp;
         ddu = variable_updates(*manager, ddu, model, identifiers_by_name,
-                               model.command_modules()[i], updated_variables, i,
-                               ph_commands);
+                               updated_variables, i, ph_commands);
         ddr = manager->GetConstant((1.0 - ph_data->params.pc) *
                                    ph_data->params.rc1);
         ddq = ADD(ddu) * ddr;
@@ -1788,8 +1763,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
         dds = ddv.Interval(ph_data->params.n - 1, ph_data->params.n - 1);
         ddu = ddc && dds && ddp;
         ddu = variable_updates(*manager, ddu, model, identifiers_by_name,
-                               model.command_modules()[i], updated_variables, i,
-                               ph_commands);
+                               updated_variables, i, ph_commands);
         ddq = ADD(ddu) * manager->GetConstant(ph_data->params.rc2);
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(), ddq.get(),
@@ -1810,13 +1784,11 @@ DecisionDiagramModel DecisionDiagramModel::Create(
                                           ph_data->high_bit).Interval(0, 0);
           dda = dds && ddp;
           dda = variable_updates(*manager, dda, model, identifiers_by_name,
-                                 model.command_modules()[i], updated_variables,
-                                 i, ph_commands);
+                                 updated_variables, i, ph_commands);
         } else {
           dda = manager->GetConstant(true);
           dda = variable_updates(*manager, dda, model, identifiers_by_name,
-                                 model.command_modules()[i], updated_variables,
-                                 i, ph_commands);
+                                 updated_variables, i, ph_commands);
         }
         BDD ddu = ddc && dda;
         ADD ddr = (exp_delay != NULL)
