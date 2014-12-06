@@ -176,7 +176,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 356 "parser.yy" /* yacc.c:1909  */
+#line 354 "parser.yy" /* yacc.c:1909  */
 
   ModelType model_type;
   const PathProperty* path;
