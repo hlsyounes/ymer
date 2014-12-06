@@ -1007,6 +1007,218 @@ bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
   return true;
 }
 
+namespace {
+
+std::string RewriteIdentifier(
+    const std::string& name,
+    const std::map<std::string, std::string>& substitutions) {
+  auto i = substitutions.find(name);
+  return (i == substitutions.end()) ? name : i->second;
+}
+
+class ExpressionRewriter : public ExpressionVisitor {
+ public:
+  explicit ExpressionRewriter(
+      const std::map<std::string, std::string>* substitutions);
+
+  std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
+
+ private:
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
+
+  std::unique_ptr<const Expression> expr_;
+  const std::map<std::string, std::string>* substitutions_;
+};
+
+ExpressionRewriter::ExpressionRewriter(
+    const std::map<std::string, std::string>* substitutions)
+    : substitutions_(substitutions) {}
+
+void ExpressionRewriter::DoVisitLiteral(const Literal& expr) {
+  expr_ = Literal::New(expr.value());
+}
+
+void ExpressionRewriter::DoVisitIdentifier(const Identifier& expr) {
+  expr_ = Identifier::New(RewriteIdentifier(expr.name(), *substitutions_));
+}
+
+void ExpressionRewriter::DoVisitFunctionCall(const FunctionCall& expr) {
+  UniquePtrVector<const Expression> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(release_expr());
+  }
+  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
+}
+
+void ExpressionRewriter::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  expr_ = UnaryOperation::New(expr.op(), release_expr());
+}
+
+void ExpressionRewriter::DoVisitBinaryOperation(const BinaryOperation& expr) {
+  expr.operand1().Accept(this);
+  auto operand1 = release_expr();
+  expr.operand2().Accept(this);
+  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
+}
+
+void ExpressionRewriter::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  auto condition = release_expr();
+  expr.if_branch().Accept(this);
+  auto if_branch = release_expr();
+  expr.else_branch().Accept(this);
+  expr_ = Conditional::New(std::move(condition), std::move(if_branch),
+                           release_expr());
+}
+
+void ExpressionRewriter::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {}
+
+std::unique_ptr<const Expression> RewriteExpression(
+    const Expression& expr,
+    const std::map<std::string, std::string>& substitutions) {
+  ExpressionRewriter rewriter(&substitutions);
+  expr.Accept(&rewriter);
+  return rewriter.release_expr();
+}
+
+class DistributionRewriter : public DistributionVisitor {
+ public:
+  explicit DistributionRewriter(
+      const std::map<std::string, std::string>* substitutions);
+
+  std::unique_ptr<const Distribution> release_dist() {
+    return std::move(dist_);
+  }
+
+ private:
+  void DoVisitExponential(const Exponential& dist) override;
+  void DoVisitWeibull(const Weibull& dist) override;
+  void DoVisitLognormal(const Lognormal& dist) override;
+  void DoVisitUniform(const Uniform& dist) override;
+
+  std::unique_ptr<const Distribution> dist_;
+  const std::map<std::string, std::string>* substitutions_;
+};
+
+DistributionRewriter::DistributionRewriter(
+    const std::map<std::string, std::string>* substitutions)
+    : substitutions_(substitutions) {}
+
+void DistributionRewriter::DoVisitExponential(const Exponential& dist) {
+  dist_ = Exponential::New(RewriteExpression(dist.rate(), *substitutions_));
+}
+
+void DistributionRewriter::DoVisitWeibull(const Weibull& dist) {
+  dist_ = Weibull::New(RewriteExpression(dist.scale(), *substitutions_),
+                       RewriteExpression(dist.shape(), *substitutions_));
+}
+
+void DistributionRewriter::DoVisitLognormal(const Lognormal& dist) {
+  dist_ = Lognormal::New(RewriteExpression(dist.scale(), *substitutions_),
+                         RewriteExpression(dist.shape(), *substitutions_));
+}
+
+void DistributionRewriter::DoVisitUniform(const Uniform& dist) {
+  dist_ = Uniform::New(RewriteExpression(dist.low(), *substitutions_),
+                       RewriteExpression(dist.high(), *substitutions_));
+}
+
+std::unique_ptr<const Distribution> RewriteDistribution(
+    const Distribution& dist,
+    const std::map<std::string, std::string>& substitutions) {
+  DistributionRewriter rewriter(&substitutions);
+  dist.Accept(&rewriter);
+  return rewriter.release_dist();
+}
+
+std::vector<Update> RewriteUpdates(
+    const std::vector<Update>& updates,
+    const std::map<std::string, std::string>& substitutions) {
+  std::vector<Update> new_updates;
+  for (const Update& update : updates) {
+    new_updates.emplace_back(
+        RewriteIdentifier(update.variable(), substitutions),
+        RewriteExpression(update.expr(), substitutions));
+  }
+  return std::move(new_updates);
+}
+
+Command RewriteCommand(
+    const Command& command,
+    const std::map<std::string, std::string>& substitutions) {
+  return Command(command.synch(),
+                 RewriteIdentifier(command.action(), substitutions),
+                 RewriteExpression(command.guard(), substitutions),
+                 RewriteDistribution(command.delay(), substitutions),
+                 RewriteUpdates(command.updates(), substitutions));
+}
+
+}  // namespace
+
+bool Model::AddFromModule(
+    const std::string& from_name,
+    const std::map<std::string, std::string>& substitutions,
+    std::vector<std::string>* errors) {
+  CHECK_NE(current_module_, kNoModule);
+  auto i = modules_.find(from_name);
+  if (i == modules_.end()) {
+    errors->push_back(StrCat("undefined module ", from_name));
+    return false;
+  }
+  const int from_index = i->second;
+  // Add renamed module variables, maintaining the same order as in the source
+  // module.
+  for (int from_variable_index : module_variables(from_index)) {
+    const auto& from_variable = variables_[from_variable_index];
+    auto j = substitutions.find(from_variable.name());
+    if (j == substitutions.end()) {
+      errors->push_back(
+          StrCat("missing substitution for variable ", from_variable.name()));
+      return false;
+    }
+    const std::string& to_variable_name = j->second;
+    if (from_variable.type() == Type::INT) {
+      if (!AddIntVariable(
+              to_variable_name,
+              RewriteExpression(from_variable.min(), substitutions),
+              RewriteExpression(from_variable.max(), substitutions),
+              from_variable.has_explicit_init()
+                  ? RewriteExpression(from_variable.init(), substitutions)
+                  : nullptr,
+              errors)) {
+        return false;
+      }
+    } else {
+      if (!AddBoolVariable(
+              to_variable_name,
+              from_variable.has_explicit_init()
+                  ? RewriteExpression(from_variable.init(), substitutions)
+                  : nullptr,
+              errors)) {
+        return false;
+      }
+    }
+  }
+  // Add module commands.
+  for (const auto& from_command : module_commands_[from_index]) {
+    if (!AddCommand(RewriteCommand(from_command, substitutions), errors)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void Model::EndModule() {
   CHECK_NE(current_module_, kNoModule);
   current_module_ = kNoModule;
@@ -1196,10 +1408,10 @@ void Model::compile() {
             Command* c;
             if (IsUnitDistribution(ci.delay())) {
               c = new Command(*si, cj.action(), std::move(guard),
-                              CopyDistribution(cj.delay()));
+                              CopyDistribution(cj.delay()), {});
             } else if (IsUnitDistribution(cj.delay())) {
               c = new Command(*si, ci.action(), std::move(guard),
-                              CopyDistribution(ci.delay()));
+                              CopyDistribution(ci.delay()), {});
             } else {
               throw std::logic_error(
                   "at least one command in a"

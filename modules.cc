@@ -23,24 +23,20 @@
 #include "src/distribution.h"
 #include "src/expression.h"
 
-/* ====================================================================== */
-/* Command */
-
-/* Constructs a command. */
 Command::Command(size_t synch, const std::string& action,
                  std::unique_ptr<const Expression>&& guard,
-                 std::unique_ptr<const Distribution>&& delay)
+                 std::unique_ptr<const Distribution>&& delay,
+                 std::vector<Update>&& updates)
     : synch_(synch),
       action_(action),
       guard_(std::move(guard)),
-      delay_(std::move(delay)) {}
+      delay_(std::move(delay)),
+      updates_(std::move(updates)) {}
 
-/* Adds an update to this command. */
 void Command::add_update(Update&& update) {
   updates_.push_back(std::move(update));
 }
 
-/* Output operator for commands. */
 std::ostream& operator<<(std::ostream& os, const Command& c) {
   os << "[" << c.action() << "] " << c.guard() << " -> " << c.delay() << " : ";
   auto ui = c.updates().begin();
