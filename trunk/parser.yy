@@ -52,61 +52,17 @@ UniquePtrVector<const Expression> properties;
 
 /* Current model. */
 static Model* model;
-/* Current module. */
-static Module* module;
 /* Current identifier substitutions. */
 static std::map<std::string, std::string> subst;
-/* Current synchronization substitutions. */
-static std::map<size_t, size_t> synch_subst;
 /* Current command. */
 static Command* command;
-/* Declared integer constants. */
-static std::set<std::string> constants;
-/* Constant values. */
-static std::map<std::string, TypedValue> constant_values;
-/* Declared rate constants. */
-static std::set<std::string> rates;
-/* All state variables. */
-static std::set<std::string> variables;
-/* Variables lows. */
-static std::map<std::string, std::unique_ptr<const Expression>> variable_lows;
-/* Variables highs. */
-static std::map<std::string, std::unique_ptr<const Expression>> variable_highs;
-/* Variables starts. */
-static std::map<std::string, std::unique_ptr<const Expression>> variable_starts;
-/* Declared modules. */
-static std::map<std::string, Module*> modules;
-/* Declared synchronizations. */
-static std::map<std::string, size_t> synchronizations;
-/* Yet undeclared state variables. */
-static std::set<std::string> undeclared;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
-/* Clears all previously parsed declarations. */
-void clear_declarations();
-
-/* Checks if undeclared variables were used. */
-static void check_undeclared();
-/* Returns the integer value of the given typed value, signaling an error if
-   the type is not INT. */
-static int integer_value(const TypedValue* q);
-/* Returns an identifier representing an integer constant. */
-static const Identifier* find_constant(const std::string* ident);
-/* Returns an identifier representing a rate constant. */
-static const Identifier* find_rate(const std::string* ident);
-/* Returns a literal expression. */
-static const Literal* make_literal(int n);
-/* Returns a literal expression. */
-static const Literal* make_literal(const TypedValue* q);
-/* Returns a constant value or a variable for the given identifier. */
-static const Expression* value_or_variable(const std::string* ident);
 /* Returns a variable for the given identifier. */
 static const Identifier* find_variable(const std::string* ident);
 /* Adds an update to the current command. */
 static void add_update(const std::string* ident, const Expression* expr);
-/* Returns the value of the given synchronization. */
-static size_t synchronization_value(const std::string& ident);
 /* Adds a substitution to the current substitution map. */
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2);
@@ -117,11 +73,8 @@ static void declare_constant(const std::string* ident,
 static void declare_rate(const std::string* ident,
                          const Expression* value_expr);
 /* Declares a variable. */
-static bool declare_variable(const std::string* ident,
-                             const Expression* low,
-                             const Expression* high,
-                             const Expression* start,
-                             bool delayed_addition = false);
+static void declare_variable(const std::string* ident, const Expression* low,
+                             const Expression* high, const Expression* start);
 /* Adds a command to the current module. */
 static void add_command();
 /* Prepares a command for parsing. */
@@ -405,7 +358,6 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
   const PathProperty* path;
   const Distribution* dist;
   const Expression* expr;
-  int nat;
   const std::string* str;
   const TypedValue* number;
   Function function;
@@ -416,8 +368,7 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 %type <expr> property
 %type <path> path_property
 %type <dist> distribution
-%type <expr> expr const_rate_expr const_expr
-%type <nat> integer
+%type <expr> expr
 %type <str> IDENTIFIER synchronization
 %type <number> NUMBER
 %type <function> function
@@ -430,7 +381,7 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 %%
 
 file : { success = true; } model_or_properties
-         { check_undeclared(); if (!success) YYERROR; }
+         { if (!success) YYERROR; }
      ;
 
 model_or_properties : model
@@ -470,24 +421,23 @@ declarations : /* empty */
 
 declaration : CONST IDENTIFIER ';'
                 { declare_constant($2, nullptr); }
-            | CONST IDENTIFIER '=' const_expr ';'
+            | CONST IDENTIFIER '=' expr ';'
                 { declare_constant($2, $4); }
             | CONST INT_TOKEN IDENTIFIER ';'
                 { declare_constant($3, nullptr); }
-            | CONST INT_TOKEN IDENTIFIER '=' const_expr ';'
+            | CONST INT_TOKEN IDENTIFIER '=' expr ';'
                 { declare_constant($3, $5); }
             | RATE IDENTIFIER ';'
                 { declare_rate($2, nullptr); }
-            | RATE IDENTIFIER '=' const_rate_expr ';'
+            | RATE IDENTIFIER '=' expr ';'
                 { declare_rate($2, $4); }
             | CONST DOUBLE_TOKEN IDENTIFIER ';'
                 { declare_rate($3, nullptr); }
-            | CONST DOUBLE_TOKEN IDENTIFIER '=' const_rate_expr ';'
+            | CONST DOUBLE_TOKEN IDENTIFIER '=' expr ';'
                 { declare_rate($3, $5); }
-            | GLOBAL IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']' ';'
+            | GLOBAL IDENTIFIER ':' '[' expr DOTDOT expr ']' ';'
                 { declare_variable($2, $5, $7, nullptr); }
-            | GLOBAL IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']'
-                INIT const_expr ';'
+            | GLOBAL IDENTIFIER ':' '[' expr DOTDOT expr ']' INIT expr ';'
                 { declare_variable($2, $5, $7, $10); }
             ;
 
@@ -521,10 +471,9 @@ variables : /* empty */
           | variables variable_decl
           ;
 
-variable_decl : IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']' ';'
+variable_decl : IDENTIFIER ':' '[' expr DOTDOT expr ']' ';'
                   { declare_variable($1, $4, $6, nullptr); }
-              | IDENTIFIER ':' '[' const_expr DOTDOT const_expr ']'
-                  INIT const_expr ';'
+              | IDENTIFIER ':' '[' expr DOTDOT expr ']' INIT expr ';'
                   { declare_variable($1, $4, $6, $9); }
               ;
 
@@ -641,18 +590,6 @@ expr : NUMBER
          { $$ = $2; }
      ;
 
-const_rate_expr : NUMBER
-                    { $$ = make_literal($1); }
-                | IDENTIFIER
-                    { $$ = find_rate($1); }
-                | const_rate_expr '*' const_rate_expr
-                    { $$ = NewMultiply($1, $3); }
-                | const_rate_expr '/' const_rate_expr
-                    { $$ = NewDivide($1, $3); }
-                | '(' const_rate_expr ')'
-                    { $$ = $2; }
-                ;
-
 function : IDENTIFIER
              { $$ = MakeFunction(*$1); delete $1; }
          | MIN_TOKEN
@@ -666,29 +603,6 @@ arguments : expr
           | arguments ',' expr
               { $$ = $1; $$->push_back(WrapUnique($3)); }
           ;
-
-
-/* ====================================================================== */
-/* Integers. */
-
-const_expr : integer
-               { $$ = make_literal($1); }
-           | IDENTIFIER
-               { $$ = find_constant($1); }
-           | '-' const_expr %prec UMINUS
-               { $$ = NewNegate($2); }
-           | const_expr '+' const_expr
-               { $$ = NewPlus($1, $3); }
-           | const_expr '-' const_expr
-               { $$ = NewMinus($1, $3); }
-           | const_expr '*' const_expr
-               { $$ = NewMultiply($1, $3); }
-           | '(' const_expr ')'
-               { $$ = $2; }
-	   ;
-
-integer : NUMBER { $$ = integer_value($1); }
-        ;
 
 
 /* ====================================================================== */
@@ -711,7 +625,7 @@ property : NUMBER
          | FALSE
              { $$ = new Literal(false); }
          | IDENTIFIER
-             { $$ = value_or_variable($1); }
+             { $$ = find_variable($1); }
          | function '(' arguments ')'
              { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
          | FUNC '(' function ',' arguments ')'
@@ -770,699 +684,56 @@ path_property : property U LEQ NUMBER property
 
 %%
 
-namespace {
-
-class ConstantExpressionEvaluator : public ExpressionVisitor {
- public:
-  explicit ConstantExpressionEvaluator(
-      const std::map<std::string, TypedValue>* constant_values);
-
-  TypedValue value() const { return value_; }
-
- private:
-  void DoVisitLiteral(const Literal& expr) override;
-  void DoVisitIdentifier(const Identifier& expr) override;
-  void DoVisitFunctionCall(const FunctionCall& expr) override;
-  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
-  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
-  void DoVisitConditional(const Conditional& expr) override;
-  void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr) override;
-
-  const std::map<std::string, TypedValue>* constant_values_;
-  TypedValue value_;
-};
-
-ConstantExpressionEvaluator::ConstantExpressionEvaluator(
-    const std::map<std::string, TypedValue>* constant_values)
-    : constant_values_(constant_values), value_(0) {
-}
-
-void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
-  value_ = expr.value();
-}
-
-void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
-  auto i = constant_values_->find(expr.name());
-  CHECK(i != constant_values_->end());
-  value_ = i->second;
-}
-
-void ConstantExpressionEvaluator::DoVisitFunctionCall(
-    const FunctionCall& expr) {
-  std::vector<TypedValue> arguments;
-  for (const Expression& argument : expr.arguments()) {
-    argument.Accept(this);
-    arguments.push_back(value_);
-  }
-  switch (expr.function()) {
-    case Function::UNKNOWN:
-      LOG(FATAL) << "bad function call";
-    case Function::MIN:
-      CHECK(!arguments.empty());
-      value_ = arguments[0];
-      for (size_t i = 1; i < arguments.size(); ++i) {
-        value_ = std::min(value_, arguments[i]);
-      }
-      break;
-    case Function::MAX:
-      CHECK(!arguments.empty());
-      value_ = arguments[0];
-      for (size_t i = 1; i < arguments.size(); ++i) {
-        value_ = std::max(value_, arguments[i]);
-      }
-      break;
-    case Function::FLOOR:
-      CHECK(arguments.size() == 1);
-      value_ = floor(arguments[0]);
-      break;
-    case Function::CEIL:
-      CHECK(arguments.size() == 2);
-      value_ = ceil(arguments[0]);
-      break;
-    case Function::POW:
-      CHECK(arguments.size() == 2);
-      value_ = pow(arguments[0], arguments[1]);
-      break;
-    case Function::LOG:
-      CHECK(arguments.size() == 2);
-      value_ = log(arguments[0]) / log(arguments[1]);
-      break;
-    case Function::MOD:
-      CHECK(arguments.size() == 2);
-      value_ = arguments[0] % arguments[1];
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitUnaryOperation(
-    const UnaryOperation& expr) {
-  expr.operand().Accept(this);
-  switch (expr.op()) {
-    case UnaryOperator::NEGATE:
-      value_ = -value_;
-      break;
-    case UnaryOperator::NOT:
-      value_ = !value_;
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitBinaryOperation(
-    const BinaryOperation& expr) {
-  expr.operand1().Accept(this);
-  TypedValue operand1 = value_;
-  expr.operand2().Accept(this);
-  switch (expr.op()) {
-    case BinaryOperator::PLUS:
-      value_ = operand1 + value_;
-      break;
-    case BinaryOperator::MINUS:
-      value_ = operand1 - value_;
-      break;
-    case BinaryOperator::MULTIPLY:
-      value_ = operand1 * value_;
-      break;
-    case BinaryOperator::DIVIDE:
-      value_ = operand1 / value_;
-      break;
-    case BinaryOperator::AND:
-      value_ = operand1.value<bool>() && value_.value<bool>();
-      break;
-    case BinaryOperator::OR:
-      value_ = operand1.value<bool>() || value_.value<bool>();
-      break;
-    case BinaryOperator::IMPLY:
-      value_ = !operand1.value<bool>() || value_.value<bool>();
-      break;
-    case BinaryOperator::IFF:
-      value_ = operand1.value<bool>() == value_.value<bool>();
-      break;
-    case BinaryOperator::LESS:
-      value_ = operand1 < value_;
-      break;
-    case BinaryOperator::LESS_EQUAL:
-      value_ = operand1 <= value_;
-      break;
-    case BinaryOperator::GREATER_EQUAL:
-      value_ = operand1 >= value_;
-      break;
-    case BinaryOperator::GREATER:
-      value_ = operand1 > value_;
-      break;
-    case BinaryOperator::EQUAL:
-      value_ = operand1 == value_;
-      break;
-    case BinaryOperator::NOT_EQUAL:
-      value_ = operand1 != value_;
-      break;
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
-  expr.condition().Accept(this);
-  if (value_.value<bool>()) {
-    expr.if_branch().Accept(this);
-  } else {
-    expr.else_branch().Accept(this);
-  }
-}
-
-void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {
-  LOG(FATAL) << "not a constant expression";
-}
-
-TypedValue EvaluateConstantExpression(
-    const Expression& expr,
-    const std::map<std::string, TypedValue>& constant_values) {
-  ConstantExpressionEvaluator evaluator(&constant_values);
-  expr.Accept(&evaluator);
-  return evaluator.value();
-}
-
-bool InVariableSet(
-    const Model& model, const std::set<int> variables, const std::string name) {
-  for (std::set<int>::const_iterator i = variables.begin();
-       i != variables.end(); ++i) {
-    if (name == model.variables()[*i].name()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
-
-void clear_declarations() {
-  constants.clear();
-  constant_values.clear();
-  variables.clear();
-}
-
-static void check_undeclared() {
-  if (!undeclared.empty()) {
-    yyerror("undeclared variables used in expressions");
-    for (std::set<std::string>::const_iterator si = undeclared.begin();
-	 si != undeclared.end(); si++) {
-      std::cerr << "  " << *si << std::endl;
-    }
-  }
-  undeclared.clear();
-  rates.clear();
-  modules.clear();
-  synchronizations.clear();
-  variable_lows.clear();
-  variable_highs.clear();
-  variable_starts.clear();
-}
-
-static int integer_value(const TypedValue* q) {
-  int n;
-  if (q->type() != Type::INT) {
-    yyerror("expecting integer");
-    n = 0;
-  } else {
-    n = q->value<int>();
-  }
-  delete q;
-  return n;
-}
-
-static const Identifier* find_constant(const std::string* ident) {
-  if (constants.find(*ident) == constants.end()) {
-    if (variables.find(*ident) != variables.end()) {
-      yyerror("variable `" + *ident + "' used where expecting constant");
-    } else if (rates.find(*ident) != rates.end()) {
-      yyerror("rate `" + *ident + "' used where expecting constant");
-    } else {
-      yyerror("undeclared constant `" + *ident + "'");
-    }
-    variables.insert(*ident);
-    rates.insert(*ident);
-    constants.insert(*ident);
-    constant_values.insert({*ident, 0});
-  }
-  const Identifier* identifier = new Identifier(*ident);
-  delete ident;
-  return identifier;
-}
-
-static const Identifier* find_rate(const std::string* ident) {
-  if (rates.find(*ident) == rates.end()) {
-    if (variables.find(*ident) != variables.end()) {
-      yyerror("variable `" + *ident + "' used where expecting rate");
-    } else {
-      yyerror("undeclared rate `" + *ident + "'");
-    }
-    variables.insert(*ident);
-    rates.insert(*ident);
-  }
-  const Identifier* identifier = new Identifier(*ident);
-  delete ident;
-  return identifier;
-}
-
-static const Literal* make_literal(int n) {
-  return new Literal(n);
-}
-
-static const Literal* make_literal(const TypedValue* q) {
-  const Literal* v = new Literal(*q);
-  delete q;
-  return v;
-}
-
-static const Expression* value_or_variable(const std::string* ident) {
-  if (constants.find(*ident) != constants.end()) {
-    const Literal* value = new Literal(constant_values.find(*ident)->second);
-    delete ident;
-    return value;
-  } else {
-    if (variables.find(*ident) == variables.end()) {
-      variables.insert(*ident);
-      undeclared.insert(*ident);
-    }
-    const Identifier* identifier = new Identifier(*ident);
-    delete ident;
-    return identifier;
-  }
-}
-
 static const Identifier* find_variable(const std::string* ident) {
-  if (constants.find(*ident) == constants.end()) {
-    if (variables.find(*ident) == variables.end()) {
-      variables.insert(*ident);
-      undeclared.insert(*ident);
-    }
-  }
   const Identifier* identifier = new Identifier(*ident);
   delete ident;
   return identifier;
 }
 
 static void add_update(const std::string* ident, const Expression* expr) {
-  if (variables.find(*ident) == variables.end()) {
-    yyerror("updating undeclared variable `" + *ident + "'");
-  }
-  const int module_index = model->modules().size();
-  if (InVariableSet(*model, model->global_variables(), *ident)) {
-    if (command->synch() != 0) {
-      yywarning("updating global variable in synchronized command");
-    }
-  } else if (!InVariableSet(*model, model->module_variables(module_index),
-                            *ident)) {
-    yyerror("updating variable belonging to other module");
-  }
   command->add_update(Update(*ident, std::unique_ptr<const Expression>(expr)));
   delete ident;
 }
 
-static size_t synchronization_value(const std::string& ident) {
-  if (ident.empty()) {
-    return 0;
-  }
-  size_t s;
-  std::map<std::string, size_t>::const_iterator si =
-    synchronizations.find(ident);
-  if (si == synchronizations.end()) {
-    s = synchronizations.size() + 1;
-    synchronizations.insert(std::make_pair(ident, s));
-  } else {
-    s = si->second;
-  }
-  return s;
-}
-
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2) {
-  if (variables.find(*ident1) != variables.end()) {
-    /* Variable substitution. */
-    subst.insert(std::make_pair(*ident1, *ident2));
-  } else {
-    std::map<std::string, size_t>::const_iterator si =
-      synchronizations.find(*ident1);
-    if (si != synchronizations.end()) {
-      /* Synchronization substitution. */
-      size_t s = synchronization_value(*ident2);
-      synch_subst.insert({si->second, s});
-    } else {
-      yyerror("illegal substitution `" + *ident1 + "=" + *ident2 + "'");
-    }
-  }
+  subst.insert(std::make_pair(*ident1, *ident2));
   delete ident1;
   delete ident2;
 }
 
 static void declare_constant(const std::string* ident,
                              const Expression* value_expr) {
-  if (constants.find(*ident) != constants.end()) {
-    yyerror("ignoring repeated declaration of constant `" + *ident + "'");
-  } else if (rates.find(*ident) != rates.end()) {
-    yyerror("ignoring declaration of constant `" + *ident
-	    + "' previously declared as rate");
-  } else if (variables.find(*ident) != variables.end()) {
-    yyerror("ignoring declaration of constant `" + *ident
-	    + "' previously declared as variable");
-  } else if (synchronizations.find(*ident) != synchronizations.end()) {
-    yyerror("ignoring declaration of constant `" + *ident
-	    + "' previously declared as synchronization");
-  } else {
-    std::map<std::string, TypedValue>::iterator override =
-        const_overrides.find(*ident);
-    if (value_expr == nullptr && override == const_overrides.end()) {
-      yyerror("uninitialized constant `" + *ident + "'");
-      value_expr = make_literal(0);
-    }
-    variables.insert(*ident);
-    rates.insert(*ident);
-    constants.insert(*ident);
-    const int value =
-        ((override != const_overrides.end()) ?
-         override->second :
-         EvaluateConstantExpression(*value_expr, constant_values)).value<int>();
-    constant_values.insert({*ident, value});
-  }
   AddConstant(WrapUnique(ident), Type::INT, WrapUnique(value_expr));
 }
 
 static void declare_rate(const std::string* ident,
                          const Expression* value_expr) {
-  if (rates.find(*ident) != rates.end()) {
-    yyerror("ignoring repeated declaration of rate `" + *ident + "'");
-  } else if (constants.find(*ident) != constants.end()) {
-    yyerror("ignoring declaration of rate `" + *ident
-	    + "' previously declared as constant");
-  } else if (variables.find(*ident) != variables.end()) {
-    yyerror("ignoring declaration of rate `" + *ident
-	    + "' previously declared as variable");
-  } else if (synchronizations.find(*ident) != synchronizations.end()) {
-    yyerror("ignoring declaration of rate `" + *ident
-	    + "' previously declared as synchronization");
-  } else {
-    std::map<std::string, TypedValue>::iterator override =
-        const_overrides.find(*ident);
-    if (value_expr == nullptr && override == const_overrides.end()) {
-      yyerror("uninitialized rate `" + *ident + "'");
-      value_expr = make_literal(0);
-    }
-    variables.insert(*ident);
-    rates.insert(*ident);
-  }
   AddConstant(WrapUnique(ident), Type::DOUBLE, WrapUnique(value_expr));
 }
 
-static bool declare_variable(const std::string* ident,
-                             const Expression* low,
-                             const Expression* high,
-                             const Expression* start,
-                             bool delayed_addition) {
-  bool declared = false;
-  if (constants.find(*ident) != constants.end()) {
-    yyerror("ignoring declaration of variable `" + *ident
-	    + "' previously declared as constant");
-  } else if (rates.find(*ident) != rates.end()) {
-    yyerror("ignoring declaration of variable `" + *ident
-	    + "' previously declared as rate");
-  } else if (synchronizations.find(*ident) != synchronizations.end()) {
-    yyerror("ignoring declaration of variable `" + *ident
-	    + "' previously declared as synchronization");
-  } else {
-    declared = true;
-    if (variables.find(*ident) != variables.end()) {
-      if (undeclared.find(*ident) != undeclared.end()) {
-	undeclared.erase(*ident);
-      } else {
-	yyerror("ignoring repeated declaration of variable `" + *ident + "'");
-      }
-    } else {
-      variables.insert(*ident);
+static void declare_variable(const std::string* ident, const Expression* low,
+                             const Expression* high, const Expression* start) {
+  std::vector<std::string> errors;
+  if (!model->AddIntVariable(*ident, WrapUnique(low), WrapUnique(high),
+                             WrapUnique(start), &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
     }
-  }
-  if (declared) {
-    int l =
-        EvaluateConstantExpression(*low, constant_values).value<int>();
-    int h =
-        EvaluateConstantExpression(*high, constant_values).value<int>();
-    int s = ((start != nullptr)
-             ? EvaluateConstantExpression(*start, constant_values).value<int>()
-             : l);
-    variable_lows.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(low)));
-    variable_highs.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(high)));
-    variable_starts.insert(
-        std::make_pair(*ident, std::unique_ptr<const Expression>(start)));
-    std::vector<std::string> errors;
-    model->AddIntVariable(*ident, Literal::New(l), Literal::New(h),
-                          Literal::New(s), &errors);
-    if (!delayed_addition) {
-      if (module != nullptr) {
-	module->add_variable(*ident);
-      }
-    }
-  } else {
-    delete low;
-    delete high;
-    delete start;
   }
   delete ident;
-  return declared;
 }
 
 /* Prepares a command for parsing. */
 static void prepare_command(std::unique_ptr<const std::string>&& action,
                             std::unique_ptr<const Expression>&& guard,
 			    const Distribution* delay) {
-  command = new Command(synchronization_value(*action), *action,
-                        std::move(guard), WrapUnique(delay), {});
+  command = new Command(*action, std::move(guard), WrapUnique(delay), {});
 }
-
-namespace {
-
-std::string SubstituteName(
-    const std::string& name,
-    const std::map<std::string, std::string>& substitutions) {
-  auto i = substitutions.find(name);
-  return (i == substitutions.end()) ? name : i->second;
-}
-
-class ExpressionIdentifierSubstituter : public ExpressionVisitor,
-                                        public PathPropertyVisitor {
- public:
-  explicit ExpressionIdentifierSubstituter(
-      const std::map<std::string, std::string>& substitutions);
-
-  std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
-
- private:
-  void DoVisitLiteral(const Literal& expr) override;
-  void DoVisitIdentifier(const Identifier& expr) override;
-  void DoVisitFunctionCall(const FunctionCall& expr) override;
-  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
-  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
-  void DoVisitConditional(const Conditional& expr) override;
-  void DoVisitProbabilityThresholdOperation(
-      const ProbabilityThresholdOperation& expr) override;
-  void DoVisitUntilProperty(const UntilProperty& path_property) override;
-
-  std::map<std::string, std::string> substitutions_;
-  std::unique_ptr<const Expression> expr_;
-  std::unique_ptr<const PathProperty> path_property_;
-};
-
-std::unique_ptr<const Expression> SubstituteIdentifiers(
-    const Expression& expr,
-    const std::map<std::string, std::string>& substitutions) {
-  ExpressionIdentifierSubstituter substituter(substitutions);
-  expr.Accept(&substituter);
-  return substituter.release_expr();
-}
-
-class DistributionIdentifierSubstituter : public DistributionVisitor {
- public:
-  explicit DistributionIdentifierSubstituter(
-      const std::map<std::string, std::string>& substitutions);
-
-  std::unique_ptr<const Distribution> release_distribution() {
-    return std::move(distribution_);
-  }
-
- private:
-  void DoVisitExponential(const Exponential& distribution) override;
-  void DoVisitWeibull(const Weibull& distribution) override;
-  void DoVisitLognormal(const Lognormal& distribution) override;
-  void DoVisitUniform(const Uniform& distribution) override;
-
-  std::map<std::string, std::string> substitutions_;
-  std::unique_ptr<const Distribution> distribution_;
-};
-
-std::unique_ptr<const Distribution> SubstituteIdentifiers(
-    const Distribution& distribution,
-    const std::map<std::string, std::string>& substitutions) {
-  DistributionIdentifierSubstituter substituter(substitutions);
-  distribution.Accept(&substituter);
-  return substituter.release_distribution();
-}
-
-Update SubstituteIdentifiers(
-    const Update& update,
-    const std::map<std::string, std::string>& substitutions) {
-  return Update(SubstituteName(update.variable(), substitutions),
-                SubstituteIdentifiers(update.expr(), substitutions));
-}
-
-const Command* SubstituteIdentifiers(
-    const Command& command,
-    const std::map<std::string, std::string>& substitutions,
-    const std::map<size_t, size_t>& synchs) {
-  size_t s;
-  std::map<size_t, size_t>::const_iterator si = synchs.find(command.synch());
-  if (si == synchs.end()) {
-    s = command.synch();
-  } else {
-    s = si->second;
-  }
-  Command* subst_comm =
-      new Command(s, command.action(),
-                  SubstituteIdentifiers(command.guard(), substitutions),
-                  SubstituteIdentifiers(command.delay(), substitutions), {});
-  for (const Update& update : command.updates()) {
-    subst_comm->add_update(SubstituteIdentifiers(update, substitutions));
-  }
-  return subst_comm;
-}
-
-Module* SubstituteIdentifiers(
-    const Module& module,
-    const std::map<std::string, std::string>& substitutions,
-    const std::map<size_t, size_t>& syncs) {
-  Module* subst_mod = new Module();
-  for (const std::string& variable : module.variables()) {
-    subst_mod->add_variable(SubstituteName(variable, substitutions));
-  }
-  for (const Command* command : module.commands()) {
-    subst_mod->add_command(
-        SubstituteIdentifiers(*command, substitutions, syncs));
-  }
-  return subst_mod;
-}
-
-ExpressionIdentifierSubstituter::ExpressionIdentifierSubstituter(
-    const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions) {
-}
-
-void ExpressionIdentifierSubstituter::DoVisitLiteral(const Literal& expr) {
-  expr_.reset(new Literal(expr.value()));
-}
-
-void ExpressionIdentifierSubstituter::DoVisitIdentifier(
-    const Identifier& expr) {
-  auto i = substitutions_.find(expr.name());
-  if (i == substitutions_.end()) {
-    expr_.reset(new Identifier(expr.name()));
-  } else {
-    expr_.reset(new Identifier(i->second));
-  }
-}
-
-void ExpressionIdentifierSubstituter::DoVisitFunctionCall(
-    const FunctionCall& expr) {
-  UniquePtrVector<const Expression> arguments;
-  for (const Expression& argument : expr.arguments()) {
-    argument.Accept(this);
-    arguments.push_back(release_expr());
-  }
-  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
-}
-
-void ExpressionIdentifierSubstituter::DoVisitUnaryOperation(
-    const UnaryOperation& expr) {
-  expr.operand().Accept(this);
-  expr_ = UnaryOperation::New(expr.op(), release_expr());
-}
-
-void ExpressionIdentifierSubstituter::DoVisitBinaryOperation(
-    const BinaryOperation& expr) {
-  expr.operand1().Accept(this);
-  std::unique_ptr<const Expression> operand1 = release_expr();
-  expr.operand2().Accept(this);
-  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
-}
-
-void ExpressionIdentifierSubstituter::DoVisitConditional(
-    const Conditional& expr) {
-  expr.condition().Accept(this);
-  std::unique_ptr<const Expression> condition = release_expr();
-  expr.if_branch().Accept(this);
-  std::unique_ptr<const Expression> if_branch = release_expr();
-  expr.else_branch().Accept(this);
-  expr_ = Conditional::New(std::move(condition),
-                           std::move(if_branch), release_expr());
-}
-
-void ExpressionIdentifierSubstituter::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {
-  expr.path_property().Accept(this);
-  expr_ = ProbabilityThresholdOperation::New(expr.op(), expr.threshold(),
-                                             std::move(path_property_));
-}
-
-void ExpressionIdentifierSubstituter::DoVisitUntilProperty(
-    const UntilProperty& path_property) {
-  path_property.pre_expr().Accept(this);
-  auto pre_expr = std::move(expr_);
-  path_property.post_expr().Accept(this);
-  path_property_ =
-      UntilProperty::New(path_property.min_time(), path_property.max_time(),
-                         std::move(pre_expr), std::move(expr_));
-}
-
-DistributionIdentifierSubstituter::DistributionIdentifierSubstituter(
-    const std::map<std::string, std::string>& substitutions)
-    : substitutions_(substitutions) {}
-
-void DistributionIdentifierSubstituter::DoVisitExponential(
-    const Exponential& distribution) {
-  distribution_ = Exponential::New(
-      SubstituteIdentifiers(distribution.rate(), substitutions_));
-}
-
-void DistributionIdentifierSubstituter::DoVisitWeibull(
-    const Weibull& distribution) {
-  distribution_ =
-      Weibull::New(SubstituteIdentifiers(distribution.scale(), substitutions_),
-                   SubstituteIdentifiers(distribution.shape(), substitutions_));
-}
-
-void DistributionIdentifierSubstituter::DoVisitLognormal(
-    const Lognormal& distribution) {
-  distribution_ = Lognormal::New(
-      SubstituteIdentifiers(distribution.scale(), substitutions_),
-      SubstituteIdentifiers(distribution.shape(), substitutions_));
-}
-
-void DistributionIdentifierSubstituter::DoVisitUniform(
-    const Uniform& distribution) {
-  distribution_ =
-      Uniform::New(SubstituteIdentifiers(distribution.low(), substitutions_),
-                   SubstituteIdentifiers(distribution.high(), substitutions_));
-}
-
-}  // namespace
 
 static void add_command() {
-  module->add_command(command);
-  Command copy(command->synch(), command->action(),
-               SubstituteIdentifiers(command->guard(), {}),
-               SubstituteIdentifiers(command->delay(), {}), {});
-  for (const Update& update : command->updates()) {
-    copy.add_update(SubstituteIdentifiers(update, {}));
-  }
   std::vector<std::string> errors;
-  if (!model->AddCommand(std::move(copy), &errors)) {
+  if (!model->AddCommand(std::move(*command), &errors)) {
     for (const auto& error : errors) {
       yyerror(error);
     }
@@ -1472,75 +743,16 @@ static void add_command() {
 static void add_module(const std::string* ident1, const std::string* ident2) {
   if (!model->StartModule(*ident1)) {
     yyerror(StrCat("duplicate module ", *ident1));
-  }
-  std::vector<std::string> errors;
-  if (!model->AddFromModule(*ident2, subst, &errors)) {
-    for (const auto& error : errors) {
-      yyerror(error);
-    }
-  }
-  std::map<std::string, Module*>::const_iterator mi = modules.find(*ident1);
-  if (mi != modules.end()) {
-    yyerror("ignoring repeated declaration of module `" + *ident1 + "'");
   } else {
-    mi = modules.find(*ident2);
-    if (mi == modules.end()) {
-      yyerror("ignoring renaming of undeclared module `" + *ident2 + "'");
-    } else {
-      const Module& src_module = *mi->second;
-      std::map<std::string, std::string> c_subst;
-      for (const std::string& constant : constants) {
-	auto si = subst.find(constant);
-	if (si != subst.end()) {
-	  auto cj = constants.find(si->second);
-	  if (cj == constants.end()) {
-	    yyerror("substituting constant with non-constant " + si->second);
-	  } else {
-	    c_subst.insert(*si);
-	  }
-	}
+    std::vector<std::string> errors;
+    if (!model->AddFromModule(*ident2, subst, &errors)) {
+      for (const auto& error : errors) {
+        yyerror(error);
       }
-      std::map<std::string, std::string> v_subst;
-      for (const std::string& variable : src_module.variables()) {
-	auto si = subst.find(variable);
-	if (si == subst.end()) {
-	  yyerror("missing substitution for module variable");
-	} else {
-          std::unique_ptr<const Expression> low =
-              SubstituteIdentifiers(*variable_lows.find(variable)->second,
-                                    c_subst);
-          std::unique_ptr<const Expression> high =
-              SubstituteIdentifiers(*variable_highs.find(variable)->second,
-                                    c_subst);
-          std::unique_ptr<const Expression> start;
-	  auto i = variable_starts.find(variable);
-	  if (i->second != nullptr) {
-	    start = SubstituteIdentifiers(*i->second, c_subst);
-	  }
-	  if (declare_variable(new std::string(si->second), low.release(),
-                               high.release(), start.release(), true)) {
-	    v_subst.insert(*si);
-	  }
-	}
-      }
-      for (auto si = subst.begin(); si != subst.end(); si++) {
-        std::unique_ptr<const Identifier> v1(
-            find_variable(new std::string(si->first)));
-	if (find(src_module.variables().begin(), src_module.variables().end(),
-                 si->first) != src_module.variables().end()) {
-          std::unique_ptr<const Identifier> v2(
-              find_variable(new std::string(si->second)));
-          v_subst.insert(*si);
-	}
-      }
-      Module* mod = SubstituteIdentifiers(src_module, v_subst, synch_subst);
-      modules.insert(std::make_pair(*ident1, mod));
-      model->add_module(*mod);
-      model->EndModule();
     }
+    model->EndModule();
   }
   subst.clear();
-  synch_subst.clear();
   delete ident1;
   delete ident2;
 }
@@ -1548,8 +760,6 @@ static void add_module(const std::string* ident1, const std::string* ident2) {
 
 /* Adds a module to the current model. */
 static void add_module() {
-  model->add_module(*module);
-  module = nullptr;
   model->EndModule();
 }
 
@@ -1559,20 +769,12 @@ static void prepare_module(const std::string* ident) {
   if (!model->StartModule(*ident)) {
     yyerror(StrCat("duplicate module ", *ident));
   }
-  std::map<std::string, Module*>::const_iterator mi = modules.find(*ident);
-  if (mi != modules.end()) {
-    yyerror("ignoring repeated declaration of module `" + *ident + "'");
-  } else {
-    module = new Module();
-    modules.insert(std::make_pair(*ident, module));
-  }
   delete ident;
 }
 
 
 /* Prepares a model for parsing. */
 static void prepare_model(ModelType model_type) {
-  clear_declarations();
   properties.clear();
   if (model != nullptr) {
     delete model;

@@ -8,7 +8,7 @@ Transitions: 921
 Rate matrix: 267 nodes 5 leaves 921 minterms
 ODD:         37 nodes
 
-Model checking P>=0.86[ P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = 4 & y1 = 4 ] ...
+Model checking P>=0.86[ P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = n & y1 = n ] ...
 Sequential estimation....461 observations.
-Pr[P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = 4 & y1 = 4] = 0.78308 (0.73308,0.83308)
+Pr[P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = n & y1 = n] = 0.78308 (0.73308,0.83308)
 Property is false in the initial state.

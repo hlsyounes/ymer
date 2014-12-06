@@ -75,8 +75,6 @@ extern int yyparse(void* scanner);
 extern const Model* global_model;
 /* Parsed properties. */
 extern UniquePtrVector<const Expression> properties;
-/* Clears all previously parsed declarations. */
-extern void clear_declarations();
 
 /* Name of current file. */
 std::string current_file;
@@ -444,12 +442,17 @@ CompiledModel CompileModel(
   CompiledModel compiled_model(CompileModelType(model.type(), errors));
 
   for (const ParsedVariable& v : model.variables()) {
-    const int min =
-        GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
-    const int max =
-        GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
-    const int init =
-        GetIntValue(v.init(), v.type(), *identifiers_by_name, errors);
+    int min = GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
+    int max = GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
+    int init = GetIntValue(v.init(), v.type(), *identifiers_by_name, errors);
+    if (min >= max) {
+      errors->push_back(StrCat("empty domain [", min, "..", max,
+                               "] for variable ", v.name()));
+      max = min + 1;
+    } else if (init < min || init > max) {
+      errors->push_back(StrCat("init ", init, " not in domain [", min, "..",
+                               max, "] for variable ", v.name()));
+    }
     compiled_model.AddVariable(v.name(), v.type(), min, max, init);
   }
 
@@ -719,7 +722,6 @@ int main(int argc, char* argv[]) {
         return 1;
       }
     }
-    clear_declarations();
     if (global_model == 0) {
       std::cout << "no model" << std::endl;
       return 0;
@@ -729,6 +731,12 @@ int main(int argc, char* argv[]) {
     std::map<std::string, IdentifierInfo> identifiers_by_name =
         GetConstantIdentifiersByName(global_model->constants(), const_overrides,
                                      &errors);
+    if (!errors.empty()) {
+      for (const std::string& error : errors) {
+        std::cerr << PACKAGE << ": " << error << std::endl;
+      }
+      return 1;
+    }
     const CompiledModel compiled_model =
         CompileModel(*global_model, &identifiers_by_name, &errors);
     if (compiled_model.type() == CompiledModelType::DTMC &&

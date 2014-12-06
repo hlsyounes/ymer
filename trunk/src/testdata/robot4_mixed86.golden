@@ -8,6 +8,6 @@ Transitions: 921
 Rate matrix: 267 nodes 5 leaves 921 minterms
 ODD:         37 nodes
 
-Model checking P>=0.86[ P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = 4 & y1 = 4 ] ...
+Model checking P>=0.86[ P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = n & y1 = n ] ...
 Acceptance sampling.190 observations.
 Property is false in the initial state.
