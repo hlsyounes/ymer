@@ -268,7 +268,7 @@ class DistributionCompiler : public DistributionVisitor {
   CompiledGsmpDistribution gsmp_delay() const { return gsmp_delay_; }
 
  private:
-  void DoVisitExponential(const Exponential& dist) override;
+  void DoVisitMemoryless(const Memoryless& dist) override;
   void DoVisitWeibull(const Weibull& dist) override;
   void DoVisitLognormal(const Lognormal& dist) override;
   void DoVisitUniform(const Uniform& dist) override;
@@ -292,8 +292,8 @@ DistributionCompiler::DistributionCompiler(
   CHECK(errors);
 }
 
-void DistributionCompiler::DoVisitExponential(const Exponential& dist) {
-  markov_weight_ = CompileAndOptimizeExpression(dist.rate(), Type::DOUBLE,
+void DistributionCompiler::DoVisitMemoryless(const Memoryless& dist) {
+  markov_weight_ = CompileAndOptimizeExpression(dist.weight(), Type::DOUBLE,
                                                 *identifiers_by_name_, errors_);
 }
 
@@ -461,9 +461,9 @@ CompiledModel CompileModel(
   for (const Command* command : model.commands()) {
     const auto compiled_guard = CompileAndOptimizeExpression(
         command->guard(), Type::BOOL, *identifiers_by_name, errors);
-    const auto compiled_updates =
-        CompileUpdates(command->updates(), *identifiers_by_name, errors);
-    command->delay().Accept(&dist_compiler);
+    const auto compiled_updates = CompileUpdates(
+        command->outcomes()[0].updates(), *identifiers_by_name, errors);
+    command->outcomes()[0].delay().Accept(&dist_compiler);
     if (dist_compiler.has_markov_weight()) {
       single_markov_commands.push_back(CompiledMarkovCommand(
           compiled_guard, dist_compiler.markov_weight(),

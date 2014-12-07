@@ -31,8 +31,6 @@
 #include "cudd.h"
 #include "glog/logging.h"
 
-ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
-
 /*
  * A synchronization map.
  */
@@ -276,7 +274,7 @@ class MomentsCalculator : public DistributionVisitor {
   const std::vector<double>& moments() const { return moments_; }
 
  private:
-  void DoVisitExponential(const Exponential& dist) override;
+  void DoVisitMemoryless(const Memoryless& dist) override;
   void DoVisitWeibull(const Weibull& dist) override;
   void DoVisitLognormal(const Lognormal& dist) override;
   void DoVisitUniform(const Uniform& dist) override;
@@ -287,12 +285,12 @@ class MomentsCalculator : public DistributionVisitor {
 
 MomentsCalculator::MomentsCalculator(int n) : n_(n) { moments_.reserve(n); }
 
-void MomentsCalculator::DoVisitExponential(const Exponential& dist) {
+void MomentsCalculator::DoVisitMemoryless(const Memoryless& dist) {
   moments_.clear();
   // N.B. this function should never be called for a distribution with
   // non-constant parameters.
   double lambda_inv =
-      1.0 / EvaluateConstantExpression(dist.rate()).value<double>();
+      1.0 / EvaluateConstantExpression(dist.weight()).value<double>();
   double mi = 1.0;
   for (int i = 1; i <= n_; i++) {
     mi *= i * lambda_inv;
@@ -786,7 +784,7 @@ BDD command_bdd(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Command& command, std::set<std::string>* updated_variables) {
   BDD ddu = manager.GetConstant(true);
-  for (const Update& update : command.updates()) {
+  for (const Update& update : command.outcomes()[0].updates()) {
     ddu = update_bdd(manager, identifiers_by_name, update) && ddu;
     updated_variables->insert(update.variable());
   }
@@ -947,32 +945,34 @@ bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
   if (!AddAction(command.action(), errors)) {
     return false;
   }
-  for (const auto& update : command.updates()) {
-    auto i = identifier_indices_.find(update.variable());
-    if (i == identifier_indices_.end()) {
-      errors->push_back(
-          StrCat("command is updating undefined variable ", update.variable()));
-      return false;
-    } else if (i->second.type != IdentifierIndex::kVariable) {
-      errors->push_back(StrCat("command is updating ",
-                               IdentifierIndexTypeToString(i->second.type), " ",
-                               update.variable()));
-      return false;
-    } else if (!command.action().empty() &&
-               global_variables_.find(i->second.index) !=
-                   global_variables_.end()) {
-      errors->push_back(StrCat("command with action ", command.action(),
-                               " is updating global variable ",
-                               update.variable()));
-      return false;
-    } else if (modules_[current_module_].variables().find(i->second.index) ==
-                   modules_[current_module_].variables().end() &&
-               global_variables_.find(i->second.index) ==
-                   global_variables_.end()) {
-      errors->push_back(StrCat("command is updating variable ",
-                               update.variable(),
-                               " that belongs to a different module"));
-      return false;
+  for (const auto& outcome : command.outcomes()) {
+    for (const auto& update : outcome.updates()) {
+      auto i = identifier_indices_.find(update.variable());
+      if (i == identifier_indices_.end()) {
+        errors->push_back(StrCat("command is updating undefined variable ",
+                                 update.variable()));
+        return false;
+      } else if (i->second.type != IdentifierIndex::kVariable) {
+        errors->push_back(StrCat("command is updating ",
+                                 IdentifierIndexTypeToString(i->second.type),
+                                 " ", update.variable()));
+        return false;
+      } else if (!command.action().empty() &&
+                 global_variables_.find(i->second.index) !=
+                     global_variables_.end()) {
+        errors->push_back(StrCat("command with action ", command.action(),
+                                 " is updating global variable ",
+                                 update.variable()));
+        return false;
+      } else if (modules_[current_module_].variables().find(i->second.index) ==
+                     modules_[current_module_].variables().end() &&
+                 global_variables_.find(i->second.index) ==
+                     global_variables_.end()) {
+        errors->push_back(StrCat("command is updating variable ",
+                                 update.variable(),
+                                 " that belongs to a different module"));
+        return false;
+      }
     }
   }
   modules_[current_module_].add_command(std::move(command));
@@ -1073,7 +1073,7 @@ class DistributionRewriter : public DistributionVisitor {
   }
 
  private:
-  void DoVisitExponential(const Exponential& dist) override;
+  void DoVisitMemoryless(const Memoryless& dist) override;
   void DoVisitWeibull(const Weibull& dist) override;
   void DoVisitLognormal(const Lognormal& dist) override;
   void DoVisitUniform(const Uniform& dist) override;
@@ -1086,8 +1086,8 @@ DistributionRewriter::DistributionRewriter(
     const std::map<std::string, std::string>* substitutions)
     : substitutions_(substitutions) {}
 
-void DistributionRewriter::DoVisitExponential(const Exponential& dist) {
-  dist_ = Exponential::New(RewriteExpression(dist.rate(), *substitutions_));
+void DistributionRewriter::DoVisitMemoryless(const Memoryless& dist) {
+  dist_ = Memoryless::New(RewriteExpression(dist.weight(), *substitutions_));
 }
 
 void DistributionRewriter::DoVisitWeibull(const Weibull& dist) {
@@ -1125,13 +1125,24 @@ std::vector<Update> RewriteUpdates(
   return std::move(new_updates);
 }
 
+std::vector<Outcome> RewriteOutcomes(
+    const std::vector<Outcome>& outcomes,
+    const std::map<std::string, std::string>& substitutions) {
+  std::vector<Outcome> new_outcomes;
+  for (const Outcome& outcome : outcomes) {
+    new_outcomes.emplace_back(
+        RewriteDistribution(outcome.delay(), substitutions),
+        RewriteUpdates(outcome.updates(), substitutions));
+  }
+  return std::move(new_outcomes);
+}
+
 Command RewriteCommand(
     const Command& command,
     const std::map<std::string, std::string>& substitutions) {
   return Command(RewriteIdentifier(command.action(), substitutions),
                  RewriteExpression(command.guard(), substitutions),
-                 RewriteDistribution(command.delay(), substitutions),
-                 RewriteUpdates(command.updates(), substitutions));
+                 RewriteOutcomes(command.outcomes(), substitutions));
 }
 
 }  // namespace
@@ -1187,11 +1198,12 @@ void Model::EndModule() {
 namespace {
 
 bool IsUnitDistribution(const Distribution& dist) {
-  const Exponential* exp_dist = dynamic_cast<const Exponential*>(&dist);
+  const Memoryless* exp_dist = dynamic_cast<const Memoryless*>(&dist);
   if (exp_dist == NULL) {
     return false;
   }
-  const Literal* rate_literal = dynamic_cast<const Literal*>(&exp_dist->rate());
+  const Literal* rate_literal =
+      dynamic_cast<const Literal*>(&exp_dist->weight());
   return rate_literal != NULL && rate_literal->value() == 1;
 }
 
@@ -1202,7 +1214,7 @@ class DistributionCopier : public DistributionVisitor {
   }
 
  private:
-  void DoVisitExponential(const Exponential& distribution) override;
+  void DoVisitMemoryless(const Memoryless& distribution) override;
   void DoVisitWeibull(const Weibull& distribution) override;
   void DoVisitLognormal(const Lognormal& distribution) override;
   void DoVisitUniform(const Uniform& distribution) override;
@@ -1240,8 +1252,8 @@ std::unique_ptr<const Expression> CopyExpression(const Expression& expr) {
   return copier.release_expr();
 }
 
-void DistributionCopier::DoVisitExponential(const Exponential& distribution) {
-  distribution_ = Exponential::New(CopyExpression(distribution.rate()));
+void DistributionCopier::DoVisitMemoryless(const Memoryless& distribution) {
+  distribution_ = Memoryless::New(CopyExpression(distribution.weight()));
 }
 
 void DistributionCopier::DoVisitWeibull(const Weibull& distribution) {
@@ -1356,27 +1368,29 @@ void Model::compile() {
             std::unique_ptr<const Expression> guard = BinaryOperation::New(
                 BinaryOperator::AND, CopyExpression(ci.guard()),
                 CopyExpression(cj.guard()));
-            Command* c;
-            if (IsUnitDistribution(ci.delay())) {
-              c = new Command(cj.action(), std::move(guard),
-                              CopyDistribution(cj.delay()), {});
-            } else if (IsUnitDistribution(cj.delay())) {
-              c = new Command(ci.action(), std::move(guard),
-                              CopyDistribution(ci.delay()), {});
+            std::vector<Update> updates;
+            for (const Update& update : ci.outcomes()[0].updates()) {
+              updates.emplace_back(update.variable(),
+                                   CopyExpression(update.expr()));
+            }
+            for (const Update& update : cj.outcomes()[0].updates()) {
+              updates.emplace_back(update.variable(),
+                                   CopyExpression(update.expr()));
+            }
+            std::unique_ptr<const Distribution> delay;
+            if (IsUnitDistribution(ci.outcomes()[0].delay())) {
+              delay = CopyDistribution(cj.outcomes()[0].delay());
+            } else if (IsUnitDistribution(cj.outcomes()[0].delay())) {
+              delay = CopyDistribution(ci.outcomes()[0].delay());
             } else {
               throw std::logic_error(
                   "at least one command in a"
                   " synchronization pair must have rate 1");
             }
-            for (const Update& update : ci.updates()) {
-              c->add_update(
-                  Update(update.variable(), CopyExpression(update.expr())));
-            }
-            for (const Update& update : cj.updates()) {
-              c->add_update(
-                  Update(update.variable(), CopyExpression(update.expr())));
-            }
-            commands_.push_back(c);
+            std::vector<Outcome> outcomes;
+            outcomes.emplace_back(std::move(delay), std::move(updates));
+            commands_.push_back(new Command(ci.action(), std::move(guard),
+                                            std::move(outcomes)));
           }
         }
       }
@@ -1505,8 +1519,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
   std::map<int, PHData> ph_commands;
   for (int i = model.commands().size() - 1; i >= 0; i--) {
     const Command& command = *model.commands()[i];
-    const Distribution& dist = command.delay();
-    if (typeid(dist) != typeid(Exponential)) {
+    const Distribution& dist = command.outcomes()[0].delay();
+    if (typeid(dist) != typeid(Memoryless)) {
       PHData data(*manager);
       switch (moments) {
         case 1:
@@ -1568,8 +1582,8 @@ DecisionDiagramModel DecisionDiagramModel::Create(
     std::set<std::string> updated_variables;
     BDD ddc =
         command_bdd(*manager, identifiers_by_name, command, &updated_variables);
-    const Exponential* exp_delay =
-        dynamic_cast<const Exponential*>(&command.delay());
+    const Memoryless* exp_delay =
+        dynamic_cast<const Memoryless*>(&command.outcomes()[0].delay());
     PHData* ph_data = (exp_delay != NULL) ? NULL : &ph_commands.find(i)->second;
     if (ph_data != NULL && ph_data->params.n == 0) {
       if (VLOG_IS_ON(2)) {
@@ -1754,9 +1768,10 @@ DecisionDiagramModel DecisionDiagramModel::Create(
                                  updated_variables, i, ph_commands);
         }
         BDD ddu = ddc && dda;
-        ADD ddr = (exp_delay != NULL)
-                      ? mtbdd(*manager, identifiers_by_name, exp_delay->rate())
-                      : manager->GetConstant(ph_data->params.rc1);
+        ADD ddr =
+            (exp_delay != NULL)
+                ? mtbdd(*manager, identifiers_by_name, exp_delay->weight())
+                : manager->GetConstant(ph_data->params.rc1);
         ADD ddq = ADD(ddu) * ddr;
         if (VLOG_IS_ON(2)) {
           Cudd_PrintDebug(manager->manager(), ddq.get(),

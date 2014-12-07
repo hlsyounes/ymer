@@ -26,7 +26,50 @@
 namespace {
 
 TEST(UpdateTest, Output) {
-  EXPECT_EQ("a' = 17", StrCat(Update("a", Literal::New(17))));
+  EXPECT_EQ("(a' = 17)", StrCat(Update("a", Literal::New(17))));
+}
+
+TEST(OutcomeTest, Output) {
+  EXPECT_EQ("1 : true",
+            StrCat(Outcome(Memoryless::New(Literal::New(1)), {})));
+  std::vector<Update> updates1;
+  updates1.emplace_back("a", Literal::New(17));
+  updates1.emplace_back(
+      "b", UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b")));
+  EXPECT_EQ("0.75 : (a' = 17) & (b' = !b)",
+            StrCat(Outcome(Memoryless::New(Literal::New(0.75)),
+                           std::move(updates1))));
+  std::vector<Update> updates2;
+  updates2.emplace_back("a", Literal::New(17));
+  EXPECT_EQ("W(2.5, 0.5) : (a' = 17)",
+            StrCat(Outcome(Weibull::New(Literal::New(2.5), Literal::New(0.5)),
+                           std::move(updates2))));
+}
+
+TEST(CommandTest, Output) {
+  std::vector<Outcome> outcomes1;
+  std::vector<Update> updates1;
+  updates1.emplace_back("a", Literal::New(42));
+  outcomes1.emplace_back(Weibull::New(Literal::New(2.5), Literal::New(0.5)),
+                         std::move(updates1));
+  EXPECT_EQ("[act] b -> W(2.5, 0.5) : (a' = 42)",
+            StrCat(Command("act", Identifier::New("b"), std::move(outcomes1))));
+  std::vector<Outcome> outcomes2;
+  std::vector<Update> updates2;
+  updates2.emplace_back("a", Literal::New(17));
+  updates2.emplace_back(
+      "b", UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b")));
+  outcomes2.emplace_back(Memoryless::New(Literal::New(0.75)),
+                         std::move(updates2));
+  std::vector<Update> updates3;
+  updates3.emplace_back("a", Literal::New(17));
+  outcomes2.emplace_back(Memoryless::New(Literal::New(0.25)),
+                         std::move(updates3));
+  EXPECT_EQ("[] a = 42 -> 0.75 : (a' = 17) & (b' = !b) + 0.25 : (a' = 17)",
+            StrCat(Command("", BinaryOperation::New(BinaryOperator::EQUAL,
+                                                    Identifier::New("a"),
+                                                    Literal::New(42)),
+                           std::move(outcomes2))));
 }
 
 TEST(ModelTypeTest, Output) {

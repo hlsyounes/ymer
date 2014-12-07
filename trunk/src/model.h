@@ -25,9 +25,11 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "distribution.h"
 #include "expression.h"
 #include "typed-value.h"
 
@@ -50,6 +52,52 @@ class Update {
 
 // Output operator for updates.
 std::ostream& operator<<(std::ostream& os, const Update& update);
+
+// A command outcome.
+class Outcome {
+ public:
+  // Constructs an outcome with the given delay and outcomes.
+  Outcome(std::unique_ptr<const Distribution>&& delay,
+          std::vector<Update>&& updates);
+
+  // Returns the delay for this outcome.
+  const Distribution& delay() const { return *delay_; }
+
+  // Returns the updates for this outcome.
+  const std::vector<Update>& updates() const { return updates_; }
+
+ private:
+  std::unique_ptr<const Distribution> delay_;
+  std::vector<Update> updates_;
+};
+
+// Output operator for outcomes.
+std::ostream& operator<<(std::ostream& os, const Outcome& outcome);
+
+// A module command.
+struct Command {
+  // Constructs a command with the given action label, guard, and outcomes.
+  Command(const std::string& action, std::unique_ptr<const Expression>&& guard,
+          std::vector<Outcome>&& outcomes);
+
+  // Returns the action label for this command, or an empty string if the
+  // command does not have an action label.
+  const std::string& action() const { return action_; }
+
+  // Returns the guard for this command.
+  const Expression& guard() const { return *guard_; }
+
+  // Returns the outcomes for this command.
+  const std::vector<Outcome>& outcomes() const { return outcomes_; }
+
+ private:
+  std::string action_;
+  std::unique_ptr<const Expression> guard_;
+  std::vector<Outcome> outcomes_;
+};
+
+// Outcome operator for commands.
+std::ostream& operator<<(std::ostream& os, const Command& command);
 
 // Supported parsed model types.
 enum class ModelType { DEFAULT, MDP, DTMC, CTMC, GSMP };
@@ -126,6 +174,35 @@ class ParsedVariable {
   std::unique_ptr<const Expression> min_;
   std::unique_ptr<const Expression> max_;
   std::unique_ptr<const Expression> init_;
+};
+
+// A parsed module.
+class ParsedModule {
+ public:
+  // Constructs a parsed module with the given name.
+  explicit ParsedModule(const std::string& name);
+
+  // Makes the variable with the given index a variable of this parsed module.
+  void add_variable(int variable_index) { variables_.insert(variable_index); }
+
+  // Adds the given command to this parsed module.
+  void add_command(Command&& command) {
+    commands_.push_back(std::move(command));
+  }
+
+  // Returns the name for this parsed module.
+  const std::string& name() const { return name_; }
+
+  // Returns the indices of variables for this parsed module.
+  std::set<int> variables() const { return variables_; }
+
+  // Returns the commands for this parsed module.
+  const std::vector<Command>& commands() const { return commands_; }
+
+ private:
+  std::string name_;
+  std::set<int> variables_;
+  std::vector<Command> commands_;
 };
 
 #endif  // MODEL_H_

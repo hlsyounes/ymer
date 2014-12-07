@@ -31,7 +31,42 @@ Update::Update(const std::string& variable,
     : variable_(variable), expr_(std::move(expr)) {}
 
 std::ostream& operator<<(std::ostream& os, const Update& update) {
-  return os << update.variable() << "' = " << update.expr();
+  return os << "(" << update.variable() << "' = " << update.expr() << ")";
+}
+
+Outcome::Outcome(std::unique_ptr<const Distribution>&& delay,
+                 std::vector<Update>&& updates)
+    : delay_(std::move(delay)), updates_(std::move(updates)) {}
+
+std::ostream& operator<<(std::ostream& os, const Outcome& outcome) {
+  os << outcome.delay() << " : ";
+  if (outcome.updates().empty()) {
+    os << "true";
+  } else {
+    auto i = outcome.updates().begin();
+    os << *i;
+    for (++i; i != outcome.updates().end(); ++i) {
+      os << " & " << *i;
+    }
+  }
+  return os;
+}
+
+Command::Command(const std::string& action,
+                 std::unique_ptr<const Expression>&& guard,
+                 std::vector<Outcome>&& outcomes)
+    : action_(action),
+      guard_(std::move(guard)),
+      outcomes_(std::move(outcomes)) {}
+
+std::ostream& operator<<(std::ostream& os, const Command& command) {
+  os << "[" << command.action() << "] " << command.guard() << " -> ";
+  auto i = command.outcomes().begin();
+  os << *i;
+  for (++i; i != command.outcomes().end(); ++i) {
+    os << " + " << *i;
+  }
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, ModelType model_type) {
@@ -458,3 +493,5 @@ ParsedVariable::ParsedVariable(const std::string& name, Type type,
       min_(std::move(min)),
       max_(std::move(max)),
       init_(std::move(init)) {}
+
+ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
