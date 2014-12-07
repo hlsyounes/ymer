@@ -55,23 +55,24 @@ class Distribution {
 // Output operator for distributions.
 std::ostream& operator<<(std::ostream& os, const Distribution& d);
 
-// An exponential distribution.
-class Exponential : public Distribution {
+// A memoryless distribution.
+class Memoryless : public Distribution {
  public:
-  // Constructs an exponential distribution with the given rate.
-  explicit Exponential(std::unique_ptr<const Expression>&& rate);
+  // Constructs a memoryless distribution with the given weight (probability for
+  // discrete-time model; rate for continuous-time model).
+  explicit Memoryless(std::unique_ptr<const Expression>&& weight);
 
-  // Factory method for exponential distributions.
-  static std::unique_ptr<const Exponential> New(
-      std::unique_ptr<const Expression>&& rate);
+  // Factory method for memoryless distributions.
+  static std::unique_ptr<const Memoryless> New(
+      std::unique_ptr<const Expression>&& weight);
 
-  // Returns the rate of this exponential distribution.
-  const Expression& rate() const { return *rate_; }
+  // Returns the weight of this memoryless distribution.
+  const Expression& weight() const { return *weight_; }
 
  private:
   virtual void DoAccept(DistributionVisitor* visitor) const;
 
-  std::unique_ptr<const Expression> rate_;
+  std::unique_ptr<const Expression> weight_;
 };
 
 // A Weibull distribution.
@@ -152,7 +153,7 @@ class Uniform : public Distribution {
 // Abstract base class for distribution visitors.
 class DistributionVisitor {
  public:
-  void VisitExponential(const Exponential& dist);
+  void VisitMemoryless(const Memoryless& dist);
   void VisitWeibull(const Weibull& dist);
   void VisitLognormal(const Lognormal& dist);
   void VisitUniform(const Uniform& dist);
@@ -161,7 +162,7 @@ class DistributionVisitor {
   ~DistributionVisitor();
 
  private:
-  virtual void DoVisitExponential(const Exponential& dist) = 0;
+  virtual void DoVisitMemoryless(const Memoryless& dist) = 0;
   virtual void DoVisitWeibull(const Weibull& dist) = 0;
   virtual void DoVisitLognormal(const Lognormal& dist) = 0;
   virtual void DoVisitUniform(const Uniform& dist) = 0;

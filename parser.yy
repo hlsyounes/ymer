@@ -52,15 +52,11 @@ UniquePtrVector<const Expression> properties;
 static Model* model;
 /* Current identifier substitutions. */
 static std::map<std::string, std::string> subst;
-/* Current command. */
-static Command* command;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
 /* Returns a variable for the given identifier. */
 static const Identifier* find_variable(const std::string* ident);
-/* Adds an update to the current command. */
-static void add_update(const std::string* ident, const Expression* expr);
 /* Adds a substitution to the current substitution map. */
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2);
@@ -73,12 +69,6 @@ static void declare_rate(const std::string* ident,
 /* Declares a variable. */
 static void declare_variable(const std::string* ident, const Expression* low,
                              const Expression* high, const Expression* start);
-/* Adds a command to the current module. */
-static void add_command();
-/* Prepares a command for parsing. */
-static void prepare_command(std::unique_ptr<const std::string>&& action,
-                            std::unique_ptr<const Expression>&& guard,
-			    const Distribution* delay);
 /* Adds a module to the current model defined by renaming. */
 static void add_module(const std::string* ident1, const std::string* ident2);
 /* Adds a module to the current model. */
@@ -275,8 +265,8 @@ const UntilProperty* NewUntil(double min_time, double max_time,
                            WrapUnique(post_expr));
 }
 
-const Exponential* NewExponential(const Expression* rate) {
-  return new Exponential(WrapUnique(rate));
+const Memoryless* NewMemoryless(const Expression* rate) {
+  return new Memoryless(WrapUnique(rate));
 }
 
 const Distribution* NewWeibull(const Expression* scale,
@@ -294,10 +284,48 @@ const Uniform* NewUniform(const Expression* low,
   return new Uniform(WrapUnique(low), WrapUnique(high));
 }
 
-void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
-                 std::unique_ptr<const Expression>&& init) {
+void AddConstant(const std::string* name, Type type, const Expression* init) {
   std::vector<std::string> errors;
-  if (!model->AddConstant(*name, type, std::move(init), &errors)) {
+  if (!model->AddConstant(*WrapUnique(name), type, WrapUnique(init), &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
+  }
+}
+
+Update* NewUpdate(const std::string* variable, const Expression* expr) {
+  return new Update(*WrapUnique(variable), WrapUnique(expr));
+}
+
+std::vector<Update>* AddUpdate(Update* update, std::vector<Update>* updates) {
+  if (updates == nullptr) {
+    updates = new std::vector<Update>();
+  }
+  updates->push_back(std::move(*WrapUnique(update)));
+  return updates;
+}
+
+Outcome* NewOutcome(const Distribution* delay, std::vector<Update>* updates) {
+  return new Outcome(
+      (delay == nullptr) ? Memoryless::New(Literal::New(1)) : WrapUnique(delay),
+      std::move(*WrapUnique(updates)));
+}
+
+std::vector<Outcome>* AddOutcome(Outcome* outcome,
+                                 std::vector<Outcome>* outcomes) {
+  if (outcomes == nullptr) {
+    outcomes = new std::vector<Outcome>();
+  }
+  outcomes->push_back(std::move(*WrapUnique(outcome)));
+  return outcomes;
+}
+
+void AddCommand(const std::string* action, const Expression* guard,
+                std::vector<Outcome>* outcomes) {
+        std::vector<std::string> errors;
+        if (!model->AddCommand(Command(*WrapUnique(action), WrapUnique(guard),
+                                       std::move(*WrapUnique(outcomes))),
+                               &errors)) {
     for (const auto& error : errors) {
       yyerror(error);
     }
@@ -349,7 +377,11 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 %union {
   ModelType model_type;
   const PathProperty* path;
+  std::vector<Outcome>* outcomes;
+  Outcome* outcome;
   const Distribution* dist;
+  std::vector<Update>* updates;
+  Update* update;
   const Expression* expr;
   const std::string* str;
   const TypedValue* number;
@@ -360,9 +392,13 @@ void AddConstant(std::unique_ptr<const std::string>&& name, Type type,
 %type <model_type> model_type
 %type <expr> property
 %type <path> path_property
+%type <outcomes> outcomes update_distribution
+%type <outcome> distribution_and_updates
 %type <dist> distribution
+%type <updates> true_or_updates updates
+%type <update> update
 %type <expr> expr
-%type <str> IDENTIFIER synchronization
+%type <str> IDENTIFIER action
 %type <number> NUMBER
 %type <function> function
 %type <arguments> arguments
@@ -474,18 +510,43 @@ commands : /* empty */
          | commands command
          ;
 
-command : synchronization expr ARROW distribution ':'
-            { prepare_command(WrapUnique($1), WrapUnique($2), $4); } update ';'
-            { add_command(); }
+command : '[' action ']' expr ARROW outcomes ';'
+            { AddCommand($2, $4, $6); }
         ;
 
-synchronization : '[' ']' { $$ = new std::string(); }
-                | '[' IDENTIFIER ']' { $$ = $2; }
+action : /* empty */
+           { $$ = new std::string(); }
+       | IDENTIFIER
+       ;
+
+outcomes : true_or_updates
+             { $$ = AddOutcome(NewOutcome(nullptr, $1), nullptr); }
+         | update_distribution
+         ;
+
+update_distribution : distribution_and_updates
+                        { $$ = AddOutcome($1, nullptr); }
+                    | update_distribution '+' distribution_and_updates
+                        { $$ = AddOutcome($3, $1); }
+                    ;
+
+distribution_and_updates : distribution ':' true_or_updates
+                             { $$ = NewOutcome($1, $3); }
+                         ;
+
+true_or_updates : TRUE
+                    { $$ = new std::vector<Update>(); }
+                | updates
                 ;
 
-update : IDENTIFIER PRIME '=' expr { add_update($1, $4); }
-       | update '&' update
-       | '(' update ')'
+updates : update
+            { $$ = AddUpdate($1, nullptr); }
+        | updates '&' update
+            { $$ = AddUpdate($3, $1); }
+        ;
+
+update : '(' IDENTIFIER PRIME '=' expr ')'
+           { $$ = NewUpdate($2, $5); }
        ;
 
 
@@ -521,7 +582,7 @@ transition_reward : '[' IDENTIFIER ']' expr ':' expr ';'
 /* Distributions. */
 
 distribution : expr
-                 { $$ = NewExponential($1); }
+                 { $$ = NewMemoryless($1); }
              | W '(' expr ',' expr ')'
                  { $$ = NewWeibull($3, $5); }
              | L '(' expr ',' expr ')'
@@ -683,11 +744,6 @@ static const Identifier* find_variable(const std::string* ident) {
   return identifier;
 }
 
-static void add_update(const std::string* ident, const Expression* expr) {
-  command->add_update(Update(*ident, std::unique_ptr<const Expression>(expr)));
-  delete ident;
-}
-
 static void add_substitution(const std::string* ident1,
 			     const std::string* ident2) {
   subst.insert(std::make_pair(*ident1, *ident2));
@@ -697,12 +753,12 @@ static void add_substitution(const std::string* ident1,
 
 static void declare_constant(const std::string* ident,
                              const Expression* value_expr) {
-  AddConstant(WrapUnique(ident), Type::INT, WrapUnique(value_expr));
+  AddConstant(ident, Type::INT, value_expr);
 }
 
 static void declare_rate(const std::string* ident,
                          const Expression* value_expr) {
-  AddConstant(WrapUnique(ident), Type::DOUBLE, WrapUnique(value_expr));
+  AddConstant(ident, Type::DOUBLE, value_expr);
 }
 
 static void declare_variable(const std::string* ident, const Expression* low,
@@ -715,22 +771,6 @@ static void declare_variable(const std::string* ident, const Expression* low,
     }
   }
   delete ident;
-}
-
-/* Prepares a command for parsing. */
-static void prepare_command(std::unique_ptr<const std::string>&& action,
-                            std::unique_ptr<const Expression>&& guard,
-			    const Distribution* delay) {
-  command = new Command(*action, std::move(guard), WrapUnique(delay), {});
-}
-
-static void add_command() {
-  std::vector<std::string> errors;
-  if (!model->AddCommand(std::move(*command), &errors)) {
-    for (const auto& error : errors) {
-      yyerror(error);
-    }
-  }
 }
 
 static void add_module(const std::string* ident1, const std::string* ident2) {

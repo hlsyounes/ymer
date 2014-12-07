@@ -26,9 +26,9 @@
 
 namespace {
 
-TEST(ExponentialTest, Output) {
-  EXPECT_EQ("0.5", StrCat(Exponential(Literal::New(0.5))));
-  EXPECT_EQ("lambda", StrCat(Exponential(Identifier::New("lambda"))));
+TEST(MemorylessTest, Output) {
+  EXPECT_EQ("0.5", StrCat(Memoryless(Literal::New(0.5))));
+  EXPECT_EQ("lambda", StrCat(Memoryless(Identifier::New("lambda"))));
 }
 
 TEST(WeibullTest, Output) {

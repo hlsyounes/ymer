@@ -122,8 +122,8 @@ src_libdistribution_la_LIBADD = src/libexpression.la
 # Model library.
 noinst_LTLIBRARIES += src/libmodel.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
-src_libmodel_la_LIBADD = src/libexpression.la src/libtyped-value.la \
-    glog/libglog.la
+src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
+    src/libtyped-value.la glog/libglog.la
 
 # Compiled expression library.
 noinst_LTLIBRARIES += src/libcompiled-expression.la
@@ -157,7 +157,7 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc formulas.cc formulas.h modules.cc modules.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \

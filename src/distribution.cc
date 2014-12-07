@@ -33,7 +33,7 @@ class DistributionPrinter : public DistributionVisitor {
   explicit DistributionPrinter(std::ostream* os);
 
  private:
-  void DoVisitExponential(const Exponential& distribution) override;
+  void DoVisitMemoryless(const Memoryless& distribution) override;
   void DoVisitWeibull(const Weibull& distribution) override;
   void DoVisitLognormal(const Lognormal& distribution) override;
   void DoVisitUniform(const Uniform& distribution) override;
@@ -43,8 +43,8 @@ class DistributionPrinter : public DistributionVisitor {
 
 DistributionPrinter::DistributionPrinter(std::ostream* os) : os_(os) {}
 
-void DistributionPrinter::DoVisitExponential(const Exponential& distribution) {
-  *os_ << distribution.rate();
+void DistributionPrinter::DoVisitMemoryless(const Memoryless& distribution) {
+  *os_ << distribution.weight();
 }
 
 void DistributionPrinter::DoVisitWeibull(const Weibull& distribution) {
@@ -67,16 +67,16 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
   return os;
 }
 
-Exponential::Exponential(std::unique_ptr<const Expression>&& rate)
-    : rate_(std::move(rate)) {}
+Memoryless::Memoryless(std::unique_ptr<const Expression>&& weight)
+    : weight_(std::move(weight)) {}
 
-std::unique_ptr<const Exponential> Exponential::New(
-    std::unique_ptr<const Expression>&& rate) {
-  return std::unique_ptr<const Exponential>(new Exponential(std::move(rate)));
+std::unique_ptr<const Memoryless> Memoryless::New(
+    std::unique_ptr<const Expression>&& weight) {
+  return std::unique_ptr<const Memoryless>(new Memoryless(std::move(weight)));
 }
 
-void Exponential::DoAccept(DistributionVisitor* visitor) const {
-  visitor->VisitExponential(*this);
+void Memoryless::DoAccept(DistributionVisitor* visitor) const {
+  visitor->VisitMemoryless(*this);
 }
 
 Weibull::Weibull(std::unique_ptr<const Expression>&& scale,
@@ -126,8 +126,8 @@ void Uniform::DoAccept(DistributionVisitor* visitor) const {
 
 DistributionVisitor::~DistributionVisitor() = default;
 
-void DistributionVisitor::VisitExponential(const Exponential& dist) {
-  DoVisitExponential(dist);
+void DistributionVisitor::VisitMemoryless(const Memoryless& dist) {
+  DoVisitMemoryless(dist);
 }
 
 void DistributionVisitor::VisitWeibull(const Weibull& dist) {

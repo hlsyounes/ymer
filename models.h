@@ -26,40 +26,10 @@
 #include <string>
 #include <vector>
 
-#include "modules.h"
 #include "odd.h"
 #include "src/compiled-model.h"
 #include "src/ddutil.h"
 #include "src/model.h"
-
-// A parsed module.
-class ParsedModule {
- public:
-  // Constructs a parsed module with the given name.
-  explicit ParsedModule(const std::string& name);
-
-  // Makes the variable with the given index a variable of this parsed module.
-  void add_variable(int variable_index) { variables_.insert(variable_index); }
-
-  // Adds the given command to this parsed module.
-  void add_command(Command&& command) {
-    commands_.push_back(std::move(command));
-  }
-
-  // Returns the name for this parsed module.
-  const std::string& name() const { return name_; }
-
-  // Returns the indices of variables for this parsed module.
-  std::set<int> variables() const { return variables_; }
-
-  // Returns the commands for this parsed module.
-  const std::vector<Command>& commands() const { return commands_; }
-
- private:
-  std::string name_;
-  std::set<int> variables_;
-  std::vector<Command> commands_;
-};
 
 // A parsed model.
 class Model {
