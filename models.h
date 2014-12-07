@@ -113,9 +113,6 @@ class Model {
   // Returns the modules for this model.
   const std::vector<ParsedModule>& modules() const { return modules_; }
 
-  /* Returns the name of the variable with index i. */
-  const std::string& variable_name(int i) const { return variables_[i].name(); }
-
   /* Returns all commands for this model. */
   const std::vector<const Command*>& commands() const { return commands_; }
 
