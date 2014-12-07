@@ -125,6 +125,16 @@ start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --estimate-probabilities --engine=hybrid --const=n=4 src/testdata/robot.sm <(echo 'P>0[ P>=0.5[ true U<=9 c=1 ] U<=10 (x1=n & y1=n) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/robot4_hybrid.golden -
 expect_ok ${start}
 
+echo -n cell22_estimate...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --delta=0.05 --const=N=22 src/testdata/cell.sm <(echo 'P>0[ true U<=1 n=N]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/cell22_estimate.golden -
+expect_ok ${start}
+
+echo -n cell22_hybrid...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --estimate-probabilities --engine=hybrid --const=N=22 src/testdata/cell.sm <(echo 'P>0[ true U<=1 n=N]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/cell22_hybrid.golden -
+expect_ok ${start}
+
 if (( ${pass} )); then
   echo PASS
 else
