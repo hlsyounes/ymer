@@ -200,6 +200,9 @@ class CompiledModel {
   // trigger time during model simulation.
   int gsmp_event_count() const { return gsmp_event_count_; }
 
+  // Returns the total event count for this compiled model.
+  int EventCount() const;
+
   // Returns the number of integer and double registers referenced by this
   // compiled model.
   std::pair<int, int> GetRegisterCounts() const;
