@@ -60,6 +60,25 @@ void CompiledModel::AddVariable(const std::string& name, Type type,
   init_values_.push_back(init_value);
 }
 
+int CompiledModel::EventCount() const {
+  int event_count = gsmp_event_count();
+  for (const auto& command : single_markov_commands_) {
+    event_count += command.outcomes().size();
+  }
+  for (const auto& commands_per_module : factored_markov_commands_) {
+    int n = 1;
+    for (const auto& commands : commands_per_module) {
+      int m = 0;
+      for (const auto& command : commands) {
+        m += command.outcomes().size();
+      }
+      n *= m;
+    }
+    event_count += n;
+  }
+  return event_count;
+}
+
 namespace {
 
 std::pair<int, int> ComponentMax(std::pair<int, int> left,

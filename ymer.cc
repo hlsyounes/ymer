@@ -929,8 +929,7 @@ int main(int argc, char* argv[]) {
       double t = std::max(0.0, sec + usec * 1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
-      std::cout << "Events:    " << global_model->commands().size()
-                << std::endl;
+      std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
       for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
@@ -1126,8 +1125,7 @@ int main(int argc, char* argv[]) {
       double t = std::max(0.0, sec + usec * 1e-6);
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
-      std::cout << "Events:    " << global_model->commands().size()
-                << std::endl;
+      std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
                        dd_man.GetVariableCount() / 2) << std::endl

@@ -50,6 +50,7 @@ CompiledUpdate MakeUpdate(int variable, int delta) {
 TEST(NextStateSamplerTest, NoEvents) {
   CompiledModel model(CompiledModelType::DTMC);
   model.AddVariable("a", Type::INT, 0, 42, 17);
+  EXPECT_EQ(0, model.EventCount());
   CompiledExpressionEvaluator evaluator(0, 0);
   // No random numbers consumed.
   FakeEngine engine(0, 0, {});
@@ -72,6 +73,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventDtmc) {
        CompiledMarkovCommand(
            MakeGuard(0, 18, 18), MakeWeight(1.0),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 1)})})});
+  EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // No random numbers consumed.  No choice.
   FakeEngine engine(0, 0, {});
@@ -102,6 +104,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventCtmc) {
        CompiledMarkovCommand(
            MakeGuard(0, 18, 18), MakeWeight(3.0),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 1)})})});
+  EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // One random number consumed per state transition.  No choice.
   FakeEngine engine(0, 3, {1, 2});
@@ -135,6 +138,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
        CompiledMarkovCommand(
            MakeGuard(0, 18, 19), MakeWeight(1.0),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, -1)})})});
+  EXPECT_EQ(3, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 1 random number for the 1st state transition:
   //
@@ -183,6 +187,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
        CompiledMarkovCommand(
            MakeGuard(0, 18, 19), MakeWeight(1.0),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, -1)})})});
+  EXPECT_EQ(3, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 2 random numbers for the 1st state transition:
   //
@@ -260,6 +265,7 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsDtmc) {
              MakeGuard(1, 1, 3), MakeWeight(1.0),
              {CompiledMarkovOutcome(MakeWeight(0.5), {MakeUpdate(1, -2)}),
               CompiledMarkovOutcome(MakeWeight(0.5), {MakeUpdate(1, 1)})})}}});
+  EXPECT_EQ(2 + 3 * 3 + 4 * 3, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 4 random numbers for the 1st state transition:
   //
@@ -336,6 +342,7 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
                                                       {MakeUpdate(1, -2)}),
                                 CompiledMarkovOutcome(MakeWeight(1.75 / 3.0),
                                                       {MakeUpdate(1, 1)})})}}});
+  EXPECT_EQ(2 + 3 * 3 + 4 * 3, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 5 random numbers for the 1st state transition:
   //
@@ -389,6 +396,7 @@ TEST(NextStateSamplerTest, BreaksTiesForMarkovCommands) {
        CompiledMarkovCommand(
            MakeGuard(0, 17, 18), MakeWeight(1.0),
            {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 1)})})});
+  EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 1 random number consumed per state transition:
   //
@@ -424,6 +432,7 @@ TEST(NextStateSamplerTest, OneEnabledGsmpEvent) {
        CompiledGsmpCommand(MakeGuard(0, 18, 18),
                            CompiledGsmpDistribution::MakeUniform(7.0, 11.0),
                            {MakeUpdate(0, 1)}, 1)});
+  EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // One random number consumed per state transition.  No choice.
   FakeEngine engine(0, 3, {1, 3});
@@ -466,6 +475,7 @@ TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
        CompiledGsmpCommand(MakeGuard(0, 18, 19),
                            CompiledGsmpDistribution::MakeUniform(1.0, 2.0),
                            {MakeUpdate(0, -1)}, 2)});
+  EXPECT_EQ(3, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 2 random numbers for the 1st state transition:
   //
@@ -532,6 +542,7 @@ TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {
        CompiledGsmpCommand(MakeGuard(0, 17, 18),
                            CompiledGsmpDistribution::MakeUniform(0.0, 4.0),
                            {MakeUpdate(0, 1)}, 1)});
+  EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // 3 random numbers for the 1st state transition:
   //
