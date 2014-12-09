@@ -361,6 +361,7 @@ std::vector<CompiledUpdate> CompileUpdates(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
   std::vector<CompiledUpdate> compiled_updates;
+  compiled_updates.reserve(updates.size());
   for (const auto& update : updates) {
     compiled_updates.push_back(
         CompileUpdate(update, identifiers_by_name, errors));
@@ -443,7 +444,10 @@ bool IsUnitWeight(const CompiledExpression& weight) {
 CompiledExpression ComposeWeightExpressions(BinaryOperator op,
                                             CompiledExpression expr1,
                                             CompiledExpression expr2) {
-  std::vector<Operation> operations(expr1.operations());
+  std::vector<Operation> operations;
+  operations.reserve(expr1.operations().size() + expr2.operations().size() + 1);
+  operations.insert(operations.end(), expr1.operations().begin(),
+                    expr1.operations().end());
   const int pc_shift = operations.size();
   const int reg_shift = 1;
   for (const Operation& o : expr2.operations()) {
@@ -463,7 +467,10 @@ CompiledExpression ComposeWeightExpressions(BinaryOperator op,
 
 CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
                                            CompiledExpression expr2) {
-  std::vector<Operation> operations(expr1.operations());
+  std::vector<Operation> operations;
+  operations.reserve(expr1.operations().size() + expr2.operations().size() + 1);
+  operations.insert(operations.end(), expr1.operations().begin(),
+                    expr1.operations().end());
   const int pc_shift = operations.size() + 1;
   const int reg_shift = 0;
   operations.push_back(
@@ -490,11 +497,12 @@ PreCompiledCommands PreCompileCommands(
     std::vector<std::string>* errors) {
   PreCompiledCommands result;
   DistributionCompiler dist_compiler(&identifiers_by_name, errors);
+  std::vector<CompiledMarkovOutcome> markov_outcomes;
   for (const auto& module : model.modules()) {
     for (const auto& command : module.commands()) {
       const auto compiled_guard = CompileAndOptimizeExpression(
           command.guard(), Type::BOOL, identifiers_by_name, errors);
-      std::vector<CompiledMarkovOutcome> markov_outcomes;
+      markov_outcomes.clear();
       for (const auto& outcome : command.outcomes()) {
         outcome.delay().Accept(&dist_compiler);
         const auto compiled_updates =
@@ -586,9 +594,13 @@ CompiledMarkovCommand ComposeMarkovCommands(
     const CompiledMarkovCommand& command1,
     const CompiledMarkovCommand& command2) {
   std::vector<CompiledMarkovOutcome> outcomes;
+  outcomes.reserve(command1.outcomes().size() + command2.outcomes().size());
+  std::vector<CompiledUpdate> updates;
   for (const auto& outcome1 : command1.outcomes()) {
     for (const auto& outcome2 : command2.outcomes()) {
-      std::vector<CompiledUpdate> updates(outcome1.updates());
+      updates.clear();
+      updates.insert(updates.end(), outcome1.updates().begin(),
+                     outcome1.updates().end());
       updates.insert(updates.end(), outcome2.updates().begin(),
                      outcome2.updates().end());
       outcomes.emplace_back(ComposeWeightExpressions(BinaryOperator::MULTIPLY,
@@ -643,6 +655,7 @@ CompiledCommands CompileCommands(
 
   std::set<std::string> actions;
   std::set<std::string> gsmp_actions;
+  std::vector<CompiledUpdate> updates;
   for (const auto& entry : pre_compiled_commands.factored_gsmp_commands) {
     const auto& action = entry.first;
     gsmp_actions.insert(action);
@@ -681,7 +694,9 @@ CompiledCommands CompileCommands(
           }
           CHECK_EQ(markov_command.outcomes().size(), 1);
           const auto& outcome = markov_command.outcomes()[0];
-          std::vector<CompiledUpdate> updates(gsmp_command.updates());
+          updates.clear();
+          updates.insert(updates.end(), gsmp_command.updates().begin(),
+                         gsmp_command.updates().end());
           updates.insert(updates.end(), outcome.updates().begin(),
                          outcome.updates().end());
           result.single_gsmp_commands.emplace_back(
