@@ -53,8 +53,6 @@ static Model* model;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
-/* Returns a variable for the given identifier. */
-static const Identifier* find_variable(const std::string* ident);
 /* Prepares a model for parsing. */
 static void prepare_model(ModelType model_type);
 /* Compiles the current model. */
@@ -84,25 +82,48 @@ std::unique_ptr<T> WrapUnique(T* ptr) {
   return std::unique_ptr<T>(ptr);
 }
 
-Function MakeFunction(const std::string& name) {
-  if (name == "min") {
+Function MakeFunction(const std::string* name) {
+  auto name_ptr = WrapUnique(name);
+  if (*name == "min") {
     return Function::MIN;
-  } else if (name == "max") {
+  } else if (*name == "max") {
     return Function::MAX;
-  } else if (name == "floor") {
+  } else if (*name == "floor") {
     return Function::FLOOR;
-  } else if (name == "ceil") {
+  } else if (*name == "ceil") {
     return Function::CEIL;
-  } else if (name == "pow") {
+  } else if (*name == "pow") {
     return Function::POW;
-  } else if (name == "log") {
+  } else if (*name == "log") {
     return Function::LOG;
-  } else if (name == "mod") {
+  } else if (*name == "mod") {
     return Function::MOD;
   } else {
     yyerror("unknown function");
     return Function::UNKNOWN;
   }
+}
+
+UniquePtrVector<const Expression>* AddArgument(
+    const Expression* argument, UniquePtrVector<const Expression>* arguments) {
+  if (arguments == nullptr) {
+    arguments = new UniquePtrVector<const Expression>();
+  }
+  arguments->push_back(WrapUnique(argument));
+  return arguments;
+}
+
+const Literal* NewLiteral(const TypedValue* value) {
+  return new Literal(*WrapUnique(value));
+}
+
+const Identifier* NewIdentifier(const std::string* name) {
+  return new Identifier(*WrapUnique(name));
+}
+
+const FunctionCall* NewFunctionCall(
+    Function function, UniquePtrVector<const Expression>* arguments) {
+  return new FunctionCall(function, std::move(*WrapUnique(arguments)));
 }
 
 const UnaryOperation* NewNegate(const Expression* operand) {
@@ -206,9 +227,7 @@ const Conditional* NewConditional(const Expression* condition,
 
 double Double(const TypedValue* typed_value) {
   CHECK(typed_value->type() != Type::BOOL);
-  double value = typed_value->value<double>();
-  delete typed_value;
-  return value;
+  return WrapUnique(typed_value)->value<double>();
 }
 
 const ProbabilityThresholdOperation* NewProbabilityLess(
@@ -478,10 +497,6 @@ model_or_properties : model
                     | properties
                     ;
 
-
-/* ====================================================================== */
-/* Model files. */
-
 model : model_type { prepare_model($1); } model_components
           { compile_model(); }
       ;
@@ -650,21 +665,18 @@ transition_reward : '[' action ']' expr ':' expr ';'
                       { AddTransitionReward($2, $4, $6); }
                   ;
 
-/* ====================================================================== */
-/* Expressions. */
-
 expr : NUMBER
-         { $$ = new Literal(*$1); delete $1; }
+         { $$ = NewLiteral($1); }
      | TRUE
          { $$ = new Literal(true); }
      | FALSE
-         { $$ = new Literal(true); }
+         { $$ = new Literal(false); }
      | IDENTIFIER
-         { $$ = find_variable($1); }
+         { $$ = NewIdentifier($1); }
      | function '(' arguments ')'
-         { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
+         { $$ = NewFunctionCall($1, $3); }
      | FUNC '(' function ',' arguments ')'
-         { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
+         { $$ = NewFunctionCall($3, $5); }
      | '-' expr %prec UMINUS
          { $$ = NewNegate($2); }
      | '!' expr
@@ -704,7 +716,7 @@ expr : NUMBER
      ;
 
 function : IDENTIFIER
-             { $$ = MakeFunction(*$1); delete $1; }
+             { $$ = MakeFunction($1); }
          | MIN_TOKEN
              { $$ = Function::MIN; }
          | MAX_TOKEN
@@ -712,14 +724,10 @@ function : IDENTIFIER
          ;
 
 arguments : expr
-              { $$ = new UniquePtrVector<const Expression>(WrapUnique($1)); }
+              { $$ = AddArgument($1, nullptr);  }
           | arguments ',' expr
-              { $$ = $1; $$->push_back(WrapUnique($3)); }
+              { $$ = AddArgument($3, $1); }
           ;
-
-
-/* ====================================================================== */
-/* Properties. */
 
 properties : property_list
            | property_list ';'
@@ -732,17 +740,17 @@ property_list : property
               ;
 
 property : NUMBER
-             { $$ = new Literal(*$1); delete $1; }
+             { $$ = NewLiteral($1); }
          | TRUE
              { $$ = new Literal(true); }
          | FALSE
              { $$ = new Literal(false); }
          | IDENTIFIER
-             { $$ = find_variable($1); }
+             { $$ = NewIdentifier($1); }
          | function '(' arguments ')'
-             { $$ = new FunctionCall($1, std::move(*$3)); delete $3; }
+             { $$ = NewFunctionCall($1, $3); }
          | FUNC '(' function ',' arguments ')'
-             { $$ = new FunctionCall($3, std::move(*$5)); delete $5; }
+             { $$ = NewFunctionCall($3, $5); }
          | P '<' NUMBER '[' path_property ']'
              { $$ = NewProbabilityLess(Double($3), $5); }
          | P LEQ NUMBER '[' path_property ']'
@@ -796,12 +804,6 @@ path_property : property U LEQ NUMBER property
               ;
 
 %%
-
-static const Identifier* find_variable(const std::string* ident) {
-  const Identifier* identifier = new Identifier(*ident);
-  delete ident;
-  return identifier;
-}
 
 /* Prepares a model for parsing. */
 static void prepare_model(ModelType model_type) {
