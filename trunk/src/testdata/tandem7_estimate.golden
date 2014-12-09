@@ -3,6 +3,6 @@ Variables: 3
 Events:    5
 
 Model checking P>0[ true U<=26 sc = c & sm = c ] ...
-Sequential estimation..285 observations.
-Pr[true U<=26 sc = c & sm = c] = 0.115789 (0.0657895,0.165789)
+Sequential estimation..257 observations.
+Pr[true U<=26 sc = c & sm = c] = 0.101167 (0.0511673,0.151167)
 Property is true in the initial state.
