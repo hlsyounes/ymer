@@ -433,6 +433,292 @@ int GetIntValue(
   return 0;
 }
 
+bool IsUnitWeight(const CompiledExpression& weight) {
+  return weight.operations().size() == 1 &&
+         weight.operations()[0].opcode() == Opcode::DCONST &&
+         weight.operations()[0].operand2() == 0 &&
+         weight.operations()[0].doperand1() == 1.0;
+}
+
+CompiledExpression ComposeWeightExpressions(BinaryOperator op,
+                                            CompiledExpression expr1,
+                                            CompiledExpression expr2) {
+  std::vector<Operation> operations(expr1.operations());
+  const int pc_shift = operations.size();
+  const int reg_shift = 1;
+  for (const Operation& o : expr2.operations()) {
+    operations.push_back(o.Shift(pc_shift, reg_shift));
+  }
+  if (op == BinaryOperator::PLUS) {
+    operations.push_back(Operation::MakeDADD(0, 1));
+  } else if (op == BinaryOperator::MULTIPLY) {
+    operations.push_back(Operation::MakeDMUL(0, 1));
+  } else if (op == BinaryOperator::DIVIDE) {
+    operations.push_back(Operation::MakeDDIV(0, 1));
+  } else {
+    LOG(FATAL) << "not implemented";
+  }
+  return OptimizeDoubleExpression(CompiledExpression(operations));
+}
+
+CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
+                                           CompiledExpression expr2) {
+  std::vector<Operation> operations(expr1.operations());
+  const int pc_shift = operations.size() + 1;
+  const int reg_shift = 0;
+  operations.push_back(
+      Operation::MakeIFFALSE(0, pc_shift + expr2.operations().size()));
+  for (const Operation& o : expr2.operations()) {
+    operations.push_back(o.Shift(pc_shift, reg_shift));
+  }
+  return CompiledExpression(operations);
+}
+
+struct PreCompiledCommands {
+  std::vector<CompiledMarkovCommand> single_markov_commands;
+  std::map<std::string,
+           std::map<std::string, std::vector<CompiledMarkovCommand>>>
+      factored_markov_commands;
+  std::vector<CompiledGsmpCommand> single_gsmp_commands;
+  std::map<std::string, std::map<std::string, std::vector<CompiledGsmpCommand>>>
+      factored_gsmp_commands;
+};
+
+PreCompiledCommands PreCompileCommands(
+    const Model& model,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    std::vector<std::string>* errors) {
+  PreCompiledCommands result;
+  DistributionCompiler dist_compiler(&identifiers_by_name, errors);
+  for (const auto& module : model.modules()) {
+    for (const auto& command : module.commands()) {
+      const auto compiled_guard = CompileAndOptimizeExpression(
+          command.guard(), Type::BOOL, identifiers_by_name, errors);
+      std::vector<CompiledMarkovOutcome> markov_outcomes;
+      for (const auto& outcome : command.outcomes()) {
+        outcome.delay().Accept(&dist_compiler);
+        const auto compiled_updates =
+            CompileUpdates(outcome.updates(), identifiers_by_name, errors);
+        if (dist_compiler.has_markov_weight()) {
+          markov_outcomes.emplace_back(dist_compiler.markov_weight(),
+                                       compiled_updates);
+        } else {
+          CompiledGsmpCommand compiled_command(
+              compiled_guard, dist_compiler.gsmp_delay(), compiled_updates,
+              result.single_gsmp_commands.size());
+          if (command.action().empty()) {
+            result.single_gsmp_commands.push_back(compiled_command);
+          } else {
+            result.factored_gsmp_commands[command.action()][module.name()]
+                .push_back(compiled_command);
+          }
+        }
+      }
+      if (!markov_outcomes.empty()) {
+        CompiledExpression weight_sum = markov_outcomes[0].probability();
+        for (size_t i = 1; i < markov_outcomes.size(); ++i) {
+          weight_sum =
+              ComposeWeightExpressions(BinaryOperator::PLUS, weight_sum,
+                                       markov_outcomes[i].probability());
+        }
+        for (auto& markov_outcome : markov_outcomes) {
+          markov_outcome = CompiledMarkovOutcome(
+              ComposeWeightExpressions(BinaryOperator::DIVIDE,
+                                       markov_outcome.probability(),
+                                       weight_sum),
+              markov_outcome.updates());
+        }
+        CompiledMarkovCommand compiled_command(compiled_guard, weight_sum,
+                                               markov_outcomes);
+        if (command.action().empty()) {
+          result.single_markov_commands.push_back(compiled_command);
+        } else {
+          result.factored_markov_commands[command.action()][module.name()]
+              .push_back(compiled_command);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+struct CompiledCommands {
+  std::vector<CompiledMarkovCommand> single_markov_commands;
+  std::vector<std::vector<std::vector<CompiledMarkovCommand>>>
+      factored_markov_commands;
+  std::vector<CompiledGsmpCommand> single_gsmp_commands;
+  std::vector<FactoredGsmpCommands> factored_gsmp_commands_;
+};
+
+bool IsSimpleComposition(
+    const std::map<std::string, std::vector<CompiledMarkovCommand>>&
+        factored_markov_commands,
+    const std::string& excluded_module, int multi_command_module_limit) {
+  int module_count = 0;
+  int multi_command_module_count = 0;
+  bool has_multi_outcome_command = false;
+  for (const auto& entry : factored_markov_commands) {
+    const auto& module = entry.first;
+    if (module != excluded_module) {
+      ++module_count;
+      const auto& commands = entry.second;
+      if (commands.size() > 1) {
+        ++multi_command_module_count;
+      }
+      for (const auto& command : commands) {
+        if (command.outcomes().size() > 1) {
+          has_multi_outcome_command = true;
+        }
+      }
+    }
+  }
+  if (has_multi_outcome_command &&
+      (module_count > 1 || !excluded_module.empty())) {
+    return false;
+  }
+  if (multi_command_module_count > multi_command_module_limit) {
+    return false;
+  }
+  return true;
+}
+
+CompiledMarkovCommand ComposeMarkovCommands(
+    const CompiledMarkovCommand& command1,
+    const CompiledMarkovCommand& command2) {
+  std::vector<CompiledMarkovOutcome> outcomes;
+  for (const auto& outcome1 : command1.outcomes()) {
+    for (const auto& outcome2 : command2.outcomes()) {
+      std::vector<CompiledUpdate> updates(outcome1.updates());
+      updates.insert(updates.end(), outcome2.updates().begin(),
+                     outcome2.updates().end());
+      outcomes.emplace_back(ComposeWeightExpressions(BinaryOperator::MULTIPLY,
+                                                     outcome1.probability(),
+                                                     outcome2.probability()),
+                            updates);
+    }
+  }
+  return CompiledMarkovCommand(
+      ComposeGuardExpressions(command1.guard(), command2.guard()),
+      ComposeWeightExpressions(BinaryOperator::MULTIPLY, command1.weight(),
+                               command2.weight()),
+      outcomes);
+}
+
+std::vector<CompiledMarkovCommand> ComposeFactoredMarkovCommands(
+    const std::map<std::string, std::vector<CompiledMarkovCommand>>&
+        factored_markov_commands,
+    const std::string& excluded_module) {
+  std::vector<CompiledMarkovCommand> result;
+  for (const auto& entry : factored_markov_commands) {
+    const auto& module = entry.first;
+    if (module != excluded_module) {
+      const auto& commands = entry.second;
+      if (result.empty()) {
+        result = commands;
+      } else {
+        size_t n = result.size();
+        for (size_t i = 1; i < commands.size(); ++i) {
+          for (size_t j = 0; j < n; ++j) {
+            result.push_back(ComposeMarkovCommands(result[j], commands[i]));
+          }
+        }
+        for (size_t j = 0; j < n; ++j) {
+          result[j] = ComposeMarkovCommands(result[j], commands[0]);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+CompiledCommands CompileCommands(
+    const Model& model,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    std::vector<std::string>* errors) {
+  CompiledCommands result;
+  const PreCompiledCommands pre_compiled_commands =
+      PreCompileCommands(model, identifiers_by_name, errors);
+  result.single_markov_commands = pre_compiled_commands.single_markov_commands;
+  result.single_gsmp_commands = pre_compiled_commands.single_gsmp_commands;
+
+  std::set<std::string> actions;
+  std::set<std::string> gsmp_actions;
+  for (const auto& entry : pre_compiled_commands.factored_gsmp_commands) {
+    const auto& action = entry.first;
+    gsmp_actions.insert(action);
+    std::string gsmp_module;
+    for (const auto& module_entry : entry.second) {
+      const auto& module = module_entry.first;
+      if (gsmp_module.empty()) {
+        gsmp_module = module;
+      } else if (gsmp_module != module) {
+        errors->push_back(StrCat("action ", action,
+                                 " has GSMP commands in multiple modules: ",
+                                 gsmp_module, " and ", module));
+        return result;
+      }
+    }
+    auto i = pre_compiled_commands.factored_markov_commands.find(action);
+    const auto& gsmp_commands = entry.second.find(gsmp_module)->second;
+    if (i == pre_compiled_commands.factored_markov_commands.end()) {
+      for (const auto& gsmp_command : gsmp_commands) {
+        result.single_gsmp_commands.emplace_back(
+            gsmp_command.guard(), gsmp_command.delay(), gsmp_command.updates(),
+            result.single_gsmp_commands.size());
+      }
+    } else if (IsSimpleComposition(i->second, gsmp_module,
+                                   (gsmp_commands.size() > 1) ? 0 : 1)) {
+      const auto composed_commands =
+          ComposeFactoredMarkovCommands(i->second, gsmp_module);
+      for (const auto& gsmp_command : gsmp_commands) {
+        for (const auto& markov_command : composed_commands) {
+          if (!IsUnitWeight(markov_command.weight())) {
+            errors->push_back(StrCat("action ", action,
+                                     " has GSMP command synchronized with "
+                                     "command with non-unit weight ",
+                                     markov_command.weight()));
+            return result;
+          }
+          CHECK_EQ(markov_command.outcomes().size(), 1);
+          const auto& outcome = markov_command.outcomes()[0];
+          std::vector<CompiledUpdate> updates(gsmp_command.updates());
+          updates.insert(updates.end(), outcome.updates().begin(),
+                         outcome.updates().end());
+          result.single_gsmp_commands.emplace_back(
+              ComposeGuardExpressions(gsmp_command.guard(),
+                                      markov_command.guard()),
+              gsmp_command.delay(), updates,
+              result.single_gsmp_commands.size());
+        }
+      }
+    } else {
+      // Process later.  We will need to add this to factored_gsmp_commands.
+      actions.insert(action);
+    }
+  }
+  for (const auto& entry : pre_compiled_commands.factored_markov_commands) {
+    const auto& action = entry.first;
+    if (gsmp_actions.find(action) == gsmp_actions.end()) {
+      if (IsSimpleComposition(entry.second, "", 1)) {
+        const auto composed_commands =
+            ComposeFactoredMarkovCommands(entry.second, "");
+        result.single_markov_commands.insert(
+            result.single_markov_commands.end(), composed_commands.begin(),
+            composed_commands.end());
+      } else {
+        // Process later.  We will need to add this to factored_markov_commands.
+        actions.insert(action);
+      }
+    }
+  }
+
+  // TODO(hlsyounes): Add factored commands for actions.
+  if (!actions.empty()) {
+    errors->push_back("compilation for factored models not implemented");
+  }
+  return result;
+}
+
 CompiledModel CompileModel(
     const Model& model,
     std::map<std::string, IdentifierInfo>* identifiers_by_name,
@@ -455,29 +741,14 @@ CompiledModel CompileModel(
   }
 
   AddVariableIdentifiersByName(compiled_model, identifiers_by_name);
-  std::vector<CompiledMarkovCommand> single_markov_commands;
-  std::vector<CompiledGsmpCommand> single_gsmp_commands;
-  DistributionCompiler dist_compiler(identifiers_by_name, errors);
-  for (const Command* command : model.commands()) {
-    const auto compiled_guard = CompileAndOptimizeExpression(
-        command->guard(), Type::BOOL, *identifiers_by_name, errors);
-    const auto compiled_updates = CompileUpdates(
-        command->outcomes()[0].updates(), *identifiers_by_name, errors);
-    command->outcomes()[0].delay().Accept(&dist_compiler);
-    if (dist_compiler.has_markov_weight()) {
-      single_markov_commands.push_back(CompiledMarkovCommand(
-          compiled_guard, dist_compiler.markov_weight(),
-          {CompiledMarkovOutcome(
-              CompiledExpression({Operation::MakeDCONST(1.0, 0)}),
-              compiled_updates)}));
-    } else {
-      single_gsmp_commands.emplace_back(
-          compiled_guard, dist_compiler.gsmp_delay(), compiled_updates,
-          single_gsmp_commands.size());
-    }
-  }
-  compiled_model.set_single_markov_commands(single_markov_commands);
-  compiled_model.set_single_gsmp_commands(single_gsmp_commands);
+  const auto& compiled_commands =
+      CompileCommands(model, *identifiers_by_name, errors);
+  compiled_model.set_single_markov_commands(
+      compiled_commands.single_markov_commands);
+  compiled_model.set_factored_markov_commands(
+      compiled_commands.factored_markov_commands);
+  compiled_model.set_single_gsmp_commands(
+      compiled_commands.single_gsmp_commands);
 
   return compiled_model;
 }

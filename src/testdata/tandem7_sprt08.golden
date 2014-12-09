@@ -3,5 +3,5 @@ Variables: 3
 Events:    5
 
 Model checking P<0.08[ true U<=26 sc = c & sm = c ] ...
-Acceptance sampling....491 observations.
+Acceptance sampling......608 observations.
 Property is false in the initial state.
