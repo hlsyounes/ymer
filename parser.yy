@@ -50,31 +50,11 @@ UniquePtrVector<const Expression> properties;
 
 /* Current model. */
 static Model* model;
-/* Current identifier substitutions. */
-static std::map<std::string, std::string> subst;
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
 
 /* Returns a variable for the given identifier. */
 static const Identifier* find_variable(const std::string* ident);
-/* Adds a substitution to the current substitution map. */
-static void add_substitution(const std::string* ident1,
-			     const std::string* ident2);
-/* Declares an integer constant. */
-static void declare_constant(const std::string* ident,
-                             const Expression* value_expr);
-/* Declares a rate constant. */
-static void declare_rate(const std::string* ident,
-                         const Expression* value_expr);
-/* Declares a variable. */
-static void declare_variable(const std::string* ident, const Expression* low,
-                             const Expression* high, const Expression* start);
-/* Adds a module to the current model defined by renaming. */
-static void add_module(const std::string* ident1, const std::string* ident2);
-/* Adds a module to the current model. */
-static void add_module();
-/* Prepares a module for parsing. */
-static void prepare_module(const std::string* ident);
 /* Prepares a model for parsing. */
 static void prepare_model(ModelType model_type);
 /* Compiles the current model. */
@@ -293,6 +273,61 @@ void AddConstant(const std::string* name, Type type, const Expression* init) {
   }
 }
 
+void AddIntVariable(const std::string* name, const Expression* low,
+                    const Expression* high, const Expression* init) {
+  std::vector<std::string> errors;
+  if (!model->AddIntVariable(*WrapUnique(name), WrapUnique(low),
+                             WrapUnique(high), WrapUnique(init), &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
+  }
+}
+
+void AddBoolVariable(const std::string* name, const Expression* init) {
+  std::vector<std::string> errors;
+  if (!model->AddBoolVariable(*WrapUnique(name), WrapUnique(init), &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
+  }
+}
+
+void StartModule(const std::string* name) {
+  auto name_ptr = WrapUnique(name);
+  if (!model->StartModule(*name_ptr)) {
+    yyerror(StrCat("duplicate module ", *name_ptr));
+  }
+}
+
+void AddFromModule(const std::string* from_name,
+                   const std::map<std::string, std::string>* substitutions) {
+  std::vector<std::string> errors;
+  if (!model->AddFromModule(*WrapUnique(from_name), *WrapUnique(substitutions),
+                            &errors)) {
+    for (const auto& error : errors) {
+      yyerror(error);
+    }
+  }
+}
+
+void EndModule() {
+  model->EndModule();
+}
+
+std::map<std::string, std::string>* AddSubstitution(
+    const std::string* from_name, const std::string* to_name,
+    std::map<std::string, std::string>* substitutions) {
+  if (substitutions == nullptr) {
+    substitutions = new std::map<std::string, std::string>();
+  }
+  auto from_name_ptr = WrapUnique(from_name);
+  if (!substitutions->emplace(*from_name_ptr, *WrapUnique(to_name)).second) {
+    yyerror(StrCat("duplicate substitution for ", *from_name_ptr));
+  }
+  return substitutions;
+}
+
 Update* NewUpdate(const std::string* variable, const Expression* expr) {
   return new Update(*WrapUnique(variable), WrapUnique(expr));
 }
@@ -331,6 +366,22 @@ void AddCommand(const std::string* action, const Expression* guard,
     }
   }
 }
+
+void StartRewards(const std::string* label) { delete label; }
+
+void AddStateReward(const Expression* guard, const Expression* reward) {
+  delete guard;
+  delete reward;
+}
+
+void AddTransitionReward(const std::string* action, const Expression* guard,
+                         const Expression* reward) {
+  delete action;
+  delete guard;
+  delete reward;
+}
+
+void EndRewards() {}
 
 }  // namespace
 %}
@@ -375,8 +426,10 @@ void AddCommand(const std::string* action, const Expression* guard,
 %right UMINUS '!'
 
 %union {
+  Type type;
   ModelType model_type;
   const PathProperty* path;
+  std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
   const Distribution* dist;
@@ -389,21 +442,29 @@ void AddCommand(const std::string* action, const Expression* guard,
   UniquePtrVector<const Expression>* arguments;
 }
 
+%type <type> constant_type
 %type <model_type> model_type
-%type <expr> property
+%type <substitutions> substitutions
+%type <expr> constant_init variable_init expr property
 %type <path> path_property
 %type <outcomes> outcomes update_distribution
 %type <outcome> distribution_and_updates
 %type <dist> distribution
 %type <updates> true_or_updates updates
 %type <update> update
-%type <expr> expr
-%type <str> IDENTIFIER action
+%type <str> IDENTIFIER LABEL_NAME action
 %type <number> NUMBER
 %type <function> function
 %type <arguments> arguments
 
+%destructor { delete $$; } <substitutions>
+%destructor { delete $$; } <path>
+%destructor { delete $$; } <outcomes>
+%destructor { delete $$; } <outcome>
+%destructor { delete $$; } <dist>
+%destructor { delete $$; } <updates>
 %destructor { delete $$; } <expr>
+%destructor { delete $$; } <str>
 %destructor { delete $$; } <number>
 %destructor { delete $$; } <arguments>
 
@@ -421,9 +482,19 @@ model_or_properties : model
 /* ====================================================================== */
 /* Model files. */
 
-model : model_type { prepare_model($1); } declarations modules rewards
+model : model_type { prepare_model($1); } model_components
           { compile_model(); }
       ;
+
+model_components : model_component
+                 | model_components model_component
+                 ;
+
+model_component : constant
+                | global
+                | module
+                | rewards
+                ;
 
 model_type : NONDETERMINISTIC
                { $$ = ModelType::MDP; }
@@ -441,70 +512,67 @@ model_type : NONDETERMINISTIC
                { $$ = ModelType::GSMP; }
            ;
 
-/* ====================================================================== */
-/* Declarations. */
+constant : constant_type IDENTIFIER constant_init ';'
+             { AddConstant($2, $1, $3); }
+         ;
 
-declarations : /* empty */
-             | declarations declaration
-             ;
-
-declaration : CONST IDENTIFIER ';'
-                { declare_constant($2, nullptr); }
-            | CONST IDENTIFIER '=' expr ';'
-                { declare_constant($2, $4); }
-            | CONST INT_TOKEN IDENTIFIER ';'
-                { declare_constant($3, nullptr); }
-            | CONST INT_TOKEN IDENTIFIER '=' expr ';'
-                { declare_constant($3, $5); }
-            | RATE IDENTIFIER ';'
-                { declare_rate($2, nullptr); }
-            | RATE IDENTIFIER '=' expr ';'
-                { declare_rate($2, $4); }
-            | CONST DOUBLE_TOKEN IDENTIFIER ';'
-                { declare_rate($3, nullptr); }
-            | CONST DOUBLE_TOKEN IDENTIFIER '=' expr ';'
-                { declare_rate($3, $5); }
-            | GLOBAL IDENTIFIER ':' '[' expr DOTDOT expr ']' ';'
-                { declare_variable($2, $5, $7, nullptr); }
-            | GLOBAL IDENTIFIER ':' '[' expr DOTDOT expr ']' INIT expr ';'
-                { declare_variable($2, $5, $7, $10); }
-            ;
-
-
-/* ====================================================================== */
-/* Modules. */
-
-modules : /* empty */
-        | modules module_decl
-        ;
-
-module_decl : MODULE IDENTIFIER { prepare_module($2); } variables commands
-              ENDMODULE
-                { add_module(); }
-            | MODULE IDENTIFIER '=' IDENTIFIER '[' substitutions ']' ENDMODULE
-                { add_module($2, $4); }
-            ;
-
-substitutions : /* empty */
-              | subst_list
+constant_type : CONST INT_TOKEN
+                  { $$ = Type::INT; }
+              | CONST
+                  { $$ = Type::INT; }
+              | CONST DOUBLE_TOKEN
+                  { $$ = Type::DOUBLE; }
+              | RATE
+                  { $$ = Type::DOUBLE; }
+              | PROB
+                  { $$ = Type::DOUBLE; }
+              | CONST BOOL_TOKEN
+                  { $$ = Type::BOOL; }
               ;
 
-subst_list : subst
-           | subst_list ',' subst
+constant_init : /* empty */
+                  { $$ = nullptr; }
+              | '=' expr
+                  { $$ = $2; }
+              ;
+
+global : GLOBAL variable
+       ;
+
+variable : IDENTIFIER ':' '[' expr DOTDOT expr ']' variable_init ';'
+             { AddIntVariable($1, $4, $6, $8); }
+         | IDENTIFIER ':' BOOL_TOKEN variable_init ';'
+             { AddBoolVariable($1, $4); }
+         ;
+
+variable_init : /* empty */
+                  { $$ = nullptr; }
+              | INIT expr
+                  { $$ = $2; }
+              ;
+
+module : MODULE module_name module_def ENDMODULE
+           { EndModule(); }
+       ;
+
+module_name : IDENTIFIER
+                { StartModule($1); }
+            ;
+
+module_def : variables commands
+           | '=' IDENTIFIER '[' substitutions ']'
+               { AddFromModule($2, $4); }
            ;
 
-subst : IDENTIFIER '=' IDENTIFIER { add_substitution($1, $3); }
-      ;
+substitutions : IDENTIFIER '=' IDENTIFIER
+                  { $$ = AddSubstitution($1, $3, nullptr); }
+              | substitutions ',' IDENTIFIER '=' IDENTIFIER
+                  { $$ = AddSubstitution($3, $5, $1); }
+              ;
 
 variables : /* empty */
-          | variables variable_decl
+          | variables variable
           ;
-
-variable_decl : IDENTIFIER ':' '[' expr DOTDOT expr ']' ';'
-                  { declare_variable($1, $4, $6, nullptr); }
-              | IDENTIFIER ':' '[' expr DOTDOT expr ']' INIT expr ';'
-                  { declare_variable($1, $4, $6, $9); }
-              ;
 
 commands : /* empty */
          | commands command
@@ -534,6 +602,16 @@ distribution_and_updates : distribution ':' true_or_updates
                              { $$ = NewOutcome($1, $3); }
                          ;
 
+distribution : expr
+                 { $$ = NewMemoryless($1); }
+             | W '(' expr ',' expr ')'
+                 { $$ = NewWeibull($3, $5); }
+             | L '(' expr ',' expr ')'
+                 { $$ = NewLognormal($3, $5); }
+             | U '(' expr ',' expr ')'
+                 { $$ = NewUniform($3, $5); }
+             ;
+
 true_or_updates : TRUE
                     { $$ = new std::vector<Update>(); }
                 | updates
@@ -549,19 +627,14 @@ update : '(' IDENTIFIER PRIME '=' expr ')'
            { $$ = NewUpdate($2, $5); }
        ;
 
-
-/* ====================================================================== */
-/* Rewards. */
-
-rewards : /* empty */
-        | rewards rewards_decl
+rewards : REWARDS rewards_label reward_rules ENDREWARDS
+            { EndRewards(); }
         ;
 
-rewards_decl : REWARDS rewards_label reward_rules ENDREWARDS
-             ;
-
 rewards_label : /* empty */
+                  { StartRewards(nullptr); }
               | LABEL_NAME
+                  { StartRewards($1); }
               ;
 
 reward_rules : /* empty */
@@ -570,26 +643,12 @@ reward_rules : /* empty */
              ;
 
 state_reward : expr ':' expr ';'
-                 { delete $1; delete $3; }
+                 { AddStateReward($1, $3); }
              ;
 
-transition_reward : '[' IDENTIFIER ']' expr ':' expr ';'
-                      { delete $2; delete $4; delete $6; }
+transition_reward : '[' action ']' expr ':' expr ';'
+                      { AddTransitionReward($2, $4, $6); }
                   ;
-
-
-/* ====================================================================== */
-/* Distributions. */
-
-distribution : expr
-                 { $$ = NewMemoryless($1); }
-             | W '(' expr ',' expr ')'
-                 { $$ = NewWeibull($3, $5); }
-             | L '(' expr ',' expr ')'
-                 { $$ = NewLognormal($3, $5); }
-             | U '(' expr ',' expr ')'
-                 { $$ = NewUniform($3, $5); }
-             ;
 
 /* ====================================================================== */
 /* Expressions. */
@@ -743,68 +802,6 @@ static const Identifier* find_variable(const std::string* ident) {
   delete ident;
   return identifier;
 }
-
-static void add_substitution(const std::string* ident1,
-			     const std::string* ident2) {
-  subst.insert(std::make_pair(*ident1, *ident2));
-  delete ident1;
-  delete ident2;
-}
-
-static void declare_constant(const std::string* ident,
-                             const Expression* value_expr) {
-  AddConstant(ident, Type::INT, value_expr);
-}
-
-static void declare_rate(const std::string* ident,
-                         const Expression* value_expr) {
-  AddConstant(ident, Type::DOUBLE, value_expr);
-}
-
-static void declare_variable(const std::string* ident, const Expression* low,
-                             const Expression* high, const Expression* start) {
-  std::vector<std::string> errors;
-  if (!model->AddIntVariable(*ident, WrapUnique(low), WrapUnique(high),
-                             WrapUnique(start), &errors)) {
-    for (const auto& error : errors) {
-      yyerror(error);
-    }
-  }
-  delete ident;
-}
-
-static void add_module(const std::string* ident1, const std::string* ident2) {
-  if (!model->StartModule(*ident1)) {
-    yyerror(StrCat("duplicate module ", *ident1));
-  } else {
-    std::vector<std::string> errors;
-    if (!model->AddFromModule(*ident2, subst, &errors)) {
-      for (const auto& error : errors) {
-        yyerror(error);
-      }
-    }
-    model->EndModule();
-  }
-  subst.clear();
-  delete ident1;
-  delete ident2;
-}
-
-
-/* Adds a module to the current model. */
-static void add_module() {
-  model->EndModule();
-}
-
-
-/* Prepares a module for parsing. */
-static void prepare_module(const std::string* ident) {
-  if (!model->StartModule(*ident)) {
-    yyerror(StrCat("duplicate module ", *ident));
-  }
-  delete ident;
-}
-
 
 /* Prepares a model for parsing. */
 static void prepare_model(ModelType model_type) {

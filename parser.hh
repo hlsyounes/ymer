@@ -176,10 +176,12 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 377 "parser.yy" /* yacc.c:1909  */
+#line 428 "parser.yy" /* yacc.c:1909  */
 
+  Type type;
   ModelType model_type;
   const PathProperty* path;
+  std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
   const Distribution* dist;
@@ -191,7 +193,7 @@ union YYSTYPE
   Function function;
   UniquePtrVector<const Expression>* arguments;
 
-#line 195 "parser.hh" /* yacc.c:1909  */
+#line 197 "parser.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
