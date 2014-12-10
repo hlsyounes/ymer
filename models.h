@@ -34,7 +34,7 @@
 // A parsed model.
 class Model {
  public:
-  /* Constructs a model. */
+  // Constructs an empty model.
   Model();
 
   /* Deletes this model. */
@@ -144,7 +144,7 @@ private:
   std::vector<const Command*> commands_;
 };
 
-/* Output operator for models. */
+// Output operator for models.
 std::ostream& operator<<(std::ostream& os, const Model& m);
 
 // A model compiled into decision diagrams.
