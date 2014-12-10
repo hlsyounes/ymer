@@ -990,7 +990,7 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
     src/libddutil.la glog/libglog.la
 
-ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser.yy tokenizer.ll $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser-state.h parser.yy tokenizer.ll $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \

@@ -1,8 +1,7 @@
 /* -*-C++-*- */
 /*
- * Parser.
- *
- * Copyright (C) 2003, 2004 Carnegie Mellon University
+ * Copyright (C) 2003--2005 Carnegie Mellon University
+ * Copyright (C) 2011--2014 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -19,18 +18,18 @@
  * You should have received a copy of the GNU General Public License
  * along with Ymer; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * Grammar for Ymer's dialect of the PRISM language.
  */
 
 %{
-#include <config.h>
-
-#include <algorithm>
-#include <iostream>
 #include <map>
-#include <set>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "models.h"
+#include "parser-state.h"
 #include "src/distribution.h"
 #include "src/strutil.h"
 
@@ -40,41 +39,19 @@
 
 // Lexical analyzer function.
 extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
-/* Name of current file. */
-extern std::string current_file;
-
-/* Last model parsed. */
-const Model* global_model = nullptr;
-/* Parsed properties. */
-UniquePtrVector<const Expression> properties;
-
-/* Current model. */
-static Model* model;
-/* Whether the last parsing attempt succeeded. */
-static bool success = true;
-
-/* Prepares a model for parsing. */
-static void prepare_model(ModelType model_type);
-/* Compiles the current model. */
-static void compile_model();
 
 namespace {
 
-// Wrapper for lexical analyzer function called by generated code.
-int yylex(void* scanner) {
-  return yylex(&yylval, &yylloc, scanner);
-}
-
 // Error reporting function.
-void yyerror(const std::string& msg) {
-  std::cerr << PACKAGE ":" << current_file << ':' << yylloc.first_line << ':'
-            << msg << std::endl;
-  success = false;
+void yyerror(const YYLTYPE& location, const std::string& msg,
+             ParserState* state) {
+  state->add_error(StrCat(location.first_line, ":", msg));
 }
 
 // Wrapper for error reporting function called by generated code.
-void yyerror(void* scanner, const std::string& msg) {
-  yyerror(msg);
+void yyerror(YYLTYPE* llocp, void* scanner, ParserState* state,
+             const std::string& msg) {
+  yyerror(*llocp, msg, state);
 }
 
 template <typename T>
@@ -82,7 +59,8 @@ std::unique_ptr<T> WrapUnique(T* ptr) {
   return std::unique_ptr<T>(ptr);
 }
 
-Function MakeFunction(const std::string* name) {
+Function MakeFunction(const YYLTYPE& location, const std::string* name,
+                      ParserState* state) {
   auto name_ptr = WrapUnique(name);
   if (*name == "min") {
     return Function::MIN;
@@ -99,7 +77,7 @@ Function MakeFunction(const std::string* name) {
   } else if (*name == "mod") {
     return Function::MOD;
   } else {
-    yyerror("unknown function");
+    yyerror(location, "unknown function", state);
     return Function::UNKNOWN;
   }
 }
@@ -283,66 +261,82 @@ const Uniform* NewUniform(const Expression* low,
   return new Uniform(WrapUnique(low), WrapUnique(high));
 }
 
-void AddConstant(const std::string* name, Type type, const Expression* init) {
+void SetModelType(const YYLTYPE& location, ModelType type, ParserState* state) {
+  if (!state->mutable_model()->SetType(type)) {
+    yyerror(location, "multiple model types", state);
+  }
+}
+
+void AddConstant(const YYLTYPE& location, const std::string* name, Type type,
+                 const Expression* init, ParserState* state) {
   std::vector<std::string> errors;
-  if (!model->AddConstant(*WrapUnique(name), type, WrapUnique(init), &errors)) {
+  if (!state->mutable_model()->AddConstant(*WrapUnique(name), type,
+                                           WrapUnique(init), &errors)) {
     for (const auto& error : errors) {
-      yyerror(error);
+      yyerror(location, error, state);
     }
   }
 }
 
-void AddIntVariable(const std::string* name, const Expression* low,
-                    const Expression* high, const Expression* init) {
+void AddIntVariable(const YYLTYPE& location, const std::string* name,
+                    const Expression* low, const Expression* high,
+                    const Expression* init, ParserState* state) {
   std::vector<std::string> errors;
-  if (!model->AddIntVariable(*WrapUnique(name), WrapUnique(low),
-                             WrapUnique(high), WrapUnique(init), &errors)) {
+  if (!state->mutable_model()->AddIntVariable(*WrapUnique(name),
+                                              WrapUnique(low), WrapUnique(high),
+                                              WrapUnique(init), &errors)) {
     for (const auto& error : errors) {
-      yyerror(error);
+      yyerror(location, error, state);
     }
   }
 }
 
-void AddBoolVariable(const std::string* name, const Expression* init) {
+void AddBoolVariable(const YYLTYPE& location, const std::string* name,
+                     const Expression* init, ParserState* state) {
   std::vector<std::string> errors;
-  if (!model->AddBoolVariable(*WrapUnique(name), WrapUnique(init), &errors)) {
+  if (!state->mutable_model()->AddBoolVariable(*WrapUnique(name),
+                                               WrapUnique(init), &errors)) {
     for (const auto& error : errors) {
-      yyerror(error);
+      yyerror(location, error, state);
     }
   }
 }
 
-void StartModule(const std::string* name) {
+void StartModule(const YYLTYPE& location, const std::string* name,
+                 ParserState* state) {
   auto name_ptr = WrapUnique(name);
-  if (!model->StartModule(*name_ptr)) {
-    yyerror(StrCat("duplicate module ", *name_ptr));
+  if (!state->mutable_model()->StartModule(*name_ptr)) {
+    yyerror(location, StrCat("duplicate module ", *name_ptr), state);
   }
 }
 
-void AddFromModule(const std::string* from_name,
-                   const std::map<std::string, std::string>* substitutions) {
+void AddFromModule(const YYLTYPE& location, const std::string* from_name,
+                   const std::map<std::string, std::string>* substitutions,
+                   ParserState* state) {
   std::vector<std::string> errors;
-  if (!model->AddFromModule(*WrapUnique(from_name), *WrapUnique(substitutions),
-                            &errors)) {
+  if (!state->mutable_model()->AddFromModule(
+          *WrapUnique(from_name), *WrapUnique(substitutions), &errors)) {
     for (const auto& error : errors) {
-      yyerror(error);
+      yyerror(location, error, state);
     }
   }
 }
 
-void EndModule() {
-  model->EndModule();
+void EndModule(ParserState* state) {
+  state->mutable_model()->EndModule();
 }
 
 std::map<std::string, std::string>* AddSubstitution(
-    const std::string* from_name, const std::string* to_name,
-    std::map<std::string, std::string>* substitutions) {
+    const YYLTYPE& location, const std::string* from_name,
+    const std::string* to_name,
+    std::map<std::string, std::string>* substitutions, ParserState* state) {
   if (substitutions == nullptr) {
     substitutions = new std::map<std::string, std::string>();
   }
   auto from_name_ptr = WrapUnique(from_name);
   if (!substitutions->emplace(*from_name_ptr, *WrapUnique(to_name)).second) {
-    yyerror(StrCat("duplicate substitution for ", *from_name_ptr));
+    yyerror(location, StrCat("duplicate substitution for ", *from_name_ptr),
+            state);
   }
   return substitutions;
 }
@@ -374,14 +368,16 @@ std::vector<Outcome>* AddOutcome(Outcome* outcome,
   return outcomes;
 }
 
-void AddCommand(const std::string* action, const Expression* guard,
-                std::vector<Outcome>* outcomes) {
+void AddCommand(const YYLTYPE& location, const std::string* action,
+                const Expression* guard, std::vector<Outcome>* outcomes,
+                ParserState* state) {
         std::vector<std::string> errors;
-        if (!model->AddCommand(Command(*WrapUnique(action), WrapUnique(guard),
-                                       std::move(*WrapUnique(outcomes))),
-                               &errors)) {
+        if (!state->mutable_model()->AddCommand(
+                Command(*WrapUnique(action), WrapUnique(guard),
+                        std::move(*WrapUnique(outcomes))),
+                &errors)) {
     for (const auto& error : errors) {
-      yyerror(error);
+      yyerror(location, error, state);
     }
   }
 }
@@ -402,13 +398,19 @@ void AddTransitionReward(const std::string* action, const Expression* guard,
 
 void EndRewards() {}
 
+void AddProperty(const Expression* property, ParserState* state) {
+  state->add_property(WrapUnique(property));
+}
+
 }  // namespace
 %}
 
 %defines
+%define api.pure
 %locations
 %lex-param {void* scanner}
 %parse-param {void* scanner}
+%parse-param {ParserState* state}
 %error-verbose
 
 %token DTMC_TOKEN CTMC_TOKEN MDP_TOKEN GSMP_TOKEN
@@ -446,8 +448,7 @@ void EndRewards() {}
 
 %union {
   Type type;
-  ModelType model_type;
-  const PathProperty* path;
+  const std::string* str;
   std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
@@ -455,80 +456,79 @@ void EndRewards() {}
   std::vector<Update>* updates;
   Update* update;
   const Expression* expr;
-  const std::string* str;
   const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
+  const PathProperty* path;
 }
 
 %type <type> constant_type
-%type <model_type> model_type
+%type <str> IDENTIFIER LABEL_NAME action
 %type <substitutions> substitutions
-%type <expr> constant_init variable_init expr property
-%type <path> path_property
 %type <outcomes> outcomes update_distribution
 %type <outcome> distribution_and_updates
 %type <dist> distribution
 %type <updates> true_or_updates updates
 %type <update> update
-%type <str> IDENTIFIER LABEL_NAME action
+%type <expr> constant_init variable_init expr property
 %type <number> NUMBER
 %type <function> function
 %type <arguments> arguments
+%type <path> path_property
 
+%destructor { delete $$; } <str>
 %destructor { delete $$; } <substitutions>
-%destructor { delete $$; } <path>
 %destructor { delete $$; } <outcomes>
 %destructor { delete $$; } <outcome>
 %destructor { delete $$; } <dist>
 %destructor { delete $$; } <updates>
 %destructor { delete $$; } <expr>
-%destructor { delete $$; } <str>
 %destructor { delete $$; } <number>
 %destructor { delete $$; } <arguments>
+%destructor { delete $$; } <path>
 
 %%
 
-file : { success = true; } model_or_properties
-         { if (!success) YYERROR; }
+file : model_or_properties
+         { if (!state->success()) YYERROR; }
      ;
 
 model_or_properties : model
                     | properties
                     ;
 
-model : model_type { prepare_model($1); } model_components
-          { compile_model(); }
+model : model_components
       ;
 
 model_components : model_component
                  | model_components model_component
                  ;
 
-model_component : constant
+model_component : model_type
+                | constant
                 | global
                 | module
                 | rewards
                 ;
 
 model_type : NONDETERMINISTIC
-               { $$ = ModelType::MDP; }
+               { SetModelType(yylloc, ModelType::MDP, state); }
            | MDP_TOKEN
-               { $$ = ModelType::MDP; }
+               { SetModelType(yylloc, ModelType::MDP, state); }
            | PROBABILISTIC
-               { $$ = ModelType::DTMC; }
+               { SetModelType(yylloc, ModelType::DTMC, state); }
            | DTMC_TOKEN
-               { $$ = ModelType::DTMC; }
+               { SetModelType(yylloc, ModelType::DTMC, state); }
            | STOCHASTIC
-               { $$ = ModelType::CTMC; }
+               { SetModelType(yylloc, ModelType::CTMC, state); }
            | CTMC_TOKEN
-               { $$ = ModelType::CTMC; }
+               { SetModelType(yylloc, ModelType::CTMC, state); }
            | GSMP_TOKEN
-               { $$ = ModelType::GSMP; }
+               { SetModelType(yylloc, ModelType::GSMP, state); }
            ;
 
 constant : constant_type IDENTIFIER constant_init ';'
-             { AddConstant($2, $1, $3); }
+             { AddConstant(yylloc, $2, $1, $3, state); }
          ;
 
 constant_type : CONST INT_TOKEN
@@ -555,9 +555,9 @@ global : GLOBAL variable
        ;
 
 variable : IDENTIFIER ':' '[' expr DOTDOT expr ']' variable_init ';'
-             { AddIntVariable($1, $4, $6, $8); }
+             { AddIntVariable(yylloc, $1, $4, $6, $8, state); }
          | IDENTIFIER ':' BOOL_TOKEN variable_init ';'
-             { AddBoolVariable($1, $4); }
+             { AddBoolVariable(yylloc, $1, $4, state); }
          ;
 
 variable_init : /* empty */
@@ -567,22 +567,22 @@ variable_init : /* empty */
               ;
 
 module : MODULE module_name module_def ENDMODULE
-           { EndModule(); }
+           { EndModule(state); }
        ;
 
 module_name : IDENTIFIER
-                { StartModule($1); }
+                { StartModule(yylloc, $1, state); }
             ;
 
 module_def : variables commands
            | '=' IDENTIFIER '[' substitutions ']'
-               { AddFromModule($2, $4); }
+               { AddFromModule(yylloc, $2, $4, state); }
            ;
 
 substitutions : IDENTIFIER '=' IDENTIFIER
-                  { $$ = AddSubstitution($1, $3, nullptr); }
+                  { $$ = AddSubstitution(yylloc, $1, $3, nullptr, state); }
               | substitutions ',' IDENTIFIER '=' IDENTIFIER
-                  { $$ = AddSubstitution($3, $5, $1); }
+                  { $$ = AddSubstitution(yylloc, $3, $5, $1, state); }
               ;
 
 variables : /* empty */
@@ -594,7 +594,7 @@ commands : /* empty */
          ;
 
 command : '[' action ']' expr ARROW outcomes ';'
-            { AddCommand($2, $4, $6); }
+            { AddCommand(yylloc, $2, $4, $6, state); }
         ;
 
 action : /* empty */
@@ -716,7 +716,7 @@ expr : NUMBER
      ;
 
 function : IDENTIFIER
-             { $$ = MakeFunction($1); }
+             { $$ = MakeFunction(yylloc, $1, state); }
          | MIN_TOKEN
              { $$ = Function::MIN; }
          | MAX_TOKEN
@@ -734,9 +734,9 @@ properties : property_list
            ;
 
 property_list : property
-                  { properties.push_back(WrapUnique($1)); }
+                  { AddProperty($1, state); }
               | property_list ';' property
-                  { properties.push_back(WrapUnique($3)); }
+                  { AddProperty($3, state); }
               ;
 
 property : NUMBER
@@ -804,20 +804,3 @@ path_property : property U LEQ NUMBER property
               ;
 
 %%
-
-/* Prepares a model for parsing. */
-static void prepare_model(ModelType model_type) {
-  properties.clear();
-  if (model != nullptr) {
-    delete model;
-  }
-  model = new Model();
-  model->SetType(model_type);
-}
-
-
-/* Compiles the current model. */
-static void compile_model() {
-  model->compile();
-  global_model = model;
-}

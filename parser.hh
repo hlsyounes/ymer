@@ -176,11 +176,10 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 447 "parser.yy" /* yacc.c:1909  */
+#line 449 "parser.yy" /* yacc.c:1909  */
 
   Type type;
-  ModelType model_type;
-  const PathProperty* path;
+  const std::string* str;
   std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
@@ -188,12 +187,12 @@ union YYSTYPE
   std::vector<Update>* updates;
   Update* update;
   const Expression* expr;
-  const std::string* str;
   const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
+  const PathProperty* path;
 
-#line 197 "parser.hh" /* yacc.c:1909  */
+#line 196 "parser.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -214,8 +213,7 @@ struct YYLTYPE
 #endif
 
 
-extern YYSTYPE yylval;
-extern YYLTYPE yylloc;
-int yyparse (void* scanner);
+
+int yyparse (void* scanner, ParserState* state);
 
 #endif /* !YY_YY_PARSER_HH_INCLUDED  */
