@@ -24,6 +24,7 @@
 #include <string>
 
 #include "models.h"
+#include "parser-state.h"
 #include "src/distribution.h"
 #include "src/expression.h"
 #include "src/typed-value.h"

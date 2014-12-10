@@ -24,6 +24,7 @@
 #include "comm.h"
 #include "models.h"
 #include "formulas.h"
+#include "parser-state.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/distribution.h"
@@ -69,15 +70,8 @@ extern void yy_switch_to_buffer(yy_buffer_state* buf, void* scanner);
 // Deletes a scanner buffer.
 extern void yy_delete_buffer(yy_buffer_state* buf, void* scanner);
 // Parse function.
-extern int yyparse(void* scanner);
+extern int yyparse(void* scanner, ParserState* state);
 
-/* Current model. */
-extern const Model* global_model;
-/* Parsed properties. */
-extern UniquePtrVector<const Expression> properties;
-
-/* Name of current file. */
-std::string current_file;
 /* Sockets for communication. */
 int server_socket = -1;
 /* Current property. */
@@ -206,6 +200,11 @@ bool parse_const_overrides(const std::string& spec,
   return true;
 }
 
+struct ModelAndProperties {
+  std::unique_ptr<Model> model;
+  UniquePtrVector<const Expression> properties;
+};
+
 // Prepares a scanner to scan the given file.
 yy_buffer_state* PrepareFileScan(FILE* file, void* scanner) {
   yy_buffer_state* buffer_state = yy_create_buffer(file, 32768, scanner);
@@ -214,19 +213,26 @@ yy_buffer_state* PrepareFileScan(FILE* file, void* scanner) {
 }
 
 /* Parses the given file, and returns true on success. */
-bool read_file(const std::string& filename) {
+bool read_file(const std::string& filename, ModelAndProperties* result,
+               std::vector<std::string>* errors) {
   FILE* file = (filename == "-") ? stdin : fopen(filename.c_str(), "r");
   if (file == nullptr) {
-    std::cerr << PACKAGE << ':' << filename << ": " << strerror(errno)
-              << std::endl;
+    errors->push_back(StrCat(filename, ":", strerror(errno)));
     return false;
   }
-  current_file = filename;
 
   void* scanner;
   yylex_init(&scanner);
   yy_buffer_state* buffer_state = PrepareFileScan(file, scanner);
-  bool success = (yyparse(scanner) == 0);
+  ParserState state(filename, errors);
+  bool success = (yyparse(scanner, &state) == 0);
+  if (success) {
+    if (state.has_model()) {
+      result->model = state.release_model();
+    } else {
+      result->properties = state.release_properties();
+    }
+  }
   yy_delete_buffer(buffer_state, scanner);
   yylex_destroy(scanner);
 
@@ -856,6 +862,8 @@ int main(int argc, char* argv[]) {
   /* Constant overrides. */
   std::map<std::string, TypedValue> const_overrides;
 
+  ModelAndProperties parse_result;
+  std::vector<std::string> errors;
   try {
     /*
      * Get command line options.
@@ -996,7 +1004,10 @@ int main(int argc, char* argv[]) {
        * Use remaining command line arguments as file names.
        */
       while (optind < argc) {
-        if (!read_file(argv[optind++])) {
+        if (!read_file(argv[optind++], &parse_result, &errors)) {
+          for (const auto& error : errors) {
+            std::cerr << PACKAGE << ":" << error << std::endl;
+          }
           return 1;
         }
       }
@@ -1004,36 +1015,36 @@ int main(int argc, char* argv[]) {
       /*
        * No remaining command line argument, so read from standard input.
        */
-      if (!read_file("-")) {
+      if (!read_file("-", &parse_result, &errors)) {
         return 1;
       }
     }
-    if (global_model == 0) {
+    if (parse_result.model == nullptr) {
       std::cout << "no model" << std::endl;
       return 0;
     }
-    VLOG(2) << *global_model;
-    std::vector<std::string> errors;
+    parse_result.model->compile();
+    VLOG(2) << *parse_result.model;
     std::map<std::string, IdentifierInfo> identifiers_by_name =
-        GetConstantIdentifiersByName(global_model->constants(), const_overrides,
-                                     &errors);
+        GetConstantIdentifiersByName(parse_result.model->constants(),
+                                     const_overrides, &errors);
     if (!errors.empty()) {
       for (const std::string& error : errors) {
-        std::cerr << PACKAGE << ": " << error << std::endl;
+        std::cerr << PACKAGE << ":" << error << std::endl;
       }
       return 1;
     }
     const CompiledModel compiled_model =
-        CompileModel(*global_model, &identifiers_by_name, &errors);
+        CompileModel(*parse_result.model, &identifiers_by_name, &errors);
     if (compiled_model.type() == CompiledModelType::DTMC &&
         engine != SAMPLING_ENGINE) {
-      errors.push_back(
-          StrCat(global_model->type(), " only supported by sampling engine"));
+      errors.push_back(StrCat(parse_result.model->type(),
+                              " only supported by sampling engine"));
     }
     DecisionDiagramManager dd_man(2 * compiled_model.BitCount());
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;
-    for (const Expression& property : properties) {
+    for (const Expression& property : parse_result.properties) {
       compiled_properties.push_back(CompileAndOptimizeProperty(
           property, identifiers_by_name, dd_man, &errors));
       auto property_reg_counts =
@@ -1044,7 +1055,7 @@ int main(int argc, char* argv[]) {
     }
     if (!errors.empty()) {
       for (const std::string& error : errors) {
-        std::cerr << PACKAGE << ": " << error << std::endl;
+        std::cerr << PACKAGE << ":" << error << std::endl;
       }
       return 1;
     }
@@ -1140,7 +1151,7 @@ int main(int argc, char* argv[]) {
               path_property =
                   ExtractPathProperty(compiled_properties[smsg.value]);
               if (path_property == nullptr) {
-                std::cerr << PACKAGE << ": zero or multiple path formulae"
+                std::cerr << PACKAGE << ":zero or multiple path formulae"
                           << std::endl;
                 return 1;
               }
@@ -1216,10 +1227,11 @@ int main(int argc, char* argv[]) {
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
+      for (auto fi = parse_result.properties.begin();
+           fi != parse_result.properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
-        current_property = fi - properties.begin();
+        current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
@@ -1314,8 +1326,9 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
-      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model, compiled_model, identifiers_by_name);
+      DecisionDiagramModel dd_model =
+          DecisionDiagramModel::Create(&dd_man, moments, *parse_result.model,
+                                       compiled_model, identifiers_by_name);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1336,10 +1349,11 @@ int main(int argc, char* argv[]) {
                       dd_man.GetVariableCount(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
+      for (auto fi = parse_result.properties.begin();
+           fi != parse_result.properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
-        current_property = fi - properties.begin();
+        current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         double total_time = 0.0;
@@ -1395,8 +1409,9 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_man, moments, *global_model, compiled_model, identifiers_by_name);
+      DecisionDiagramModel dd_model =
+          DecisionDiagramModel::Create(&dd_man, moments, *parse_result.model,
+                                       compiled_model, identifiers_by_name);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
@@ -1423,10 +1438,11 @@ int main(int argc, char* argv[]) {
                       dd_man.GetVariableCount(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
-      for (auto fi = properties.begin(); fi != properties.end(); ++fi) {
+      for (auto fi = parse_result.properties.begin();
+           fi != parse_result.properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
-        current_property = fi - properties.begin();
+        current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
@@ -1491,13 +1507,11 @@ int main(int argc, char* argv[]) {
         }
       }
     }
-    delete global_model;
-    properties.clear();
   } catch (const std::exception& e) {
-    std::cerr << std::endl << PACKAGE ": " << e.what() << std::endl;
+    std::cerr << std::endl << PACKAGE ":" << e.what() << std::endl;
     return 1;
   } catch (...) {
-    std::cerr << std::endl << PACKAGE ": fatal error" << std::endl;
+    std::cerr << std::endl << PACKAGE ":fatal error" << std::endl;
     return 1;
   }
 
