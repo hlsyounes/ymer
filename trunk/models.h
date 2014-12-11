@@ -113,6 +113,12 @@ class Model {
   // Returns the modules for this model.
   const std::vector<ParsedModule>& modules() const { return modules_; }
 
+  // Returns the action labels in use for this model.
+  const std::vector<std::string>& actions() const { return actions_; }
+
+  // Returns the index for the given action label.
+  size_t ActionIndex(const std::string& name) const;
+
   /* Returns all commands for this model. */
   const std::vector<const Command*>& commands() const { return commands_; }
 
@@ -140,6 +146,7 @@ private:
   int current_module_;
   std::map<std::string, int> module_indices_;
   std::vector<ParsedModule> modules_;
+  std::vector<std::string> actions_;
   /* Compiled commands for this model. */
   std::vector<const Command*> commands_;
 };

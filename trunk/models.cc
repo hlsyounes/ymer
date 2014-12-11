@@ -915,16 +915,17 @@ bool Model::AddVariable(const std::string& name, Type type,
 bool Model::AddAction(const std::string& name,
                       std::vector<std::string>* errors) {
   if (!name.empty()) {
-    // We reuse the same index for all actions, since we just need to ensure
-    // that actions do not clash with other identifier kinds.
-    auto result =
-        identifier_indices_.insert({name, {IdentifierIndex::kAction, 0}});
+    auto result = identifier_indices_.insert(
+        {name, {IdentifierIndex::kAction, actions_.size()}});
     if (!result.second &&
         result.first->second.type != IdentifierIndex::kAction) {
       errors->push_back(
           StrCat("action ", name, " previously defined as ",
                  IdentifierIndexTypeToString(result.first->second.type)));
       return false;
+    }
+    if (result.second) {
+      actions_.push_back(name);
     }
   }
   return true;
@@ -1193,6 +1194,13 @@ bool Model::AddFromModule(
 void Model::EndModule() {
   CHECK_NE(current_module_, kNoModule);
   current_module_ = kNoModule;
+}
+
+size_t Model::ActionIndex(const std::string& name) const {
+  auto i = identifier_indices_.find(name);
+  CHECK(i != identifier_indices_.end());
+  CHECK(i->second.type == IdentifierIndex::kAction);
+  return i->second.index;
 }
 
 namespace {

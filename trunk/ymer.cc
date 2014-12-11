@@ -489,10 +489,10 @@ CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
 
 struct PreCompiledCommands {
   std::vector<CompiledMarkovCommand> single_markov_commands;
-  std::map<std::string, std::map<int, std::vector<CompiledMarkovCommand>>>
+  std::map<int, std::map<int, std::vector<CompiledMarkovCommand>>>
       factored_markov_commands;
   std::vector<CompiledGsmpCommand> single_gsmp_commands;
-  std::map<std::string, std::map<int, std::vector<CompiledGsmpCommand>>>
+  std::map<int, std::map<int, std::vector<CompiledGsmpCommand>>>
       factored_gsmp_commands;
 };
 
@@ -524,8 +524,9 @@ PreCompiledCommands PreCompileCommands(
           if (command.action().empty()) {
             result.single_gsmp_commands.push_back(compiled_command);
           } else {
-            result.factored_gsmp_commands[command.action()][module_index]
-                .push_back(compiled_command);
+            const int action_index = model.ActionIndex(command.action());
+            result.factored_gsmp_commands[action_index][module_index].push_back(
+                compiled_command);
           }
         }
       }
@@ -548,8 +549,9 @@ PreCompiledCommands PreCompileCommands(
         if (command.action().empty()) {
           result.single_markov_commands.push_back(compiled_command);
         } else {
-          result.factored_markov_commands[command.action()][module_index]
-              .push_back(compiled_command);
+          const int action_index = model.ActionIndex(command.action());
+          result.factored_markov_commands[action_index][module_index].push_back(
+              compiled_command);
         }
       }
     }
@@ -660,26 +662,27 @@ CompiledCommands CompileCommands(
   result.single_markov_commands = pre_compiled_commands.single_markov_commands;
   result.single_gsmp_commands = pre_compiled_commands.single_gsmp_commands;
 
-  std::set<std::string> actions;
-  std::set<std::string> gsmp_actions;
+  std::set<int> action_indices;
+  std::set<int> gsmp_action_indices;
   std::vector<CompiledUpdate> updates;
   for (const auto& entry : pre_compiled_commands.factored_gsmp_commands) {
-    const auto& action = entry.first;
-    gsmp_actions.insert(action);
+    const int action_index = entry.first;
+    gsmp_action_indices.insert(action_index);
     int gsmp_module_index = -1;
     for (const auto& module_entry : entry.second) {
       const auto& module_index = module_entry.first;
       if (gsmp_module_index < 0) {
         gsmp_module_index = module_index;
       } else if (gsmp_module_index != module_index) {
-        errors->push_back(StrCat(
-            "action ", action, " has GSMP commands in multiple modules: ",
-            model.modules()[gsmp_module_index].name(), " and ",
-            model.modules()[module_index].name()));
+        errors->push_back(StrCat("action ", model.actions()[action_index],
+                                 " has GSMP commands in multiple modules: ",
+                                 model.modules()[gsmp_module_index].name(),
+                                 " and ",
+                                 model.modules()[module_index].name()));
         return result;
       }
     }
-    auto i = pre_compiled_commands.factored_markov_commands.find(action);
+    auto i = pre_compiled_commands.factored_markov_commands.find(action_index);
     const auto& gsmp_commands = entry.second.find(gsmp_module_index)->second;
     if (i == pre_compiled_commands.factored_markov_commands.end()) {
       for (const auto& gsmp_command : gsmp_commands) {
@@ -694,7 +697,7 @@ CompiledCommands CompileCommands(
       for (const auto& gsmp_command : gsmp_commands) {
         for (const auto& markov_command : composed_commands) {
           if (!IsUnitWeight(markov_command.weight())) {
-            errors->push_back(StrCat("action ", action,
+            errors->push_back(StrCat("action ", model.actions()[action_index],
                                      " has GSMP command synchronized with "
                                      "command with non-unit weight ",
                                      markov_command.weight()));
@@ -716,12 +719,12 @@ CompiledCommands CompileCommands(
       }
     } else {
       // Process later.  We will need to add this to factored_gsmp_commands.
-      actions.insert(action);
+      action_indices.insert(action_index);
     }
   }
   for (const auto& entry : pre_compiled_commands.factored_markov_commands) {
-    const auto& action = entry.first;
-    if (gsmp_actions.find(action) == gsmp_actions.end()) {
+    const int action_index = entry.first;
+    if (gsmp_action_indices.find(action_index) == gsmp_action_indices.end()) {
       if (IsSimpleComposition(entry.second, -1, 1)) {
         const auto composed_commands =
             ComposeFactoredMarkovCommands(entry.second, -1);
@@ -730,13 +733,13 @@ CompiledCommands CompileCommands(
             composed_commands.end());
       } else {
         // Process later.  We will need to add this to factored_markov_commands.
-        actions.insert(action);
+        action_indices.insert(action_index);
       }
     }
   }
 
   // TODO(hlsyounes): Add factored commands for actions.
-  if (!actions.empty()) {
+  if (!action_indices.empty()) {
     errors->push_back("compilation for factored models not implemented");
   }
   return result;
