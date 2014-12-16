@@ -267,10 +267,12 @@ void NextStateSampler<Engine>::SampleGsmpEvents(const State& state,
     const auto& offsets = model_->factored_gsmp_commands()[i].offsets;
     for (const auto& command :
          model_->factored_gsmp_commands()[i].gsmp_commands) {
-      candidate_gsmp_command_ = &command;
-      SampleFactoredGsmpEvents(state, offsets,
-                               model_->factored_markov_commands()[i], 1,
-                               command.first_index(), next_state);
+      if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
+        candidate_gsmp_command_ = &command;
+        SampleFactoredGsmpEvents(state, offsets,
+                                 model_->factored_markov_commands()[i], 1,
+                                 command.first_index(), next_state);
+      }
     }
   }
   if (selected_gsmp_command_ != nullptr) {
@@ -293,7 +295,7 @@ void NextStateSampler<Engine>::SampleFactoredGsmpEvents(
     ConsiderCandidateGsmpEvent(state, index, next_state);
     return;
   }
-  int offset = offsets_per_module[module - 1];
+  int offset = offsets_per_module[module];
   int i = 0;
   for (const auto& command : commands_per_module[module]) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {

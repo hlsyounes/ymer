@@ -529,7 +529,129 @@ TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
 }
 
 TEST(NextStateSamplerTest, ComplexGsmpEvents) {
-  // TODO(hlsyounes): implement.
+  CompiledModel model(CompiledModelType::GSMP);
+  model.AddVariable("a", Type::INT, 0, 42, 17);
+  model.AddVariable("b", Type::INT, 0, 4711, 1);
+  model.AddVariable("c", Type::INT, 0, 3, 1);
+  model.set_single_markov_commands({CompiledMarkovCommand(
+      MakeGuard(0, 17, 18), MakeWeight(5.0),
+      {CompiledMarkovOutcome(MakeWeight(0.4), {MakeUpdate(0, -1)}),
+       CompiledMarkovOutcome(MakeWeight(0.6), {MakeUpdate(0, 1)})})});
+  model.set_factored_markov_commands(
+      {{{CompiledMarkovCommand(
+             MakeGuard(0, 17, 19), MakeWeight(1.0),
+             {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(0, 2)})}),
+         CompiledMarkovCommand(
+             MakeGuard(0, 18, 19), MakeWeight(1.25),
+             {CompiledMarkovOutcome(MakeWeight(0.4), {MakeUpdate(0, -1)}),
+              CompiledMarkovOutcome(MakeWeight(0.6), {MakeUpdate(0, 2)})})},
+        {CompiledMarkovCommand(
+            MakeGuard(1, 0, 1), MakeWeight(4.0),
+            {CompiledMarkovOutcome(MakeWeight(0.25), {MakeUpdate(1, 2)}),
+             CompiledMarkovOutcome(MakeWeight(0.6875), {MakeUpdate(1, 3)}),
+             CompiledMarkovOutcome(MakeWeight(0.0625), {MakeUpdate(1, -1)})})}},
+       {{},
+        {CompiledMarkovCommand(
+             MakeGuard(1, 1, 1), MakeWeight(1.0),
+             {CompiledMarkovOutcome(MakeWeight(1.0), {MakeUpdate(1, 1)})}),
+         CompiledMarkovCommand(MakeGuard(1, 1, 3), MakeWeight(1.0),
+                               {CompiledMarkovOutcome(MakeWeight(1.25 / 3.0),
+                                                      {MakeUpdate(1, -2)}),
+                                CompiledMarkovOutcome(MakeWeight(1.75 / 3.0),
+                                                      {MakeUpdate(1, 1)})})},
+        {CompiledMarkovCommand(
+            MakeGuard(2, 1, 2), MakeWeight(1.0),
+            {CompiledMarkovOutcome(MakeWeight(0.5), {MakeUpdate(2, 1)}),
+             CompiledMarkovOutcome(MakeWeight(0.5), {MakeUpdate(2, 2)})})}}});
+  model.set_single_gsmp_commands({CompiledGsmpCommand(
+      MakeGuard(0, 17, 18), CompiledGsmpDistribution::MakeUniform(100.0, 200.0),
+      {MakeUpdate(0, 1)}, 0)});
+  model.set_factored_gsmp_commands(
+      {{},
+       {{CompiledGsmpCommand(MakeGuard(0, 17, 19),
+                             CompiledGsmpDistribution::MakeUniform(0.0, 2.0),
+                             {MakeUpdate(0, -2)}, 1),
+         CompiledGsmpCommand(MakeGuard(0, 18, 19),
+                             CompiledGsmpDistribution::MakeUniform(1.0, 5.0),
+                             {MakeUpdate(0, -5)}, 3),
+         CompiledGsmpCommand(MakeGuard(0, 19, 19),
+                             CompiledGsmpDistribution::MakeUniform(2.0, 3.0),
+                             {MakeUpdate(0, -1)}, 5)},
+        {2, 1}}});
+  EXPECT_EQ(2 + 3 * 3 + 1 + 3 * 2, model.EventCount());
+  CompiledExpressionEvaluator evaluator(2, 1);
+  // 6 random numbers for the 1st state transition:
+  //
+  //   command choice 1: -log(1 - 2/8) / 5 = 0.0575
+  //   command choice 2: -log(1 - 1/8) / 4 = 0.0334  [winner]
+  //   command choice 3: (200 - 100) * 6/8 + 100 = 175
+  //   command choice 4: (2 - 0) * 3/8 + 0 = 0.75
+  //   command choice 5: (2 - 0) * 4/8 + 0 = 1
+  //   1st outcome wins because 1/8 < 0.25
+  //
+  // 4 random numbers for the 2nd state transition:
+  //
+  //   command choice 1: 1 (saved)                 [winner]
+  //   command choice 2: (5 - 1) * 1/8 + 1 = 1.5
+  //   command choice 3: (3 - 2) * 6/8 + 2 = 2.75
+  //   2nd outcome wins because 4/8 >= 1.25 / 3
+  //   2st outcome wins 3/8 < 0.5
+  //
+  // 3 random numbers for the 3rd state transition:
+  //
+  //   command choice 1: -log(1 - 7/8) / 5 = 0.416      [winner]
+  //   command choice 2: (200 - 100) * 0/8 + 100 = 100
+  //   1st outcome wins because 3/8 < 0.4
+  //
+  FakeEngine engine(0, 7, {2, 1, 6, 3, 4, 1, 1, 6, 4, 3, 7, 0, 3});
+  CompiledDistributionSampler<FakeEngine> sampler(&engine);
+  NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
+  State state(model);
+  State next_state(model);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(-log(0.875) / 4.0, next_state.time());
+  EXPECT_EQ(std::vector<int>({19, 3, 1}), next_state.values());
+  EXPECT_EQ(std::vector<double>({175, 0.75, 1,
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(1, next_state.time());
+  EXPECT_EQ(std::vector<int>({17, 4, 2}), next_state.values());
+  EXPECT_EQ(std::vector<double>(
+                {std::numeric_limits<double>::infinity(),
+                 std::numeric_limits<double>::infinity(),
+                 std::numeric_limits<double>::infinity(),
+                 std::numeric_limits<double>::infinity(), state.time() + 1.5,
+                 std::numeric_limits<double>::infinity(), state.time() + 2.75}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(1 - log(0.125) / 5.0, next_state.time());
+  EXPECT_EQ(std::vector<int>({16, 4, 2}), next_state.values());
+  EXPECT_EQ(std::vector<double>({state.time() + 100,
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
+  state.swap(next_state);
+  simulator.NextState(state, &next_state);
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), next_state.time());
+  EXPECT_EQ(std::vector<int>({16, 4, 2}), next_state.values());
+  EXPECT_EQ(std::vector<double>({std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity(),
+                                 std::numeric_limits<double>::infinity()}),
+            next_state.trigger_times());
 }
 
 TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {

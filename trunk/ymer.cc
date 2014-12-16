@@ -564,7 +564,7 @@ struct CompiledCommands {
   std::vector<std::vector<std::vector<CompiledMarkovCommand>>>
       factored_markov_commands;
   std::vector<CompiledGsmpCommand> single_gsmp_commands;
-  std::vector<FactoredGsmpCommands> factored_gsmp_commands;
+  std::vector<CompiledGsmpCommandFactors> factored_gsmp_commands;
 };
 
 bool IsSimpleComposition(
