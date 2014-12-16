@@ -652,6 +652,24 @@ std::vector<CompiledMarkovCommand> ComposeFactoredMarkovCommands(
   return result;
 }
 
+std::vector<int> FactoredMarkovCommandOffsets(
+    const std::map<int, std::vector<CompiledMarkovCommand>>&
+        factored_markov_commands,
+    int excluded_module_index) {
+  std::vector<int> offsets;
+  for (const auto& entry : factored_markov_commands) {
+    const auto& module_index = entry.first;
+    if (module_index != excluded_module_index) {
+      const auto& commands = entry.second;
+      offsets.push_back(commands.size());
+    }
+  }
+  for (size_t i = offsets.size() - 1; i > 0; --i) {
+    offsets[i - 1] *= offsets[i];
+  }
+  return offsets;
+}
+
 CompiledCommands CompileCommands(
     const Model& model,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
@@ -757,10 +775,9 @@ CompiledCommands CompileCommands(
       } else {
         result.factored_markov_commands.back().push_back(k->second);
       }
-      // TODO(hlsyounes): add commands from j to factored GSMP commands, with
-      // offsets computed from i (excluding the module where the GSMP commands
-      // are defined.
-      errors->push_back("compilation for factored GSMP models not implemented");
+      result.factored_gsmp_commands.push_back(
+          {entry.second,
+           FactoredMarkovCommandOffsets(i->second, gsmp_module_index)});
     }
     for (const auto& entry : i->second) {
       if (entry.first != gsmp_module_index) {
