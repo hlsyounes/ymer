@@ -122,7 +122,7 @@ class CompiledGsmpCommand {
   int first_index_;
 };
 
-struct FactoredGsmpCommands {
+struct CompiledGsmpCommandFactors {
   std::vector<CompiledGsmpCommand> gsmp_commands;
   std::vector<int> offsets;
 };
@@ -163,6 +163,21 @@ class CompiledModel {
     }
   }
 
+  // Sets the factored GSMP commands for this compiled model.
+  void set_factored_gsmp_commands(
+      const std::vector<CompiledGsmpCommandFactors>& factored_gsmp_commands) {
+    factored_gsmp_commands_ = factored_gsmp_commands;
+    for (const auto& factors : factored_gsmp_commands) {
+      if (!factors.gsmp_commands.empty()) {
+        const int count = factors.offsets[0];
+        for (const auto& command : factors.gsmp_commands) {
+          gsmp_event_count_ =
+              std::max(gsmp_event_count_, command.first_index() + count);
+        }
+      }
+    }
+  }
+
   // Returns the type of this compiled model.
   CompiledModelType type() const { return type_; }
 
@@ -192,7 +207,8 @@ class CompiledModel {
   }
 
   // Returns the factored GSMP commands for this compiled model.
-  const std::vector<FactoredGsmpCommands>& factored_gsmp_commands() const {
+  const std::vector<CompiledGsmpCommandFactors>& factored_gsmp_commands()
+      const {
     return factored_gsmp_commands_;
   }
 
@@ -230,7 +246,7 @@ class CompiledModel {
   // actions do not have any general-distribution commands.  Should be composed
   // with factored_markov_commands_, ignoring the first module, to get the
   // composite commands.
-  std::vector<FactoredGsmpCommands> factored_gsmp_commands_;
+  std::vector<CompiledGsmpCommandFactors> factored_gsmp_commands_;
   int gsmp_event_count_;
 };
 
