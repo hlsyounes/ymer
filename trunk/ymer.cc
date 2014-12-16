@@ -564,7 +564,7 @@ struct CompiledCommands {
   std::vector<std::vector<std::vector<CompiledMarkovCommand>>>
       factored_markov_commands;
   std::vector<CompiledGsmpCommand> single_gsmp_commands;
-  std::vector<FactoredGsmpCommands> factored_gsmp_commands_;
+  std::vector<FactoredGsmpCommands> factored_gsmp_commands;
 };
 
 bool IsSimpleComposition(
@@ -738,9 +738,35 @@ CompiledCommands CompileCommands(
     }
   }
 
-  // TODO(hlsyounes): Add factored commands for actions.
-  if (!action_indices.empty()) {
-    errors->push_back("compilation for factored models not implemented");
+  for (int action_index : action_indices) {
+    auto i = pre_compiled_commands.factored_markov_commands.find(action_index);
+    CHECK(i != pre_compiled_commands.factored_markov_commands.end());
+    result.factored_markov_commands.emplace_back();
+    auto j = pre_compiled_commands.factored_gsmp_commands.find(action_index);
+    int gsmp_module_index = -1;
+    if (j == pre_compiled_commands.factored_gsmp_commands.end()) {
+      if (!gsmp_action_indices.empty()) {
+        result.factored_gsmp_commands.emplace_back();
+      }
+    } else {
+      const auto& entry = *j->second.begin();
+      gsmp_module_index = entry.first;
+      auto k = i->second.find(gsmp_module_index);
+      if (k == i->second.end()) {
+        result.factored_markov_commands.back().emplace_back();
+      } else {
+        result.factored_markov_commands.back().push_back(k->second);
+      }
+      // TODO(hlsyounes): add commands from j to factored GSMP commands, with
+      // offsets computed from i (excluding the module where the GSMP commands
+      // are defined.
+      errors->push_back("compilation for factored GSMP models not implemented");
+    }
+    for (const auto& entry : i->second) {
+      if (entry.first != gsmp_module_index) {
+        result.factored_markov_commands.back().push_back(entry.second);
+      }
+    }
   }
   return result;
 }
