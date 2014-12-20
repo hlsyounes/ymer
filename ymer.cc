@@ -245,12 +245,13 @@ bool read_file(const std::string& filename, ModelAndProperties* result,
 CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompileExpressionResult result =
-      CompileExpression(expr, expected_type, identifiers_by_name);
+      CompileExpression(expr, expected_type, identifiers_by_name, dd_manager);
   if (!result.errors.empty()) {
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
-    return CompiledExpression({});
+    return CompiledExpression();
   }
   if (expected_type == Type::DOUBLE) {
     return OptimizeDoubleExpression(result.expr);
@@ -263,6 +264,7 @@ class DistributionCompiler : public DistributionVisitor {
  public:
   DistributionCompiler(
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      const Optional<DecisionDiagramManager>* dd_manager,
       std::vector<std::string>* errors);
 
   bool has_markov_weight() const {
@@ -284,15 +286,18 @@ class DistributionCompiler : public DistributionVisitor {
   CompiledExpression markov_weight_;
   CompiledGsmpDistribution gsmp_delay_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  const Optional<DecisionDiagramManager>* dd_manager_;
   std::vector<std::string>* errors_;
 };
 
 DistributionCompiler::DistributionCompiler(
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    const Optional<DecisionDiagramManager>* dd_manager,
     std::vector<std::string>* errors)
     : markov_weight_({}),
       gsmp_delay_(CompiledGsmpDistribution::MakeWeibull(0, 0)),
       identifiers_by_name_(identifiers_by_name),
+      dd_manager_(dd_manager),
       errors_(errors) {
   CHECK(identifiers_by_name);
   CHECK(errors);
@@ -300,12 +305,13 @@ DistributionCompiler::DistributionCompiler(
 
 void DistributionCompiler::DoVisitMemoryless(const Memoryless& dist) {
   markov_weight_ = CompileAndOptimizeExpression(dist.weight(), Type::DOUBLE,
-                                                *identifiers_by_name_, errors_);
+                                                *identifiers_by_name_,
+                                                *dd_manager_, errors_);
 }
 
 double DistributionCompiler::GetDoubleValue(const Expression& expr) {
   CompiledExpression compiled_expr = CompileAndOptimizeExpression(
-      expr, Type::DOUBLE, *identifiers_by_name_, errors_);
+      expr, Type::DOUBLE, *identifiers_by_name_, *dd_manager_, errors_);
   if (errors_->empty()) {
     if (compiled_expr.operations().size() == 1 &&
         compiled_expr.operations()[0].opcode() == Opcode::DCONST &&
@@ -321,22 +327,26 @@ void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
   const double scale = GetDoubleValue(dist.scale());
   const double shape = GetDoubleValue(dist.shape());
   if (shape == 1.0 && errors_->empty()) {
+    Optional<ADD> dd;
+    if (dd_manager_->has_value()) {
+      dd = dd_manager_->value().GetConstant(1.0 / scale);
+    }
     markov_weight_ =
-        CompiledExpression({Operation::MakeDCONST(1.0 / scale, 0)});
+        CompiledExpression({Operation::MakeDCONST(1.0 / scale, 0)}, dd);
   } else {
-    markov_weight_ = CompiledExpression({});
+    markov_weight_ = CompiledExpression();
     gsmp_delay_ = CompiledGsmpDistribution::MakeWeibull(scale, shape);
   }
 }
 
 void DistributionCompiler::DoVisitLognormal(const Lognormal& dist) {
-  markov_weight_ = CompiledExpression({});
+  markov_weight_ = CompiledExpression();
   gsmp_delay_ = CompiledGsmpDistribution::MakeLognormal(
       GetDoubleValue(dist.scale()), GetDoubleValue(dist.shape()));
 }
 
 void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
-  markov_weight_ = CompiledExpression({});
+  markov_weight_ = CompiledExpression();
   gsmp_delay_ = CompiledGsmpDistribution::MakeUniform(
       GetDoubleValue(dist.low()), GetDoubleValue(dist.high()));
 }
@@ -344,6 +354,7 @@ void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
 CompiledUpdate CompileUpdate(
     const Update& update,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   auto i = identifiers_by_name.find(update.variable());
   int variable;
@@ -357,20 +368,21 @@ CompiledUpdate CompileUpdate(
   } else {
     variable = i->second.variable_index();
   }
-  return CompiledUpdate(
-      variable, CompileAndOptimizeExpression(update.expr(), Type::INT,
-                                             identifiers_by_name, errors));
+  return CompiledUpdate(variable, CompileAndOptimizeExpression(
+                                      update.expr(), Type::INT,
+                                      identifiers_by_name, dd_manager, errors));
 }
 
 std::vector<CompiledUpdate> CompileUpdates(
     const std::vector<Update>& updates,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   std::vector<CompiledUpdate> compiled_updates;
   compiled_updates.reserve(updates.size());
   for (const auto& update : updates) {
     compiled_updates.push_back(
-        CompileUpdate(update, identifiers_by_name, errors));
+        CompileUpdate(update, identifiers_by_name, dd_manager, errors));
   }
   return compiled_updates;
 }
@@ -389,19 +401,59 @@ std::map<std::string, IdentifierInfo> GetConstantIdentifiersByName(
   return identifiers_by_name;
 }
 
-void AddVariableIdentifiersByName(
-    const CompiledModel& model,
-    std::map<std::string, IdentifierInfo>* identifiers_by_name) {
+int GetIntValue(
+    const Expression& expr, Type expected_type,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    std::vector<std::string>* errors) {
+  CompiledExpression compiled_expr = CompileAndOptimizeExpression(
+      expr, expected_type, identifiers_by_name, {}, errors);
+  if (errors->empty()) {
+    if (compiled_expr.operations().size() == 1 &&
+        compiled_expr.operations()[0].opcode() == Opcode::ICONST &&
+        compiled_expr.operations()[0].operand2() == 0) {
+      return compiled_expr.operations()[0].ioperand1();
+    }
+    errors->push_back(StrCat("expecting constant expression; found ", expr));
+  }
+  return 0;
+}
+
+struct CompileVariablesResult {
+  std::vector<StateVariableInfo> variables;
+  std::vector<int> init_values;
+  int total_bit_count;
+};
+
+CompileVariablesResult CompileVariables(
+    const std::vector<ParsedVariable>& parsed_variables,
+    std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    std::vector<std::string>* errors) {
+  CompileVariablesResult result;
   int index = 0;
   int low_bit = 0;
-  for (const auto& v : model.variables()) {
+  for (const auto& v : parsed_variables) {
+    int min = GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
+    int max = GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
+    int init = GetIntValue(v.init(), v.type(), *identifiers_by_name, errors);
+    if (min >= max) {
+      errors->push_back(StrCat("empty domain [", min, "..", max,
+                               "] for variable ", v.name()));
+      max = min + 1;
+    } else if (init < min || init > max) {
+      errors->push_back(StrCat("init ", init, " not in domain [", min, "..",
+                               max, "] for variable ", v.name()));
+    }
+    const int bit_count = Log2(max - min) + 1;
+    result.variables.emplace_back(v.name(), min, bit_count);
+    result.init_values.push_back(init);
     identifiers_by_name->emplace(
-        v.name(),
-        IdentifierInfo::Variable(model.variable_types()[index], index, low_bit,
-                                 low_bit + v.bit_count() - 1, v.min_value()));
+        v.name(), IdentifierInfo::Variable(v.type(), index, low_bit,
+                                           low_bit + bit_count - 1, min));
     ++index;
-    low_bit += v.bit_count();
+    low_bit += bit_count;
   }
+  result.total_bit_count = low_bit;
+  return result;
 }
 
 CompiledModelType CompileModelType(ModelType model_type,
@@ -423,23 +475,6 @@ CompiledModelType CompileModelType(ModelType model_type,
   return CompiledModelType::CTMC;
 }
 
-int GetIntValue(
-    const Expression& expr, Type expected_type,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    std::vector<std::string>* errors) {
-  CompiledExpression compiled_expr = CompileAndOptimizeExpression(
-      expr, expected_type, identifiers_by_name, errors);
-  if (errors->empty()) {
-    if (compiled_expr.operations().size() == 1 &&
-        compiled_expr.operations()[0].opcode() == Opcode::ICONST &&
-        compiled_expr.operations()[0].operand2() == 0) {
-      return compiled_expr.operations()[0].ioperand1();
-    }
-    errors->push_back(StrCat("expecting constant expression; found ", expr));
-  }
-  return 0;
-}
-
 bool IsUnitWeight(const CompiledExpression& weight) {
   return weight.operations().size() == 1 &&
          weight.operations()[0].opcode() == Opcode::DCONST &&
@@ -459,16 +494,26 @@ CompiledExpression ComposeWeightExpressions(BinaryOperator op,
   for (const Operation& o : expr2.operations()) {
     operations.push_back(o.Shift(pc_shift, reg_shift));
   }
+  Optional<ADD> dd;
   if (op == BinaryOperator::PLUS) {
     operations.push_back(Operation::MakeDADD(0, 1));
+    if (expr1.dd().has_value() && expr2.dd().has_value()) {
+      dd = expr1.dd().value() + expr2.dd().value();
+    }
   } else if (op == BinaryOperator::MULTIPLY) {
     operations.push_back(Operation::MakeDMUL(0, 1));
+    if (expr1.dd().has_value() && expr2.dd().has_value()) {
+      dd = expr1.dd().value() * expr2.dd().value();
+    }
   } else if (op == BinaryOperator::DIVIDE) {
     operations.push_back(Operation::MakeDDIV(0, 1));
+    if (expr1.dd().has_value() && expr2.dd().has_value()) {
+      dd = expr1.dd().value() / expr2.dd().value();
+    }
   } else {
     LOG(FATAL) << "not implemented";
   }
-  return OptimizeDoubleExpression(CompiledExpression(operations));
+  return OptimizeDoubleExpression(CompiledExpression(operations, dd));
 }
 
 CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
@@ -484,7 +529,11 @@ CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
   for (const Operation& o : expr2.operations()) {
     operations.push_back(o.Shift(pc_shift, reg_shift));
   }
-  return CompiledExpression(operations);
+  Optional<ADD> dd;
+  if (expr1.dd().has_value() && expr2.dd().has_value()) {
+    dd = ADD(BDD(expr1.dd().value()) && BDD(expr2.dd().value()));
+  }
+  return CompiledExpression(operations, dd);
 }
 
 struct PreCompiledCommands {
@@ -499,21 +548,22 @@ struct PreCompiledCommands {
 PreCompiledCommands PreCompileCommands(
     const Model& model,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   PreCompiledCommands result;
-  DistributionCompiler dist_compiler(&identifiers_by_name, errors);
+  DistributionCompiler dist_compiler(&identifiers_by_name, &dd_manager, errors);
   std::vector<CompiledMarkovOutcome> markov_outcomes;
   for (size_t module_index = 0; module_index < model.modules().size();
        ++module_index) {
     const auto& module = model.modules()[module_index];
     for (const auto& command : module.commands()) {
       const auto compiled_guard = CompileAndOptimizeExpression(
-          command.guard(), Type::BOOL, identifiers_by_name, errors);
+          command.guard(), Type::BOOL, identifiers_by_name, dd_manager, errors);
       markov_outcomes.clear();
       for (const auto& outcome : command.outcomes()) {
         outcome.delay().Accept(&dist_compiler);
-        const auto compiled_updates =
-            CompileUpdates(outcome.updates(), identifiers_by_name, errors);
+        const auto compiled_updates = CompileUpdates(
+            outcome.updates(), identifiers_by_name, dd_manager, errors);
         if (dist_compiler.has_markov_weight()) {
           markov_outcomes.emplace_back(dist_compiler.markov_weight(),
                                        compiled_updates);
@@ -673,10 +723,11 @@ std::vector<int> FactoredMarkovCommandOffsets(
 CompiledCommands CompileCommands(
     const Model& model,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledCommands result;
   const PreCompiledCommands pre_compiled_commands =
-      PreCompileCommands(model, identifiers_by_name, errors);
+      PreCompileCommands(model, identifiers_by_name, dd_manager, errors);
   result.single_markov_commands = pre_compiled_commands.single_markov_commands;
   result.single_gsmp_commands = pre_compiled_commands.single_gsmp_commands;
 
@@ -790,28 +841,16 @@ CompiledCommands CompileCommands(
 
 CompiledModel CompileModel(
     const Model& model,
-    std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    const std::vector<StateVariableInfo>& variables,
+    const std::vector<int>& init_values,
+    std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
-  CompiledModel compiled_model(CompileModelType(model.type(), errors));
+  CompiledModel compiled_model(CompileModelType(model.type(), errors),
+                               variables, init_values);
 
-  for (const ParsedVariable& v : model.variables()) {
-    int min = GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
-    int max = GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
-    int init = GetIntValue(v.init(), v.type(), *identifiers_by_name, errors);
-    if (min >= max) {
-      errors->push_back(StrCat("empty domain [", min, "..", max,
-                               "] for variable ", v.name()));
-      max = min + 1;
-    } else if (init < min || init > max) {
-      errors->push_back(StrCat("init ", init, " not in domain [", min, "..",
-                               max, "] for variable ", v.name()));
-    }
-    compiled_model.AddVariable(v.name(), v.type(), min, max, init);
-  }
-
-  AddVariableIdentifiersByName(compiled_model, identifiers_by_name);
   const auto& compiled_commands =
-      CompileCommands(model, *identifiers_by_name, errors);
+      CompileCommands(model, identifiers_by_name, dd_manager, errors);
   compiled_model.set_single_markov_commands(
       compiled_commands.single_markov_commands);
   compiled_model.set_factored_markov_commands(
@@ -825,7 +864,7 @@ CompiledModel CompileModel(
 std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const Expression& property,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const DecisionDiagramManager& dd_manager,
+    const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompilePropertyResult result =
       CompileProperty(property, identifiers_by_name, dd_manager);
@@ -1082,19 +1121,27 @@ int main(int argc, char* argv[]) {
       }
       return 1;
     }
+    auto compile_variables_result = CompileVariables(
+        parse_result.model->variables(), &identifiers_by_name, &errors);
+    Optional<DecisionDiagramManager> dd_manager;
+    if (engine == HYBRID_ENGINE || engine == MIXED_ENGINE) {
+      dd_manager =
+          DecisionDiagramManager(2 * compile_variables_result.total_bit_count);
+    }
     const CompiledModel compiled_model =
-        CompileModel(*parse_result.model, &identifiers_by_name, &errors);
+        CompileModel(*parse_result.model, compile_variables_result.variables,
+                     compile_variables_result.init_values, identifiers_by_name,
+                     dd_manager, &errors);
     if (compiled_model.type() == CompiledModelType::DTMC &&
         engine != SAMPLING_ENGINE) {
       errors.push_back(StrCat(parse_result.model->type(),
                               " only supported by sampling engine"));
     }
-    DecisionDiagramManager dd_man(2 * compiled_model.BitCount());
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;
     for (const Expression& property : parse_result.properties) {
       compiled_properties.push_back(CompileAndOptimizeProperty(
-          property, identifiers_by_name, dd_man, &errors));
+          property, identifiers_by_name, dd_manager, &errors));
       auto property_reg_counts =
           GetPropertyRegisterCounts(compiled_properties.back());
       reg_counts.first = std::max(reg_counts.first, property_reg_counts.first);
@@ -1374,9 +1421,9 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
-      DecisionDiagramModel dd_model =
-          DecisionDiagramModel::Create(&dd_man, moments, *parse_result.model,
-                                       compiled_model, identifiers_by_name);
+      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
+          &dd_manager.value(), moments, *parse_result.model, compiled_model,
+          identifiers_by_name);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1388,13 +1435,14 @@ int main(int argc, char* argv[]) {
       std::cout << "Model built in " << t << " seconds." << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
-                       dd_man.GetVariableCount() / 2) << std::endl
+                       dd_manager.value().GetVariableCount() / 2) << std::endl
                 << "Transitions: "
                 << dd_model.rate_matrix().MintermCount(
-                       dd_man.GetVariableCount()) << std::endl;
+                       dd_manager.value().GetVariableCount()) << std::endl;
       std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
-                      dd_man.GetVariableCount(), 1);
+      Cudd_PrintDebug(dd_manager.value().manager(),
+                      dd_model.rate_matrix().get(),
+                      dd_manager.value().GetVariableCount(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = parse_result.properties.begin();
@@ -1427,7 +1475,7 @@ int main(int argc, char* argv[]) {
           long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
           double t = std::max(0.0, sec + usec * 1e-6);
           total_time += t;
-          accepted = (sol.get() != dd_man.GetConstant(false).get());
+          accepted = (sol.get() != dd_manager.value().GetConstant(false).get());
           if (t > 1.0) {
             total_time *= trials;
             break;
@@ -1457,9 +1505,9 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      DecisionDiagramModel dd_model =
-          DecisionDiagramModel::Create(&dd_man, moments, *parse_result.model,
-                                       compiled_model, identifiers_by_name);
+      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
+          &dd_manager.value(), moments, *parse_result.model, compiled_model,
+          identifiers_by_name);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
@@ -1477,13 +1525,14 @@ int main(int argc, char* argv[]) {
       std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
-                       dd_man.GetVariableCount() / 2) << std::endl
+                       dd_manager.value().GetVariableCount() / 2) << std::endl
                 << "Transitions: "
                 << dd_model.rate_matrix().MintermCount(
-                       dd_man.GetVariableCount()) << std::endl;
+                       dd_manager.value().GetVariableCount()) << std::endl;
       std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_man.manager(), dd_model.rate_matrix().get(),
-                      dd_man.GetVariableCount(), 1);
+      Cudd_PrintDebug(dd_manager.value().manager(),
+                      dd_model.rate_matrix().get(),
+                      dd_manager.value().GetVariableCount(), 1);
       std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
                 << std::endl;
       for (auto fi = parse_result.properties.begin();

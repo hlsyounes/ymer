@@ -23,16 +23,6 @@
 
 namespace {
 
-TEST(CompiledModelTest, BitCount) {
-  CompiledModel m1(CompiledModelType::CTMC);
-  m1.AddVariable("foo", Type::INT, 0, 1, 0);
-  EXPECT_EQ(1, m1.BitCount());
-
-  CompiledModel m2(CompiledModelType::CTMC);
-  m2.AddVariable("foo", Type::INT, 0, 1, 0);
-  m2.AddVariable("bar", Type::INT, 1, 3, 1);
-  m2.AddVariable("baz", Type::INT, 8, 15, 8);
-  EXPECT_EQ(6, m2.BitCount());
-}
+// TODO(hlsyounes): Add tests.
 
 }  // namespace

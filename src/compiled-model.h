@@ -133,12 +133,11 @@ enum class CompiledModelType { DTMC, CTMC, GSMP };
 // A compiled model.
 class CompiledModel {
  public:
-  // Constructs an empty compiled model.
-  explicit CompiledModel(CompiledModelType type);
-
-  // Adds a variable to this compiled model.
-  void AddVariable(const std::string& name, Type type, int min_value,
-                   int max_value, int init_value);
+  // Constructs a compiled model with the given type, variables, and initial
+  // variable values.
+  explicit CompiledModel(CompiledModelType type,
+                         const std::vector<StateVariableInfo>& variables,
+                         const std::vector<int>& init_values);
 
   // Sets the single (non-factored) Markov commands for this compiled model.
   void set_single_markov_commands(
@@ -184,9 +183,6 @@ class CompiledModel {
   // Returns the variables for this compiled model.
   const std::vector<StateVariableInfo>& variables() const { return variables_; }
 
-  // Returns the variable types for this compiled model.
-  const std::vector<Type>& variable_types() const { return variable_types_; }
-
   // Returns the initial values for the variables of this compiled model.
   const std::vector<int>& init_values() const { return init_values_; }
 
@@ -223,14 +219,9 @@ class CompiledModel {
   // compiled model.
   std::pair<int, int> GetRegisterCounts() const;
 
-  // Returns the number of bits needed to represent the variables of this
-  // compiled model.
-  int BitCount() const;
-
  private:
   CompiledModelType type_;
   std::vector<StateVariableInfo> variables_;
-  std::vector<Type> variable_types_;
   std::vector<int> init_values_;
   // The single (non-factored) commands with memoryless distributions.
   std::vector<CompiledMarkovCommand> single_markov_commands_;

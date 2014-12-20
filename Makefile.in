@@ -80,7 +80,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-check_PROGRAMS = src/strutil_test$(EXEEXT) \
+check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
 	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
 	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
 	src/expression_test$(EXEEXT) src/distribution_test$(EXEEXT) \
@@ -220,8 +220,8 @@ am_src_libcompiled_distribution_la_OBJECTS =  \
 	src/compiled-distribution.lo
 src_libcompiled_distribution_la_OBJECTS =  \
 	$(am_src_libcompiled_distribution_la_OBJECTS)
-src_libcompiled_expression_la_DEPENDENCIES = src/libexpression.la \
-	src/libtyped-value.la glog/libglog.la
+src_libcompiled_expression_la_DEPENDENCIES = src/libddutil.la \
+	src/libexpression.la src/libtyped-value.la glog/libglog.la
 am_src_libcompiled_expression_la_OBJECTS = src/compiled-expression.lo
 src_libcompiled_expression_la_OBJECTS =  \
 	$(am_src_libcompiled_expression_la_OBJECTS)
@@ -303,6 +303,9 @@ src_expression_test_DEPENDENCIES = src/libexpression.la \
 am_src_model_test_OBJECTS = src/model_test.$(OBJEXT)
 src_model_test_OBJECTS = $(am_src_model_test_OBJECTS)
 src_model_test_DEPENDENCIES = src/libmodel.la src/libtest-main.la
+am_src_optional_test_OBJECTS = src/optional_test.$(OBJEXT)
+src_optional_test_OBJECTS = $(am_src_optional_test_OBJECTS)
+src_optional_test_DEPENDENCIES = src/libtest-main.la
 am_src_rng_test_OBJECTS = src/rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
@@ -420,9 +423,10 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_optional_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
@@ -441,9 +445,10 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_optional_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -950,7 +955,7 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 #
 # Ymer libraries.
 #
-HEADER_FILES = src/fake_rng.h src/simulator.h src/strutil.h \
+HEADER_FILES = src/fake_rng.h src/optional.h src/simulator.h src/strutil.h \
     src/unique-ptr-vector.h
 
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
@@ -972,7 +977,7 @@ src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
 
-src_libcompiled_expression_la_LIBADD = src/libexpression.la \
+src_libcompiled_expression_la_LIBADD = src/libddutil.la src/libexpression.la \
     src/libtyped-value.la glog/libglog.la
 
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
@@ -1005,6 +1010,8 @@ ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 check_LTLIBRARIES = src/libtest-main.la
 src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
+src_optional_test_SOURCES = src/optional_test.cc
+src_optional_test_LDADD = src/libtest-main.la
 src_strutil_test_SOURCES = src/strutil_test.cc
 src_strutil_test_LDADD = src/libtest-main.la
 src_statistics_test_SOURCES = src/statistics_test.cc
@@ -1507,6 +1514,12 @@ src/model_test.$(OBJEXT): src/$(am__dirstamp) \
 src/model_test$(EXEEXT): $(src_model_test_OBJECTS) $(src_model_test_DEPENDENCIES) $(EXTRA_src_model_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/model_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_model_test_OBJECTS) $(src_model_test_LDADD) $(LIBS)
+src/optional_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/optional_test$(EXEEXT): $(src_optional_test_OBJECTS) $(src_optional_test_DEPENDENCIES) $(EXTRA_src_optional_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/optional_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_optional_test_OBJECTS) $(src_optional_test_LDADD) $(LIBS)
 src/rng_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1672,6 +1685,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/optional_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
@@ -2586,6 +2600,13 @@ recheck: all $(check_LTLIBRARIES) $(check_PROGRAMS)
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
+src/optional_test.log: src/optional_test$(EXEEXT)
+	@p='src/optional_test$(EXEEXT)'; \
+	b='src/optional_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 src/strutil_test.log: src/strutil_test$(EXEEXT)
 	@p='src/strutil_test$(EXEEXT)'; \
 	b='src/strutil_test'; \

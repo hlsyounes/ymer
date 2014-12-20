@@ -340,9 +340,17 @@ DecisionDiagramManager::DecisionDiagramManager(int variable_count)
   SetEpsilon(std::numeric_limits<double>::min());
 }
 
+DecisionDiagramManager::DecisionDiagramManager(
+    DecisionDiagramManager&& dd_manager)
+    : manager_(dd_manager.manager_) {
+  dd_manager.manager_ = nullptr;
+}
+
 DecisionDiagramManager::~DecisionDiagramManager() {
-  CHECK_EQ(0, Cudd_CheckZeroRef(manager_)) << "unreleased DDs";
-  Cudd_Quit(manager_);
+  if (manager_ != nullptr) {
+    CHECK_EQ(0, Cudd_CheckZeroRef(manager_)) << "unreleased DDs";
+    Cudd_Quit(manager_);
+  }
 }
 
 int DecisionDiagramManager::GetVariableCount() const {

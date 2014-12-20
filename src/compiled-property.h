@@ -30,6 +30,7 @@
 
 #include "compiled-expression.h"
 #include "ddutil.h"
+#include "optional.h"
 #include "unique-ptr-vector.h"
 
 class CompiledPropertyVisitor;
@@ -90,21 +91,17 @@ std::ostream& operator<<(std::ostream& os, const CompiledPathProperty& p);
 // A compiled expression property.
 class CompiledExpressionProperty : public CompiledProperty {
  public:
-  explicit CompiledExpressionProperty(const CompiledExpression& expr,
-                                      const BDD& bdd);
+  explicit CompiledExpressionProperty(const CompiledExpression& expr);
 
   static std::unique_ptr<const CompiledExpressionProperty> New(
-      const CompiledExpression& expr, const BDD& bdd);
+      const CompiledExpression& expr);
 
   const CompiledExpression& expr() const { return expr_; }
-
-  const BDD& bdd() const { return bdd_; }
 
  private:
   void DoAccept(CompiledPropertyVisitor* visitor) const override;
 
   CompiledExpression expr_;
-  BDD bdd_;
 };
 
 // Supported operators for compiled n-ary logic operator property.
@@ -278,11 +275,12 @@ struct CompilePropertyResult {
 CompilePropertyResult CompileProperty(
     const Expression& expr,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const DecisionDiagramManager& dd_manager);
+    const Optional<DecisionDiagramManager>& dd_manager);
 
 // Optimizes the given property.
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
-    const CompiledProperty& property, const DecisionDiagramManager& dd_manager);
+    const CompiledProperty& property,
+    const Optional<DecisionDiagramManager>& dd_manager);
 
 // Returns the number of integer and double registers referenced by the given
 // compiled expression.

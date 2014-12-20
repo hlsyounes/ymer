@@ -26,7 +26,7 @@
 namespace {
 
 TEST(CompilePropertyTest, Literal) {
-  const DecisionDiagramManager dd_manager(0);
+  const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 =
       CompileProperty(Literal(true), {}, dd_manager);
   const std::string expected1 = "0: ICONST 1 0";
@@ -46,7 +46,7 @@ TEST(CompilePropertyTest, Literal) {
 }
 
 TEST(CompilePropertyTest, Identifier) {
-  const DecisionDiagramManager dd_manager(4);
+  const Optional<DecisionDiagramManager> dd_manager(4);
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::INT, 0, 0, 1, 0)},
       {"b", IdentifierInfo::Variable(Type::BOOL, 1, 2, 2, false)},
@@ -93,7 +93,7 @@ TEST(CompilePropertyTest, Identifier) {
 }
 
 TEST(CompilePropertyTest, FunctionCall) {
-  const DecisionDiagramManager dd_manager(0);
+  const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 = CompileProperty(
       FunctionCall(Function::MAX,
                    UniquePtrVector<const Expression>(Literal::New(false))),
@@ -119,7 +119,7 @@ TEST(CompilePropertyTest, FunctionCall) {
 }
 
 TEST(CompilePropertyTest, UnaryOperation) {
-  const DecisionDiagramManager dd_manager(2);
+  const Optional<DecisionDiagramManager> dd_manager(2);
   const CompilePropertyResult result1 = CompileProperty(
       UnaryOperation(UnaryOperator::NOT, Literal::New(false)), {}, dd_manager);
   const std::string expected1 =
@@ -157,7 +157,7 @@ TEST(CompilePropertyTest, UnaryOperation) {
 }
 
 TEST(CompilePropertyTest, BinaryOperation) {
-  const DecisionDiagramManager dd_manager(2);
+  const Optional<DecisionDiagramManager> dd_manager(2);
   const CompilePropertyResult result1 = CompileProperty(
       BinaryOperation(BinaryOperator::AND, Literal::New(false),
                       Identifier::New("a")),
@@ -384,7 +384,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
 }
 
 TEST(CompilePropertyTest, Conditional) {
-  const DecisionDiagramManager dd_manager(0);
+  const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 = CompileProperty(
       Conditional(Literal::New(true), Literal::New(false), Literal::New(true)),
       {}, dd_manager);
@@ -396,8 +396,8 @@ TEST(CompilePropertyTest, Conditional) {
       "4: ICONST 1 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
-      Conditional(Literal::New(true), Literal::New(17), Literal::New(42)),
-      {}, dd_manager);
+      Conditional(Literal::New(true), Literal::New(17), Literal::New(42)), {},
+      dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
@@ -415,7 +415,7 @@ TEST(CompilePropertyTest, Conditional) {
 }
 
 TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
-  const DecisionDiagramManager dd_manager(2);
+  const Optional<DecisionDiagramManager> dd_manager(2);
   const CompilePropertyResult result1 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS, 0.25,
@@ -543,7 +543,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
 }
 
 TEST(OptimizePropertyTest, NotProperty) {
-  const DecisionDiagramManager dd_manager(2);
+  const Optional<DecisionDiagramManager> dd_manager(2);
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
   auto property1 = OptimizeProperty(
@@ -594,7 +594,7 @@ TEST(OptimizePropertyTest, NotProperty) {
 }
 
 TEST(OptimizePropertyTest, NaryProperty) {
-  const DecisionDiagramManager dd_manager(2);
+  const Optional<DecisionDiagramManager> dd_manager(2);
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
   auto property1 = OptimizeProperty(

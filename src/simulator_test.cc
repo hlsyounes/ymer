@@ -33,23 +33,24 @@ CompiledExpression MakeGuard(int variable, int min_value, int max_value) {
       {Operation::MakeILOAD(variable, 0), Operation::MakeICONST(min_value, 1),
        Operation::MakeIGE(0, 1), Operation::MakeIFFALSE(0, 7),
        Operation::MakeILOAD(variable, 0), Operation::MakeICONST(max_value, 1),
-       Operation::MakeILE(0, 1)});
+       Operation::MakeILE(0, 1)},
+      {});
 }
 
 CompiledExpression MakeWeight(double weight) {
-  return CompiledExpression({Operation::MakeDCONST(weight, 0)});
+  return CompiledExpression({Operation::MakeDCONST(weight, 0)}, {});
 }
 
 CompiledUpdate MakeUpdate(int variable, int delta) {
   return CompiledUpdate(variable,
                         CompiledExpression({Operation::MakeILOAD(variable, 0),
                                             Operation::MakeICONST(delta, 1),
-                                            Operation::MakeIADD(0, 1)}));
+                                            Operation::MakeIADD(0, 1)},
+                                           {}));
 }
 
 TEST(NextStateSamplerTest, NoEvents) {
-  CompiledModel model(CompiledModelType::DTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::DTMC, {{"a", 0, 6}}, {17});
   EXPECT_EQ(0, model.EventCount());
   CompiledExpressionEvaluator evaluator(0, 0);
   // No random numbers consumed.
@@ -64,8 +65,7 @@ TEST(NextStateSamplerTest, NoEvents) {
 }
 
 TEST(NextStateSamplerTest, OneEnabledMarkovEventDtmc) {
-  CompiledModel model(CompiledModelType::DTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::DTMC, {{"a", 0, 6}}, {17});
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 17), MakeWeight(1.0),
@@ -95,8 +95,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventDtmc) {
 }
 
 TEST(NextStateSamplerTest, OneEnabledMarkovEventCtmc) {
-  CompiledModel model(CompiledModelType::CTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::CTMC, {{"a", 0, 6}}, {17});
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 17), MakeWeight(2.0),
@@ -126,8 +125,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventCtmc) {
 }
 
 TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
-  CompiledModel model(CompiledModelType::DTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::DTMC, {{"a", 0, 6}}, {17});
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 18), MakeWeight(1.0),
@@ -175,8 +173,7 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
 }
 
 TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
-  CompiledModel model(CompiledModelType::CTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::CTMC, {{"a", 0, 6}}, {17});
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 18), MakeWeight(2.0),
@@ -228,9 +225,8 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
 }
 
 TEST(NextStateSamplerTest, ComplexMarkovEventsDtmc) {
-  CompiledModel model(CompiledModelType::DTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
-  model.AddVariable("b", Type::INT, 0, 4711, 1);
+  CompiledModel model(CompiledModelType::DTMC, {{"a", 0, 6}, {"b", 0, 13}},
+                      {17, 1});
   model.set_single_markov_commands({CompiledMarkovCommand(
       MakeGuard(0, 17, 18), MakeWeight(1.0),
       {CompiledMarkovOutcome(MakeWeight(0.75), {MakeUpdate(0, -1)}),
@@ -304,9 +300,8 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsDtmc) {
 }
 
 TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
-  CompiledModel model(CompiledModelType::CTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
-  model.AddVariable("b", Type::INT, 0, 4711, 1);
+  CompiledModel model(CompiledModelType::CTMC, {{"a", 0, 6}, {"b", 0, 13}},
+                      {17, 1});
   model.set_single_markov_commands({CompiledMarkovCommand(
       MakeGuard(0, 17, 18), MakeWeight(5.0),
       {CompiledMarkovOutcome(MakeWeight(0.4), {MakeUpdate(0, -1)}),
@@ -387,8 +382,7 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
 }
 
 TEST(NextStateSamplerTest, BreaksTiesForMarkovCommands) {
-  CompiledModel model(CompiledModelType::DTMC);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::DTMC, {{"a", 0, 6}}, {17});
   model.set_single_markov_commands(
       {CompiledMarkovCommand(
            MakeGuard(0, 17, 18), MakeWeight(1.0),
@@ -423,8 +417,7 @@ TEST(NextStateSamplerTest, BreaksTiesForMarkovCommands) {
 }
 
 TEST(NextStateSamplerTest, OneEnabledGsmpEvent) {
-  CompiledModel model(CompiledModelType::GSMP);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::GSMP, {{"a", 0, 6}}, {17});
   model.set_single_gsmp_commands(
       {CompiledGsmpCommand(MakeGuard(0, 17, 17),
                            CompiledGsmpDistribution::MakeUniform(3.0, 5.0),
@@ -463,8 +456,7 @@ TEST(NextStateSamplerTest, OneEnabledGsmpEvent) {
 }
 
 TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
-  CompiledModel model(CompiledModelType::GSMP);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::GSMP, {{"a", 0, 6}}, {17});
   model.set_single_gsmp_commands(
       {CompiledGsmpCommand(MakeGuard(0, 17, 18),
                            CompiledGsmpDistribution::MakeUniform(7.0, 11.0),
@@ -529,10 +521,8 @@ TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
 }
 
 TEST(NextStateSamplerTest, ComplexGsmpEvents) {
-  CompiledModel model(CompiledModelType::GSMP);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
-  model.AddVariable("b", Type::INT, 0, 4711, 1);
-  model.AddVariable("c", Type::INT, 0, 3, 1);
+  CompiledModel model(CompiledModelType::GSMP,
+                      {{"a", 0, 6}, {"b", 0, 13}, {"c", 0, 2}}, {17, 1, 1});
   model.set_single_markov_commands({CompiledMarkovCommand(
       MakeGuard(0, 17, 18), MakeWeight(5.0),
       {CompiledMarkovOutcome(MakeWeight(0.4), {MakeUpdate(0, -1)}),
@@ -655,8 +645,7 @@ TEST(NextStateSamplerTest, ComplexGsmpEvents) {
 }
 
 TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {
-  CompiledModel model(CompiledModelType::GSMP);
-  model.AddVariable("a", Type::INT, 0, 42, 17);
+  CompiledModel model(CompiledModelType::GSMP, {{"a", 0, 6}}, {17});
   model.set_single_gsmp_commands(
       {CompiledGsmpCommand(MakeGuard(0, 17, 18),
                            CompiledGsmpDistribution::MakeUniform(1.0, 3.0),
