@@ -29,7 +29,9 @@
 #include <utility>
 #include <vector>
 
+#include "ddutil.h"
 #include "expression.h"
+#include "optional.h"
 #include "typed-value.h"
 
 // Opcodes supported by the virtual machine used for evaluating compiled
@@ -221,19 +223,24 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation);
 // A compiled expression.
 class CompiledExpression {
  public:
-  // Constructs a compiled expression with the given operations.
-  explicit CompiledExpression(const std::vector<Operation>& operations);
+  // Constructs an empty compiled expression.
+  explicit CompiledExpression();
+
+  // Constructs a compiled expression with the given operations and optional
+  // decision digram.
+  explicit CompiledExpression(const std::vector<Operation>& operations,
+                              const Optional<ADD>& dd);
 
   // Returns the operations for this compiled expression.
   const std::vector<Operation>& operations() const { return operations_; }
 
+  // Returns the optional decision diagram for this compiled expression.
+  const Optional<ADD>& dd() const { return dd_; }
+
  private:
   std::vector<Operation> operations_;
+  Optional<ADD> dd_;
 };
-
-// Comparison operators for compiled expressions.
-bool operator==(const CompiledExpression& e1, const CompiledExpression& e2);
-bool operator!=(const CompiledExpression& e1, const CompiledExpression& e2);
 
 // Output operator for compiled expressions.
 std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr);
@@ -311,7 +318,8 @@ class IdentifierInfo {
 // will be populated with error messages.
 CompileExpressionResult CompileExpression(
     const Expression& expr, Type expected_type,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name);
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager);
 
 // Optimizes the given expression, assuming it evaluates to an integer in
 // register 0.

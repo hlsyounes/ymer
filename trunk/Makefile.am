@@ -86,7 +86,7 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 # Ymer libraries.
 #
 
-HEADER_FILES = src/fake_rng.h src/simulator.h src/strutil.h \
+HEADER_FILES = src/fake_rng.h src/optional.h src/simulator.h src/strutil.h \
     src/unique-ptr-vector.h
 
 # Statistics library.
@@ -129,7 +129,7 @@ src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
 noinst_LTLIBRARIES += src/libcompiled-expression.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
-src_libcompiled_expression_la_LIBADD = src/libexpression.la \
+src_libcompiled_expression_la_LIBADD = src/libddutil.la src/libexpression.la \
     src/libtyped-value.la glog/libglog.la
 
 # Compiled distribution library.
@@ -175,6 +175,11 @@ src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
 
 check_PROGRAMS =
+
+# Test for optional library.
+check_PROGRAMS += src/optional_test
+src_optional_test_SOURCES = src/optional_test.cc
+src_optional_test_LDADD = src/libtest-main.la
 
 # Test for string utility library.
 check_PROGRAMS += src/strutil_test

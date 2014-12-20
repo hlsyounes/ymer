@@ -49,16 +49,13 @@ CompiledGsmpCommand::CompiledGsmpCommand(
       updates_(updates),
       first_index_(first_index) {}
 
-CompiledModel::CompiledModel(CompiledModelType type)
-    : type_(type), gsmp_event_count_(0) {}
-
-void CompiledModel::AddVariable(const std::string& name, Type type,
-                                int min_value, int max_value, int init_value) {
-  const int bit_count = Log2(max_value - min_value) + 1;
-  variables_.emplace_back(name, min_value, bit_count);
-  variable_types_.push_back(type);
-  init_values_.push_back(init_value);
-}
+CompiledModel::CompiledModel(CompiledModelType type,
+                             const std::vector<StateVariableInfo>& variables,
+                             const std::vector<int>& init_values)
+    : type_(type),
+      variables_(variables),
+      init_values_(init_values),
+      gsmp_event_count_(0) {}
 
 int CompiledModel::EventCount() const {
   int event_count = gsmp_event_count();
@@ -147,12 +144,4 @@ std::pair<int, int> CompiledModel::GetRegisterCounts() const {
     }
   }
   return reg_counts;
-}
-
-int CompiledModel::BitCount() const {
-  int bit_count = 0;
-  for (const auto& v : variables_) {
-    bit_count += v.bit_count();
-  }
-  return bit_count;
 }

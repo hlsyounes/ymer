@@ -254,6 +254,8 @@ class DecisionDiagramManager {
   // Constructs a decision-diagram manager with the given variable count.
   explicit DecisionDiagramManager(int variable_count);
 
+  DecisionDiagramManager(DecisionDiagramManager&& dd_manager);
+
   // Disallow copy and assign.
   DecisionDiagramManager(const DecisionDiagramManager&) = delete;
   DecisionDiagramManager& operator=(const DecisionDiagramManager&) = delete;

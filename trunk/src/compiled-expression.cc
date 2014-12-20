@@ -516,16 +516,11 @@ std::vector<Operation> MakeConjunction(
   return operations;
 }
 
-CompiledExpression::CompiledExpression(const std::vector<Operation>& operations)
-    : operations_(operations) {}
+CompiledExpression::CompiledExpression() = default;
 
-bool operator==(const CompiledExpression& e1, const CompiledExpression& e2) {
-  return e1.operations() == e2.operations();
-}
-
-bool operator!=(const CompiledExpression& e1, const CompiledExpression& e2) {
-  return !(e1 == e2);
-}
+CompiledExpression::CompiledExpression(const std::vector<Operation>& operations,
+                                       const Optional<ADD>& dd)
+    : operations_(operations), dd_(dd) {}
 
 std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr) {
   for (size_t pc = 0; pc < expr.operations().size(); ++pc) {
@@ -1231,9 +1226,208 @@ void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
       "unexpected probability threshold operation in expression");
 }
 
+class ExpressionToAddConverter : public ExpressionVisitor {
+ public:
+  explicit ExpressionToAddConverter(
+      const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+      const DecisionDiagramManager* dd_manager);
+
+  ADD add() const { return add_; }
+
+ private:
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
+
+  ADD add_;
+  const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
+  const DecisionDiagramManager* dd_manager_;
+};
+
+ExpressionToAddConverter::ExpressionToAddConverter(
+    const std::map<std::string, IdentifierInfo>* identifiers_by_name,
+    const DecisionDiagramManager* dd_manager)
+    : add_(dd_manager->GetConstant(0)),
+      identifiers_by_name_(identifiers_by_name),
+      dd_manager_(dd_manager) {}
+
+void ExpressionToAddConverter::DoVisitLiteral(const Literal& expr) {
+  if (expr.value().type() == Type::BOOL) {
+    add_ = dd_manager_->GetConstant(expr.value().value<bool>() ? 1 : 0);
+  } else {
+    add_ = dd_manager_->GetConstant(expr.value().value<double>());
+  }
+}
+
+void ExpressionToAddConverter::DoVisitIdentifier(const Identifier& expr) {
+  auto i = identifiers_by_name_->find(expr.name());
+  CHECK(i != identifiers_by_name_->end());
+  const IdentifierInfo& info = i->second;
+  if (info.type() == Type::BOOL) {
+    if (info.is_variable()) {
+      add_ = dd_manager_->GetAddVariable(2 * info.low_bit());
+    } else {
+      add_ =
+          dd_manager_->GetConstant(info.constant_value().value<bool>() ? 1 : 0);
+    }
+  } else {
+    if (info.is_variable()) {
+      add_ = dd_manager_->GetConstant(0);
+      for (int i = info.high_bit(); i >= info.low_bit(); --i) {
+        add_ = add_ + (dd_manager_->GetAddVariable(2 * i) *
+                       dd_manager_->GetConstant(1 << (info.high_bit() - i)));
+      }
+      add_ = add_ + dd_manager_->GetConstant(info.min_value().value<double>());
+    } else {
+      add_ = dd_manager_->GetConstant(info.constant_value().value<double>());
+    }
+  }
+}
+
+void ExpressionToAddConverter::DoVisitFunctionCall(const FunctionCall& expr) {
+  CHECK(!expr.arguments().empty());
+  std::vector<ADD> arguments;
+  for (const auto& argument : expr.arguments()) {
+      argument.Accept(this);
+      arguments.push_back(add_);
+  }
+  switch (expr.function()) {
+    case Function::UNKNOWN:
+      LOG(FATAL) << "bad function call";
+    case Function::MIN:
+      CHECK(!arguments.empty());
+      add_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        add_ = min(add_, arguments[i]);
+      }
+      break;
+    case Function::MAX:
+      CHECK(!arguments.empty());
+      add_ = arguments[0];
+      for (size_t i = 1; i < arguments.size(); ++i) {
+        add_ = max(add_, arguments[i]);
+      }
+      break;
+    case Function::FLOOR:
+      CHECK_EQ(arguments.size(), 1);
+      add_ = floor(arguments[0]);
+      break;
+    case Function::CEIL:
+      CHECK_EQ(arguments.size(), 1);
+      add_ = ceil(arguments[0]);
+      break;
+    case Function::POW:
+      CHECK_EQ(arguments.size(), 2);
+      add_ = pow(arguments[0], arguments[1]);
+      break;
+    case Function::LOG:
+      CHECK_EQ(arguments.size(), 2);
+      add_ = log(arguments[0]) / log(arguments[1]);
+      break;
+    case Function::MOD:
+      CHECK_EQ(arguments.size(), 2);
+      add_ = arguments[0] % arguments[1];
+      break;
+  }
+}
+
+void ExpressionToAddConverter::DoVisitUnaryOperation(
+    const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  switch (expr.op()) {
+    case UnaryOperator::NEGATE:
+      add_ = -add_;
+      break;
+    case UnaryOperator::NOT:
+      add_ = ADD(!BDD(add_));
+      break;
+  }
+}
+
+void ExpressionToAddConverter::DoVisitBinaryOperation(
+    const BinaryOperation& expr) {
+  expr.operand1().Accept(this);
+  ADD operand1 = add_;
+  expr.operand2().Accept(this);
+  switch (expr.op()) {
+    case BinaryOperator::PLUS:
+      add_ = operand1 + add_;
+      break;
+    case BinaryOperator::MINUS:
+      add_ = operand1 - add_;
+      break;
+    case BinaryOperator::MULTIPLY:
+      add_ = operand1 * add_;
+      break;
+    case BinaryOperator::DIVIDE:
+      add_ = operand1 / add_;
+      break;
+    case BinaryOperator::AND:
+      add_ = ADD(BDD(operand1) && BDD(add_));
+      break;
+    case BinaryOperator::OR:
+      add_ = ADD(BDD(operand1) || BDD(add_));
+      break;
+    case BinaryOperator::IMPLY:
+      add_ = ADD(!BDD(operand1) || BDD(add_));
+      break;
+    case BinaryOperator::LESS:
+      add_ = ADD(operand1 < add_);
+      break;
+    case BinaryOperator::LESS_EQUAL:
+      add_ = ADD(operand1 <= add_);
+      break;
+    case BinaryOperator::GREATER_EQUAL:
+      add_ = ADD(operand1 >= add_);
+      break;
+    case BinaryOperator::GREATER:
+      add_ = ADD(operand1 > add_);
+      break;
+    case BinaryOperator::EQUAL:
+    case BinaryOperator::IFF:
+      add_ = ADD(operand1 == add_);
+      break;
+    case BinaryOperator::NOT_EQUAL:
+      add_ = ADD(operand1 != add_);
+      break;
+  }
+}
+
+void ExpressionToAddConverter::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  ADD condition = add_;
+  expr.if_branch().Accept(this);
+  ADD if_branch = add_;
+  expr.else_branch().Accept(this);
+  add_ = Ite(BDD(condition), if_branch, add_);
+}
+
+void ExpressionToAddConverter::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
+}
+
+Optional<ADD> ExpressionToAdd(
+    const Expression& expr,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager) {
+  if (dd_manager.has_value()) {
+    ExpressionToAddConverter converter(&identifiers_by_name,
+                                       &dd_manager.value());
+    expr.Accept(&converter);
+    return converter.add();
+  }
+  return Optional<ADD>();
+}
+
 }  // namespace
 
-CompileExpressionResult::CompileExpressionResult() : expr({}) {}
+CompileExpressionResult::CompileExpressionResult() = default;
 
 IdentifierInfo::IdentifierInfo(Type type, int variable_index, int low_bit,
                                int high_bit, const TypedValue& value)
@@ -1255,7 +1449,8 @@ IdentifierInfo IdentifierInfo::Constant(const TypedValue& value) {
 
 CompileExpressionResult CompileExpression(
     const Expression& expr, Type expected_type,
-    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager) {
   CompileExpressionResult result;
   ExpressionCompiler compiler(&identifiers_by_name, &result.errors);
   expr.Accept(&compiler);
@@ -1272,7 +1467,8 @@ CompileExpressionResult CompileExpression(
                "; found ", type));
     return result;
   }
-  result.expr = CompiledExpression(operations);
+  result.expr = CompiledExpression(
+      operations, ExpressionToAdd(expr, identifiers_by_name, dd_manager));
   return result;
 }
 
@@ -1890,7 +2086,7 @@ size_t GetEndBlockIndex(const std::vector<BasicBlock>& blocks) {
 
 CompiledExpression OptimizeExpressionImpl(
     const std::vector<BasicBlock>& blocks,
-    const std::set<OperationIndex>& live_operations) {
+    const std::set<OperationIndex>& live_operations, const Optional<ADD>& dd) {
   std::vector<Operation> optimized_operations;
   std::multimap<size_t, size_t> jump_targets;
   for (const OperationIndex& live_operation : live_operations) {
@@ -1937,7 +2133,7 @@ CompiledExpression OptimizeExpressionImpl(
   if (IsJump(optimized_operations.back())) {
     optimized_operations.pop_back();
   }
-  return CompiledExpression(optimized_operations);
+  return CompiledExpression(optimized_operations, dd);
 }
 
 }  // namespace
@@ -1947,7 +2143,7 @@ CompiledExpression OptimizeIntExpression(const CompiledExpression& expr) {
       MakeControlFlowGraph(expr.operations());
   const std::set<OperationIndex> live_operations =
       blocks[GetEndBlockIndex(blocks)].GetIntDependencies(0);
-  return OptimizeExpressionImpl(blocks, live_operations);
+  return OptimizeExpressionImpl(blocks, live_operations, expr.dd());
 }
 
 CompiledExpression OptimizeDoubleExpression(const CompiledExpression& expr) {
@@ -1955,5 +2151,5 @@ CompiledExpression OptimizeDoubleExpression(const CompiledExpression& expr) {
       MakeControlFlowGraph(expr.operations());
   const std::set<OperationIndex> live_operations =
       blocks[GetEndBlockIndex(blocks)].GetDoubleDependencies(0);
-  return OptimizeExpressionImpl(blocks, live_operations);
+  return OptimizeExpressionImpl(blocks, live_operations, expr.dd());
 }

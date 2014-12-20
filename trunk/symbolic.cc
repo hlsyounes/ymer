@@ -80,7 +80,7 @@ void SymbolicVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::AND: {
       BDD result = dd_model_->manager().GetConstant(true);
       if (property.has_expr_operand()) {
-        result = property.expr_operand().bdd() && result;
+        result = BDD(property.expr_operand().expr().dd().value()) && result;
       }
       for (const CompiledProperty& operand : property.other_operands()) {
         operand.Accept(this);
@@ -92,7 +92,7 @@ void SymbolicVerifier::DoVisitCompiledNaryProperty(
     case CompiledNaryOperator::OR: {
       BDD result = dd_model_->manager().GetConstant(false);
       if (property.has_expr_operand()) {
-        result = property.expr_operand().bdd() || result;
+        result = BDD(property.expr_operand().expr().dd().value()) || result;
       }
       for (const CompiledProperty& operand : property.other_operands()) {
         operand.Accept(this);
@@ -105,7 +105,7 @@ void SymbolicVerifier::DoVisitCompiledNaryProperty(
       BDD result = dd_model_->manager().GetConstant(false);
       bool has_result = false;
       if (property.has_expr_operand()) {
-        result = property.expr_operand().bdd();
+        result = BDD(property.expr_operand().expr().dd().value());
         has_result = true;
       }
       for (const CompiledProperty& operand : property.other_operands()) {
@@ -135,7 +135,7 @@ void SymbolicVerifier::DoVisitCompiledProbabilityThresholdProperty(
 
 void SymbolicVerifier::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
-  result_ = dd_model_->reachable_states() && property.bdd();
+  result_ = dd_model_->reachable_states() && BDD(property.expr().dd().value());
 }
 
 // Recursive component of mtbdd_to_double_vector.
