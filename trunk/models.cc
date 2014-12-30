@@ -676,52 +676,6 @@ ADD primed_mtbdd(
   return compiler.mtbdd();
 }
 
-/* Returns a reachability BDD for the given initial state and rate
-   matrix. */
-BDD reachability_bdd(const DecisionDiagramManager& dd_man, const BDD& init,
-                     const ADD& rates) {
-  std::cout << "Computing reachable states";
-  /*
-   * Precompute variable permutations and cubes.
-   */
-  size_t nvars = dd_man.GetVariableCount() / 2;
-  std::vector<int> row_to_col(2 * nvars);
-  std::vector<int> col_to_row(2 * nvars);
-  for (size_t i = 0; i < nvars; i++) {
-    row_to_col[2 * i] = 2 * i + 1;
-    row_to_col[2 * i + 1] = 2 * i + 1;
-    col_to_row[2 * i] = 2 * i;
-    col_to_row[2 * i + 1] = 2 * i;
-  }
-  BDD row_cube = dd_man.GetCube(dd_man.GetBddVariableArray(0, 2, 2 * nvars));
-
-  /*
-   * Fixpoint computation of reachability.
-   */
-  BDD trans = rates.StrictThreshold(0);
-  BDD solr = init;
-  BDD solc = solr.Permutation(row_to_col);
-  bool done = false;
-  size_t iters = 0;
-  while (!done) {
-    iters++;
-    if (iters % 1000 == 0) {
-      std::cout << ':';
-    } else if (iters % 100 == 0) {
-      std::cout << '.';
-    }
-    BDD next_solc = solc || (trans && solr).ExistAbstract(row_cube);
-    if (next_solc.get() == solc.get()) {
-      done = true;
-    } else {
-      solc = next_solc;
-    }
-    solr = solc.Permutation(col_to_row);
-  }
-  std::cout << ' ' << iters << " iterations." << std::endl;
-  return solr;
-}
-
 ADD variable_mtbdd(const DecisionDiagramManager& manager, const TypedValue& low,
                    int low_bit, int high_bit) {
   return CompileVariable(manager, low, low_bit, high_bit, false /* primed */);
@@ -1467,6 +1421,102 @@ DecisionDiagramModel::~DecisionDiagramModel() { free_odd(odd_); }
 
 namespace {
 
+std::vector<IdentifierInfo> GetVariables(
+    const CompiledModel& model,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+  std::vector<IdentifierInfo> variables;
+  variables.reserve(model.variables().size());
+  for (const auto& v : model.variables()) {
+    auto i = identifiers_by_name.find(v.name());
+    CHECK(i != identifiers_by_name.end());
+    variables.push_back(i->second);
+  }
+  return variables;
+}
+
+BDD VariableIdentityBdd(const DecisionDiagramManager& dd_manager,
+                        const IdentifierInfo& variable) {
+  return IdentifierToAdd(dd_manager, variable) ==
+         PrimedIdentifierToAdd(dd_manager, variable);
+}
+
+BDD CompiledUpdateToBdd(const DecisionDiagramManager& dd_manager,
+                        const std::vector<IdentifierInfo>& variables,
+                        const CompiledUpdate& update) {
+  return PrimedIdentifierToAdd(dd_manager, variables[update.variable()]) ==
+         update.expr().dd().value();
+}
+
+ADD CompiledMarkovOutcomeToAdd(const DecisionDiagramManager& dd_manager,
+                               const std::vector<IdentifierInfo>& variables,
+                               const CompiledMarkovOutcome& outcome) {
+  BDD updates = dd_manager.GetConstant(true);
+  std::set<int> updated_variables;
+  for (const auto& update : outcome.updates()) {
+    updates = CompiledUpdateToBdd(dd_manager, variables, update) && updates;
+    updated_variables.insert(update.variable());
+  }
+  for (size_t i = variables.size(); i > 0; --i) {
+    if (updated_variables.find(i) == updated_variables.end()) {
+      updates = VariableIdentityBdd(dd_manager, variables[i - 1]) && updates;
+    }
+  }
+  return outcome.probability().dd().value() * ADD(updates);
+}
+
+ADD CompiledMarkovCommandToAdd(const DecisionDiagramManager& dd_manager,
+                               const std::vector<IdentifierInfo>& variables,
+                               const CompiledMarkovCommand& command) {
+  ADD outcomes = dd_manager.GetConstant(1);
+  for (const auto& outcome : command.outcomes()) {
+    outcomes =
+        CompiledMarkovOutcomeToAdd(dd_manager, variables, outcome) * outcomes;
+  }
+  return command.guard().dd().value() * command.weight().dd().value() *
+         outcomes;
+}
+
+BDD ReachabilityBdd(const DecisionDiagramManager& dd_manager, const BDD& init,
+                    const ADD& rates) {
+  std::cout << "Computing reachable states";
+  // Precompute variable permutations and cubes.
+  size_t nvars = dd_manager.GetVariableCount() / 2;
+  std::vector<int> row_to_col(2 * nvars);
+  std::vector<int> col_to_row(2 * nvars);
+  for (size_t i = 0; i < nvars; i++) {
+    row_to_col[2 * i] = 2 * i + 1;
+    row_to_col[2 * i + 1] = 2 * i + 1;
+    col_to_row[2 * i] = 2 * i;
+    col_to_row[2 * i + 1] = 2 * i;
+  }
+  BDD row_cube =
+      dd_manager.GetCube(dd_manager.GetBddVariableArray(0, 2, 2 * nvars));
+
+  // Fixpoint computation of reachability.
+  BDD trans = BDD(rates);
+  BDD solr = init;
+  BDD solc = solr.Permutation(row_to_col);
+  bool done = false;
+  size_t iters = 0;
+  while (!done) {
+    iters++;
+    if (iters % 1000 == 0) {
+      std::cout << ':';
+    } else if (iters % 100 == 0) {
+      std::cout << '.';
+    }
+    BDD next_solc = solc || (trans && solr).ExistAbstract(row_cube);
+    if (next_solc.is_same(solc)) {
+      done = true;
+    } else {
+      solc = next_solc;
+    }
+    solr = solc.Permutation(col_to_row);
+  }
+  std::cout << ' ' << iters << " iterations." << std::endl;
+  return solr;
+}
+
 int GetInitIndex(const DecisionDiagramManager& dd_man, const BDD& initial_state,
                  ODDNode* odd) {
   int init_index = 0;
@@ -1499,6 +1549,57 @@ int GetInitIndex(const DecisionDiagramManager& dd_man, const BDD& initial_state,
 }
 
 }  // namespace
+
+DecisionDiagramModel DecisionDiagramModel::Create(
+    const DecisionDiagramManager* manager, const CompiledModel& model,
+    size_t moments,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
+  CHECK(manager);
+  std::cout <<"Building model...";
+
+  const std::vector<IdentifierInfo> variables =
+      GetVariables(model, identifiers_by_name);
+
+  // BDD for initial state.
+  BDD init_bdd = manager->GetConstant(true);
+  for (size_t i = model.variables().size(); i > 0; --i) {
+    const auto& v = model.variables()[i - 1];
+    const int init_value = model.init_values()[i - 1];
+    auto j = identifiers_by_name.find(v.name());
+    CHECK(j != identifiers_by_name.end());
+    init_bdd = IdentifierToAdd(*manager, variables[i - 1])
+                   .Interval(init_value, init_value) &&
+               init_bdd;
+  }
+
+  // TODO(hlsyounes): Add phase variables for GSMP commands.
+
+  // Compute rate matrix for all commands.
+  ADD rate_matrix = manager->GetConstant(0);
+  for (size_t i = model.single_markov_commands().size(); i > 0; --i) {
+    const auto& command = model.single_markov_commands()[i - 1];
+    rate_matrix =
+        CompiledMarkovCommandToAdd(*manager, variables, command) + rate_matrix;
+  }
+  for (size_t i = model.factored_markov_commands().size(); i > 0; --i) {
+    // TODO(hlsyounes): implement.
+    LOG(FATAL) << "not implemented";
+  }
+
+  std::cout << manager->GetVariableCount() << " variables." << std::endl;
+
+  // Reachability analysis.
+  BDD reach_bdd = ReachabilityBdd(*manager, init_bdd, rate_matrix);
+  rate_matrix = ADD(reach_bdd) * rate_matrix;
+
+  // Build ODD.
+  // TODO(hlsyounes): implement.
+  ODDNode* odd = nullptr;
+  int init_index = -1;
+
+  return DecisionDiagramModel(manager, rate_matrix, reach_bdd, init_bdd,
+                              init_index, odd);
+}
 
 DecisionDiagramModel DecisionDiagramModel::Create(
     const DecisionDiagramManager* manager, size_t moments, const Model& model,
@@ -1793,7 +1894,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
   /*
    * Reachability analysis.
    */
-  BDD reach_bdd = reachability_bdd(*manager, init_bdd, ddR);
+  BDD reach_bdd = ReachabilityBdd(*manager, init_bdd, ddR);
   ADD reach_add = ADD(reach_bdd);
   ADD rate_matrix = reach_add * ddR;
   /* Build ODD. */

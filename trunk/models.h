@@ -160,6 +160,11 @@ class DecisionDiagramModel {
   ~DecisionDiagramModel();
 
   static DecisionDiagramModel Create(
+      const DecisionDiagramManager* manager, const CompiledModel& model,
+      size_t moments,
+      const std::map<std::string, IdentifierInfo>& identifiers_by_name);
+
+  static DecisionDiagramModel Create(
       const DecisionDiagramManager* manager, size_t moments, const Model& model,
       const CompiledModel& compiled_model,
       const std::map<std::string, IdentifierInfo>& identifiers_by_name);
