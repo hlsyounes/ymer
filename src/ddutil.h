@@ -58,6 +58,9 @@ class DecisionDiagram {
   // variable count.
   double MintermCount(int variable_count) const;
 
+  // Returns true if the given decision diagram is the same as this one.
+  bool is_same(const DecisionDiagram& dd) { return node_ == dd.node_; }
+
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdNode* get() const { return node(); }
 

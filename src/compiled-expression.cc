@@ -1267,26 +1267,7 @@ void ExpressionToAddConverter::DoVisitLiteral(const Literal& expr) {
 void ExpressionToAddConverter::DoVisitIdentifier(const Identifier& expr) {
   auto i = identifiers_by_name_->find(expr.name());
   CHECK(i != identifiers_by_name_->end());
-  const IdentifierInfo& info = i->second;
-  if (info.type() == Type::BOOL) {
-    if (info.is_variable()) {
-      add_ = dd_manager_->GetAddVariable(2 * info.low_bit());
-    } else {
-      add_ =
-          dd_manager_->GetConstant(info.constant_value().value<bool>() ? 1 : 0);
-    }
-  } else {
-    if (info.is_variable()) {
-      add_ = dd_manager_->GetConstant(0);
-      for (int i = info.high_bit(); i >= info.low_bit(); --i) {
-        add_ = add_ + (dd_manager_->GetAddVariable(2 * i) *
-                       dd_manager_->GetConstant(1 << (info.high_bit() - i)));
-      }
-      add_ = add_ + dd_manager_->GetConstant(info.min_value().value<double>());
-    } else {
-      add_ = dd_manager_->GetConstant(info.constant_value().value<double>());
-    }
-  }
+  add_ = IdentifierToAdd(*dd_manager_, i->second);
 }
 
 void ExpressionToAddConverter::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -1470,6 +1451,43 @@ CompileExpressionResult CompileExpression(
   result.expr = CompiledExpression(
       operations, ExpressionToAdd(expr, identifiers_by_name, dd_manager));
   return result;
+}
+
+namespace {
+
+ADD IdentifierToAddImpl(const DecisionDiagramManager& dd_manager,
+                        const IdentifierInfo& info, int offset) {
+  if (info.type() == Type::BOOL) {
+    if (info.is_variable()) {
+      return dd_manager.GetAddVariable(2 * info.low_bit() + offset);
+    } else {
+      return dd_manager.GetConstant(info.constant_value().value<bool>() ? 1
+                                                                        : 0);
+    }
+  } else {
+    if (info.is_variable()) {
+      ADD add = dd_manager.GetConstant(0);
+      for (int i = info.high_bit(); i >= info.low_bit(); --i) {
+        add = add + (dd_manager.GetAddVariable(2 * i + offset) *
+                     dd_manager.GetConstant(1 << (info.high_bit() - i)));
+      }
+      return add + dd_manager.GetConstant(info.min_value().value<double>());
+    } else {
+      return dd_manager.GetConstant(info.constant_value().value<double>());
+    }
+  }
+}
+
+}  // namespace
+
+ADD IdentifierToAdd(const DecisionDiagramManager& dd_manager,
+                    const IdentifierInfo& info) {
+  return IdentifierToAddImpl(dd_manager, info, 0);
+}
+
+ADD PrimedIdentifierToAdd(const DecisionDiagramManager& dd_manager,
+                          const IdentifierInfo& info) {
+  return IdentifierToAddImpl(dd_manager, info, 1);
 }
 
 namespace {

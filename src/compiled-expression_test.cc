@@ -1982,6 +1982,46 @@ TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
             result.errors);
 }
 
+TEST(IdentifierToAddTest, Constant) {
+  const DecisionDiagramManager manager(0);
+  ADD dd1 = IdentifierToAdd(manager, IdentifierInfo::Constant(false));
+  EXPECT_EQ(0, dd1.Value());
+  ADD dd2 = IdentifierToAdd(manager, IdentifierInfo::Constant(true));
+  EXPECT_EQ(1, dd2.Value());
+  ADD dd3 = IdentifierToAdd(manager, IdentifierInfo::Constant(17));
+  EXPECT_EQ(17, dd3.Value());
+  ADD dd4 = IdentifierToAdd(manager, IdentifierInfo::Constant(0.5));
+  EXPECT_EQ(0.5, dd4.Value());
+}
+
+TEST(IdentifierToAddTest, Variable) {
+  const DecisionDiagramManager manager(6);
+  ADD dd1 = IdentifierToAdd(manager,
+                            IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, 0));
+  EXPECT_EQ(0, dd1.ValueInState({false, false, false, false, false, false}));
+  EXPECT_EQ(1, dd1.ValueInState({true, false, false, false, false, false}));
+  ADD dd2 = IdentifierToAdd(manager,
+                            IdentifierInfo::Variable(Type::INT, 1, 1, 2, 17));
+  EXPECT_EQ(17, dd2.ValueInState({false, false, false, false, false, false}));
+  EXPECT_EQ(18, dd2.ValueInState({false, false, false, false, true, false}));
+  EXPECT_EQ(19, dd2.ValueInState({false, false, true, false, false, false}));
+  EXPECT_EQ(20, dd2.ValueInState({false, false, true, false, true, false}));
+}
+
+TEST(PrimedIdentifierToAddTest, Variable) {
+  const DecisionDiagramManager manager(6);
+  ADD dd1 = PrimedIdentifierToAdd(
+      manager, IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, 0));
+  EXPECT_EQ(0, dd1.ValueInState({false, false, false, false, false, false}));
+  EXPECT_EQ(1, dd1.ValueInState({false, true, false, false, false, false}));
+  ADD dd2 = PrimedIdentifierToAdd(
+      manager, IdentifierInfo::Variable(Type::INT, 1, 1, 2, 17));
+  EXPECT_EQ(17, dd2.ValueInState({false, false, false, false, false, false}));
+  EXPECT_EQ(18, dd2.ValueInState({false, false, false, false, false, true}));
+  EXPECT_EQ(19, dd2.ValueInState({false, false, false, true, false, false}));
+  EXPECT_EQ(20, dd2.ValueInState({false, false, false, true, false, true}));
+}
+
 TEST(OptimizeIntExpressionTest, Constant) {
   const CompiledExpression expr({Operation::MakeICONST(17, 0)}, {});
   EXPECT_EQ(expr.operations(), OptimizeIntExpression(expr).operations());

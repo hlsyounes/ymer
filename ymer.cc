@@ -1475,7 +1475,7 @@ int main(int argc, char* argv[]) {
           long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
           double t = std::max(0.0, sec + usec * 1e-6);
           total_time += t;
-          accepted = (sol.get() != dd_manager.value().GetConstant(false).get());
+          accepted = !sol.is_same(dd_manager.value().GetConstant(false));
           if (t > 1.0) {
             total_time *= trials;
             break;

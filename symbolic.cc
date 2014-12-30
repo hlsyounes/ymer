@@ -191,7 +191,7 @@ static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
                 ? double_vector_to_bdd_rec(ddman, vec, strict, bound, level + 1,
                                            odd->t, o + odd->eoff)
                 : ddman.GetConstant(false);
-    if (e.get() == t.get()) {
+    if (e.is_same(t)) {
       return e;
     } else {
       return Ite(ddman.GetBddVariable(2 * level), t, e);
@@ -433,7 +433,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
    * Compute BDD representing non-absorbing states in transformed model.
    */
   BDD maybe = dd1 && !dd2;
-  if (maybe.get() == dd_model_->manager().GetConstant(false).get()) {
+  if (maybe.is_same(dd_model_->manager().GetConstant(false))) {
     /* All states are absorbing so solution is simply dd2. */
     result_ = dd2;
     return;

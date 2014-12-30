@@ -321,6 +321,15 @@ CompileExpressionResult CompileExpression(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager);
 
+// Returns an ADD representing the given identifier info.
+ADD IdentifierToAdd(const DecisionDiagramManager& dd_manager,
+                    const IdentifierInfo& info);
+
+// Returns an ADD representing the primed (next-state) version of the given
+// identifier info.
+ADD PrimedIdentifierToAdd(const DecisionDiagramManager& dd_manager,
+                          const IdentifierInfo& info);
+
 // Optimizes the given expression, assuming it evaluates to an integer in
 // register 0.
 CompiledExpression OptimizeIntExpression(const CompiledExpression& expr);
