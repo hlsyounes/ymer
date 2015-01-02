@@ -1407,17 +1407,14 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
 }
 
 DecisionDiagramModel::DecisionDiagramModel(
-    const DecisionDiagramManager* manager, const ADD& rate_matrix,
-    const BDD& reachable_states, const BDD& initial_state,
-    int initial_state_index, ODDNode* odd)
+    const DecisionDiagramManager* manager, const BDD& initial_state,
+    const ADD& rate_matrix, const BDD& reachable_states)
     : manager_(manager),
+      initial_state_(initial_state),
       rate_matrix_(rate_matrix),
       reachable_states_(reachable_states),
-      initial_state_(initial_state),
-      initial_state_index_(initial_state_index),
-      odd_(odd) {}
-
-DecisionDiagramModel::~DecisionDiagramModel() { free_odd(odd_); }
+      odd_(ODD::Make(reachable_states)),
+      initial_state_index_(odd_.StateIndex(initial_state)) {}
 
 namespace {
 
@@ -1457,7 +1454,7 @@ ADD CompiledMarkovOutcomeToAdd(const DecisionDiagramManager& dd_manager,
     updated_variables.insert(update.variable());
   }
   for (size_t i = variables.size(); i > 0; --i) {
-    if (updated_variables.find(i) == updated_variables.end()) {
+    if (updated_variables.find(i - 1) == updated_variables.end()) {
       updates = VariableIdentityBdd(dd_manager, variables[i - 1]) && updates;
     }
   }
@@ -1517,40 +1514,9 @@ BDD ReachabilityBdd(const DecisionDiagramManager& dd_manager, const BDD& init,
   return solr;
 }
 
-int GetInitIndex(const DecisionDiagramManager& dd_man, const BDD& initial_state,
-                 ODDNode* odd) {
-  int init_index = 0;
-  ADD init_add(initial_state);
-  DdNode* d = init_add.get();
-  ODDNode* o = odd;
-  size_t nvars = dd_man.GetVariableCount() / 2;
-  for (size_t i = 1; i <= nvars; i++) {
-    bool bit;
-    if (i == nvars) {
-      bit = (Cudd_T(d) == Cudd_ReadOne(dd_man.manager()));
-    } else {
-      DdNode* t = Cudd_T(d);
-      if (Cudd_IsConstant(t)) {
-        bit = false;
-        d = Cudd_E(d);
-      } else {
-        bit = true;
-        d = t;
-      }
-    }
-    if (bit) {
-      init_index += o->eoff;
-      o = o->t;
-    } else {
-      o = o->e;
-    }
-  }
-  return init_index;
-}
-
 }  // namespace
 
-DecisionDiagramModel DecisionDiagramModel::Create(
+DecisionDiagramModel DecisionDiagramModel::Make(
     const DecisionDiagramManager* manager, const CompiledModel& model,
     size_t moments,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name) {
@@ -1592,13 +1558,7 @@ DecisionDiagramModel DecisionDiagramModel::Create(
   BDD reach_bdd = ReachabilityBdd(*manager, init_bdd, rate_matrix);
   rate_matrix = ADD(reach_bdd) * rate_matrix;
 
-  // Build ODD.
-  // TODO(hlsyounes): implement.
-  ODDNode* odd = nullptr;
-  int init_index = -1;
-
-  return DecisionDiagramModel(manager, rate_matrix, reach_bdd, init_bdd,
-                              init_index, odd);
+  return DecisionDiagramModel(manager, init_bdd, rate_matrix, reach_bdd);
 }
 
 DecisionDiagramModel DecisionDiagramModel::Create(
@@ -1895,11 +1855,6 @@ DecisionDiagramModel DecisionDiagramModel::Create(
    * Reachability analysis.
    */
   BDD reach_bdd = ReachabilityBdd(*manager, init_bdd, ddR);
-  ADD reach_add = ADD(reach_bdd);
-  ADD rate_matrix = reach_add * ddR;
-  /* Build ODD. */
-  ODDNode* odd = build_odd(*manager, reach_add);
-  int init_index = GetInitIndex(*manager, init_bdd, odd);
-  return DecisionDiagramModel(manager, rate_matrix, reach_bdd, init_bdd,
-                              init_index, odd);
+  ADD rate_matrix = ADD(reach_bdd) * ddR;
+  return DecisionDiagramModel(manager, init_bdd, rate_matrix, reach_bdd);
 }

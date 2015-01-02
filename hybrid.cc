@@ -35,9 +35,9 @@ static double sparse_bits_memory;
 static HDDNode *zero = NULL;
 
 // local prototypes
-static HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
-static HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm);
-static int compute_n_and_nnz_rec(HDDNode *hdd, int level, int num_levels, ODDNode *row);
+static HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, const OddNode *row, const OddNode *col, HDDMatrix *hddm);
+static HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, const OddNode *row, const OddNode *col, HDDMatrix *hddm);
+static int compute_n_and_nnz_rec(HDDNode *hdd, int level, int num_levels, const OddNode *row);
 static SparseBit *build_sparse_bit(HDDNode *hdd, int level, int num_levels);
 static void fill_sparse_bit_rec(HDDNode *hdd, int level, int num_levels, long row, long col, SparseBit *sb, int code);
 static void hdd_negative_row_sums_rec(HDDNode *hdd, int level, int num_levels, long row, double *res);
@@ -48,7 +48,7 @@ static void hdd_negative_row_sums_rec(HDDNode *hdd, int level, int num_levels, l
 
 // builds hybrid mtbdd matrix from mtbdd
 
-HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, ODDNode *odd)
+HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, const OddNode *odd)
 {
 	int i;
 	HDDMatrix *res;
@@ -88,7 +88,7 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 	for (i = 0; i < res->num_levels+1; i++) {
 		ptr = res->row_tables[i];
 		while (ptr != NULL) {
-			ptr->off = ((ODDNode*)(ptr->off))->eoff;
+			ptr->off = ((const OddNode*)(ptr->off))->eoff;
 			ptr->sb = NULL;
 			ptr = ptr->next;
 		}
@@ -96,7 +96,7 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 	for (i = 0; i < res->num_levels; i++) {
 		ptr = res->col_tables[i];
 		while (ptr != NULL) {
-			ptr->off = ((ODDNode*)(ptr->off))->eoff;
+			ptr->off = ((const OddNode*)(ptr->off))->eoff;
 			ptr->sb = NULL;
 			ptr = ptr->next;
 		}
@@ -124,7 +124,7 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 
 // recursive part of build_hdd_matrix
 
-HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
+HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, const OddNode *row, const OddNode *col, HDDMatrix *hddm)
 {
 	HDDNode *ptr, *hdd_e, *hdd_t;
 	DdNode *e, *t;
@@ -138,7 +138,7 @@ HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd
 	// see if we already have the required node stored
 	ptr = hddm->row_tables[level];
 	while (ptr != NULL) {
-		if (((DdNode*)(ptr->sb) == dd) && ((ODDNode*)(ptr->off) == row) && ((ODDNode*)(ptr->off2) == col)) break;
+		if (((DdNode*)(ptr->sb) == dd) && ((const OddNode*)(ptr->off) == row) && ((const OddNode*)(ptr->off2) == col)) break;
 		// use this instead to check effect on node increase
 		// if (((DdNode*)(ptr->sb) == dd)) break;
 		ptr = ptr->next;
@@ -186,7 +186,7 @@ HDDNode *build_hdd_matrix_rowrec(const DecisionDiagramManager &ddman, DdNode *dd
 	return ptr;
 }
 
-HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, ODDNode *row, ODDNode *col, HDDMatrix *hddm)
+HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd, int level, const OddNode *row, const OddNode *col, HDDMatrix *hddm)
 {
 	HDDNode *ptr, *hdd_e, *hdd_t;
 	DdNode *e, *t;
@@ -200,7 +200,7 @@ HDDNode *build_hdd_matrix_colrec(const DecisionDiagramManager &ddman, DdNode *dd
 	// see if we already have the required node stored
 	ptr = hddm->col_tables[level];
 	while (ptr != NULL) {
-		if (((DdNode*)(ptr->sb) == dd) && ((ODDNode*)(ptr->off) == col) && ((ODDNode*)(ptr->off2) == row)) break;
+		if (((DdNode*)(ptr->sb) == dd) && ((const OddNode*)(ptr->off) == col) && ((const OddNode*)(ptr->off2) == row)) break;
 		// use this instead to check effect on node increase
 		// if (((DdNode*)(ptr->sb) == dd)) break;
 		ptr = ptr->next;
@@ -357,7 +357,7 @@ void add_sparse_bits(HDDMatrix *hddm)
 // compute the size (num states and nnz) of matrix corresponding to each hdd node
 // (and store in sb and off2 pointers, respectively)
 
-int compute_n_and_nnz_rec(HDDNode *hdd, int level, int num_levels, ODDNode *row)
+int compute_n_and_nnz_rec(HDDNode *hdd, int level, int num_levels, const OddNode *row)
 {
 	HDDNode *e, *t;
 	

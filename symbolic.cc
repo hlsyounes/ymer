@@ -140,8 +140,9 @@ void SymbolicVerifier::DoVisitCompiledExpressionProperty(
 
 // Recursive component of mtbdd_to_double_vector.
 static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
-                                       DdNode* dd, int level, ODDNode* odd,
-                                       long o, double* res) {
+                                       DdNode* dd, int level,
+                                       const OddNode* odd, long o,
+                                       double* res) {
   if (dd != Cudd_ReadZero(ddman.manager())) {
     DdNode* e;
     DdNode* t;
@@ -161,7 +162,7 @@ static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
 
 // Converts an MTBDD to a double vector.
 static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
-                                      const ADD& dd, ODDNode* odd) {
+                                      const ADD& dd, const OddNode* odd) {
   // Determine size.
   size_t n = odd->eoff + odd->toff;
   // Create array.
@@ -177,7 +178,7 @@ static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
 // Recursive component of double_vector_to_bdd.
 static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
                                     const std::vector<double>& vec, bool strict,
-                                    double bound, int level, ODDNode* odd,
+                                    double bound, int level, const OddNode* odd,
                                     long o) {
   if (level == ddman.GetVariableCount() / 2) {
     return ddman.GetConstant((strict && vec[o] > bound) ||
@@ -202,7 +203,7 @@ static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
 // Converts a double vector to a BDD.
 static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
                                 const std::vector<double>& vec, bool strict,
-                                double bound, ODDNode* odd) {
+                                double bound, const OddNode* odd) {
   return double_vector_to_bdd_rec(ddman, vec, strict, bound, 0, odd, 0);
 }
 
@@ -445,7 +446,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   /* Time limit. */
   double time = path_property.max_time();
   /* ODD for model. */
-  ODDNode* odd = dd_model_->odd();
+  const OddNode* odd = dd_model_->odd().root();
   /* Number of states. */
   size_t nstates = odd->eoff + odd->toff;
 

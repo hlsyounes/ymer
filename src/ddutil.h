@@ -30,6 +30,7 @@ struct DdNode;
 
 template <typename DD>
 class VariableArray;
+class ODD;
 
 // Information for a state variable, used for evaluating a decision diagram in a
 // state represented by integer-valued state variables.
@@ -85,6 +86,7 @@ class DecisionDiagram {
 
   template <typename DD>
   friend class VariableArray;
+  friend class ODD;
 };
 
 class ADD;
@@ -304,6 +306,38 @@ class DecisionDiagramManager {
 
  private:
   DdManager* manager_;
+};
+
+struct OddNode {
+  const OddNode* e;
+  const OddNode* t;
+  long eoff;
+  long toff;
+};
+
+class ODD {
+ public:
+  ODD(ODD&& odd);
+
+  // Disallow copy and assign.
+  ODD(const ODD&) = delete;
+  ODD& operator=(const ODD&) = delete;
+
+  ~ODD();
+
+  static ODD Make(const BDD& reachable_states);
+
+  const OddNode* root() const { return root_; }
+
+  int node_count() const { return node_count_; }
+
+  int StateIndex(const BDD& state) const;
+
+ private:
+  explicit ODD(const OddNode* root, int node_count);
+
+  const OddNode* root_;
+  int node_count_;
 };
 
 // Returns the base-2 logarithm of the given integer.
