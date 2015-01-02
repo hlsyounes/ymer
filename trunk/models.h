@@ -26,7 +26,6 @@
 #include <string>
 #include <vector>
 
-#include "odd.h"
 #include "src/compiled-model.h"
 #include "src/ddutil.h"
 #include "src/model.h"
@@ -157,9 +156,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m);
 // A model compiled into decision diagrams.
 class DecisionDiagramModel {
  public:
-  ~DecisionDiagramModel();
-
-  static DecisionDiagramModel Create(
+  static DecisionDiagramModel Make(
       const DecisionDiagramManager* manager, const CompiledModel& model,
       size_t moments,
       const std::map<std::string, IdentifierInfo>& identifiers_by_name);
@@ -171,24 +168,23 @@ class DecisionDiagramModel {
 
   const DecisionDiagramManager& manager() const { return *manager_; }
 
+  const BDD& initial_state() const { return initial_state_; }
   const ADD& rate_matrix() const { return rate_matrix_; }
   const BDD& reachable_states() const { return reachable_states_; }
-  const BDD& initial_state() const { return initial_state_; }
+  const ODD& odd() const { return odd_; }
   int initial_state_index() const { return initial_state_index_; }
-  ODDNode* odd() const { return odd_; }
 
  private:
-  DecisionDiagramModel(
-      const DecisionDiagramManager* manager,
-      const ADD& rate_matrix, const BDD& reachable_states,
-      const BDD& initial_state, int initial_state_index, ODDNode* odd);
+  DecisionDiagramModel(const DecisionDiagramManager* manager,
+                       const BDD& initial_state, const ADD& rate_matrix,
+                       const BDD& reachable_states);
 
   const DecisionDiagramManager* manager_;
+  BDD initial_state_;
   ADD rate_matrix_;
   BDD reachable_states_;
-  BDD initial_state_;
+  ODD odd_;
   int initial_state_index_;
-  ODDNode* odd_;
 };
 
 #endif  // MODELS_H_

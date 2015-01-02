@@ -4,7 +4,7 @@ Computing reachable states 23 iterations.
 States:      120
 Transitions: 363
 Rate matrix: 93 nodes 6 leaves 363 minterms
-ODD:         15 nodes
+ODD:         12 nodes
 
 Model checking P>0[ true U<=26 sc = c & sm = c ] ...
 Building hybrid MTBDD matrix...115 nodes.

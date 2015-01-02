@@ -327,9 +327,8 @@ src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
 	src/libtest-main.la
 am__objects_1 =
 am_ymer_OBJECTS = ymer.$(OBJEXT) formulas.$(OBJEXT) models.$(OBJEXT) \
-	sampling.$(OBJEXT) odd.$(OBJEXT) hybrid.$(OBJEXT) \
-	symbolic.$(OBJEXT) parser.$(OBJEXT) tokenizer.$(OBJEXT) \
-	$(am__objects_1)
+	sampling.$(OBJEXT) hybrid.$(OBJEXT) symbolic.$(OBJEXT) \
+	parser.$(OBJEXT) tokenizer.$(OBJEXT) $(am__objects_1)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
@@ -995,7 +994,7 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
     src/libddutil.la glog/libglog.la
 
-ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc odd.cc odd.h hybrid.cc hybrid.h symbolic.cc comm.h parser-state.h parser.yy tokenizer.ll $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h parser-state.h parser.yy tokenizer.ll $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
@@ -1579,7 +1578,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/formulas.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hybrid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/models.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/odd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@

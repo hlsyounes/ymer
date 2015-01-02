@@ -1421,9 +1421,8 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_VIRTUAL, &stimer);
 #endif
-      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_manager.value(), moments, *parse_result.model, compiled_model,
-          identifiers_by_name);
+      DecisionDiagramModel dd_model = DecisionDiagramModel::Make(
+          &dd_manager.value(), compiled_model, moments, identifiers_by_name);
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1443,7 +1442,7 @@ int main(int argc, char* argv[]) {
       Cudd_PrintDebug(dd_manager.value().manager(),
                       dd_model.rate_matrix().get(),
                       dd_manager.value().GetVariableCount(), 1);
-      std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+      std::cout << "ODD:         " << dd_model.odd().node_count() << " nodes"
                 << std::endl;
       for (auto fi = parse_result.properties.begin();
            fi != parse_result.properties.end(); ++fi) {
@@ -1505,9 +1504,8 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, 0);
       getitimer(ITIMER_PROF, &stimer);
 #endif
-      DecisionDiagramModel dd_model = DecisionDiagramModel::Create(
-          &dd_manager.value(), moments, *parse_result.model, compiled_model,
-          identifiers_by_name);
+      DecisionDiagramModel dd_model = DecisionDiagramModel::Make(
+          &dd_manager.value(), compiled_model, moments, identifiers_by_name);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
@@ -1533,7 +1531,7 @@ int main(int argc, char* argv[]) {
       Cudd_PrintDebug(dd_manager.value().manager(),
                       dd_model.rate_matrix().get(),
                       dd_manager.value().GetVariableCount(), 1);
-      std::cout << "ODD:         " << get_num_odd_nodes() << " nodes"
+      std::cout << "ODD:         " << dd_model.odd().node_count() << " nodes"
                 << std::endl;
       for (auto fi = parse_result.properties.begin();
            fi != parse_result.properties.end(); ++fi) {

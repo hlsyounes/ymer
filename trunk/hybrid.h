@@ -25,7 +25,6 @@
 
 #include <cstddef>
 
-#include "odd.h"
 #include "src/ddutil.h"
 
 //------------------------------------------------------------------------------
@@ -87,7 +86,7 @@ struct HDDMatrix {
   HDDNode *top;
   HDDNode *zero;
   // odd
-  ODDNode *odd;
+  const OddNode *odd;
   // block storage
   HDDBlocks *blocks;
   // stats
@@ -119,7 +118,7 @@ struct HDDMatrices {
 
 // function prototypes
 
-HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, ODDNode *odd);
+HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, const OddNode *odd);
 void add_sparse_bits(HDDMatrix *hddm);
 double *hdd_negative_row_sums(HDDMatrix *hddm, int n);
 void free_hdd_matrix(HDDMatrix *hddm);

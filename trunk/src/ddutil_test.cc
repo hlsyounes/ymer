@@ -712,6 +712,42 @@ TEST(DecisionDiagramTest, AddValueInState) {
   EXPECT_EQ(5 + 7 + 9 + 8, dd.ValueInState({4, 0, 3}, variables));
 }
 
+TEST(OddTest, StateIndex) {
+  const DecisionDiagramManager manager(8);
+  const BDD reachable_states =
+      Ite(manager.GetBddVariable(0),
+          Ite(manager.GetBddVariable(2),
+              Ite(manager.GetBddVariable(4), manager.GetConstant(false),
+                  manager.GetBddVariable(6)),
+              manager.GetBddVariable(6)),
+          Ite(manager.GetBddVariable(2), manager.GetBddVariable(6),
+              Ite(manager.GetBddVariable(4), !manager.GetBddVariable(6),
+                  manager.GetBddVariable(6))));
+  ODD odd = ODD::Make(reachable_states);
+  EXPECT_EQ(10, odd.node_count());
+  EXPECT_EQ(0, odd.StateIndex(
+                   !manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
+                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+  EXPECT_EQ(1, odd.StateIndex(
+                   !manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
+                   manager.GetBddVariable(4) && !manager.GetBddVariable(6)));
+  EXPECT_EQ(2, odd.StateIndex(
+                   !manager.GetBddVariable(0) && manager.GetBddVariable(2) &&
+                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+  EXPECT_EQ(3, odd.StateIndex(
+                   !manager.GetBddVariable(0) && manager.GetBddVariable(2) &&
+                   manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+  EXPECT_EQ(4, odd.StateIndex(
+                   manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
+                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+  EXPECT_EQ(5, odd.StateIndex(
+                   manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
+                   manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+  EXPECT_EQ(6, odd.StateIndex(
+                   manager.GetBddVariable(0) && manager.GetBddVariable(2) &&
+                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+}
+
 TEST(Log2Test, All) {
   EXPECT_EQ(0, Log2(1));
   EXPECT_EQ(1, Log2(2));

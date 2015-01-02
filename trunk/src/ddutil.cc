@@ -20,6 +20,9 @@
 
 #include <cmath>
 #include <limits>
+#include <stack>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "cudd.h"
@@ -27,7 +30,7 @@
 
 namespace {
 
-size_t ManagerSize(DdManager* manager) { return Cudd_ReadSize(manager); }
+size_t NodeIndex(DdNode* dd) { return Cudd_Regular(dd)->index; }
 
 template <typename ValueType>
 ValueType NodeValue(DdNode* dd);
@@ -53,8 +56,7 @@ DdNode* ElseChild(DdNode* dd) {
 template <typename ValueType>
 ValueType ValueInStateImpl(DdNode* dd, const std::vector<bool>& state) {
   while (!Cudd_IsConstant(dd)) {
-    const int index = Cudd_Regular(dd)->index;
-    dd = state[index] ? ThenChild(dd) : ElseChild(dd);
+    dd = state[NodeIndex(dd)] ? ThenChild(dd) : ElseChild(dd);
   }
   return NodeValue<ValueType>(dd);
 }
@@ -65,7 +67,7 @@ ValueType ValueInStateImpl(DdNode* dd, const std::vector<int>& values,
   int current_variable = 0;
   int total_bit_count = 2 * variables[current_variable].bit_count();
   while (!Cudd_IsConstant(dd)) {
-    const int index = Cudd_Regular(dd)->index;
+    const int index = NodeIndex(dd);
     while (index >= total_bit_count) {
       ++current_variable;
       total_bit_count += 2 * variables[current_variable].bit_count();
@@ -181,7 +183,7 @@ bool BDD::Value() const {
 }
 
 bool BDD::ValueInState(const std::vector<bool>& state) const {
-  CHECK_EQ(ManagerSize(manager()), state.size());
+  CHECK_EQ(Cudd_ReadSize(manager()), state.size());
   return ValueInStateImpl<bool>(node(), state);
 }
 
@@ -191,7 +193,7 @@ bool BDD::ValueInState(const std::vector<int>& values,
 }
 
 BDD BDD::Permutation(const std::vector<int>& permutation) const {
-  CHECK_EQ(ManagerSize(manager()), permutation.size());
+  CHECK_EQ(Cudd_ReadSize(manager()), permutation.size());
   return BDD(manager(), Cudd_bddPermute(manager(), node(), permutation.data()));
 }
 
@@ -244,7 +246,7 @@ double ADD::Value() const {
 }
 
 double ADD::ValueInState(const std::vector<bool>& state) const {
-  CHECK_EQ(ManagerSize(manager()), state.size());
+  CHECK_EQ(Cudd_ReadSize(manager()), state.size());
   return ValueInStateImpl<double>(node(), state);
 }
 
@@ -399,6 +401,125 @@ VariableArray<BDD> DecisionDiagramManager::GetBddVariableArray(int start,
 BDD DecisionDiagramManager::GetCube(const VariableArray<BDD>& variables) const {
   return BDD(manager_, Cudd_bddComputeCube(manager_, variables.data(), nullptr,
                                            variables.size()));
+}
+
+ODD::ODD(const OddNode* root, int node_count)
+    : root_(root), node_count_(node_count) {}
+
+ODD::ODD(ODD&& odd) : root_(odd.root_), node_count_(odd.node_count_) {
+  odd.root_ = nullptr;
+  odd.node_count_ = 0;
+}
+
+ODD::~ODD() {
+  if (root_ != nullptr) {
+    std::unordered_set<const OddNode*> nodes;
+    std::stack<const OddNode*> pending;
+    pending.push(root_);
+    while (!pending.empty()) {
+      const OddNode* node = pending.top();
+      pending.pop();
+      if (nodes.insert(node).second) {
+        if (node->e != nullptr) {
+          pending.push(node->e);
+        }
+        if (node->t != nullptr) {
+          pending.push(node->t);
+        }
+      }
+    }
+    for (const OddNode* node : nodes) {
+      delete node;
+    }
+  }
+}
+
+namespace {
+
+class OddBuilder {
+ public:
+  explicit OddBuilder(size_t max_level);
+
+  int node_count() const { return node_count_; }
+
+  const OddNode* Build(DdNode* dd, size_t level);
+
+ private:
+  size_t max_level_;
+  int node_count_;
+  std::vector<std::unordered_map<DdNode*, const OddNode*>> nodes_;
+  const OddNode* false_node_;
+};
+
+OddBuilder::OddBuilder(size_t max_level)
+    : max_level_(max_level),
+      node_count_(0),
+      nodes_(max_level + 1),
+      false_node_(nullptr) {}
+
+const OddNode* OddBuilder::Build(DdNode* dd, size_t level) {
+  if (Cudd_IsConstant(dd) && !NodeValue<bool>(dd)) {
+    if (false_node_ == nullptr) {
+      OddNode* node = new OddNode;
+      ++node_count_;
+      node->e = nullptr;
+      node->t = nullptr;
+      node->eoff = 0;
+      node->toff = 0;
+      false_node_ = node;
+    }
+    return false_node_;
+  }
+  auto i = nodes_[level].find(dd);
+  if (i != nodes_[level].end()) {
+    return i->second;
+  }
+  OddNode* node = new OddNode;
+  ++node_count_;
+  nodes_[level].insert({dd, node});
+  if (level == max_level_) {
+    node->e = nullptr;
+    node->t = nullptr;
+    node->eoff = 0;
+    node->toff = 1;
+  } else if (Cudd_IsConstant(dd) || 2 * level < NodeIndex(dd)) {
+    node->e = Build(dd, level + 1);
+    node->t = node->e;
+    node->eoff = node->e->eoff + node->e->toff;
+    node->toff = node->eoff;
+  } else {
+    node->e = Build(ElseChild(dd), level + 1);
+    node->t = Build(ThenChild(dd), level + 1);
+    node->eoff = node->e->eoff + node->e->toff;
+    node->toff = node->t->eoff + node->t->toff;
+  }
+  return node;
+}
+
+}  // namespace
+
+ODD ODD::Make(const BDD& reachable_states) {
+  OddBuilder builder(Cudd_ReadSize(reachable_states.manager()) / 2);
+  const OddNode* root = builder.Build(reachable_states.node(), 0);
+  return ODD(root, builder.node_count());
+}
+
+int ODD::StateIndex(const BDD& state) const {
+  int index = 0;
+  const OddNode* node = root_;
+  DdNode* dd = state.node();
+  while (!Cudd_IsConstant(dd)) {
+    DdNode* t = ThenChild(dd);
+    if (Cudd_IsConstant(t) && !NodeValue<bool>(t)) {
+      node = node->e;
+      dd = ElseChild(dd);
+    } else {
+      index += node->eoff;
+      node = node->t;
+      dd = t;
+    }
+  }
+  return index;
 }
 
 int Log2(int n) {
