@@ -495,3 +495,431 @@ ParsedVariable::ParsedVariable(const std::string& name, Type type,
       init_(std::move(init)) {}
 
 ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
+
+namespace {
+
+// Invalid module index.
+const int kNoModule = -1;
+
+}  // namespace
+
+Model::Model() : type_(ModelType::DEFAULT), current_module_(kNoModule) {}
+
+bool Model::SetType(ModelType type) {
+  if (type_ == ModelType::DEFAULT) {
+    type_ = type;
+    return true;
+  }
+  return false;
+}
+
+std::string Model::IdentifierIndexTypeToString(IdentifierIndex::Type type) {
+  switch (type) {
+    case IdentifierIndex::kConstant:
+      return "constant";
+    case IdentifierIndex::kVariable:
+      return "variable";
+    case IdentifierIndex::kAction:
+      return "action";
+  }
+  LOG(FATAL) << "bad identifier index type";
+}
+
+bool Model::AddConstant(const std::string& name, Type type,
+                        std::unique_ptr<const Expression>&& init,
+                        std::vector<std::string>* errors) {
+  auto i = identifier_indices_.find(name);
+  if (i != identifier_indices_.end()) {
+    if (i->second.type == IdentifierIndex::kConstant) {
+      errors->push_back(StrCat("duplicate constant ", name));
+    } else {
+      errors->push_back(StrCat("constant ", name, " previously defined as ",
+                               IdentifierIndexTypeToString(i->second.type)));
+    }
+    return false;
+  }
+  identifier_indices_.insert(
+      {name, {IdentifierIndex::kConstant, constants_.size()}});
+  constants_.emplace_back(name, type, std::move(init));
+  return true;
+}
+
+bool Model::AddIntVariable(const std::string& name,
+                           std::unique_ptr<const Expression>&& min,
+                           std::unique_ptr<const Expression>&& max,
+                           std::unique_ptr<const Expression>&& init,
+                           std::vector<std::string>* errors) {
+  return AddVariable(name, Type::INT, std::move(min), std::move(max),
+                     std::move(init), errors);
+}
+
+bool Model::AddBoolVariable(const std::string& name,
+                            std::unique_ptr<const Expression>&& init,
+                            std::vector<std::string>* errors) {
+  return AddVariable(name, Type::BOOL, Literal::New(false), Literal::New(true),
+                     std::move(init), errors);
+}
+
+bool Model::AddVariable(const std::string& name, Type type,
+                        std::unique_ptr<const Expression>&& min,
+                        std::unique_ptr<const Expression>&& max,
+                        std::unique_ptr<const Expression>&& init,
+                        std::vector<std::string>* errors) {
+  auto i = identifier_indices_.find(name);
+  if (i != identifier_indices_.end()) {
+    if (i->second.type == IdentifierIndex::kVariable) {
+      errors->push_back(StrCat("duplicate variable ", name));
+    } else {
+      errors->push_back(StrCat("variable ", name, " previously defined as ",
+                               IdentifierIndexTypeToString(i->second.type)));
+    }
+    return false;
+  }
+  const size_t index = variables_.size();
+  identifier_indices_.insert({name, {IdentifierIndex::kVariable, index}});
+  variables_.emplace_back(name, type, std::move(min), std::move(max),
+                          std::move(init));
+  if (current_module_ == kNoModule) {
+    global_variables_.insert(index);
+  } else {
+    modules_[current_module_].add_variable(index);
+  }
+  return true;
+}
+
+bool Model::AddAction(const std::string& name,
+                      std::vector<std::string>* errors) {
+  if (!name.empty()) {
+    auto result = identifier_indices_.insert(
+        {name, {IdentifierIndex::kAction, actions_.size()}});
+    if (!result.second &&
+        result.first->second.type != IdentifierIndex::kAction) {
+      errors->push_back(
+          StrCat("action ", name, " previously defined as ",
+                 IdentifierIndexTypeToString(result.first->second.type)));
+      return false;
+    }
+    if (result.second) {
+      actions_.push_back(name);
+    }
+  }
+  return true;
+}
+
+bool Model::StartModule(const std::string& name) {
+  CHECK_EQ(current_module_, kNoModule);
+  current_module_ = modules_.size();
+  if (!module_indices_.emplace(name, current_module_).second) {
+    return false;
+  }
+  modules_.emplace_back(name);
+  return true;
+}
+
+bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
+  CHECK_NE(current_module_, kNoModule);
+  if (!AddAction(command.action(), errors)) {
+    return false;
+  }
+  for (const auto& outcome : command.outcomes()) {
+    for (const auto& update : outcome.updates()) {
+      auto i = identifier_indices_.find(update.variable());
+      if (i == identifier_indices_.end()) {
+        errors->push_back(StrCat("command is updating undefined variable ",
+                                 update.variable()));
+        return false;
+      } else if (i->second.type != IdentifierIndex::kVariable) {
+        errors->push_back(StrCat("command is updating ",
+                                 IdentifierIndexTypeToString(i->second.type),
+                                 " ", update.variable()));
+        return false;
+      } else if (!command.action().empty() &&
+                 global_variables_.find(i->second.index) !=
+                     global_variables_.end()) {
+        errors->push_back(StrCat("command with action ", command.action(),
+                                 " is updating global variable ",
+                                 update.variable()));
+        return false;
+      } else if (modules_[current_module_].variables().find(i->second.index) ==
+                     modules_[current_module_].variables().end() &&
+                 global_variables_.find(i->second.index) ==
+                     global_variables_.end()) {
+        errors->push_back(StrCat("command is updating variable ",
+                                 update.variable(),
+                                 " that belongs to a different module"));
+        return false;
+      }
+    }
+  }
+  modules_[current_module_].add_command(std::move(command));
+  return true;
+}
+
+namespace {
+
+std::string RewriteIdentifier(
+    const std::string& name,
+    const std::map<std::string, std::string>& substitutions) {
+  auto i = substitutions.find(name);
+  return (i == substitutions.end()) ? name : i->second;
+}
+
+class ExpressionRewriter : public ExpressionVisitor {
+ public:
+  explicit ExpressionRewriter(
+      const std::map<std::string, std::string>* substitutions);
+
+  std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
+
+ private:
+  void DoVisitLiteral(const Literal& expr) override;
+  void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitFunctionCall(const FunctionCall& expr) override;
+  void DoVisitUnaryOperation(const UnaryOperation& expr) override;
+  void DoVisitBinaryOperation(const BinaryOperation& expr) override;
+  void DoVisitConditional(const Conditional& expr) override;
+  void DoVisitProbabilityThresholdOperation(
+      const ProbabilityThresholdOperation& expr) override;
+
+  std::unique_ptr<const Expression> expr_;
+  const std::map<std::string, std::string>* substitutions_;
+};
+
+ExpressionRewriter::ExpressionRewriter(
+    const std::map<std::string, std::string>* substitutions)
+    : substitutions_(substitutions) {}
+
+void ExpressionRewriter::DoVisitLiteral(const Literal& expr) {
+  expr_ = Literal::New(expr.value());
+}
+
+void ExpressionRewriter::DoVisitIdentifier(const Identifier& expr) {
+  expr_ = Identifier::New(RewriteIdentifier(expr.name(), *substitutions_));
+}
+
+void ExpressionRewriter::DoVisitFunctionCall(const FunctionCall& expr) {
+  UniquePtrVector<const Expression> arguments;
+  for (const Expression& argument : expr.arguments()) {
+    argument.Accept(this);
+    arguments.push_back(release_expr());
+  }
+  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
+}
+
+void ExpressionRewriter::DoVisitUnaryOperation(const UnaryOperation& expr) {
+  expr.operand().Accept(this);
+  expr_ = UnaryOperation::New(expr.op(), release_expr());
+}
+
+void ExpressionRewriter::DoVisitBinaryOperation(const BinaryOperation& expr) {
+  expr.operand1().Accept(this);
+  auto operand1 = release_expr();
+  expr.operand2().Accept(this);
+  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
+}
+
+void ExpressionRewriter::DoVisitConditional(const Conditional& expr) {
+  expr.condition().Accept(this);
+  auto condition = release_expr();
+  expr.if_branch().Accept(this);
+  auto if_branch = release_expr();
+  expr.else_branch().Accept(this);
+  expr_ = Conditional::New(std::move(condition), std::move(if_branch),
+                           release_expr());
+}
+
+void ExpressionRewriter::DoVisitProbabilityThresholdOperation(
+    const ProbabilityThresholdOperation& expr) {}
+
+std::unique_ptr<const Expression> RewriteExpression(
+    const Expression& expr,
+    const std::map<std::string, std::string>& substitutions) {
+  ExpressionRewriter rewriter(&substitutions);
+  expr.Accept(&rewriter);
+  return rewriter.release_expr();
+}
+
+class DistributionRewriter : public DistributionVisitor {
+ public:
+  explicit DistributionRewriter(
+      const std::map<std::string, std::string>* substitutions);
+
+  std::unique_ptr<const Distribution> release_dist() {
+    return std::move(dist_);
+  }
+
+ private:
+  void DoVisitMemoryless(const Memoryless& dist) override;
+  void DoVisitWeibull(const Weibull& dist) override;
+  void DoVisitLognormal(const Lognormal& dist) override;
+  void DoVisitUniform(const Uniform& dist) override;
+
+  std::unique_ptr<const Distribution> dist_;
+  const std::map<std::string, std::string>* substitutions_;
+};
+
+DistributionRewriter::DistributionRewriter(
+    const std::map<std::string, std::string>* substitutions)
+    : substitutions_(substitutions) {}
+
+void DistributionRewriter::DoVisitMemoryless(const Memoryless& dist) {
+  dist_ = Memoryless::New(RewriteExpression(dist.weight(), *substitutions_));
+}
+
+void DistributionRewriter::DoVisitWeibull(const Weibull& dist) {
+  dist_ = Weibull::New(RewriteExpression(dist.scale(), *substitutions_),
+                       RewriteExpression(dist.shape(), *substitutions_));
+}
+
+void DistributionRewriter::DoVisitLognormal(const Lognormal& dist) {
+  dist_ = Lognormal::New(RewriteExpression(dist.scale(), *substitutions_),
+                         RewriteExpression(dist.shape(), *substitutions_));
+}
+
+void DistributionRewriter::DoVisitUniform(const Uniform& dist) {
+  dist_ = Uniform::New(RewriteExpression(dist.low(), *substitutions_),
+                       RewriteExpression(dist.high(), *substitutions_));
+}
+
+std::unique_ptr<const Distribution> RewriteDistribution(
+    const Distribution& dist,
+    const std::map<std::string, std::string>& substitutions) {
+  DistributionRewriter rewriter(&substitutions);
+  dist.Accept(&rewriter);
+  return rewriter.release_dist();
+}
+
+std::vector<Update> RewriteUpdates(
+    const std::vector<Update>& updates,
+    const std::map<std::string, std::string>& substitutions) {
+  std::vector<Update> new_updates;
+  for (const Update& update : updates) {
+    new_updates.emplace_back(
+        RewriteIdentifier(update.variable(), substitutions),
+        RewriteExpression(update.expr(), substitutions));
+  }
+  return std::move(new_updates);
+}
+
+std::vector<Outcome> RewriteOutcomes(
+    const std::vector<Outcome>& outcomes,
+    const std::map<std::string, std::string>& substitutions) {
+  std::vector<Outcome> new_outcomes;
+  for (const Outcome& outcome : outcomes) {
+    new_outcomes.emplace_back(
+        RewriteDistribution(outcome.delay(), substitutions),
+        RewriteUpdates(outcome.updates(), substitutions));
+  }
+  return std::move(new_outcomes);
+}
+
+Command RewriteCommand(
+    const Command& command,
+    const std::map<std::string, std::string>& substitutions) {
+  return Command(RewriteIdentifier(command.action(), substitutions),
+                 RewriteExpression(command.guard(), substitutions),
+                 RewriteOutcomes(command.outcomes(), substitutions));
+}
+
+}  // namespace
+
+bool Model::AddFromModule(
+    const std::string& from_name,
+    const std::map<std::string, std::string>& substitutions,
+    std::vector<std::string>* errors) {
+  CHECK_NE(current_module_, kNoModule);
+  auto i = module_indices_.find(from_name);
+  if (i == module_indices_.end()) {
+    errors->push_back(StrCat("undefined module ", from_name));
+    return false;
+  }
+  const ParsedModule& from_module = modules_[i->second];
+  // Add renamed module variables, maintaining the same order as in the source
+  // module.
+  for (int from_variable_index : from_module.variables()) {
+    const auto& from_variable = variables_[from_variable_index];
+    auto j = substitutions.find(from_variable.name());
+    if (j == substitutions.end()) {
+      errors->push_back(
+          StrCat("missing substitution for variable ", from_variable.name()));
+      return false;
+    }
+    const std::string& to_variable_name = j->second;
+    if (!AddVariable(
+            to_variable_name, from_variable.type(),
+            RewriteExpression(from_variable.min(), substitutions),
+            RewriteExpression(from_variable.max(), substitutions),
+            from_variable.has_explicit_init()
+                ? RewriteExpression(from_variable.init(), substitutions)
+                : nullptr,
+            errors)) {
+      return false;
+    }
+  }
+  // Add module commands.
+  for (const auto& from_command : from_module.commands()) {
+    if (!AddCommand(RewriteCommand(from_command, substitutions), errors)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void Model::EndModule() {
+  CHECK_NE(current_module_, kNoModule);
+  current_module_ = kNoModule;
+}
+
+size_t Model::ActionIndex(const std::string& name) const {
+  auto i = identifier_indices_.find(name);
+  CHECK(i != identifier_indices_.end());
+  CHECK(i->second.type == IdentifierIndex::kAction);
+  return i->second.index;
+}
+
+std::ostream& operator<<(std::ostream& os, const Model& m) {
+  os << m.type();
+  if (!m.constants().empty()) {
+    os << std::endl;
+    for (const auto& c : m.constants()) {
+      os << std::endl << "const " << c.type() << " " << c.name();
+      if (c.init() != nullptr) {
+        os << " = " << *c.init();
+      }
+      os << ";";
+    }
+  }
+  if (!m.global_variables().empty()) {
+    os << std::endl;
+    for (int variable_index : m.global_variables()) {
+      const ParsedVariable& v = m.variables()[variable_index];
+      os << std::endl << "global " << v.name();
+      os << " : [" << v.min() << ".." << v.max() << "]";
+      if (v.has_explicit_init()) {
+        os << " init " << v.init();
+      }
+      os << ';';
+    }
+  }
+  for (const auto& module : m.modules()) {
+    os << std::endl << std::endl << "module " << module.name();
+    for (int variable_index : module.variables()) {
+      const ParsedVariable& v = m.variables()[variable_index];
+      os << std::endl << "  " << v.name();
+      os << " : [" << v.min() << ".." << v.max() << "]";
+      if (v.has_explicit_init()) {
+        os << " init " << v.init();
+      }
+      os << ';';
+    }
+    if (!module.variables().empty() && !module.commands().empty()) {
+      os << std::endl;
+    }
+    for (const auto& command : module.commands()) {
+      os << std::endl << "  " << command << ';';
+    }
+    os << std::endl << "endmodule";
+  }
+  return os;
+}

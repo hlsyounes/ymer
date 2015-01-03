@@ -596,10 +596,10 @@ static yyconst flex_int16_t yy_chk[284] =
 #line 24 "tokenizer.ll"
 #include <string>
 
-#include "models.h"
 #include "parser-state.h"
 #include "src/distribution.h"
 #include "src/expression.h"
+#include "src/model.h"
 #include "src/typed-value.h"
 #include "src/unique-ptr-vector.h"
 

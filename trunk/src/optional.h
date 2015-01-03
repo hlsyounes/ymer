@@ -57,6 +57,7 @@ class Optional {
   // Returns the value of this optional object.  Requires that the object has a
   // value.
   const T& value() const;
+  T& value();
 
  private:
   bool has_value_;
@@ -146,6 +147,12 @@ Optional<T>::~Optional() {
 
 template <typename T>
 const T& Optional<T>::value() const {
+  CHECK(has_value_);
+  return optional_value_.value;
+}
+
+template <typename T>
+T& Optional<T>::value() {
   CHECK(has_value_);
   return optional_value_.value;
 }

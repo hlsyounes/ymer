@@ -205,4 +205,116 @@ class ParsedModule {
   std::vector<Command> commands_;
 };
 
+// A parsed model.
+class Model {
+ public:
+  // Constructs an empty model.
+  Model();
+
+  // Sets the type of this model.  Returns false if the type has already been
+  // set for this model.
+  bool SetType(ModelType type);
+
+  // Adds a constant with the given name, type, and init expression to this
+  // model.  The init expression is optional and may be null.  Returns false if
+  // an identifier with the given name has already been added and adds a reason
+  // for the failure to errors.
+  bool AddConstant(const std::string& name, Type type,
+                   std::unique_ptr<const Expression>&& init,
+                   std::vector<std::string>* errors);
+
+  // Adds an int variable with the given name, and min, max, and init
+  // expressions.  The init expression is optional and may be null.  Returns
+  // false if an identifier with the given name has already been added and adds
+  // a reason for the failure to errors.  The variable becomes a module variable
+  // if this method is called between calls to StartModule() and EndModule().
+  bool AddIntVariable(const std::string& name,
+                      std::unique_ptr<const Expression>&& min,
+                      std::unique_ptr<const Expression>&& max,
+                      std::unique_ptr<const Expression>&& init,
+                      std::vector<std::string>* errors);
+
+  // Adds a bool variable with the given name and init expression.  The init
+  // expression is optional and may be null.  Returns false if an identifier
+  // with the given name has already been added and adds a reason for the
+  // failure to errors.  The variable becomes a module variable if this method
+  // is called between calls to StartModule() and EndModule().
+  bool AddBoolVariable(const std::string& name,
+                       std::unique_ptr<const Expression>&& init,
+                       std::vector<std::string>* errors);
+
+  // Marks the start of a new module with the given.  Returns false if a module
+  // with the given name already exists.  Requires that no module is currently
+  // open.
+  bool StartModule(const std::string& name);
+
+  // Adds a command to the current module.  Returns false if the command could
+  // not be added and adds a reason for the failure to errors.  Requires that a
+  // module is currently open.
+  bool AddCommand(Command&& command, std::vector<std::string>* errors);
+
+  // Adds commands and variables from an existing module to the current module,
+  // applying the given substitutions to identifiers.  All variables for the
+  // existing module must be renamed to unused names.  Returns false on failure
+  // and adds a reason for the failure to errors.  Requires that a module is
+  // currently open.
+  bool AddFromModule(const std::string& from_name,
+                     const std::map<std::string, std::string>& substitutions,
+                     std::vector<std::string>* errors);
+
+  // Marks the end of the current module.  Requires that a module is currently
+  // open.
+  void EndModule();
+
+  // Returns the type of this model.
+  ModelType type() const { return type_; }
+
+  // Returns the constants for this model.
+  const std::vector<ParsedConstant>& constants() const { return constants_; }
+
+  // Returns the variables for this model.
+  const std::vector<ParsedVariable>& variables() const { return variables_; }
+
+  // Returns the global variables (just indices) for this model.
+  const std::set<int>& global_variables() const { return global_variables_; }
+
+  // Returns the modules for this model.
+  const std::vector<ParsedModule>& modules() const { return modules_; }
+
+  // Returns the action labels in use for this model.
+  const std::vector<std::string>& actions() const { return actions_; }
+
+  // Returns the index for the given action label.
+  size_t ActionIndex(const std::string& name) const;
+
+private:
+  struct IdentifierIndex {
+    enum Type { kConstant, kVariable, kAction } type;
+    size_t index;
+  };
+
+  static std::string IdentifierIndexTypeToString(IdentifierIndex::Type type);
+
+  bool AddVariable(const std::string& name, Type type,
+                   std::unique_ptr<const Expression>&& min,
+                   std::unique_ptr<const Expression>&& max,
+                   std::unique_ptr<const Expression>&& init,
+                   std::vector<std::string>* errors);
+
+  bool AddAction(const std::string& name, std::vector<std::string>* errors);
+
+  ModelType type_;
+  std::map<std::string, IdentifierIndex> identifier_indices_;
+  std::vector<ParsedConstant> constants_;
+  std::vector<ParsedVariable> variables_;
+  std::set<int> global_variables_;
+  int current_module_;
+  std::map<std::string, int> module_indices_;
+  std::vector<ParsedModule> modules_;
+  std::vector<std::string> actions_;
+};
+
+// Output operator for models.
+std::ostream& operator<<(std::ostream& os, const Model& m);
+
 #endif  // MODEL_H_
