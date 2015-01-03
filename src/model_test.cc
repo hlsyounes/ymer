@@ -210,4 +210,38 @@ TEST(ResolveConstantsTest, IdentifierUninitialized) {
 
 // TODO(hlsyounes): test conditional.
 
+TEST(ModelTest, InitializesModelType) {
+  Model model;
+  EXPECT_EQ(ModelType::DEFAULT, model.type());
+}
+
+TEST(ModelTest, SetsAndGetsModelType) {
+  Model model;
+  EXPECT_TRUE(model.SetType(ModelType::CTMC));
+  EXPECT_EQ(ModelType::CTMC, model.type());
+}
+
+TEST(ModelTest, SetsModelTypeOnce) {
+  Model model;
+  EXPECT_TRUE(model.SetType(ModelType::DTMC));
+  EXPECT_EQ(ModelType::DTMC, model.type());
+  EXPECT_FALSE(model.SetType(ModelType::CTMC));
+  EXPECT_EQ(ModelType::DTMC, model.type());
+}
+
+TEST(ModelTest, AddsConstants) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.AddConstant("c", Type::INT, Literal::New(17), &errors));
+  EXPECT_TRUE(model.AddConstant("k", Type::BOOL, nullptr, &errors));
+  EXPECT_TRUE(model.AddConstant("K", Type::DOUBLE, Literal::New(0.5), &errors));
+  ASSERT_EQ(3, model.constants().size());
+  EXPECT_EQ("c", model.constants()[0].name());
+  EXPECT_EQ(Type::INT, model.constants()[0].type());
+  EXPECT_EQ("17", StrCat(*model.constants()[0].init()));
+  EXPECT_EQ("k", model.constants()[1].name());
+  EXPECT_EQ(Type::BOOL, model.constants()[1].type());
+  EXPECT_EQ(nullptr, model.constants()[1].init());
+}
+
 }  // namespace
