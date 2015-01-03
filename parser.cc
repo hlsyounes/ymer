@@ -69,9 +69,9 @@
 #include <string>
 #include <vector>
 
-#include "models.h"
 #include "parser-state.h"
 #include "src/distribution.h"
+#include "src/model.h"
 #include "src/strutil.h"
 
 #include "glog/logging.h"

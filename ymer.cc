@@ -28,6 +28,7 @@
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/distribution.h"
+#include "src/model.h"
 #include "src/rng.h"
 #include "src/simulator.h"
 #include "src/strutil.h"
@@ -201,7 +202,7 @@ bool parse_const_overrides(const std::string& spec,
 }
 
 struct ModelAndProperties {
-  std::unique_ptr<Model> model;
+  Optional<Model> model;
   UniquePtrVector<const Expression> properties;
 };
 
@@ -1106,36 +1107,36 @@ int main(int argc, char* argv[]) {
         return 1;
       }
     }
-    if (parse_result.model == nullptr) {
+    if (!parse_result.model.has_value()) {
       std::cout << "no model" << std::endl;
       return 0;
     }
-    parse_result.model->compile();
-    VLOG(2) << *parse_result.model;
+    const Model& model = parse_result.model.value();
+    VLOG(2) << model;
     std::map<std::string, IdentifierInfo> identifiers_by_name =
-        GetConstantIdentifiersByName(parse_result.model->constants(),
-                                     const_overrides, &errors);
+        GetConstantIdentifiersByName(model.constants(), const_overrides,
+                                     &errors);
     if (!errors.empty()) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ":" << error << std::endl;
       }
       return 1;
     }
-    auto compile_variables_result = CompileVariables(
-        parse_result.model->variables(), &identifiers_by_name, &errors);
+    auto compile_variables_result =
+        CompileVariables(model.variables(), &identifiers_by_name, &errors);
     Optional<DecisionDiagramManager> dd_manager;
     if (engine == HYBRID_ENGINE || engine == MIXED_ENGINE) {
       dd_manager =
           DecisionDiagramManager(2 * compile_variables_result.total_bit_count);
     }
     const CompiledModel compiled_model =
-        CompileModel(*parse_result.model, compile_variables_result.variables,
+        CompileModel(model, compile_variables_result.variables,
                      compile_variables_result.init_values, identifiers_by_name,
                      dd_manager, &errors);
     if (compiled_model.type() == CompiledModelType::DTMC &&
         engine != SAMPLING_ENGINE) {
-      errors.push_back(StrCat(parse_result.model->type(),
-                              " only supported by sampling engine"));
+      errors.push_back(
+          StrCat(model.type(), " only supported by sampling engine"));
     }
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;

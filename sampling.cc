@@ -30,6 +30,7 @@
 #include <iostream>
 #include <limits>
 #include <queue>
+#include <set>
 #include <utility>
 
 #include "comm.h"
