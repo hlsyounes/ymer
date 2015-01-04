@@ -25,6 +25,13 @@
 
 namespace {
 
+std::vector<Outcome> NewSimpleOutcomes() {
+  std::vector<Outcome> outcomes;
+  outcomes.emplace_back(Memoryless::New(Literal::New(1)),
+                        std::vector<Update>());
+  return std::move(outcomes);
+}
+
 TEST(UpdateTest, Output) {
   EXPECT_EQ("(a' = 17)", StrCat(Update("a", Literal::New(17))));
 }
@@ -242,6 +249,296 @@ TEST(ModelTest, AddsConstants) {
   EXPECT_EQ("k", model.constants()[1].name());
   EXPECT_EQ(Type::BOOL, model.constants()[1].type());
   EXPECT_EQ(nullptr, model.constants()[1].init());
+  EXPECT_TRUE(errors.empty());
+}
+
+TEST(ModelTest, AddsVariables) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
+                                   Literal::New(18), &errors));
+  EXPECT_TRUE(model.AddBoolVariable("b", Literal::New(true), &errors));
+  EXPECT_TRUE(model.AddIntVariable("j", Literal::New(1), Literal::New(2),
+                                   nullptr, &errors));
+  ASSERT_EQ(3, model.variables().size());
+  EXPECT_EQ("i", model.variables()[0].name());
+  EXPECT_EQ(Type::INT, model.variables()[0].type());
+  EXPECT_EQ("17", StrCat(model.variables()[0].min()));
+  EXPECT_EQ("42", StrCat(model.variables()[0].max()));
+  EXPECT_TRUE(model.variables()[0].has_explicit_init());
+  EXPECT_EQ("18", StrCat(model.variables()[0].init()));
+  EXPECT_EQ("b", model.variables()[1].name());
+  EXPECT_EQ(Type::BOOL, model.variables()[1].type());
+  EXPECT_EQ("false", StrCat(model.variables()[1].min()));
+  EXPECT_EQ("true", StrCat(model.variables()[1].max()));
+  EXPECT_TRUE(model.variables()[1].has_explicit_init());
+  EXPECT_EQ("true", StrCat(model.variables()[1].init()));
+  EXPECT_EQ("j", model.variables()[2].name());
+  EXPECT_EQ(Type::INT, model.variables()[2].type());
+  EXPECT_EQ("1", StrCat(model.variables()[2].min()));
+  EXPECT_EQ("2", StrCat(model.variables()[2].max()));
+  EXPECT_FALSE(model.variables()[2].has_explicit_init());
+  EXPECT_EQ("1", StrCat(model.variables()[2].init()));
+  EXPECT_TRUE(errors.empty());
+}
+
+TEST(ModelTest, AddsModules) {
+  Model model;
+  EXPECT_TRUE(model.StartModule("M1"));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M2"));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M3"));
+  model.EndModule();
+  ASSERT_EQ(3, model.modules().size());
+  EXPECT_EQ("M1", model.modules()[0].name());
+  EXPECT_TRUE(model.modules()[0].variables().empty());
+  EXPECT_TRUE(model.modules()[0].commands().empty());
+  EXPECT_EQ("M2", model.modules()[1].name());
+  EXPECT_TRUE(model.modules()[1].variables().empty());
+  EXPECT_TRUE(model.modules()[1].commands().empty());
+  EXPECT_EQ("M3", model.modules()[2].name());
+  EXPECT_TRUE(model.modules()[2].variables().empty());
+  EXPECT_TRUE(model.modules()[2].commands().empty());
+}
+
+TEST(ModelTest, AddsModuleVariables) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.AddBoolVariable("b1", nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M1"));
+  EXPECT_TRUE(model.AddBoolVariable("b2", nullptr, &errors));
+  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
+                                   nullptr, &errors));
+  model.EndModule();
+  EXPECT_TRUE(model.AddIntVariable("j", Literal::New(0), Literal::New(1),
+                                   nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M3"));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M2"));
+  EXPECT_TRUE(model.AddBoolVariable("b3", nullptr, &errors));
+  model.EndModule();
+  EXPECT_TRUE(model.AddBoolVariable("b4", nullptr, &errors));
+  ASSERT_EQ(6, model.variables().size());
+  EXPECT_EQ("b1", model.variables()[0].name());
+  EXPECT_EQ(Type::BOOL, model.variables()[0].type());
+  EXPECT_EQ("b2", model.variables()[1].name());
+  EXPECT_EQ(Type::BOOL, model.variables()[1].type());
+  EXPECT_EQ("i", model.variables()[2].name());
+  EXPECT_EQ(Type::INT, model.variables()[2].type());
+  EXPECT_EQ("j", model.variables()[3].name());
+  EXPECT_EQ(Type::INT, model.variables()[3].type());
+  EXPECT_EQ("b3", model.variables()[4].name());
+  EXPECT_EQ(Type::BOOL, model.variables()[4].type());
+  EXPECT_EQ("b4", model.variables()[5].name());
+  EXPECT_EQ(Type::BOOL, model.variables()[5].type());
+  ASSERT_EQ(3, model.modules().size());
+  EXPECT_EQ(std::set<int>({1, 2}), model.modules()[0].variables());
+  EXPECT_EQ(std::set<int>({}), model.modules()[1].variables());
+  EXPECT_EQ(std::set<int>({4}), model.modules()[2].variables());
+  EXPECT_TRUE(errors.empty());
+}
+TEST(ModelTest, AddsModuleCommands) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.StartModule("M1"));
+  model.AddCommand(Command("foo", Literal::New(true), NewSimpleOutcomes()),
+                   &errors);
+  model.AddCommand(Command("", Literal::New(false), NewSimpleOutcomes()),
+                   &errors);
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M2"));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M3"));
+  model.AddCommand(Command("bar", Literal::New(true), NewSimpleOutcomes()),
+                   &errors);
+  model.EndModule();
+  ASSERT_EQ(3, model.modules().size());
+  ASSERT_EQ(2, model.modules()[0].commands().size());
+  EXPECT_EQ("[foo] true -> 1 : true", StrCat(model.modules()[0].commands()[0]));
+  EXPECT_EQ("[] false -> 1 : true", StrCat(model.modules()[0].commands()[1]));
+  EXPECT_EQ(0, model.modules()[1].commands().size());
+  ASSERT_EQ(1, model.modules()[2].commands().size());
+  EXPECT_EQ("[bar] true -> 1 : true", StrCat(model.modules()[2].commands()[0]));
+  EXPECT_TRUE(errors.empty());
+}
+
+TEST(ModelTest, AddsFromModule) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.AddConstant("c", Type::INT, Identifier::New("f"), &errors));
+  EXPECT_TRUE(model.AddConstant("k", Type::INT, Identifier::New("g"), &errors));
+  EXPECT_TRUE(model.AddConstant("f", Type::INT, Literal::New(17), &errors));
+  EXPECT_TRUE(model.AddConstant("g", Type::INT, Literal::New(42), &errors));
+  EXPECT_TRUE(model.StartModule("M1"));
+  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(0), Identifier::New("c"),
+                                   Identifier::New("f"), &errors));
+  EXPECT_TRUE(model.AddBoolVariable("b1", nullptr, &errors));
+  std::vector<Update> updates;
+  updates.emplace_back(
+      "i", BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("i"),
+                                Literal::New(1)));
+  std::vector<Outcome> outcomes;
+  outcomes.emplace_back(
+      Memoryless::New(BinaryOperation::New(
+          BinaryOperator::DIVIDE, Literal::New(1), Identifier::New("i"))),
+      std::move(updates));
+  EXPECT_TRUE(model.AddCommand(
+      Command("a",
+              BinaryOperation::New(BinaryOperator::LESS, Identifier::New("i"),
+                                   Identifier::New("c")),
+              std::move(outcomes)),
+      &errors));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M2"));
+  EXPECT_TRUE(model.AddFromModule(
+      "M1", {{"c", "k"}, {"f", "g"}, {"i", "j"}, {"b1", "b2"}, {"a", "b"}},
+      &errors));
+  model.EndModule();
+  ASSERT_EQ(4, model.variables().size());
+  EXPECT_EQ("j", model.variables()[2].name());
+  EXPECT_EQ(Type::INT, model.variables()[2].type());
+  EXPECT_EQ("0", StrCat(model.variables()[2].min()));
+  EXPECT_EQ("k", StrCat(model.variables()[2].max()));
+  EXPECT_TRUE(model.variables()[2].has_explicit_init());
+  EXPECT_EQ("g", StrCat(model.variables()[2].init()));
+  EXPECT_EQ("b2", model.variables()[3].name());
+  EXPECT_EQ(Type::BOOL, model.variables()[3].type());
+  EXPECT_FALSE(model.variables()[3].has_explicit_init());
+  ASSERT_EQ(2, model.modules().size());
+  EXPECT_EQ(std::set<int>({2, 3}), model.modules()[1].variables());
+  ASSERT_EQ(1, model.modules()[1].commands().size());
+  EXPECT_EQ("[b] j < k -> 1 / j : (j' = j + 1)",
+            StrCat(model.modules()[1].commands()[0]));
+  EXPECT_TRUE(errors.empty());
+}
+
+TEST(ModelTest, MissingSourceModule) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.StartModule("M2"));
+  EXPECT_FALSE(model.AddFromModule("M1", {}, &errors));
+  EXPECT_EQ(std::vector<std::string>({"undefined module M1"}), errors);
+}
+
+TEST(ModelTest, IncompleteSubstitutions) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.StartModule("M1"));
+  EXPECT_TRUE(model.AddBoolVariable("b1", nullptr, &errors));
+  EXPECT_TRUE(model.AddBoolVariable("b2", nullptr, &errors));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M2"));
+  EXPECT_FALSE(model.AddFromModule("M1", {{"b1", "b3"}}, &errors));
+  EXPECT_EQ(std::vector<std::string>({"missing substitution for variable b2"}),
+            errors);
+}
+
+TEST(ModelTest, DuplicateVariablesFromSubstitution) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.StartModule("M1"));
+  EXPECT_TRUE(model.AddBoolVariable("b1", nullptr, &errors));
+  EXPECT_TRUE(model.AddBoolVariable("b2", nullptr, &errors));
+  model.EndModule();
+  EXPECT_TRUE(model.StartModule("M2"));
+  EXPECT_FALSE(
+      model.AddFromModule("M1", {{"b1", "b3"}, {"b2", "b1"}}, &errors));
+  EXPECT_EQ(std::vector<std::string>({"duplicate variable b1"}), errors);
+}
+
+TEST(ModelTest, RejectsDuplicateIdentifiers) {
+  Model model;
+  std::vector<std::string> errors;
+
+  EXPECT_TRUE(model.AddConstant("c", Type::INT, nullptr, &errors));
+  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
+                                   nullptr, &errors));
+  EXPECT_TRUE(model.AddBoolVariable("b", nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M1"));
+  EXPECT_TRUE(model.AddCommand(
+      Command("a", Literal::New(true), NewSimpleOutcomes()), &errors));
+  model.EndModule();
+  EXPECT_TRUE(errors.empty());
+  errors.clear();
+
+  EXPECT_FALSE(model.AddConstant("c", Type::INT, nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("c", Literal::New(17), Literal::New(42),
+                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddBoolVariable("c", nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M2"));
+  EXPECT_FALSE(model.AddCommand(
+      Command("c", Literal::New(true), NewSimpleOutcomes()), &errors));
+  model.EndModule();
+  EXPECT_EQ(
+      std::vector<std::string>({"duplicate constant c",
+                                "variable c previously defined as constant",
+                                "variable c previously defined as constant",
+                                "action c previously defined as constant"}),
+      errors);
+  errors.clear();
+
+  EXPECT_FALSE(model.AddConstant("i", Type::INT, nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
+                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddBoolVariable("i", nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M3"));
+  EXPECT_FALSE(model.AddCommand(
+      Command("i", Literal::New(true), NewSimpleOutcomes()), &errors));
+  model.EndModule();
+  EXPECT_EQ(
+      std::vector<std::string>({"constant i previously defined as variable",
+                                "duplicate variable i", "duplicate variable i",
+                                "action i previously defined as variable"}),
+      errors);
+  errors.clear();
+
+  EXPECT_FALSE(model.AddConstant("b", Type::INT, nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("b", Literal::New(17), Literal::New(42),
+                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddBoolVariable("b", nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M4"));
+  EXPECT_FALSE(model.AddCommand(
+      Command("b", Literal::New(true), NewSimpleOutcomes()), &errors));
+  model.EndModule();
+  EXPECT_EQ(
+      std::vector<std::string>({"constant b previously defined as variable",
+                                "duplicate variable b", "duplicate variable b",
+                                "action b previously defined as variable"}),
+      errors);
+  errors.clear();
+
+  EXPECT_FALSE(model.AddConstant("a", Type::INT, nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("a", Literal::New(17), Literal::New(42),
+                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddBoolVariable("a", nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("M6"));
+  // NOTE: It is fine to use the same action label multiple times.
+  EXPECT_TRUE(model.AddCommand(
+      Command("a", Literal::New(true), NewSimpleOutcomes()), &errors));
+  model.EndModule();
+  EXPECT_EQ(
+      std::vector<std::string>({"constant a previously defined as action",
+                                "variable a previously defined as action",
+                                "variable a previously defined as action"}),
+      errors);
+  errors.clear();
+}
+
+TEST(ModelTest, AllowsSameNameForIdentifierAndModule) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.AddConstant("x", Type::INT, nullptr, &errors));
+  EXPECT_TRUE(model.StartModule("x"));
+  model.EndModule();
+  EXPECT_TRUE(errors.empty());
+}
+
+TEST(ModelTest, RejectsDuplicateModules) {
+  Model model;
+  EXPECT_TRUE(model.StartModule("m"));
+  model.EndModule();
+  EXPECT_FALSE(model.StartModule("m"));
 }
 
 }  // namespace
