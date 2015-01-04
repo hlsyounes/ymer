@@ -96,6 +96,14 @@ start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --const=c=7 src/testdata/tandemW.sm <(echo 'P<0.22[ true U<=227 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandemW7_sprt22.golden -
 expect_ok ${start}
 
+echo -n tandemW7_estimate...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --delta=0.05 --const=c=7 src/testdata/tandemW.sm <(echo 'P>0[ true U<=227 (sc=c & sm=c) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/tandemW7_estimate.golden -
+expect_ok ${start}
+
+# TODO(hlsyounes): Add tandemW7_hybrid regression test.  Requires phase type
+# distributions in decision diagram model construction.
+
 echo -n robot4_sprt74...
 start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --memoization --delta=0.05 --const=n=4 src/testdata/robot.sm <(echo 'P>=0.74[ P>=0.5[ true U<=9 c=1 ] U<=10 (x1=n & y1=n) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/robot4_sprt74.golden -
@@ -134,6 +142,14 @@ echo -n cell22_hybrid...
 start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --estimate-probabilities --engine=hybrid --const=N=22 src/testdata/cell.sm <(echo 'P>0[ true U<=1 n=N]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/cell22_hybrid.golden -
 expect_ok ${start}
+
+echo -n knacl10_estimate...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --delta=0.05 --const=N1=10,N2=10,N3=10 src/testdata/knacl.sm <(echo 'P>0[ true U[0.001,0.001] na=6]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/knacl10_estimate.golden -
+expect_ok ${start}
+
+# TODO(hlsyounes): Add knacl10_hybrid regression test.  Requires support for
+# interval time bounds in hybrid engine.
 
 if (( ${pass} )); then
   echo PASS
