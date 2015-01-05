@@ -728,3 +728,23 @@ BDD Verify(const CompiledProperty& property,
   property.Accept(&verifier);
   return verifier.result();
 }
+
+BDD VerifyExistsUntil(const DecisionDiagramModel& dd_model, const BDD& pre,
+                      const BDD& post) {
+  const int var_count = dd_model.manager().GetVariableCount();
+  std::vector<int> row_to_col(var_count);
+  for (int i = 0; i < var_count; i += 2) {
+    row_to_col[i] = row_to_col[i + 1] = i + 1;
+  }
+  const BDD col_cube = dd_model.manager().GetCube(
+      dd_model.manager().GetBddVariableArray(1, 2, var_count + 1));
+  const BDD trans = pre && BDD(dd_model.rate_matrix());
+  BDD states = dd_model.manager().GetConstant(false);
+  BDD next_states = post;
+  do {
+    states = next_states;
+    next_states =
+        states || trans.AndAbstract(states.Permutation(row_to_col), col_cube);
+  } while (!states.is_same(next_states));
+  return states;
+}

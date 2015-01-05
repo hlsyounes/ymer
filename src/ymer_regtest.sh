@@ -148,6 +148,11 @@ start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --delta=0.05 --const=N1=10,N2=10,N3=10 src/testdata/knacl.sm <(echo 'P>0[ true U[0.001,0.001] na=6]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/knacl10_estimate.golden -
 expect_ok ${start}
 
+echo -n poll14_unbounded_mixed...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --delta=0.05 --engine=mixed src/testdata/poll14.sm <(echo 'P>0[ !(s=2 & a=1) U (s=1 & a=1) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll14_unbounded_mixed.golden -
+expect_ok ${start}
+
 # TODO(hlsyounes): Add knacl10_hybrid regression test.  Requires support for
 # interval time bounds in hybrid engine.
 

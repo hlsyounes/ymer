@@ -23,6 +23,7 @@
  */
 
 %{
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -206,6 +207,10 @@ const Conditional* NewConditional(const Expression* condition,
 double Double(const TypedValue* typed_value) {
   CHECK(typed_value->type() != Type::BOOL);
   return WrapUnique(typed_value)->value<double>();
+}
+
+double Infinity() {
+  return std::numeric_limits<double>::infinity();
 }
 
 const ProbabilityThresholdOperation* NewProbabilityLess(
@@ -801,6 +806,10 @@ path_property : property U LEQ NUMBER property
                   { $$ = NewUntil(0, Double($4), $1, $5); }
               | property U '[' NUMBER ',' NUMBER ']' property
                   { $$ = NewUntil(Double($4), Double($6), $1, $8); }
+              | property U GEQ NUMBER property
+                  { $$ = NewUntil(Double($4), Infinity(), $1, $5); }
+              | property U property
+                  { $$ = NewUntil(0, Infinity(), $1, $3); }
               ;
 
 %%

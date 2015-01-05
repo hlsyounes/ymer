@@ -26,6 +26,7 @@ ModelCheckingParams::ModelCheckingParams()
       beta(1e-2),
       delta(1e-2),
       epsilon(1e-6),
+      engine(ModelCheckingEngine::SAMPLING),
       algorithm(SPRT),
       fixed_sample_size(0),
       max_path_length(std::numeric_limits<size_t>::max()),
