@@ -117,6 +117,12 @@ class BDD : public DecisionDiagram {
   // this BDD.
   BDD ExistAbstract(const BDD& cube) const;
 
+  // Returns the BDD that is the conjunction of this BDD and the given BDD and
+  // simultaneously abstracts all the variables in the cube from the resulting
+  // BDD.  This method corresponds to semiring matrix multiplication for the
+  // Boolean semiring.
+  BDD AndAbstract(const BDD& dd, const BDD& cube) const;
+
   // Logical operators for BDDs.
   BDD operator!() const;
   BDD operator&&(const BDD& dd) const;

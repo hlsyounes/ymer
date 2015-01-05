@@ -31,7 +31,8 @@
 #include <limits>
 #include <queue>
 #include <set>
-#include <utility>
+#include <unordered_map>
+#include <vector>
 
 #include "comm.h"
 #include "models.h"
@@ -71,6 +72,12 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   int GetSampleCacheSize() const;
 
  private:
+  struct DdCacheEntry {
+    BDD dd1;
+    BDD dd2;
+    Optional<BDD> feasible;
+  };
+
   void DoVisitCompiledNaryProperty(
       const CompiledNaryProperty& property) override;
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
@@ -82,8 +89,9 @@ class SamplingVerifier : public CompiledPropertyVisitor,
       const CompiledUntilProperty& path_property) override;
 
   template <typename OutputIterator>
-  bool VerifyHelper(const CompiledProperty& property, const BDD* ddf,
-                    bool default_result, OutputIterator* state_inserter);
+  bool VerifyHelper(const CompiledProperty& property, const Optional<BDD>& ddf,
+                    const Optional<BDD>& feasible, bool default_result,
+                    OutputIterator* state_inserter);
   std::string StateToString(const State& state) const;
 
   bool result_;
@@ -96,8 +104,9 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   const State* state_;
   int probabilistic_level_;
   ModelCheckingStats* stats_;
-  std::map<int, std::map<std::vector<int>, Sample<int>>> sample_cache_;
-  std::map<int, std::pair<BDD, BDD>> dd_cache_;
+  std::unordered_map<int, std::map<std::vector<int>, Sample<int>>>
+      sample_cache_;
+  std::unordered_map<int, DdCacheEntry> dd_cache_;
 
   // Registered clients.
   std::map<int, short> registered_clients_;
@@ -501,22 +510,31 @@ class StateLess {
 
 void SamplingVerifier::DoVisitCompiledUntilProperty(
     const CompiledUntilProperty& path_property) {
-  const BDD* dd1 = nullptr;
-  const BDD* dd2 = nullptr;
-  auto cached_dds = dd_cache_.end();
+  Optional<BDD> dd1;
+  Optional<BDD> dd2;
+  Optional<BDD> feasible;
   if (dd_model_ != nullptr) {
     // Mixed engine.
-    cached_dds = dd_cache_.find(path_property.index());
-    if (cached_dds == dd_cache_.end()) {
-      BDD dd1 = Verify(path_property.pre_property(), *dd_model_, false, false,
-                       params_.epsilon);
-      BDD dd2 = Verify(path_property.post_property(), *dd_model_, false, false,
-                       params_.epsilon);
-      cached_dds = dd_cache_.insert({path_property.index(),
-                                     std::make_pair(dd1, dd2)}).first;
+    auto i = dd_cache_.find(path_property.index());
+    if (i != dd_cache_.end()) {
+      dd1 = i->second.dd1;
+      dd2 = i->second.dd2;
+      feasible = i->second.feasible;
+    } else {
+      dd1 = Verify(path_property.pre_property(), *dd_model_, false, false,
+                   params_.epsilon);
+      dd2 = Verify(path_property.post_property(), *dd_model_, false, false,
+                   params_.epsilon);
+      if (path_property.max_time() == std::numeric_limits<double>::infinity()) {
+        feasible = VerifyExistsUntil(*dd_model_, dd1.value(), dd2.value());
+        if (feasible.value().is_same(dd_model_->reachable_states())) {
+          // All reachable states are feasible.
+          feasible = dd_model_->manager().GetConstant(true);
+        }
+      }
+      dd_cache_.insert({path_property.index(),
+                        {dd1.value(), dd2.value(), feasible}}).first;
     }
-    dd1 = &cached_dds->second.first;
-    dd2 = &cached_dds->second.second;
   }
   double t = 0.0;
   State curr_state = *state_;
@@ -545,23 +563,24 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);
     if (t_min <= t) {
-      if (VerifyHelper(path_property.post_property(), dd2, false,
+      if (VerifyHelper(path_property.post_property(), dd2, feasible, false,
                        post_states_inserter_ptr)) {
         result_ = true;
         done = true;
-      } else if (!VerifyHelper(path_property.pre_property(), dd1, true,
+      } else if (!VerifyHelper(path_property.pre_property(), dd1, feasible,
+                               true,
                                false ? pre_states_inserter_ptr : nullptr)) {
         result_ = false;
         done = true;
       }
     } else {
-      if (!VerifyHelper(path_property.pre_property(), dd1, true,
+      if (!VerifyHelper(path_property.pre_property(), dd1, feasible, true,
                         t_min < next_t ? nullptr : pre_states_inserter_ptr)) {
         result_ = false;
         done = true;
       } else if (t_min < next_t &&
-                 VerifyHelper(path_property.post_property(), dd2, false,
-                              post_states_inserter_ptr)) {
+                 VerifyHelper(path_property.post_property(), dd2, feasible,
+                              false, post_states_inserter_ptr)) {
         t = t_min;
         result_ = true;
         done = true;
@@ -676,15 +695,21 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
 
 template <typename OutputIterator>
 bool SamplingVerifier::VerifyHelper(const CompiledProperty& property,
-                                    const BDD* ddf, bool default_result,
+                                    const Optional<BDD>& ddf,
+                                    const Optional<BDD>& feasible,
+                                    bool default_result,
                                     OutputIterator* state_inserter) {
   if (dd_model_ != nullptr) {
-    return ddf->ValueInState(state_->values(), model_->variables());
+    if (feasible.has_value() &&
+        !feasible.value().ValueInState(state_->values(), model_->variables())) {
+      return false;
+    }
+    return ddf.value().ValueInState(state_->values(), model_->variables());
   } else if (!property.is_probabilistic()) {
     property.Accept(this);
     return result_;
   } else if (state_inserter != nullptr) {
-    ** state_inserter = *state_;
+    **state_inserter = *state_;
   }
   return default_result;
 }

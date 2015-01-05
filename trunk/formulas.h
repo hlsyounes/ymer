@@ -33,7 +33,10 @@
 #include "src/simulator.h"
 #include "src/statistics.h"
 
-/* Sampling algorithm. */
+// Model checking eninges.
+enum class ModelCheckingEngine { SAMPLING, HYBRID, MIXED };
+
+// Sampling algorithms.
 enum SamplingAlgorithm { ESTIMATE, SSP, SPRT, FIXED };
 
 struct ModelCheckingParams {
@@ -43,6 +46,7 @@ struct ModelCheckingParams {
   double beta;
   double delta;
   double epsilon;
+  ModelCheckingEngine engine;
   SamplingAlgorithm algorithm;
   int fixed_sample_size;
   size_t max_path_length;
@@ -67,6 +71,9 @@ bool Verify(const CompiledProperty& property, const CompiledModel& model,
 BDD Verify(const CompiledProperty& property,
            const DecisionDiagramModel& dd_model, bool estimate,
            bool top_level_property, double epsilon);
+
+BDD VerifyExistsUntil(const DecisionDiagramModel& dd_model, const BDD& pre,
+                      const BDD& post);
 
 bool GetObservation(const CompiledPathProperty& property,
                     const CompiledModel& model,

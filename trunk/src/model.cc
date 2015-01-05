@@ -894,8 +894,12 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
     os << std::endl;
     for (int variable_index : m.global_variables()) {
       const ParsedVariable& v = m.variables()[variable_index];
-      os << std::endl << "global " << v.name();
-      os << " : [" << v.min() << ".." << v.max() << "]";
+      os << std::endl << "global " << v.name() << " : ";
+      if (v.type() == Type::INT) {
+        os << "[" << v.min() << ".." << v.max() << "]";
+      } else {
+        os << v.type();
+      }
       if (v.has_explicit_init()) {
         os << " init " << v.init();
       }
@@ -906,8 +910,12 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
     os << std::endl << std::endl << "module " << module.name();
     for (int variable_index : module.variables()) {
       const ParsedVariable& v = m.variables()[variable_index];
-      os << std::endl << "  " << v.name();
-      os << " : [" << v.min() << ".." << v.max() << "]";
+      os << std::endl << "  " << v.name() << " : ";
+      if (v.type() == Type::INT) {
+        os << "[" << v.min() << ".." << v.max() << "]";
+      } else {
+        os << v.type();
+      }
       if (v.has_explicit_init()) {
         os << " init " << v.init();
       }

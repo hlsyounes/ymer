@@ -201,6 +201,11 @@ BDD BDD::ExistAbstract(const BDD& cube) const {
   return BDD(manager(), Cudd_bddExistAbstract(manager(), node(), cube.node()));
 }
 
+BDD BDD::AndAbstract(const BDD& dd, const BDD& cube) const {
+  return BDD(manager(),
+             Cudd_bddAndAbstract(manager(), node(), dd.node(), cube.node()));
+}
+
 BDD BDD::operator!() const { return BDD(manager(), Cudd_Not(node())); }
 
 BDD BDD::operator&&(const BDD& dd) const {

@@ -922,6 +922,137 @@ const CompiledPathProperty* ExtractPathProperty(
   return extractor.PathProperty();
 }
 
+class CompiledPropertyInspector : public CompiledPropertyVisitor,
+                                  public CompiledPathPropertyVisitor {
+ public:
+  CompiledPropertyInspector();
+
+  bool has_nested() const { return has_nested_; }
+  bool has_unbounded() const { return has_unbounded_; }
+  bool has_nested_nested() const { return has_nested_nested_; }
+  bool has_nested_unbounded() const { return has_nested_unbounded_; }
+
+ private:
+  void DoVisitCompiledNaryProperty(
+      const CompiledNaryProperty& property) override;
+  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
+  void DoVisitCompiledProbabilityThresholdProperty(
+      const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledExpressionProperty(
+      const CompiledExpressionProperty& property) override;
+  void DoVisitCompiledUntilProperty(
+      const CompiledUntilProperty& path_property) override;
+
+  bool has_nested_;
+  bool has_unbounded_;
+  bool has_nested_nested_;
+  bool has_nested_unbounded_;
+};
+
+CompiledPropertyInspector::CompiledPropertyInspector()
+    : has_nested_(false),
+      has_unbounded_(false),
+      has_nested_nested_(false),
+      has_nested_unbounded_(false) {}
+
+void CompiledPropertyInspector::DoVisitCompiledNaryProperty(
+    const CompiledNaryProperty& property) {
+  for (const auto& operand : property.other_operands()) {
+    operand.Accept(this);
+  }
+}
+
+void CompiledPropertyInspector::DoVisitCompiledNotProperty(
+    const CompiledNotProperty& property) {
+  property.operand().Accept(this);
+}
+
+void CompiledPropertyInspector::DoVisitCompiledProbabilityThresholdProperty(
+    const CompiledProbabilityThresholdProperty& property) {
+  property.path_property().Accept(this);
+}
+
+void CompiledPropertyInspector::DoVisitCompiledExpressionProperty(
+    const CompiledExpressionProperty& property) {}
+
+void CompiledPropertyInspector::DoVisitCompiledUntilProperty(
+    const CompiledUntilProperty& path_property) {
+  if (path_property.max_time() == std::numeric_limits<double>::infinity()) {
+    has_unbounded_ = true;
+    if (has_nested_) {
+      has_nested_unbounded_ = true;
+    }
+  }
+  if (path_property.is_probabilistic()) {
+    if (has_nested_) {
+      has_nested_nested_ = true;
+    } else {
+      has_nested_ = true;
+    }
+  }
+  path_property.pre_property().Accept(this);
+  path_property.post_property().Accept(this);
+}
+
+void CheckUnsupported(
+    const ModelCheckingParams& params, const CompiledModelType& model_type,
+    const UniquePtrVector<const CompiledProperty>& properties,
+    std::vector<std::string>* errors) {
+  for (const auto& property : properties) {
+    CompiledPropertyInspector inspector;
+    property.Accept(&inspector);
+    switch (params.engine) {
+      case ModelCheckingEngine::SAMPLING:
+        if (inspector.has_nested() && model_type == CompiledModelType::GSMP) {
+          // Not a feasible combination.
+          errors->push_back(
+              "sampling engine does not support nested probabilistic "
+              "properties for GSMPs");
+        }
+        if (inspector.has_unbounded()) {
+          // TODO(hlsyounes): Implement support with weighted sampling.
+          errors->push_back(
+              "sampling engine does not support unbounded properties");
+        }
+        break;
+      case ModelCheckingEngine::HYBRID:
+        if (model_type == CompiledModelType::DTMC) {
+          // TODO(hlsyounes): Implement support.
+          errors->push_back("hybrid engine does not support DTMCs");
+        } else if (model_type == CompiledModelType::GSMP) {
+          // TODO(hlsyounes): Implement support with phase type distributions.
+          errors->push_back("hybrid engine does not support GSMPs");
+        }
+        if (inspector.has_unbounded()) {
+          // TODO(hlsyounes): Implement support.
+          errors->push_back(
+              "hybrid engine does not support unbounded properties");
+        }
+        break;
+      case ModelCheckingEngine::MIXED:
+        if (inspector.has_nested() && model_type == CompiledModelType::GSMP) {
+          // Not a feasible combination.
+          errors->push_back(
+              "mixed engine does not support nested probabilistic properties "
+              "for GSMPs");
+        }
+        if (inspector.has_nested_nested() &&
+            model_type == CompiledModelType::DTMC) {
+          // TODO(hlsyounes): Implement support.
+          errors->push_back(
+              "mixed engine does not support doubly-nested probabilistic "
+              "properties for DTMCs");
+        }
+        if (inspector.has_nested_unbounded()) {
+          // TODO(hlsyounes): Implement support.
+          errors->push_back(
+              "mixed engine does not support nested unbounded properties");
+        }
+        break;
+    }
+  }
+}
+
 }  // namespace
 
 /* The main program. */
@@ -931,12 +1062,6 @@ int main(int argc, char* argv[]) {
   ModelCheckingParams params;
   /* Verification without estimation by default. */
   bool estimate = false;
-  /* Set default engine. */
-  enum {
-    SAMPLING_ENGINE,
-    HYBRID_ENGINE,
-    MIXED_ENGINE
-  } engine = SAMPLING_ENGINE;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */
@@ -1007,11 +1132,11 @@ int main(int argc, char* argv[]) {
           break;
         case 'e':
           if (strcasecmp(optarg, "sampling") == 0) {
-            engine = SAMPLING_ENGINE;
+            params.engine = ModelCheckingEngine::SAMPLING;
           } else if (strcasecmp(optarg, "hybrid") == 0) {
-            engine = HYBRID_ENGINE;
+            params.engine = ModelCheckingEngine::HYBRID;
           } else if (strcasecmp(optarg, "mixed") == 0) {
-            engine = MIXED_ENGINE;
+            params.engine = ModelCheckingEngine::MIXED;
           } else {
             throw std::invalid_argument("unsupported engine `" +
                                         std::string(optarg) + "'");
@@ -1125,7 +1250,8 @@ int main(int argc, char* argv[]) {
     auto compile_variables_result =
         CompileVariables(model.variables(), &identifiers_by_name, &errors);
     Optional<DecisionDiagramManager> dd_manager;
-    if (engine == HYBRID_ENGINE || engine == MIXED_ENGINE) {
+    if (params.engine == ModelCheckingEngine::HYBRID ||
+        params.engine == ModelCheckingEngine::MIXED) {
       dd_manager =
           DecisionDiagramManager(2 * compile_variables_result.total_bit_count);
     }
@@ -1133,11 +1259,6 @@ int main(int argc, char* argv[]) {
         CompileModel(model, compile_variables_result.variables,
                      compile_variables_result.init_values, identifiers_by_name,
                      dd_manager, &errors);
-    if (compiled_model.type() == CompiledModelType::DTMC &&
-        engine != SAMPLING_ENGINE) {
-      errors.push_back(
-          StrCat(model.type(), " only supported by sampling engine"));
-    }
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;
     for (const Expression& property : parse_result.properties) {
@@ -1149,6 +1270,8 @@ int main(int argc, char* argv[]) {
       reg_counts.second =
           std::max(reg_counts.second, property_reg_counts.second);
     }
+    CheckUnsupported(params, compiled_model.type(), compiled_properties,
+                     &errors);
     if (!errors.empty()) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ":" << error << std::endl;
@@ -1293,7 +1416,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    if (engine == SAMPLING_ENGINE) {
+    if (params.engine == ModelCheckingEngine::SAMPLING) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
       std::cout << "Sampling engine: alpha=" << params.alpha
@@ -1411,7 +1534,7 @@ int main(int argc, char* argv[]) {
               << std::endl;
         }
       }
-    } else if (engine == HYBRID_ENGINE) {
+    } else if (params.engine == ModelCheckingEngine::HYBRID) {
       std::cout << "Hybrid engine: epsilon=" << params.epsilon << std::endl;
       itimerval timer = {{0L, 0L}, {40000000L, 0L}};
       itimerval stimer;
@@ -1489,7 +1612,7 @@ int main(int argc, char* argv[]) {
           std::cout << "Property is false in the initial state." << std::endl;
         }
       }
-    } else if (engine == MIXED_ENGINE) {
+    } else if (params.engine == ModelCheckingEngine::MIXED) {
       DCEngine dc_engine;
       dc_engine.seed(seed);
       std::cout << "Mixed engine: alpha=" << params.alpha
