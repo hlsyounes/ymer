@@ -2102,8 +2102,21 @@ size_t GetEndBlockIndex(const std::vector<BasicBlock>& blocks) {
   LOG(FATAL) << "internal error";
 }
 
+Operation SetJumpDestination(const Operation& jump_operation, int destination) {
+  switch (jump_operation.opcode()) {
+    case Opcode::IFFALSE:
+      return Operation::MakeIFFALSE(jump_operation.ioperand1(), destination);
+    case Opcode::IFTRUE:
+      return Operation::MakeIFTRUE(jump_operation.ioperand1(), destination);
+    case Opcode::GOTO:
+      return Operation::MakeGOTO(destination);
+    default:
+      LOG(FATAL) << "internal error";
+  }
+}
+
 CompiledExpression OptimizeExpressionImpl(
-    const std::vector<BasicBlock>& blocks,
+    const std::vector<BasicBlock>& blocks, size_t end_block_index,
     const std::set<OperationIndex>& live_operations, const Optional<ADD>& dd) {
   std::vector<Operation> optimized_operations;
   std::multimap<size_t, size_t> jump_targets;
@@ -2111,45 +2124,48 @@ CompiledExpression OptimizeExpressionImpl(
     const BasicBlock& block = blocks[live_operation.block];
     const Operation& operation = block.operations()[live_operation.operation];
     bool overwrite_jump_operation = false;
+    std::set<size_t> jump_operations_to_adjust;
     while (true) {
       auto i = jump_targets.find(block.index());
       if (i == jump_targets.end()) {
         break;
       }
+      Operation& jump_operation = optimized_operations[i->second];
       if (i->second == optimized_operations.size() - 1) {
         overwrite_jump_operation = true;
-      }
-      Operation& jump_operation = optimized_operations[i->second];
-      switch (jump_operation.opcode()) {
-        case Opcode::IFFALSE:
-          jump_operation = Operation::MakeIFFALSE(jump_operation.ioperand1(),
-                                                  optimized_operations.size());
-          break;
-        case Opcode::IFTRUE:
-          jump_operation = Operation::MakeIFTRUE(jump_operation.ioperand1(),
-                                                 optimized_operations.size());
-          break;
-        case Opcode::GOTO:
-          jump_operation = Operation::MakeGOTO(optimized_operations.size());
-          break;
-        default:
-          LOG(FATAL) << "internal error";
+      } else if (operation.opcode() == jump_operation.opcode() &&
+                 (operation.opcode() == Opcode::GOTO ||
+                  operation.ioperand1() == jump_operation.ioperand1())) {
+        jump_targets.insert({block.successors().back(), i->second});
+      } else {
+        jump_operations_to_adjust.insert(i->second);
       }
       jump_targets.erase(i);
-    }
-    if (IsJump(operation)) {
-      jump_targets.insert(
-          {block.successors().back(), optimized_operations.size()});
     }
     if (overwrite_jump_operation) {
       optimized_operations.pop_back();
     }
+    for (const size_t i : jump_operations_to_adjust) {
+      optimized_operations[i] = SetJumpDestination(optimized_operations[i],
+                                                   optimized_operations.size());
+    }
     if (operation.opcode() != Opcode::NOP) {
+      if (IsJump(operation)) {
+        jump_targets.insert(
+            {block.successors().back(), optimized_operations.size()});
+      }
       optimized_operations.push_back(operation);
     }
   }
   if (IsJump(optimized_operations.back())) {
     optimized_operations.pop_back();
+  }
+  const auto range = jump_targets.equal_range(end_block_index);
+  for (auto i = range.first; i != range.second; ++i) {
+    if (i->second < optimized_operations.size()) {
+      optimized_operations[i->second] = SetJumpDestination(
+          optimized_operations[i->second], optimized_operations.size());
+    }
   }
   return CompiledExpression(optimized_operations, dd);
 }
@@ -2159,15 +2175,19 @@ CompiledExpression OptimizeExpressionImpl(
 CompiledExpression OptimizeIntExpression(const CompiledExpression& expr) {
   const std::vector<BasicBlock> blocks =
       MakeControlFlowGraph(expr.operations());
+  const size_t end_block_index = GetEndBlockIndex(blocks);
   const std::set<OperationIndex> live_operations =
-      blocks[GetEndBlockIndex(blocks)].GetIntDependencies(0);
-  return OptimizeExpressionImpl(blocks, live_operations, expr.dd());
+      blocks[end_block_index].GetIntDependencies(0);
+  return OptimizeExpressionImpl(blocks, end_block_index, live_operations,
+                                expr.dd());
 }
 
 CompiledExpression OptimizeDoubleExpression(const CompiledExpression& expr) {
   const std::vector<BasicBlock> blocks =
       MakeControlFlowGraph(expr.operations());
+  const size_t end_block_index = GetEndBlockIndex(blocks);
   const std::set<OperationIndex> live_operations =
-      blocks[GetEndBlockIndex(blocks)].GetDoubleDependencies(0);
-  return OptimizeExpressionImpl(blocks, live_operations, expr.dd());
+      blocks[end_block_index].GetDoubleDependencies(0);
+  return OptimizeExpressionImpl(blocks, end_block_index, live_operations,
+                                expr.dd());
 }
