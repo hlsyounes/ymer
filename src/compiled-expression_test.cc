@@ -1982,6 +1982,31 @@ TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
             result.errors);
 }
 
+TEST(CompileExpressionTest, ComplexExpression) {
+  const std::map<std::string, IdentifierInfo> identifiers_by_name = {
+      {"a", IdentifierInfo::Variable(Type::INT, 0, 0, 1, 17)},
+      {"b", IdentifierInfo::Variable(Type::BOOL, 1, 2, 2, false)},
+      {"c", IdentifierInfo::Variable(Type::INT, 2, 3, 4, 42)}};
+  const BinaryOperation expr(
+      BinaryOperator::AND,
+      BinaryOperation::New(
+          BinaryOperator::AND,
+          BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("a"),
+                               Literal::New(17)),
+          Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("c"),
+                           Literal::New(42)));
+  const CompileExpressionResult result =
+      CompileExpression(expr, Type::BOOL, identifiers_by_name, {});
+  EXPECT_EQ(std::vector<Operation>(
+                {Operation::MakeILOAD(0, 0), Operation::MakeICONST(17, 1),
+                 Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 5),
+                 Operation::MakeILOAD(1, 0), Operation::MakeIFFALSE(0, 9),
+                 Operation::MakeILOAD(2, 0), Operation::MakeICONST(42, 1),
+                 Operation::MakeIEQ(0, 1)}),
+            result.expr.operations());
+}
+
 TEST(IdentifierToAddTest, Constant) {
   const DecisionDiagramManager manager(0);
   ADD dd1 = IdentifierToAdd(manager, IdentifierInfo::Constant(false));
@@ -2469,6 +2494,35 @@ TEST(OptimizeIntExpressionTest, ConstantIfTrue) {
       {});
   const std::vector<Operation> expected2 = {Operation::MakeICONST(42, 0)};
   EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ChainedIfFalse) {
+  const CompiledExpression expr(
+      {Operation::MakeILOAD(0, 0), Operation::MakeICONST(17, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 5),
+       Operation::MakeILOAD(1, 0), Operation::MakeIFFALSE(0, 9),
+       Operation::MakeILOAD(3, 0), Operation::MakeICONST(42, 1),
+       Operation::MakeIEQ(0, 1)},
+      {});
+  const std::vector<Operation> expected = {
+      Operation::MakeILOAD(0, 0), Operation::MakeICONST(17, 1),
+      Operation::MakeIEQ(0, 1),   Operation::MakeIFFALSE(0, 9),
+      Operation::MakeILOAD(1, 0), Operation::MakeIFFALSE(0, 9),
+      Operation::MakeILOAD(3, 0), Operation::MakeICONST(42, 1),
+      Operation::MakeIEQ(0, 1)};
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ComplexJumps) {
+  const CompiledExpression expr(
+      {Operation::MakeILOAD(0, 0), Operation::MakeIFFALSE(0, 4),
+       Operation::MakeILOAD(1, 0), Operation::MakeGOTO(4),
+       Operation::MakeNOT(0)},
+      {});
+  const std::vector<Operation> expected = {
+      Operation::MakeILOAD(0, 0), Operation::MakeIFFALSE(0, 3),
+      Operation::MakeILOAD(1, 0), Operation::MakeNOT(0)};
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
 }
 
 TEST(OptimizeIntExpressionTest, EliminatesDeadCode) {
