@@ -1,0 +1,157 @@
+Version 3.2 (Jan 25, 2015):
+
+* Support for DTMC model checking with sampling engine.
+
+* Support for unbounded until properties with mixed engine.
+
+* Support for variables of type bool.
+
+* Support for complex constant expressions.
+
+* New simulator that works directly with a factored event model, so that
+  synchronized events do not have to be resoved up front, which can otherwise
+  result in event explosion.
+
+* Improved model optimization for simulation.
+
+* Fixed bug in synchronization for actions with commands in more than two
+  modules.
+
+
+Version 3.1 (Nov 14, 2014):
+
+* Expression and property compilation, resulting in 5-25% speedup on select
+  benchmarks.
+
+* More efficient representation of non-memoryless trigger times in a simulation
+  state.
+
+* Switched to fixed-width sequential confidence intervals for probability
+  estimation.
+
+* Changed name of single sampling plan algorithm to SSP from SEQUENTIAL.
+
+* Switched to simple heuristic for picking nested error bounds for probabilistic
+  properties.
+
+* Improved support for PRISM expressions, including function calls and
+  conditional expressions.
+
+* Fixed bug in error bounds for conjunction, disjunction, and nested
+  probabilistic properties.
+
+* Code now uses C++11 language features.
+
+
+Version 3.0.9 (Jun 2, 2012):
+
+* More efficient representation for variable assignments in a state.  Up to
+  36% speedup on polling benchmarks.
+
+
+Version 3.0.8 (May 4, 2012):
+
+* Fixed memory corruption bug in parser.
+
+* Fixed test breakage when using GCC 4.2.
+
+
+Version 3.0.7 (Apr 14, 2012):
+
+* Fixed bug in parsing of constant overrides introduced in version 3.0.6,
+  where all constant overrides would be given the value 1.  The actual speedup
+  over version 3.0.5, with the bug fixed, is 10-15% on benchmarks.
+
+* Fixed long-standing memory leak in hybrid engine.
+
+
+Version 3.0.6 (Apr 10, 2012):
+
+* Replaced Rational with TypedValue.  10-30% speedup on benchmarks.
+
+
+Version 3.0.5.1 (Nov 10, 2014):
+
+* Back port fix for memory corruption bug in parser.
+
+
+Version 3.0.5 (Mar 8, 2012):
+
+* Minor tweaks to make code compile on Mac OS X 10.6 Snow Leopard with XCode.
+
+
+Version 3.0.4 (Mar 1, 2012):
+
+* Support for fixed sample sizes and path lengths.
+
+* Support for TCMalloc (http://code.google.com/p/gperftools).
+
+
+Version 3.0.3 (Feb 9, 2012):
+
+* Support for uninitialized constants and constant initialization from command
+  line.
+
+* Support for "true" and "false" in guard expressions.
+
+* Support for addition and subtraction in rate expressions.
+
+* Parser support for rewards specifications (avoids parse errors for model
+  files that contain rewards specifications, but otherwise ignored).
+
+
+Version 3.0.2 (Nov 18, 2011):
+
+* Minor improvements to parser: recognition of "ctmc" model type; "const int"
+  and "const double" constants.
+
+* Limited support for constant expressions in the initializer for constants.
+
+Version 3.0.1 (Nov 7, 2011):
+
+* Distributed sampling no longer blocks indefinitely.
+
+* Use correct command-line arguments in README file.
+
+* ./ymer --help works.
+
+* Added missing includes.
+
+* Includes cudd-2.4.2 for easier out-of-the-box compilation.
+
+
+Version 3.0 (Feb 1, 2005):
+
+* Added support for sequential single sampling plans and probability
+  estimation.
+
+* Improved verification procedure for conjunction, disjunction,
+  implication, and path formulas.
+
+* Made statistical verification of nested probabilistic operators work
+  in practice through the use of memoization and heuristics for
+  selecting observation error.
+
+* Fixed several bugs in the simulation of sample trajectories.
+
+
+Version 2.1 (Mar 11, 2004):
+
+* Simplified setup of client/server mode.  To run Ymer in server mode,
+  specify a port.  To run Ymer in client mode, specify the host running
+  the server and the port used by the server.  There is no longer any
+  need to provide client identifiers or IP-addresses.
+
+* Changed to TCP for client/server communication.  The server can now
+  detect if a client goes down and will not expect any samples from
+  clients no longer connected to the server.
+
+
+Version 2.0 (Jan 25, 2004):
+
+* Support for non-exponential distributions and distributed sampling.
+
+
+Version 1.0 (Nov 7, 2003):
+
+* Initial release.
