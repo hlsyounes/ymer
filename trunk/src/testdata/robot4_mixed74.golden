@@ -9,5 +9,5 @@ Rate matrix: 267 nodes 5 leaves 921 minterms
 ODD:         31 nodes
 
 Model checking P>=0.74[ P>=0.5[ true U<=9 c = 1 ] U<=10 x1 = n & y1 = n ] ...
-Acceptance sampling.186 observations.
+Acceptance sampling89 observations.
 Property is true in the initial state.

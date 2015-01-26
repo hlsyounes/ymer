@@ -422,6 +422,7 @@ int GetIntValue(
 struct CompileVariablesResult {
   std::vector<StateVariableInfo> variables;
   std::vector<int> init_values;
+  std::vector<int> max_values;
   int total_bit_count;
 };
 
@@ -447,6 +448,7 @@ CompileVariablesResult CompileVariables(
     const int bit_count = Log2(max - min) + 1;
     result.variables.emplace_back(v.name(), min, bit_count);
     result.init_values.push_back(init);
+    result.max_values.push_back(max);
     identifiers_by_name->emplace(
         v.name(), IdentifierInfo::Variable(v.type(), index, low_bit,
                                            low_bit + bit_count - 1, min));
@@ -840,10 +842,34 @@ CompiledCommands CompileCommands(
   return result;
 }
 
+CompiledExpression OptimizeWithAssignment(
+    const CompiledExpression& expr, const IdentifierInfo& variable, int value,
+    const Optional<DecisionDiagramManager>& dd_manager) {
+  std::vector<Operation> operations;
+  operations.reserve(expr.operations().size());
+  for (size_t pc = 0; pc < expr.operations().size(); ++pc) {
+    const Operation& o = expr.operations()[pc];
+    if (o.opcode() == Opcode::ILOAD &&
+        o.ioperand1() == variable.variable_index()) {
+      operations.push_back(Operation::MakeICONST(value, o.operand2()));
+    } else {
+      operations.push_back(o);
+    }
+  }
+  Optional<ADD> dd;
+  if (expr.dd().has_value()) {
+    dd = ADD(IdentifierToAdd(dd_manager.value(), variable)
+                 .Interval(value, value)) *
+         expr.dd().value();
+  }
+  return OptimizeIntExpression(CompiledExpression(operations, dd));
+}
+
 CompiledModel CompileModel(
     const Model& model,
     const std::vector<StateVariableInfo>& variables,
     const std::vector<int>& init_values,
+    const std::vector<int>& max_values,
     std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
@@ -852,8 +878,67 @@ CompiledModel CompileModel(
 
   const auto& compiled_commands =
       CompileCommands(model, identifiers_by_name, dd_manager, errors);
-  compiled_model.set_single_markov_commands(
+
+  int pivot_variable = -1;
+  std::vector<std::vector<CompiledMarkovCommand>>
+      pivoted_single_markov_commands;
+  std::vector<CompiledMarkovCommand> single_markov_commands(
       compiled_commands.single_markov_commands);
+  size_t min_command_count = single_markov_commands.size();
+  for (const auto& v : model.variables()) {
+    auto i = identifiers_by_name.find(v.name());
+    CHECK(i != identifiers_by_name.end());
+    const auto& variable = i->second;
+    const int min_value = variable.min_value().value<int>();
+    const int max_value = max_values[variable.variable_index()];
+    std::vector<std::vector<CompiledMarkovCommand>> pivoted_commands(
+        max_value - min_value + 1);
+    std::vector<CompiledMarkovCommand> other_commands;
+    for (const auto& command : compiled_commands.single_markov_commands) {
+      Optional<std::pair<int, CompiledExpression>> pivot_element;
+      bool unique = true;
+      for (int value = min_value; value <= max_value; ++value) {
+        CompiledExpression guard = OptimizeWithAssignment(
+            command.guard(), variable, value, dd_manager);
+        if (guard.operations().size() != 1 ||
+            guard.operations()[0].opcode() != Opcode::ICONST ||
+            guard.operations()[0].operand2() != 0 ||
+            guard.operations()[0].ioperand1() != 0) {
+          if (pivot_element.has_value()) {
+            unique = false;
+          } else {
+            pivot_element = std::make_pair(value, guard);
+          }
+        }
+      }
+      if (pivot_element.has_value() && unique) {
+        pivoted_commands[pivot_element.value().first - min_value].emplace_back(
+            pivot_element.value().second, command.weight(), command.outcomes());
+      } else {
+        other_commands.push_back(command);
+      }
+    }
+    size_t command_count = 0;
+    for (const auto& commands : pivoted_commands) {
+      command_count =
+          std::max(commands.size() + other_commands.size(), command_count);
+    }
+    if (command_count < min_command_count) {
+      VLOG(2) << "Command fraction for pivot on " << v.name() << ": "
+              << static_cast<double>(command_count) /
+                     compiled_commands.single_markov_commands.size();
+      min_command_count = command_count;
+      pivot_variable = variable.variable_index();
+      pivoted_single_markov_commands = std::move(pivoted_commands);
+      single_markov_commands = std::move(other_commands);
+    }
+  }
+
+  if (pivot_variable != -1) {
+    compiled_model.set_pivoted_single_markov_commands(
+        pivot_variable, pivoted_single_markov_commands);
+  }
+  compiled_model.set_single_markov_commands(single_markov_commands);
   compiled_model.set_factored_markov_commands(
       compiled_commands.factored_markov_commands);
   compiled_model.set_single_gsmp_commands(
@@ -1257,7 +1342,8 @@ int main(int argc, char* argv[]) {
     }
     const CompiledModel compiled_model =
         CompileModel(model, compile_variables_result.variables,
-                     compile_variables_result.init_values, identifiers_by_name,
+                     compile_variables_result.init_values,
+                     compile_variables_result.max_values, identifiers_by_name,
                      dd_manager, &errors);
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;

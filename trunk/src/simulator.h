@@ -161,6 +161,19 @@ void NextStateSampler<Engine>::NextState(const State& state,
 
 template <typename Engine>
 void NextStateSampler<Engine>::SampleDtmcEvents(const State& state) {
+  if (model_->pivot_variable().has_value()) {
+    const int variable = model_->pivot_variable().value();
+    const int value =
+        state.values()[variable] - model_->variables()[variable].min_value();
+    for (const auto& command :
+         model_->pivoted_single_markov_commands()[value]) {
+      if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
+        candidate_markov_commands_.push_back(&command);
+        ConsiderCandidateDtmcEvent();
+        candidate_markov_commands_.pop_back();
+      }
+    }
+  }
   for (const auto& command : model_->single_markov_commands()) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_markov_commands_.push_back(&command);
@@ -202,6 +215,21 @@ void NextStateSampler<Engine>::ConsiderCandidateDtmcEvent() {
 template <typename Engine>
 void NextStateSampler<Engine>::SampleCtmcEvents(const State& state,
                                                 State* next_state) {
+  if (model_->pivot_variable().has_value()) {
+    const int variable = model_->pivot_variable().value();
+    const int value =
+        state.values()[variable] - model_->variables()[variable].min_value();
+    for (const auto& command :
+         model_->pivoted_single_markov_commands()[value]) {
+      if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
+        candidate_markov_commands_.push_back(&command);
+        const double weight = evaluator_->EvaluateDoubleExpression(
+            command.weight(), state.values());
+        ConsiderCandidateCtmcEvent(state, weight, next_state);
+        candidate_markov_commands_.pop_back();
+      }
+    }
+  }
   for (const auto& command : model_->single_markov_commands()) {
     if (evaluator_->EvaluateIntExpression(command.guard(), state.values())) {
       candidate_markov_commands_.push_back(&command);

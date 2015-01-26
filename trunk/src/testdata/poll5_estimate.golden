@@ -3,6 +3,6 @@ Variables: 7
 Events:    20
 
 Model checking P>0[ true U<=10 s = 1 & a = 0 ] ...
-Sequential estimation.........:.........:2000 observations.
-Pr[true U<=10 s = 1 & a = 0] = 0.9695 (0.9595,0.9795)
+Sequential estimation.........:.........:....2414 observations.
+Pr[true U<=10 s = 1 & a = 0] = 0.962717 (0.952717,0.972717)
 Property is true in the initial state.

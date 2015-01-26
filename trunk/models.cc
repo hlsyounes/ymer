@@ -579,6 +579,24 @@ DecisionDiagramModel DecisionDiagramModel::Make(
 
   // Compute rate matrix for all commands.
   ADD rate_matrix = manager->GetConstant(0);
+  if (model.pivot_variable().has_value()) {
+    const int variable = model.pivot_variable().value();
+    const int min_value = model.variables()[variable].min_value();
+    const auto& pivoted_commands = model.pivoted_single_markov_commands();
+    for (size_t i = pivoted_commands.size(); i > 0; --i) {
+      const int value = min_value + i - 1;
+      ADD variable_assignment =
+          ADD(IdentifierToAdd(*manager, variables[variable])
+                  .Interval(value, value));
+      const auto& commands = pivoted_commands[i - 1];
+      for (size_t j = commands.size(); j > 0; --j) {
+        const auto& command = commands[j - 1];
+        rate_matrix = variable_assignment * CompiledMarkovCommandToAdd(
+                                                *manager, variables, command) +
+                      rate_matrix;
+      }
+    }
+  }
   for (size_t i = model.single_markov_commands().size(); i > 0; --i) {
     const auto& command = model.single_markov_commands()[i - 1];
     rate_matrix =
