@@ -1,3 +1,23 @@
+Version 3.2 (Jan 25, 2015):
+
+* Support for DTMC model checking with sampling engine.
+
+* Support for unbounded until properties with mixed engine.
+
+* Support for variables of type bool.
+
+* Support for complex constant expressions.
+
+* New simulator that works directly with a factored event model, so that
+  synchronized events do not have to be resoved up front, which can otherwise
+  result in event explosion.
+
+* Improved model optimization for simulation.
+
+* Fixed bug in synchronization for actions with commands in more than two
+  modules.
+
+
 Version 3.1 (Nov 14, 2014):
 
 * Expression and property compilation, resulting in 5-25% speedup on select
@@ -48,6 +68,11 @@ Version 3.0.7 (Apr 14, 2012):
 Version 3.0.6 (Apr 10, 2012):
 
 * Replaced Rational with TypedValue.  10-30% speedup on benchmarks.
+
+
+Version 3.0.5.1 (Nov 10, 2014):
+
+* Back port fix for memory corruption bug in parser.
 
 
 Version 3.0.5 (Mar 8, 2012):

@@ -1,29 +1,27 @@
 Copyright (C) 2003--2005 Carnegie Mellon University
-Copyright (C) 2011-2014 Google Inc
+Copyright (C) 2011-2015 Google Inc
 
    This file is free documentation; the copyright holders give
 unlimited permission to copy, distribute and modify it.
 
-Ymer 3.1
+Ymer 3.2
 ========
 
-Ymer is a tool for verifying probabilistic transient properties of
-continuous-time Markov chains (CTMCs) and generalized semi-Markov
-processes (GSMPs).  Properties are expressed using the Continuous
+Ymer is a tool for verifying probabilistic properties of discrete-time Markov
+chains (DTMCs), continuous-time Markov chains (CTMCs) and generalized
+semi-Markov processes (GSMPs).  Properties are expressed using the Continuous
 Stochastic Logic (CSL).
 
-To handle the full generality of GSMPs, Ymer implements statistical
-techniques, based on discrete event simulation and sequential
-acceptance sampling, for CSL model checking.  Ymer includes support
-for distributed acceptance sampling, i.e. the use of multiple machines
-to generate samples, which can result in significant speedup as each
-sample can be generated independently.
+To handle the full generality of GSMPs, Ymer implements statistical techniques,
+based on discrete event simulation and sequential acceptance sampling, for CSL
+model checking.  Ymer includes support for distributed acceptance sampling,
+i.e. the use of multiple machines to generate samples, which can result in
+significant speedup as each sample can be generated independently.
 
-Ymer can also use numerical techniques based on uniformization by
-approximating a GSMP with a CTMC using phase-type distributions.
-Ymer includes the hybrid engine from the PRISM tool for CTMC model
-checking.  Numerical and statistical techniques can be used in
-combination to solve nested CSL queries.
+Ymer can also use numerical techniques based on uniformization by approximating
+a GSMP with a CTMC using phase-type distributions.  Ymer includes the hybrid
+engine from the PRISM tool for CTMC model checking.  Numerical and statistical
+techniques can be used in combination to solve nested CSL queries.
 
 
 Installation
@@ -35,18 +33,18 @@ Installation instructions are available in INSTALL.
 Running Ymer
 ============
 
-Ymer is controlled by a command line interface.  Run `./ymer --help'
-for details on available command line options.
+Ymer is controlled by a command line interface.  Run `./ymer --help' for details
+on available command line options.
 
 
-Distributed sampling
+Distributed Sampling
 ====================
 
-To start Ymer in server mode, provide a port with the command line
-options.  The server will accept connections from clients, which will
-provide the server with samples.  To connect a client to a server,
-pass a host name and a port to Ymer.  The following commands give you
-an example of how to use distributed sampling with Ymer:
+To start Ymer in server mode, provide a port with the command line options.  The
+server will accept connections from clients, which will provide the server with
+samples.  To connect a client to a server, pass a host name and a port to Ymer.
+The following commands give you an example of how to use distributed sampling
+with Ymer:
 
   cpu1> ymer -P 5000 examples/tandem63.sm examples/tandem500.csl
 
@@ -54,18 +52,15 @@ an example of how to use distributed sampling with Ymer:
 
   cpu3> ymer -H cpu1 -P 5000 examples/tandem63.sm examples/tandem500.csl
 
-This starts a server on a machine called `cpu1' and a client on each
-of the machines called `cpu2' and `cpu3'.  Once enough samples have
-been generated, the server terminates, which in turn causes the
-clients to terminate as well.
+This starts a server on a machine called `cpu1' and a client on each of the
+machines called `cpu2' and `cpu3'.  Once enough samples have been generated, the
+server terminates, which in turn causes the clients to terminate as well.
 
-Using ssh, for example, it is possible to write a script that will
-start a server locally and a set of clients on remote machines.  An
-example of such a script is `scripts/ymer-dist2', which runs a server
-on the local machine and two sample generating clients on two machines
-named `sweden' and `gs222'.
+Using ssh, for example, it is possible to write a script that will start a
+server locally and a set of clients on remote machines.  An example of such a
+script is `scripts/ymer-dist2', which runs a server on the local machine and two
+sample generating clients on two machines named `sweden' and `gs222'.
 
-Note that the model and property files must be available on all
-machines running Ymer.  The behavior of Ymer is unspecified if a
-client uses a different model or property than the server it connects
-to.
+Note that the model and property files must be available on all machines running
+Ymer.  The behavior of Ymer is unspecified if a client uses a different model or
+property than the server it connects to.

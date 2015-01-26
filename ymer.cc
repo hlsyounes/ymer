@@ -2,7 +2,7 @@
  * Main program.
  *
  * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011--2012 Google Inc
+ * Copyright (C) 2011--2015 Google Inc
  *
  * This file is part of Ymer.
  *
@@ -161,7 +161,7 @@ void display_help() {
 void display_version() {
   std::cout << PACKAGE_STRING << std::endl
             << "Copyright (C) 2003--2005 Carnegie Mellon University"
-            << std::endl << "Copyright (C) 2011--2012 Google Inc" << std::endl
+            << std::endl << "Copyright (C) 2011--2015 Google Inc" << std::endl
             << PACKAGE_NAME
             << " comes with NO WARRANTY, to the extent permitted by law."
             << std::endl << "For information about the terms of redistribution,"
