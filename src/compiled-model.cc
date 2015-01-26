@@ -59,6 +59,13 @@ CompiledModel::CompiledModel(CompiledModelType type,
 
 int CompiledModel::EventCount() const {
   int event_count = gsmp_event_count();
+  if (pivot_variable_.has_value()) {
+    for (const auto& commands : pivoted_single_markov_commands_) {
+      for (const auto& command : commands) {
+        event_count += command.outcomes().size();
+      }
+    }
+  }
   for (const auto& command : single_markov_commands_) {
     event_count += command.outcomes().size();
   }

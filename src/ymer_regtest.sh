@@ -38,22 +38,22 @@ function expect_ok() {
 
 echo -n poll5_sprt96...
 start=$(timestamp)
-HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 src/testdata/poll5.sm <(echo 'P<0.96[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt96.golden -
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.005 src/testdata/poll5.sm <(echo 'P<0.96[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt96.golden -
 expect_ok ${start}
 
 echo -n poll5_sprt98...
 start=$(timestamp)
-HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt98.golden -
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.005 src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_sprt98.golden -
 expect_ok ${start}
 
 echo -n poll5_ssp96...
 start=$(timestamp)
-HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.96[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp96.golden -
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.005 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.96[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp96.golden -
 expect_ok ${start}
 
 echo -n poll5_ssp98...
 start=$(timestamp)
-HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp98.golden -
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.005 --sampling-algorithm=ssp src/testdata/poll5.sm <(echo 'P<0.98[ true U<=10 (s=1 & a=0) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll5_ssp98.golden -
 expect_ok ${start}
 
 echo -n poll5_estimate...

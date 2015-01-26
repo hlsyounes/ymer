@@ -29,6 +29,7 @@
 #include "compiled-distribution.h"
 #include "compiled-expression.h"
 #include "ddutil.h"
+#include "optional.h"
 
 // A compiled update.
 class CompiledUpdate {
@@ -177,6 +178,15 @@ class CompiledModel {
     }
   }
 
+  // Sets the pivoted single (non-factored) Markov commands for this compiled
+  // model.
+  void set_pivoted_single_markov_commands(
+      int pivot_variable, const std::vector<std::vector<CompiledMarkovCommand>>&
+                              pivoted_single_markov_commands) {
+    pivot_variable_ = pivot_variable;
+    pivoted_single_markov_commands_ = pivoted_single_markov_commands;
+  }
+
   // Returns the type of this compiled model.
   CompiledModelType type() const { return type_; }
 
@@ -206,6 +216,15 @@ class CompiledModel {
   const std::vector<CompiledGsmpCommandFactors>& factored_gsmp_commands()
       const {
     return factored_gsmp_commands_;
+  }
+
+  const Optional<int>& pivot_variable() const {
+    return pivot_variable_;
+  }
+
+  const std::vector<std::vector<CompiledMarkovCommand>>&
+  pivoted_single_markov_commands() const {
+    return pivoted_single_markov_commands_;
   }
 
   // Returns the total number of GSMP events for which we may need to store a
@@ -238,6 +257,9 @@ class CompiledModel {
   // with factored_markov_commands_, ignoring the first module, to get the
   // composite commands.
   std::vector<CompiledGsmpCommandFactors> factored_gsmp_commands_;
+  Optional<int> pivot_variable_;
+  std::vector<std::vector<CompiledMarkovCommand>>
+      pivoted_single_markov_commands_;
   int gsmp_event_count_;
 };
 
