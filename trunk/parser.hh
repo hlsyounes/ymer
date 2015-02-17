@@ -176,7 +176,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 454 "parser.yy" /* yacc.c:1909  */
+#line 456 "parser.yy" /* yacc.c:1909  */
 
   Type type;
   const std::string* str;
