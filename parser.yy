@@ -387,6 +387,8 @@ void AddCommand(const YYLTYPE& location, const std::string* action,
   }
 }
 
+void SetInit(const Expression* expr) { delete expr; }
+
 void StartRewards(const std::string* label) { delete label; }
 
 void AddStateReward(const Expression* guard, const Expression* reward) {
@@ -513,6 +515,7 @@ model_component : model_type
                 | constant
                 | global
                 | module
+                | init
                 | rewards
                 ;
 
@@ -646,6 +649,10 @@ updates : update
 update : '(' IDENTIFIER PRIME '=' expr ')'
            { $$ = NewUpdate($2, $5); }
        ;
+
+init : INIT expr ENDINIT
+         { SetInit($2); }
+     ;
 
 rewards : REWARDS rewards_label reward_rules ENDREWARDS
             { EndRewards(); }
