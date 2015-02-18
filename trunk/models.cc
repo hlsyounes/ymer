@@ -611,7 +611,12 @@ DecisionDiagramModel DecisionDiagramModel::Make(
     // TODO(hlsyounes): implement.
     LOG(FATAL) << "not implemented";
   }
-  // TODO(hlsyounes): normalize rate matrix for DTMC.
+  if (model.type() == CompiledModelType::DTMC) {
+    // Normalize rate matrix.
+    ADD col_cube = manager->GetCube(
+        manager->GetAddVariableArray(1, 2, manager->GetVariableCount()));
+    rate_matrix = rate_matrix / rate_matrix.ExistAbstract(col_cube);
+  }
 
   std::cout << manager->GetVariableCount() << " variables." << std::endl;
 

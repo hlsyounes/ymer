@@ -76,7 +76,9 @@ class DecisionDiagram {
   DdNode* node() const { return node_; }
 
  private:
+  static void Ref(DdNode* node);
   void Ref();
+  static void Deref(DdManager* manager, DdNode* node);
   void Deref();
 
   // The decision-diagram manager.
@@ -179,6 +181,10 @@ class ADD : public DecisionDiagram {
   // Returns the BDD representing *this > threshold.
   BDD StrictThreshold(double threshold) const;
 
+  // Returns the ADD that abstracts through summation all the variables in cube
+  // from this ADD.
+  ADD ExistAbstract(const ADD& cube) const;
+
   // Arithmetic operators for ADDs.
   ADD operator-() const;
   ADD operator+(const ADD& dd) const;
@@ -247,6 +253,8 @@ class VariableArray {
  public:
   VariableArray();
 
+  ~VariableArray();
+
   std::vector<DdNode*>::size_type size() const { return variables_.size(); }
 
  private:
@@ -254,6 +262,7 @@ class VariableArray {
 
   DdNode* const* data() const { return variables_.data(); }
 
+  DdManager* manager_;
   std::vector<DdNode*> variables_;
 
   friend class DecisionDiagramManager;
@@ -304,8 +313,15 @@ class DecisionDiagramManager {
   // end (exclusive).
   VariableArray<BDD> GetBddVariableArray(int start, int incr, int end) const;
 
+  // Returns an array of every incr ADD variables between start (inclusive) and
+  // end (exclusive).
+  VariableArray<ADD> GetAddVariableArray(int start, int incr, int end) const;
+
   // Returns the positive unate cube of the given variables.
   BDD GetCube(const VariableArray<BDD>& variables) const;
+
+  // Returns the positive unate cube of the given variables.
+  ADD GetCube(const VariableArray<ADD>& variables) const;
 
   // TODO(hlsyounes): remove once all code is using wrapper classes.
   DdManager* manager() const { return manager_; }
@@ -350,13 +366,26 @@ class ODD {
 int Log2(int n);
 
 template <typename DD>
-VariableArray<DD>::VariableArray() = default;
+VariableArray<DD>::VariableArray()
+    : manager_(nullptr) {}
 
 template <typename DD>
-VariableArray<DD>::VariableArray(std::vector<DD> variables) {
+VariableArray<DD>::VariableArray(std::vector<DD> variables)
+    : manager_(nullptr) {
   variables_.reserve(variables.size());
   for (const DD& dd : variables) {
+    if (manager_ == nullptr) {
+      manager_ = dd.manager();
+    }
     variables_.push_back(dd.node());
+    DecisionDiagram::Ref(dd.node());
+  }
+}
+
+template <typename DD>
+VariableArray<DD>::~VariableArray() {
+  for (DdNode* node : variables_) {
+    DecisionDiagram::Deref(manager_, node);
   }
 }
 

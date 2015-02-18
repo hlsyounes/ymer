@@ -981,7 +981,7 @@ extern int Cudd_NextCube (DdGen *gen, int **cube, CUDD_VALUE_TYPE *value);
 extern DdGen * Cudd_FirstPrime(DdManager *dd, DdNode *l, DdNode *u, int **cube);
 extern int Cudd_NextPrime(DdGen *gen, int **cube);
 extern DdNode * Cudd_bddComputeCube (DdManager *dd, DdNode * const *vars, int *phase, int n);
-extern DdNode * Cudd_addComputeCube (DdManager *dd, DdNode **vars, int *phase, int n);
+extern DdNode * Cudd_addComputeCube (DdManager *dd, DdNode * const *vars, int *phase, int n);
 extern DdNode * Cudd_CubeArrayToBdd (DdManager *dd, int *array);
 extern int Cudd_BddToCubeArray (DdManager *dd, DdNode *cube, int *array);
 extern DdGen * Cudd_FirstNode (DdManager *dd, DdNode *f, DdNode **node);

@@ -672,6 +672,26 @@ TEST(DecisionDiagramTest, ComputesCubes) {
   EXPECT_FALSE(dd4.ValueInState({true, false}));
   EXPECT_FALSE(dd4.ValueInState({false, true}));
   EXPECT_FALSE(dd4.ValueInState({false, false}));
+  const ADD dd5 = manager.GetCube(VariableArray<ADD>());
+  EXPECT_EQ(1, dd5.ValueInState({true, true}));
+  EXPECT_EQ(1, dd5.ValueInState({true, false}));
+  EXPECT_EQ(1, dd5.ValueInState({false, true}));
+  EXPECT_EQ(1, dd5.ValueInState({false, false}));
+  const ADD dd6 = manager.GetCube(manager.GetAddVariableArray(0, 1, 1));
+  EXPECT_EQ(1, dd6.ValueInState({true, true}));
+  EXPECT_EQ(1, dd6.ValueInState({true, false}));
+  EXPECT_EQ(0, dd6.ValueInState({false, true}));
+  EXPECT_EQ(0, dd6.ValueInState({false, false}));
+  const ADD dd7 = manager.GetCube(manager.GetAddVariableArray(1, 1, 2));
+  EXPECT_EQ(1, dd7.ValueInState({true, true}));
+  EXPECT_EQ(0, dd7.ValueInState({true, false}));
+  EXPECT_EQ(1, dd7.ValueInState({false, true}));
+  EXPECT_EQ(0, dd7.ValueInState({false, false}));
+  const ADD dd8 = manager.GetCube(manager.GetAddVariableArray(0, 1, 2));
+  EXPECT_EQ(1, dd8.ValueInState({true, true}));
+  EXPECT_EQ(0, dd8.ValueInState({true, false}));
+  EXPECT_EQ(0, dd8.ValueInState({false, true}));
+  EXPECT_EQ(0, dd8.ValueInState({false, false}));
 }
 
 TEST(DecisionDiagramTest, BddValueInState) {

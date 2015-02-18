@@ -153,17 +153,25 @@ DecisionDiagram& DecisionDiagram::operator=(const DecisionDiagram& dd) {
 
 DecisionDiagram::~DecisionDiagram() { Deref(); }
 
+void DecisionDiagram::Ref(DdNode* node) {
+  if (node) {
+    Cudd_Ref(node);
+  }
+}
+
 void DecisionDiagram::Ref() {
-  if (node_) {
-    Cudd_Ref(node_);
+  Ref(node_);
+}
+
+void DecisionDiagram::Deref(DdManager* manager, DdNode* node) {
+  if (node) {
+    Cudd_RecursiveDeref(manager, node);
   }
 }
 
 void DecisionDiagram::Deref() {
-  if (node_) {
-    Cudd_RecursiveDeref(manager_, node_);
-    node_ = nullptr;
-  }
+  Deref(manager_, node_);
+  node_ = nullptr;
 }
 
 bool DecisionDiagram::IsConstant() const { return Cudd_IsConstant(node_); }
@@ -268,6 +276,10 @@ BDD ADD::Interval(double low, double high) const {
 BDD ADD::StrictThreshold(double threshold) const {
   return BDD(manager(),
              Cudd_addBddStrictThreshold(manager(), node(), threshold));
+}
+
+ADD ADD::ExistAbstract(const ADD& cube) const {
+  return ADD(manager(), Cudd_addExistAbstract(manager(), node(), cube.node()));
 }
 
 ADD ADD::operator-() const { return MonadicApply(AddNegate, *this); }
@@ -403,8 +415,23 @@ VariableArray<BDD> DecisionDiagramManager::GetBddVariableArray(int start,
   return VariableArray<BDD>(variables);
 }
 
+VariableArray<ADD> DecisionDiagramManager::GetAddVariableArray(int start,
+                                                               int incr,
+                                                               int end) const {
+  std::vector<ADD> variables;
+  for (int i = start; i < end; i += incr) {
+    variables.push_back(GetAddVariable(i));
+  }
+  return VariableArray<ADD>(variables);
+}
+
 BDD DecisionDiagramManager::GetCube(const VariableArray<BDD>& variables) const {
   return BDD(manager_, Cudd_bddComputeCube(manager_, variables.data(), nullptr,
+                                           variables.size()));
+}
+
+ADD DecisionDiagramManager::GetCube(const VariableArray<ADD>& variables) const {
+  return ADD(manager_, Cudd_addComputeCube(manager_, variables.data(), nullptr,
                                            variables.size()));
 }
 
