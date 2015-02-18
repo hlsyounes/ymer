@@ -2186,7 +2186,7 @@ Cudd_bddComputeCube(
 DdNode *
 Cudd_addComputeCube(
   DdManager * dd,
-  DdNode ** vars,
+  DdNode * const * vars,
   int * phase,
   int  n)
 {
