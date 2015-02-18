@@ -67,6 +67,18 @@ TEST(IdentifierTest, Output) {
   EXPECT_EQ("foo;bar;baz", StrCat(a, ';', b, ';', c));
 }
 
+TEST(LabelTest, Constructor) {
+  const Label a("foo"), b("bar"), c("baz");
+  EXPECT_EQ("foo", a.name());
+  EXPECT_EQ("bar", b.name());
+  EXPECT_EQ("baz", c.name());
+}
+
+TEST(LabelTest, Output) {
+  const Label a("foo"), b("bar"), c("baz");
+  EXPECT_EQ("foo;bar;baz", StrCat(a, ';', b, ';', c));
+}
+
 TEST(FunctionCallTest, OutputUnknownFunction) {
   const FunctionCall expr1(Function::UNKNOWN, {});
   EXPECT_EQ("<<unknown function>>()", StrCat(expr1));

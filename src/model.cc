@@ -123,6 +123,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
 
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -157,6 +158,10 @@ bool ConstantExpressionEvaluator::CallAccept(const Expression& expr) {
 
 void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
   value_ = expr.value();
+}
+
+void ConstantExpressionEvaluator::DoVisitLabel(const Label& expr) {
+  errors_->push_back("unexpected label in expression");
 }
 
 void ConstantExpressionEvaluator::DoVisitIdentifier(
@@ -505,8 +510,8 @@ ParsedVariable::ParsedVariable(const std::string& name, Type type,
       max_(std::move(max)),
       init_(std::move(init)) {}
 
-ParsedFormula::ParsedFormula(const std::string& name,
-                             std::unique_ptr<const Expression>&& expr)
+NamedExpression::NamedExpression(const std::string& name,
+                                 std::unique_ptr<const Expression>&& expr)
     : name_(name), expr_(std::move(expr)) {}
 
 ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
@@ -623,6 +628,17 @@ bool Model::AddFormula(const std::string& name,
   return true;
 }
 
+bool Model::AddLabel(const std::string& name,
+                     std::unique_ptr<const Expression>&& expr) {
+  for (const auto& label : labels_) {
+    if (label.name() == name) {
+      return false;
+    }
+  }
+  labels_.emplace_back(name, std::move(expr));
+  return true;
+}
+
 bool Model::AddAction(const std::string& name,
                       std::vector<std::string>* errors) {
   if (!name.empty()) {
@@ -704,7 +720,7 @@ std::string RewriteSimpleIdentifier(
 class ExpressionRewriter : public ExpressionVisitor {
  public:
   explicit ExpressionRewriter(
-      const std::vector<ParsedFormula>* formulas,
+      const std::vector<NamedExpression>* formulas,
       const std::map<std::string, std::string>* substitutions);
 
   std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
@@ -712,6 +728,7 @@ class ExpressionRewriter : public ExpressionVisitor {
  private:
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -720,12 +737,12 @@ class ExpressionRewriter : public ExpressionVisitor {
       const ProbabilityThresholdOperation& expr) override;
 
   std::unique_ptr<const Expression> expr_;
-  const std::vector<ParsedFormula>* formulas_;
+  const std::vector<NamedExpression>* formulas_;
   const std::map<std::string, std::string>* substitutions_;
 };
 
 ExpressionRewriter::ExpressionRewriter(
-    const std::vector<ParsedFormula>* formulas,
+    const std::vector<NamedExpression>* formulas,
     const std::map<std::string, std::string>* substitutions)
     : formulas_(formulas), substitutions_(substitutions) {}
 
@@ -744,6 +761,10 @@ void ExpressionRewriter::DoVisitIdentifier(const Identifier& expr) {
   }
   expr_ =
       Identifier::New(RewriteSimpleIdentifier(expr.name(), *substitutions_));
+}
+
+void ExpressionRewriter::DoVisitLabel(const Label& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 void ExpressionRewriter::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -778,10 +799,12 @@ void ExpressionRewriter::DoVisitConditional(const Conditional& expr) {
 }
 
 void ExpressionRewriter::DoVisitProbabilityThresholdOperation(
-    const ProbabilityThresholdOperation& expr) {}
+    const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
+}
 
 std::unique_ptr<const Expression> RewriteExpression(
-    const Expression& expr, const std::vector<ParsedFormula>& formulas,
+    const Expression& expr, const std::vector<NamedExpression>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   ExpressionRewriter rewriter(&formulas, &substitutions);
   expr.Accept(&rewriter);
@@ -791,7 +814,7 @@ std::unique_ptr<const Expression> RewriteExpression(
 class DistributionRewriter : public DistributionVisitor {
  public:
   explicit DistributionRewriter(
-      const std::vector<ParsedFormula>* formulas,
+      const std::vector<NamedExpression>* formulas,
       const std::map<std::string, std::string>* substitutions);
 
   std::unique_ptr<const Distribution> release_dist() {
@@ -805,12 +828,12 @@ class DistributionRewriter : public DistributionVisitor {
   void DoVisitUniform(const Uniform& dist) override;
 
   std::unique_ptr<const Distribution> dist_;
-  const std::vector<ParsedFormula>* formulas_;
+  const std::vector<NamedExpression>* formulas_;
   const std::map<std::string, std::string>* substitutions_;
 };
 
 DistributionRewriter::DistributionRewriter(
-    const std::vector<ParsedFormula>* formulas,
+    const std::vector<NamedExpression>* formulas,
     const std::map<std::string, std::string>* substitutions)
     : formulas_(formulas), substitutions_(substitutions) {}
 
@@ -838,7 +861,7 @@ void DistributionRewriter::DoVisitUniform(const Uniform& dist) {
 }
 
 std::unique_ptr<const Distribution> RewriteDistribution(
-    const Distribution& dist, const std::vector<ParsedFormula>& formulas,
+    const Distribution& dist, const std::vector<NamedExpression>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   DistributionRewriter rewriter(&formulas, &substitutions);
   dist.Accept(&rewriter);
@@ -847,7 +870,7 @@ std::unique_ptr<const Distribution> RewriteDistribution(
 
 std::vector<Update> RewriteUpdates(
     const std::vector<Update>& updates,
-    const std::vector<ParsedFormula>& formulas,
+    const std::vector<NamedExpression>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   std::vector<Update> new_updates;
   for (const Update& update : updates) {
@@ -860,7 +883,7 @@ std::vector<Update> RewriteUpdates(
 
 std::vector<Outcome> RewriteOutcomes(
     const std::vector<Outcome>& outcomes,
-    const std::vector<ParsedFormula>& formulas,
+    const std::vector<NamedExpression>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   std::vector<Outcome> new_outcomes;
   for (const Outcome& outcome : outcomes) {
@@ -872,7 +895,7 @@ std::vector<Outcome> RewriteOutcomes(
 }
 
 Command RewriteCommand(
-    const Command& command, const std::vector<ParsedFormula>& formulas,
+    const Command& command, const std::vector<NamedExpression>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   return Command(RewriteSimpleIdentifier(command.action(), substitutions),
                  RewriteExpression(command.guard(), formulas, substitutions),

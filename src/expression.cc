@@ -41,6 +41,7 @@ class Printer : public ExpressionVisitor, public PathPropertyVisitor {
  private:
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -120,6 +121,8 @@ Printer::Printer(std::ostream* os)
 void Printer::DoVisitLiteral(const Literal& expr) { *os_ << expr.value(); }
 
 void Printer::DoVisitIdentifier(const Identifier& expr) { *os_ << expr.name(); }
+
+void Printer::DoVisitLabel(const Label& expr) { *os_ << expr.name(); }
 
 void Printer::DoVisitFunctionCall(const FunctionCall& expr) {
   *os_ << expr.function() << '(';
@@ -254,6 +257,16 @@ std::unique_ptr<const Identifier> Identifier::New(const std::string& name) {
 
 void Identifier::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitIdentifier(*this);
+}
+
+Label::Label(const std::string& name) : name_(name) {}
+
+std::unique_ptr<const Label> Label::New(const std::string& name) {
+  return std::unique_ptr<const Label>(new Label(name));
+}
+
+void Label::DoAccept(ExpressionVisitor* visitor) const {
+  visitor->VisitLabel(*this);
 }
 
 std::ostream& operator<<(std::ostream& os, Function function) {
@@ -448,6 +461,8 @@ void ExpressionVisitor::VisitLiteral(const Literal& expr) {
 void ExpressionVisitor::VisitIdentifier(const Identifier& expr) {
   DoVisitIdentifier(expr);
 }
+
+void ExpressionVisitor::VisitLabel(const Label& expr) { DoVisitLabel(expr); }
 
 void ExpressionVisitor::VisitFunctionCall(const FunctionCall& expr) {
   DoVisitFunctionCall(expr);

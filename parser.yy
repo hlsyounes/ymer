@@ -100,6 +100,10 @@ const Identifier* NewIdentifier(const std::string* name) {
   return new Identifier(*WrapUnique(name));
 }
 
+const Label* NewLabel(const std::string* name) {
+  return new Label(*WrapUnique(name));
+}
+
 const FunctionCall* NewFunctionCall(
     Function function, UniquePtrVector<const Expression>* arguments) {
   return new FunctionCall(function, std::move(*WrapUnique(arguments)));
@@ -318,6 +322,14 @@ void AddFormula(const YYLTYPE& location, const std::string* name,
   }
 }
 
+void AddLabel(const YYLTYPE& location, const std::string* name,
+              const Expression* expr, ParserState* state) {
+  auto name_ptr = WrapUnique(name);
+  if (!state->mutable_model()->AddLabel(*name_ptr, WrapUnique(expr))) {
+    yyerror(location, StrCat("duplicate label ", *name_ptr), state);
+  }
+}
+
 void StartModule(const YYLTYPE& location, const std::string* name,
                  ParserState* state) {
   auto name_ptr = WrapUnique(name);
@@ -527,6 +539,7 @@ model_component : model_type
                 | global
                 | module
                 | formula
+                | label
                 | init
                 | rewards
                 ;
@@ -666,6 +679,10 @@ formula : FORMULA IDENTIFIER '=' expr ';'
             { AddFormula(yylloc, $2, $4, state); }
         ;
 
+label : LABEL LABEL_NAME '=' expr ';'
+          { AddLabel(yylloc, $2, $4, state); }
+      ;
+
 init : INIT expr ENDINIT
          { SetInit($2); }
      ;
@@ -775,6 +792,8 @@ property : NUMBER
              { $$ = new Literal(false); }
          | IDENTIFIER
              { $$ = NewIdentifier($1); }
+         | LABEL_NAME
+             { $$ = NewLabel($1); }
          | function '(' arguments ')'
              { $$ = NewFunctionCall($1, $3); }
          | FUNC '(' function ',' arguments ')'

@@ -120,6 +120,24 @@ class Identifier : public Expression {
   std::string name_;
 };
 
+// A label expression.
+class Label : public Expression {
+ public:
+  // Constructs a label with the given name.
+  explicit Label(const std::string& name);
+
+  // Factory method for labels.
+  static std::unique_ptr<const Label> New(const std::string& name);
+
+  // Returns the name of this label.
+  const std::string& name() const { return name_; }
+
+ private:
+  void DoAccept(ExpressionVisitor* visitor) const override;
+
+  std::string name_;
+};
+
 // Supported functions.
 enum class Function { UNKNOWN, MIN, MAX, FLOOR, CEIL, POW, LOG, MOD };
 
@@ -346,6 +364,7 @@ class ExpressionVisitor {
  public:
   void VisitLiteral(const Literal& expr);
   void VisitIdentifier(const Identifier& expr);
+  void VisitLabel(const Label& expr);
   void VisitFunctionCall(const FunctionCall& expr);
   void VisitUnaryOperation(const UnaryOperation& expr);
   void VisitBinaryOperation(const BinaryOperation& expr);
@@ -359,6 +378,7 @@ class ExpressionVisitor {
  private:
   virtual void DoVisitLiteral(const Literal& expr) = 0;
   virtual void DoVisitIdentifier(const Identifier& expr) = 0;
+  virtual void DoVisitLabel(const Label& expr) = 0;
   virtual void DoVisitFunctionCall(const FunctionCall& expr) = 0;
   virtual void DoVisitUnaryOperation(const UnaryOperation& expr) = 0;
   virtual void DoVisitBinaryOperation(const BinaryOperation& expr) = 0;
