@@ -113,6 +113,7 @@ TypedValue GetDefaultValue(Type type) {
 class ConstantExpressionEvaluator : public ExpressionVisitor {
  public:
   ConstantExpressionEvaluator(
+      const std::map<std::string, const Expression*>* formulas_by_name,
       const std::map<std::string, ConstantInfo>* all_constants,
       std::map<std::string, TypedValue>* constant_values,
       std::vector<std::string>* errors);
@@ -131,16 +132,19 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
 
   TypedValue value_;
   std::set<std::string> pending_constants_;
+  const std::map<std::string, const Expression*>* formulas_by_name_;
   const std::map<std::string, ConstantInfo>* all_constants_;
   std::map<std::string, TypedValue>* constant_values_;
   std::vector<std::string>* errors_;
 };
 
 ConstantExpressionEvaluator::ConstantExpressionEvaluator(
+    const std::map<std::string, const Expression*>* formulas_by_name,
     const std::map<std::string, ConstantInfo>* all_constants,
     std::map<std::string, TypedValue>* constant_values,
     std::vector<std::string>* errors)
     : value_(0),
+      formulas_by_name_(formulas_by_name),
       all_constants_(all_constants),
       constant_values_(constant_values),
       errors_(errors) {}
@@ -157,6 +161,11 @@ void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
 
 void ConstantExpressionEvaluator::DoVisitIdentifier(
     const Identifier& expr) {
+  auto f = formulas_by_name_->find(expr.name());
+  if (f != formulas_by_name_->end()) {
+    f->second->Accept(this);
+    return;
+  }
   auto i = constant_values_->find(expr.name());
   if (i != constant_values_->end()) {
     value_ = i->second;
@@ -460,9 +469,11 @@ void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
 
 }  // namespace
 
-void ResolveConstants(const std::vector<ParsedConstant>& constants,
-                      std::map<std::string, TypedValue>* constant_values,
-                      std::vector<std::string>* errors) {
+void ResolveConstants(
+    const std::vector<ParsedConstant>& constants,
+    const std::map<std::string, const Expression*>& formulas_by_name,
+    std::map<std::string, TypedValue>* constant_values,
+    std::vector<std::string>* errors) {
   CHECK(constant_values);
   CHECK(errors);
   std::map<std::string, ConstantInfo> all_constants;
@@ -477,8 +488,8 @@ void ResolveConstants(const std::vector<ParsedConstant>& constants,
       i->second = GetDefaultValue(c.type());
     }
   }
-  ConstantExpressionEvaluator evaluator(&all_constants, constant_values,
-                                        errors);
+  ConstantExpressionEvaluator evaluator(&formulas_by_name, &all_constants,
+                                        constant_values, errors);
   for (const auto& c : constants) {
     Identifier(c.name()).Accept(&evaluator);
   }
@@ -493,6 +504,10 @@ ParsedVariable::ParsedVariable(const std::string& name, Type type,
       min_(std::move(min)),
       max_(std::move(max)),
       init_(std::move(init)) {}
+
+ParsedFormula::ParsedFormula(const std::string& name,
+                             std::unique_ptr<const Expression>&& expr)
+    : name_(name), expr_(std::move(expr)) {}
 
 ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
 
@@ -519,6 +534,8 @@ std::string Model::IdentifierIndexTypeToString(IdentifierIndex::Type type) {
       return "constant";
     case IdentifierIndex::kVariable:
       return "variable";
+    case IdentifierIndex::kFormula:
+      return "formula";
     case IdentifierIndex::kAction:
       return "action";
   }
@@ -584,6 +601,25 @@ bool Model::AddVariable(const std::string& name, Type type,
   } else {
     modules_[current_module_].add_variable(index);
   }
+  return true;
+}
+
+bool Model::AddFormula(const std::string& name,
+                       std::unique_ptr<const Expression>&& expr,
+                       std::vector<std::string>* errors) {
+  auto i = identifier_indices_.find(name);
+  if (i != identifier_indices_.end()) {
+    if (i->second.type == IdentifierIndex::kFormula) {
+      errors->push_back(StrCat("duplicate formula ", name));
+    } else {
+      errors->push_back(StrCat("formula ", name, " previously defined as ",
+                               IdentifierIndexTypeToString(i->second.type)));
+    }
+    return false;
+  }
+  identifier_indices_.insert(
+      {name, {IdentifierIndex::kFormula, formulas_.size()}});
+  formulas_.emplace_back(name, std::move(expr));
   return true;
 }
 
@@ -657,7 +693,8 @@ bool Model::AddCommand(Command&& command, std::vector<std::string>* errors) {
 
 namespace {
 
-std::string RewriteIdentifier(
+// Assumes identifier is not a formula.
+std::string RewriteSimpleIdentifier(
     const std::string& name,
     const std::map<std::string, std::string>& substitutions) {
   auto i = substitutions.find(name);
@@ -667,6 +704,7 @@ std::string RewriteIdentifier(
 class ExpressionRewriter : public ExpressionVisitor {
  public:
   explicit ExpressionRewriter(
+      const std::vector<ParsedFormula>* formulas,
       const std::map<std::string, std::string>* substitutions);
 
   std::unique_ptr<const Expression> release_expr() { return std::move(expr_); }
@@ -682,19 +720,30 @@ class ExpressionRewriter : public ExpressionVisitor {
       const ProbabilityThresholdOperation& expr) override;
 
   std::unique_ptr<const Expression> expr_;
+  const std::vector<ParsedFormula>* formulas_;
   const std::map<std::string, std::string>* substitutions_;
 };
 
 ExpressionRewriter::ExpressionRewriter(
+    const std::vector<ParsedFormula>* formulas,
     const std::map<std::string, std::string>* substitutions)
-    : substitutions_(substitutions) {}
+    : formulas_(formulas), substitutions_(substitutions) {}
 
 void ExpressionRewriter::DoVisitLiteral(const Literal& expr) {
   expr_ = Literal::New(expr.value());
 }
 
 void ExpressionRewriter::DoVisitIdentifier(const Identifier& expr) {
-  expr_ = Identifier::New(RewriteIdentifier(expr.name(), *substitutions_));
+  // If identifier is a formula, we need to perform the substitutions on the
+  // formula expression.
+  for (const auto& formula : *formulas_) {
+    if (expr.name() == formula.name()) {
+      formula.expr().Accept(this);
+      return;
+    }
+  }
+  expr_ =
+      Identifier::New(RewriteSimpleIdentifier(expr.name(), *substitutions_));
 }
 
 void ExpressionRewriter::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -732,9 +781,9 @@ void ExpressionRewriter::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {}
 
 std::unique_ptr<const Expression> RewriteExpression(
-    const Expression& expr,
+    const Expression& expr, const std::vector<ParsedFormula>& formulas,
     const std::map<std::string, std::string>& substitutions) {
-  ExpressionRewriter rewriter(&substitutions);
+  ExpressionRewriter rewriter(&formulas, &substitutions);
   expr.Accept(&rewriter);
   return rewriter.release_expr();
 }
@@ -742,6 +791,7 @@ std::unique_ptr<const Expression> RewriteExpression(
 class DistributionRewriter : public DistributionVisitor {
  public:
   explicit DistributionRewriter(
+      const std::vector<ParsedFormula>* formulas,
       const std::map<std::string, std::string>* substitutions);
 
   std::unique_ptr<const Distribution> release_dist() {
@@ -755,70 +805,78 @@ class DistributionRewriter : public DistributionVisitor {
   void DoVisitUniform(const Uniform& dist) override;
 
   std::unique_ptr<const Distribution> dist_;
+  const std::vector<ParsedFormula>* formulas_;
   const std::map<std::string, std::string>* substitutions_;
 };
 
 DistributionRewriter::DistributionRewriter(
+    const std::vector<ParsedFormula>* formulas,
     const std::map<std::string, std::string>* substitutions)
-    : substitutions_(substitutions) {}
+    : formulas_(formulas), substitutions_(substitutions) {}
 
 void DistributionRewriter::DoVisitMemoryless(const Memoryless& dist) {
-  dist_ = Memoryless::New(RewriteExpression(dist.weight(), *substitutions_));
+  dist_ = Memoryless::New(
+      RewriteExpression(dist.weight(), *formulas_, *substitutions_));
 }
 
 void DistributionRewriter::DoVisitWeibull(const Weibull& dist) {
-  dist_ = Weibull::New(RewriteExpression(dist.scale(), *substitutions_),
-                       RewriteExpression(dist.shape(), *substitutions_));
+  dist_ = Weibull::New(
+      RewriteExpression(dist.scale(), *formulas_, *substitutions_),
+      RewriteExpression(dist.shape(), *formulas_, *substitutions_));
 }
 
 void DistributionRewriter::DoVisitLognormal(const Lognormal& dist) {
-  dist_ = Lognormal::New(RewriteExpression(dist.scale(), *substitutions_),
-                         RewriteExpression(dist.shape(), *substitutions_));
+  dist_ = Lognormal::New(
+      RewriteExpression(dist.scale(), *formulas_, *substitutions_),
+      RewriteExpression(dist.shape(), *formulas_, *substitutions_));
 }
 
 void DistributionRewriter::DoVisitUniform(const Uniform& dist) {
-  dist_ = Uniform::New(RewriteExpression(dist.low(), *substitutions_),
-                       RewriteExpression(dist.high(), *substitutions_));
+  dist_ =
+      Uniform::New(RewriteExpression(dist.low(), *formulas_, *substitutions_),
+                   RewriteExpression(dist.high(), *formulas_, *substitutions_));
 }
 
 std::unique_ptr<const Distribution> RewriteDistribution(
-    const Distribution& dist,
+    const Distribution& dist, const std::vector<ParsedFormula>& formulas,
     const std::map<std::string, std::string>& substitutions) {
-  DistributionRewriter rewriter(&substitutions);
+  DistributionRewriter rewriter(&formulas, &substitutions);
   dist.Accept(&rewriter);
   return rewriter.release_dist();
 }
 
 std::vector<Update> RewriteUpdates(
     const std::vector<Update>& updates,
+    const std::vector<ParsedFormula>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   std::vector<Update> new_updates;
   for (const Update& update : updates) {
     new_updates.emplace_back(
-        RewriteIdentifier(update.variable(), substitutions),
-        RewriteExpression(update.expr(), substitutions));
+        RewriteSimpleIdentifier(update.variable(), substitutions),
+        RewriteExpression(update.expr(), formulas, substitutions));
   }
   return std::move(new_updates);
 }
 
 std::vector<Outcome> RewriteOutcomes(
     const std::vector<Outcome>& outcomes,
+    const std::vector<ParsedFormula>& formulas,
     const std::map<std::string, std::string>& substitutions) {
   std::vector<Outcome> new_outcomes;
   for (const Outcome& outcome : outcomes) {
     new_outcomes.emplace_back(
-        RewriteDistribution(outcome.delay(), substitutions),
-        RewriteUpdates(outcome.updates(), substitutions));
+        RewriteDistribution(outcome.delay(), formulas, substitutions),
+        RewriteUpdates(outcome.updates(), formulas, substitutions));
   }
   return std::move(new_outcomes);
 }
 
 Command RewriteCommand(
-    const Command& command,
+    const Command& command, const std::vector<ParsedFormula>& formulas,
     const std::map<std::string, std::string>& substitutions) {
-  return Command(RewriteIdentifier(command.action(), substitutions),
-                 RewriteExpression(command.guard(), substitutions),
-                 RewriteOutcomes(command.outcomes(), substitutions));
+  return Command(RewriteSimpleIdentifier(command.action(), substitutions),
+                 RewriteExpression(command.guard(), formulas, substitutions),
+                 RewriteOutcomes(command.outcomes(), formulas, substitutions));
 }
 
 }  // namespace
@@ -847,10 +905,11 @@ bool Model::AddFromModule(
     const std::string& to_variable_name = j->second;
     if (!AddVariable(
             to_variable_name, from_variable.type(),
-            RewriteExpression(from_variable.min(), substitutions),
-            RewriteExpression(from_variable.max(), substitutions),
+            RewriteExpression(from_variable.min(), formulas_, substitutions),
+            RewriteExpression(from_variable.max(), formulas_, substitutions),
             from_variable.has_explicit_init()
-                ? RewriteExpression(from_variable.init(), substitutions)
+                ? RewriteExpression(from_variable.init(), formulas_,
+                                    substitutions)
                 : nullptr,
             errors)) {
       return false;
@@ -858,7 +917,8 @@ bool Model::AddFromModule(
   }
   // Add module commands.
   for (const auto& from_command : from_module.commands()) {
-    if (!AddCommand(RewriteCommand(from_command, substitutions), errors)) {
+    if (!AddCommand(RewriteCommand(from_command, formulas_, substitutions),
+                    errors)) {
       return false;
     }
   }

@@ -96,7 +96,7 @@ TEST(ResolveConstantsTest, Literal) {
       {"a", 17}, {"b", true}, {"c", 0.5}};
   std::map<std::string, TypedValue> constant_values;
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_constant_values, constant_values);
   EXPECT_TRUE(errors.empty());
 }
@@ -113,7 +113,7 @@ TEST(ResolveConstantsTest, LiteralTypeMismatch) {
       "bool"};
   std::map<std::string, TypedValue> constant_values;
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_errors, errors);
 }
 
@@ -127,7 +127,7 @@ TEST(ResolveConstantsTest, Overrides) {
   std::map<std::string, TypedValue> constant_values = {
       {"a", 17}, {"b", true}, {"c", 0.5}};
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_constant_values, constant_values);
   EXPECT_TRUE(errors.empty());
 }
@@ -145,7 +145,7 @@ TEST(ResolveConstantsTest, OverridesTypeMismatch) {
   std::map<std::string, TypedValue> constant_values = {
       {"a", 0.5}, {"b", 17}, {"c", true}};
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_errors, errors);
 }
 
@@ -153,16 +153,17 @@ TEST(ResolveConstantsTest, Identifier) {
   std::vector<ParsedConstant> constants;
   constants.emplace_back("c", Type::DOUBLE, nullptr);
   constants.emplace_back("C", Type::DOUBLE, Identifier::New("a"));
-  constants.emplace_back("a", Type::INT, Identifier::New("A"));
+  constants.emplace_back("a", Type::INT, Identifier::New("f"));
   constants.emplace_back("A", Type::INT, nullptr);
   constants.emplace_back("b", Type::BOOL, Identifier::New("B"));
   constants.emplace_back("B", Type::BOOL, nullptr);
+  const Identifier formula("A");
   std::map<std::string, TypedValue> expected_constant_values = {
       {"a", 17}, {"A", 17}, {"b", true}, {"B", true}, {"c", 0.5}, {"C", 17}};
   std::map<std::string, TypedValue> constant_values = {
       {"A", 17}, {"B", true}, {"c", 0.5}};
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {{"f", &formula}}, &constant_values, &errors);
   EXPECT_EQ(expected_constant_values, constant_values);
   EXPECT_TRUE(errors.empty()) << errors[0];
 }
@@ -183,7 +184,7 @@ TEST(ResolveConstantsTest, IdentifierTypeMismatch) {
   std::map<std::string, TypedValue> constant_values = {
       {"a", 17}, {"b", true}, {"c", 0.5}};
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_errors, errors);
 }
 
@@ -195,7 +196,7 @@ TEST(ResolveConstantsTest, IdentifierCyclic) {
       "cyclic evaluation for constant a"};
   std::map<std::string, TypedValue> constant_values;
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_errors, errors);
 }
 
@@ -205,7 +206,7 @@ TEST(ResolveConstantsTest, IdentifierUninitialized) {
   std::vector<std::string> expected_errors = {"uninitialized constant a"};
   std::map<std::string, TypedValue> constant_values;
   std::vector<std::string> errors;
-  ResolveConstants(constants, &constant_values, &errors);
+  ResolveConstants(constants, {}, &constant_values, &errors);
   EXPECT_EQ(expected_errors, errors);
 }
 
@@ -280,6 +281,18 @@ TEST(ModelTest, AddsVariables) {
   EXPECT_FALSE(model.variables()[2].has_explicit_init());
   EXPECT_EQ("1", StrCat(model.variables()[2].init()));
   EXPECT_TRUE(errors.empty());
+}
+
+TEST(ModelTest, AddsFormulas) {
+  Model model;
+  std::vector<std::string> errors;
+  EXPECT_TRUE(model.AddFormula("f", Literal::New(17), &errors));
+  EXPECT_TRUE(model.AddFormula("g", Identifier::New("x"), &errors));
+  ASSERT_EQ(2, model.formulas().size());
+  EXPECT_EQ("f", model.formulas()[0].name());
+  EXPECT_EQ("17", StrCat(model.formulas()[0].expr()));
+  EXPECT_EQ("g", model.formulas()[1].name());
+  EXPECT_EQ("x", StrCat(model.formulas()[1].expr()));
 }
 
 TEST(ModelTest, AddsModules) {
@@ -370,6 +383,11 @@ TEST(ModelTest, AddsFromModule) {
   EXPECT_TRUE(model.AddConstant("k", Type::INT, Identifier::New("g"), &errors));
   EXPECT_TRUE(model.AddConstant("f", Type::INT, Literal::New(17), &errors));
   EXPECT_TRUE(model.AddConstant("g", Type::INT, Literal::New(42), &errors));
+  EXPECT_TRUE(model.AddFormula(
+      "guard", BinaryOperation::New(BinaryOperator::LESS, Identifier::New("i"),
+                                    Identifier::New("c")),
+      &errors));
+
   EXPECT_TRUE(model.StartModule("M1"));
   EXPECT_TRUE(model.AddIntVariable("i", Literal::New(0), Identifier::New("c"),
                                    Identifier::New("f"), &errors));
@@ -384,11 +402,7 @@ TEST(ModelTest, AddsFromModule) {
           BinaryOperator::DIVIDE, Literal::New(1), Identifier::New("i"))),
       std::move(updates));
   EXPECT_TRUE(model.AddCommand(
-      Command("a",
-              BinaryOperation::New(BinaryOperator::LESS, Identifier::New("i"),
-                                   Identifier::New("c")),
-              std::move(outcomes)),
-      &errors));
+      Command("a", Identifier::New("guard"), std::move(outcomes)), &errors));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M2"));
   EXPECT_TRUE(model.AddFromModule(
@@ -455,17 +469,18 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
                                    nullptr, &errors));
   EXPECT_TRUE(model.AddBoolVariable("b", nullptr, &errors));
+  EXPECT_TRUE(model.AddFormula("f", Literal::New(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M1"));
   EXPECT_TRUE(model.AddCommand(
       Command("a", Literal::New(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
-  EXPECT_TRUE(errors.empty());
-  errors.clear();
+  ASSERT_TRUE(errors.empty());
 
   EXPECT_FALSE(model.AddConstant("c", Type::INT, nullptr, &errors));
   EXPECT_FALSE(model.AddIntVariable("c", Literal::New(17), Literal::New(42),
                                     nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("c", nullptr, &errors));
+  EXPECT_FALSE(model.AddFormula("c", Literal::New(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M2"));
   EXPECT_FALSE(model.AddCommand(
       Command("c", Literal::New(true), NewSimpleOutcomes()), &errors));
@@ -474,6 +489,7 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
       std::vector<std::string>({"duplicate constant c",
                                 "variable c previously defined as constant",
                                 "variable c previously defined as constant",
+                                "formula c previously defined as constant",
                                 "action c previously defined as constant"}),
       errors);
   errors.clear();
@@ -482,6 +498,7 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_FALSE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
                                     nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("i", nullptr, &errors));
+  EXPECT_FALSE(model.AddFormula("i", Literal::New(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M3"));
   EXPECT_FALSE(model.AddCommand(
       Command("i", Literal::New(true), NewSimpleOutcomes()), &errors));
@@ -489,6 +506,7 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_EQ(
       std::vector<std::string>({"constant i previously defined as variable",
                                 "duplicate variable i", "duplicate variable i",
+                                "formula i previously defined as variable",
                                 "action i previously defined as variable"}),
       errors);
   errors.clear();
@@ -497,6 +515,7 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_FALSE(model.AddIntVariable("b", Literal::New(17), Literal::New(42),
                                     nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("b", nullptr, &errors));
+  EXPECT_FALSE(model.AddFormula("b", Literal::New(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M4"));
   EXPECT_FALSE(model.AddCommand(
       Command("b", Literal::New(true), NewSimpleOutcomes()), &errors));
@@ -504,7 +523,26 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_EQ(
       std::vector<std::string>({"constant b previously defined as variable",
                                 "duplicate variable b", "duplicate variable b",
+                                "formula b previously defined as variable",
                                 "action b previously defined as variable"}),
+      errors);
+  errors.clear();
+
+  EXPECT_FALSE(model.AddConstant("f", Type::INT, nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("f", Literal::New(17), Literal::New(42),
+                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddBoolVariable("f", nullptr, &errors));
+  EXPECT_FALSE(model.AddFormula("f", Literal::New(0.5), &errors));
+  EXPECT_TRUE(model.StartModule("M5"));
+  EXPECT_FALSE(model.AddCommand(
+      Command("f", Literal::New(true), NewSimpleOutcomes()), &errors));
+  model.EndModule();
+  EXPECT_EQ(
+      std::vector<std::string>({"constant f previously defined as formula",
+                                "variable f previously defined as formula",
+                                "variable f previously defined as formula",
+                                "duplicate formula f",
+                                "action f previously defined as formula"}),
       errors);
   errors.clear();
 
@@ -512,6 +550,7 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_FALSE(model.AddIntVariable("a", Literal::New(17), Literal::New(42),
                                     nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("a", nullptr, &errors));
+  EXPECT_FALSE(model.AddFormula("a", Literal::New(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M6"));
   // NOTE: It is fine to use the same action label multiple times.
   EXPECT_TRUE(model.AddCommand(
@@ -520,7 +559,8 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   EXPECT_EQ(
       std::vector<std::string>({"constant a previously defined as action",
                                 "variable a previously defined as action",
-                                "variable a previously defined as action"}),
+                                "variable a previously defined as action",
+                                "formula a previously defined as action"}),
       errors);
   errors.clear();
 }

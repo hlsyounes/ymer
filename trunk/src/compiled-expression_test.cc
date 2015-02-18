@@ -692,16 +692,16 @@ TEST(CompiledExpressionEvaluatorTest, EvaluatesMod) {
 
 TEST(CompileExpressionTest, IntLiteral) {
   const CompileExpressionResult result1 =
-      CompileExpression(Literal(17), Type::INT, {}, {});
+      CompileExpression(Literal(17), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0)}),
             result1.expr.operations());
   const CompileExpressionResult result2 =
-      CompileExpression(Literal(17), Type::DOUBLE, {}, {});
+      CompileExpression(Literal(17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeI2D(0)}),
             result2.expr.operations());
   const CompileExpressionResult result3 =
-      CompileExpression(Literal(17), Type::BOOL, {}, {});
+      CompileExpression(Literal(17), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
@@ -710,17 +710,17 @@ TEST(CompileExpressionTest, IntLiteral) {
 
 TEST(CompileExpressionTest, DoubleLiteral) {
   const CompileExpressionResult result1 =
-      CompileExpression(Literal(0.5), Type::INT, {}, {});
+      CompileExpression(Literal(0.5), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
       result1.errors);
   const CompileExpressionResult result2 =
-      CompileExpression(Literal(0.5), Type::DOUBLE, {}, {});
+      CompileExpression(Literal(0.5), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0)}),
             result2.expr.operations());
   const CompileExpressionResult result3 =
-      CompileExpression(Literal(0.5), Type::BOOL, {}, {});
+      CompileExpression(Literal(0.5), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
@@ -729,29 +729,33 @@ TEST(CompileExpressionTest, DoubleLiteral) {
 
 TEST(CompileExpressionTest, BoolLiteral) {
   const CompileExpressionResult result1 =
-      CompileExpression(Literal(true), Type::INT, {}, {});
+      CompileExpression(Literal(true), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
       result1.errors);
   const CompileExpressionResult result2 =
-      CompileExpression(Literal(true), Type::DOUBLE, {}, {});
+      CompileExpression(Literal(true), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
       result2.errors);
   const CompileExpressionResult result3 =
-      CompileExpression(Literal(true), Type::BOOL, {}, {});
+      CompileExpression(Literal(true), Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0)}),
             result3.expr.operations());
   const CompileExpressionResult result4 =
-      CompileExpression(Literal(false), Type::BOOL, {}, {});
+      CompileExpression(Literal(false), Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(0, 0)}),
             result4.expr.operations());
 }
 
 TEST(CompileExpressionTest, Identifier) {
-  std::map<std::string, IdentifierInfo> identifiers_by_name = {
+  const Identifier a("a");
+  const Identifier e("e");
+  const std::map<std::string, const Expression*> formulas_by_name = {{"h", &e},
+                                                                     {"i", &a}};
+  const std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::INT, 0, 0, 1, 0)},
       {"b", IdentifierInfo::Variable(Type::BOOL, 1, 2, 2, false)},
       {"c", IdentifierInfo::Constant(17)},
@@ -759,123 +763,152 @@ TEST(CompileExpressionTest, Identifier) {
       {"e", IdentifierInfo::Variable(Type::DOUBLE, 2, 3, 10, 0.5)},
       {"f", IdentifierInfo::Constant(0.5)}};
 
-  const CompileExpressionResult result1 =
-      CompileExpression(Identifier("a"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result1 = CompileExpression(
+      Identifier("a"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeILOAD(0, 0)}),
             result1.expr.operations());
-  const CompileExpressionResult result2 =
-      CompileExpression(Identifier("a"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result2 = CompileExpression(
+      Identifier("a"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeILOAD(0, 0), Operation::MakeI2D(0)}),
             result2.expr.operations());
-  const CompileExpressionResult result3 =
-      CompileExpression(Identifier("a"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result3 = CompileExpression(
+      Identifier("a"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result3.errors);
 
-  const CompileExpressionResult result4 =
-      CompileExpression(Identifier("b"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result4 = CompileExpression(
+      Identifier("b"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
       result4.errors);
-  const CompileExpressionResult result5 =
-      CompileExpression(Identifier("b"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result5 = CompileExpression(
+      Identifier("b"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
       result5.errors);
-  const CompileExpressionResult result6 =
-      CompileExpression(Identifier("b"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result6 = CompileExpression(
+      Identifier("b"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeILOAD(1, 0)}),
             result6.expr.operations());
 
-  const CompileExpressionResult result7 =
-      CompileExpression(Identifier("c"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result7 = CompileExpression(
+      Identifier("c"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0)}),
             result7.expr.operations());
-  const CompileExpressionResult result8 =
-      CompileExpression(Identifier("c"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result8 = CompileExpression(
+      Identifier("c"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeI2D(0)}),
             result8.expr.operations());
-  const CompileExpressionResult result9 =
-      CompileExpression(Identifier("c"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result9 = CompileExpression(
+      Identifier("c"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result9.errors);
 
-  const CompileExpressionResult result10 =
-      CompileExpression(Identifier("d"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result10 = CompileExpression(
+      Identifier("d"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
       result10.errors);
-  const CompileExpressionResult result11 =
-      CompileExpression(Identifier("d"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result11 = CompileExpression(
+      Identifier("d"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
       result11.errors);
-  const CompileExpressionResult result12 =
-      CompileExpression(Identifier("d"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result12 = CompileExpression(
+      Identifier("d"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(0, 0)}),
             result12.expr.operations());
 
-  const CompileExpressionResult result13 =
-      CompileExpression(Identifier("e"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result13 = CompileExpression(
+      Identifier("e"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
             result13.errors);
-  const CompileExpressionResult result14 =
-      CompileExpression(Identifier("e"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result14 = CompileExpression(
+      Identifier("e"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
             result14.errors);
-  const CompileExpressionResult result15 =
-      CompileExpression(Identifier("e"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result15 = CompileExpression(
+      Identifier("e"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
             result15.errors);
 
-  const CompileExpressionResult result16 =
-      CompileExpression(Identifier("f"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result16 = CompileExpression(
+      Identifier("f"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
       result16.errors);
-  const CompileExpressionResult result17 =
-      CompileExpression(Identifier("f"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result17 = CompileExpression(
+      Identifier("f"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0)}),
             result17.expr.operations());
-  const CompileExpressionResult result18 =
-      CompileExpression(Identifier("f"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result18 = CompileExpression(
+      Identifier("f"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result18.errors);
 
-  const CompileExpressionResult result19 =
-      CompileExpression(Identifier("g"), Type::INT, identifiers_by_name, {});
+  const CompileExpressionResult result19 = CompileExpression(
+      Identifier("g"), Type::INT, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>({"undefined identifier 'g' in expression"}),
       result19.errors);
-  const CompileExpressionResult result20 =
-      CompileExpression(Identifier("g"), Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result20 = CompileExpression(
+      Identifier("g"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>({"undefined identifier 'g' in expression"}),
       result20.errors);
 
-  const CompileExpressionResult result21 =
-      CompileExpression(Identifier("g"), Type::DOUBLE, identifiers_by_name, {});
+  const CompileExpressionResult result21 = CompileExpression(
+      Identifier("g"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(
       std::vector<std::string>({"undefined identifier 'g' in expression"}),
       result21.errors);
+
+  const CompileExpressionResult result22 = CompileExpression(
+      Identifier("h"), Type::INT, formulas_by_name, identifiers_by_name, {});
+  EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
+            result22.errors);
+  const CompileExpressionResult result23 = CompileExpression(
+      Identifier("h"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
+  EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
+            result23.errors);
+  const CompileExpressionResult result24 = CompileExpression(
+      Identifier("h"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
+  EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
+            result24.errors);
+
+  const CompileExpressionResult result25 = CompileExpression(
+      Identifier("i"), Type::INT, formulas_by_name, identifiers_by_name, {});
+  EXPECT_EQ(std::vector<Operation>({Operation::MakeILOAD(0, 0)}),
+            result25.expr.operations());
+  const CompileExpressionResult result26 = CompileExpression(
+      Identifier("i"), Type::DOUBLE, formulas_by_name, identifiers_by_name, {});
+  EXPECT_EQ(std::vector<Operation>(
+                {Operation::MakeILOAD(0, 0), Operation::MakeI2D(0)}),
+            result26.expr.operations());
+  const CompileExpressionResult result27 = CompileExpression(
+      Identifier("i"), Type::BOOL, formulas_by_name, identifiers_by_name, {});
+  EXPECT_EQ(
+      std::vector<std::string>(
+          {"type mismatch; expecting expression of type bool; found int"}),
+      result27.errors);
 }
 
 TEST(CompileExpressionTest, MinFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::MIN, 17, 42, 4711), Type::INT, {}, {});
+      MakeFunctionCall(Function::MIN, 17, 42, 4711), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
                  Operation::MakeIMIN(0, 1), Operation::MakeICONST(4711, 1),
@@ -883,32 +916,32 @@ TEST(CompileExpressionTest, MinFunctionCall) {
             result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::MIN, 0.5, -17), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::MIN, 0.5, -17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDMIN(0, 1)}),
             result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::MIN, true), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::MIN, true), Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0)}),
             result3.expr.operations());
 
   const CompileExpressionResult result4 =
-      CompileExpression(MakeFunctionCall(Function::MIN), Type::INT, {}, {});
+      CompileExpression(MakeFunctionCall(Function::MIN), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"min applied to 0 arguments; expecting at least 1 argument"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::MIN, 0.5), Type::INT, {}, {});
+      MakeFunctionCall(Function::MIN, 0.5), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
       result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::MIN, 0.5, true), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::MIN, 0.5, true), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types double and bool"}),
             result6.errors);
@@ -916,7 +949,7 @@ TEST(CompileExpressionTest, MinFunctionCall) {
 
 TEST(CompileExpressionTest, MaxFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::MAX, 17, 42, 4711), Type::INT, {}, {});
+      MakeFunctionCall(Function::MAX, 17, 42, 4711), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
                  Operation::MakeIMAX(0, 1), Operation::MakeICONST(4711, 1),
@@ -924,32 +957,32 @@ TEST(CompileExpressionTest, MaxFunctionCall) {
             result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::MAX, 0.5, -17), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::MAX, 0.5, -17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDMAX(0, 1)}),
             result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::MAX, true), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::MAX, true), Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0)}),
             result3.expr.operations());
 
   const CompileExpressionResult result4 =
-      CompileExpression(MakeFunctionCall(Function::MAX), Type::INT, {}, {});
+      CompileExpression(MakeFunctionCall(Function::MAX), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"max applied to 0 arguments; expecting at least 1 argument"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::MAX, 0.5), Type::INT, {}, {});
+      MakeFunctionCall(Function::MAX, 0.5), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
       result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::MAX, 0.5, true), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::MAX, 0.5, true), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types double and bool"}),
             result6.errors);
@@ -957,40 +990,40 @@ TEST(CompileExpressionTest, MaxFunctionCall) {
 
 TEST(CompileExpressionTest, FloorFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::FLOOR, 17), Type::INT, {}, {});
+      MakeFunctionCall(Function::FLOOR, 17), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<Operation>({Operation::MakeICONST(17, 0),
                               Operation::MakeI2D(0), Operation::MakeFLOOR(0)}),
       result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::FLOOR, 0.5), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::FLOOR, 0.5), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                               Operation::MakeFLOOR(0), Operation::MakeI2D(0)}),
       result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::FLOOR, 0.5), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::FLOOR, 0.5), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result3.errors);
 
-  const CompileExpressionResult result4 =
-      CompileExpression(MakeFunctionCall(Function::FLOOR), Type::INT, {}, {});
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::FLOOR), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"floor applied to 0 arguments; expecting 1 argument"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::FLOOR, 0.5, -17), Type::INT, {}, {});
+      MakeFunctionCall(Function::FLOOR, 0.5, -17), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"floor applied to 2 arguments; expecting 1 argument"}),
             result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::FLOOR, true), Type::INT, {}, {});
+      MakeFunctionCall(Function::FLOOR, true), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type double; found bool"}),
@@ -999,40 +1032,40 @@ TEST(CompileExpressionTest, FloorFunctionCall) {
 
 TEST(CompileExpressionTest, CeilFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::CEIL, 17), Type::INT, {}, {});
+      MakeFunctionCall(Function::CEIL, 17), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<Operation>({Operation::MakeICONST(17, 0),
                               Operation::MakeI2D(0), Operation::MakeCEIL(0)}),
       result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::CEIL, 0.5), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::CEIL, 0.5), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                               Operation::MakeCEIL(0), Operation::MakeI2D(0)}),
       result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::CEIL, 0.5), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::CEIL, 0.5), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result3.errors);
 
-  const CompileExpressionResult result4 =
-      CompileExpression(MakeFunctionCall(Function::CEIL), Type::INT, {}, {});
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::CEIL), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"ceil applied to 0 arguments; expecting 1 argument"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::CEIL, 0.5, -17), Type::INT, {}, {});
+      MakeFunctionCall(Function::CEIL, 0.5, -17), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"ceil applied to 2 arguments; expecting 1 argument"}),
             result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::CEIL, true), Type::INT, {}, {});
+      MakeFunctionCall(Function::CEIL, true), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type double; found bool"}),
@@ -1041,47 +1074,47 @@ TEST(CompileExpressionTest, CeilFunctionCall) {
 
 TEST(CompileExpressionTest, PowFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::POW, 17, 42), Type::INT, {}, {});
+      MakeFunctionCall(Function::POW, 17, 42), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
       result1.errors);
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::POW, 0.5, 2), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::POW, 0.5, 2), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(2, 1),
                  Operation::MakeI2D(1), Operation::MakePOW(0, 1)}),
             result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::POW, 0.5, 2), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::POW, 0.5, 2), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result3.errors);
 
   const CompileExpressionResult result4 = CompileExpression(
-      MakeFunctionCall(Function::POW, 0.5), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::POW, 0.5), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"pow applied to 1 argument; expecting 2 arguments"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::POW, 0.5, 2, -17), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::POW, 0.5, 2, -17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"pow applied to 3 arguments; expecting 2 arguments"}),
             result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::POW, 17, true), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::POW, 17, true), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type double; found bool"}),
       result6.errors);
 
   const CompileExpressionResult result7 = CompileExpression(
-      MakeFunctionCall(Function::POW, true, 17), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::POW, true, 17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type double; found bool"}),
@@ -1090,47 +1123,47 @@ TEST(CompileExpressionTest, PowFunctionCall) {
 
 TEST(CompileExpressionTest, LogFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::LOG, 17, 42), Type::INT, {}, {});
+      MakeFunctionCall(Function::LOG, 17, 42), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
       result1.errors);
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::LOG, 0.5, 2), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::LOG, 0.5, 2), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(2, 1),
                  Operation::MakeI2D(1), Operation::MakeLOG(0, 1)}),
             result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::LOG, 0.5, 2), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::LOG, 0.5, 2), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result3.errors);
 
   const CompileExpressionResult result4 = CompileExpression(
-      MakeFunctionCall(Function::LOG, 0.5), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::LOG, 0.5), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"log applied to 1 argument; expecting 2 arguments"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::LOG, 0.5, 2, -17), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::LOG, 0.5, 2, -17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"log applied to 3 arguments; expecting 2 arguments"}),
             result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::LOG, 17, true), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::LOG, 17, true), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type double; found bool"}),
       result6.errors);
 
   const CompileExpressionResult result7 = CompileExpression(
-      MakeFunctionCall(Function::LOG, true, 17), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::LOG, true, 17), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type double; found bool"}),
@@ -1139,46 +1172,46 @@ TEST(CompileExpressionTest, LogFunctionCall) {
 
 TEST(CompileExpressionTest, ModFunctionCall) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeFunctionCall(Function::MOD, 17, 42), Type::INT, {}, {});
+      MakeFunctionCall(Function::MOD, 17, 42), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeMOD(0, 1)}),
             result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      MakeFunctionCall(Function::MOD, 17, 42), Type::DOUBLE, {}, {});
+      MakeFunctionCall(Function::MOD, 17, 42), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
                  Operation::MakeMOD(0, 1), Operation::MakeI2D(0)}),
             result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      MakeFunctionCall(Function::MOD, 17, 42), Type::BOOL, {}, {});
+      MakeFunctionCall(Function::MOD, 17, 42), Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result3.errors);
 
-  const CompileExpressionResult result4 =
-      CompileExpression(MakeFunctionCall(Function::MOD, 17), Type::INT, {}, {});
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeFunctionCall(Function::MOD, 17), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"mod applied to 1 argument; expecting 2 arguments"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeFunctionCall(Function::MOD, 17, 42, 4711), Type::INT, {}, {});
+      MakeFunctionCall(Function::MOD, 17, 42, 4711), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"mod applied to 3 arguments; expecting 2 arguments"}),
             result5.errors);
 
   const CompileExpressionResult result6 = CompileExpression(
-      MakeFunctionCall(Function::MOD, 17, true), Type::INT, {}, {});
+      MakeFunctionCall(Function::MOD, 17, true), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting argument of type int; found bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 = CompileExpression(
-      MakeFunctionCall(Function::MOD, 0.5, 17), Type::INT, {}, {});
+      MakeFunctionCall(Function::MOD, 0.5, 17), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting argument of type int; found double"}),
@@ -1188,14 +1221,14 @@ TEST(CompileExpressionTest, ModFunctionCall) {
 TEST(CompileExpressionTest, Negation) {
   const CompileExpressionResult result1 =
       CompileExpression(UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeINEG(0)}),
             result1.expr.operations());
 
   const CompileExpressionResult result2 =
       CompileExpression(UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<Operation>({Operation::MakeICONST(17, 0),
                               Operation::MakeINEG(0), Operation::MakeI2D(0)}),
@@ -1203,21 +1236,21 @@ TEST(CompileExpressionTest, Negation) {
 
   const CompileExpressionResult result3 = CompileExpression(
       UnaryOperation(UnaryOperator::NEGATE, Literal::New(0.5)), Type::DOUBLE,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeDNEG(0)}),
             result3.expr.operations());
 
   const CompileExpressionResult result4 = CompileExpression(
       UnaryOperation(UnaryOperator::NEGATE, Literal::New(true)), Type::INT, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator - applied to bool"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
       UnaryOperation(UnaryOperator::NEGATE, Literal::New(0.5)), Type::INT, {},
-      {});
+      {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
@@ -1227,27 +1260,28 @@ TEST(CompileExpressionTest, Negation) {
 TEST(CompileExpressionTest, LogicalNot) {
   const CompileExpressionResult result1 =
       CompileExpression(UnaryOperation(UnaryOperator::NOT, Literal::New(true)),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeNOT(0)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 = CompileExpression(
-      UnaryOperation(UnaryOperator::NOT, Literal::New(17)), Type::BOOL, {}, {});
+  const CompileExpressionResult result2 =
+      CompileExpression(UnaryOperation(UnaryOperator::NOT, Literal::New(17)),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator ! applied to int"}),
             result2.errors);
 
   const CompileExpressionResult result3 =
       CompileExpression(UnaryOperation(UnaryOperator::NOT, Literal::New(0.5)),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator ! applied to double"}),
             result3.errors);
 
   const CompileExpressionResult result4 =
       CompileExpression(UnaryOperation(UnaryOperator::NOT, Literal::New(true)),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1255,7 +1289,7 @@ TEST(CompileExpressionTest, LogicalNot) {
 
   const CompileExpressionResult result5 =
       CompileExpression(UnaryOperation(UnaryOperator::NOT, Literal::New(true)),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
@@ -1264,7 +1298,7 @@ TEST(CompileExpressionTest, LogicalNot) {
 
 TEST(CompileExpressionTest, Plus) {
   const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::PLUS, 17, 42), Type::INT, {}, {});
+      MakeBinaryOperation(BinaryOperator::PLUS, 17, 42), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeIADD(0, 1)}),
@@ -1272,7 +1306,7 @@ TEST(CompileExpressionTest, Plus) {
 
   const CompileExpressionResult result2 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::PLUS, 0.5, -17),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDADD(0, 1)}),
@@ -1280,35 +1314,39 @@ TEST(CompileExpressionTest, Plus) {
 
   const CompileExpressionResult result3 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::PLUS, 0.5, 2.0),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDADD(0, 1)}),
             result3.expr.operations());
 
-  const CompileExpressionResult result4 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::PLUS, 0.5, 2), Type::BOOL, {}, {});
+  const CompileExpressionResult result4 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::PLUS, 0.5, 2),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result4.errors);
 
-  const CompileExpressionResult result5 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::PLUS, 17, true), Type::INT, {}, {});
+  const CompileExpressionResult result5 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::PLUS, 17, true),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator + applied to bool"}),
             result5.errors);
 
-  const CompileExpressionResult result6 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::PLUS, true, 17), Type::INT, {}, {});
+  const CompileExpressionResult result6 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::PLUS, true, 17),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator + applied to bool"}),
             result6.errors);
 }
 
 TEST(CompileExpressionTest, Minus) {
-  const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::MINUS, 17, 42), Type::INT, {}, {});
+  const CompileExpressionResult result1 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::MINUS, 17, 42),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeISUB(0, 1)}),
@@ -1316,7 +1354,7 @@ TEST(CompileExpressionTest, Minus) {
 
   const CompileExpressionResult result2 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MINUS, 0.5, -17),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDSUB(0, 1)}),
@@ -1324,35 +1362,39 @@ TEST(CompileExpressionTest, Minus) {
 
   const CompileExpressionResult result3 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MINUS, 0.5, 2.0),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDSUB(0, 1)}),
             result3.expr.operations());
 
-  const CompileExpressionResult result4 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::MINUS, 0.5, 2), Type::BOOL, {}, {});
+  const CompileExpressionResult result4 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::MINUS, 0.5, 2),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result4.errors);
 
-  const CompileExpressionResult result5 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::MINUS, 17, true), Type::INT, {}, {});
+  const CompileExpressionResult result5 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::MINUS, 17, true),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator - applied to bool"}),
             result5.errors);
 
-  const CompileExpressionResult result6 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::MINUS, true, 17), Type::INT, {}, {});
+  const CompileExpressionResult result6 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::MINUS, true, 17),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator - applied to bool"}),
             result6.errors);
 }
 
 TEST(CompileExpressionTest, Multiply) {
-  const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::MULTIPLY, 17, 42), Type::INT, {}, {});
+  const CompileExpressionResult result1 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::MULTIPLY, 17, 42),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeIMUL(0, 1)}),
@@ -1360,7 +1402,7 @@ TEST(CompileExpressionTest, Multiply) {
 
   const CompileExpressionResult result2 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MULTIPLY, 0.5, -17),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDMUL(0, 1)}),
@@ -1368,7 +1410,7 @@ TEST(CompileExpressionTest, Multiply) {
 
   const CompileExpressionResult result3 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MULTIPLY, 0.5, 2.0),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDMUL(0, 1)}),
@@ -1376,7 +1418,7 @@ TEST(CompileExpressionTest, Multiply) {
 
   const CompileExpressionResult result4 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MULTIPLY, 0.5, 2),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
@@ -1384,14 +1426,14 @@ TEST(CompileExpressionTest, Multiply) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MULTIPLY, 17, true),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator * applied to bool"}),
             result5.errors);
 
   const CompileExpressionResult result6 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::MULTIPLY, true, 17),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator * applied to bool"}),
             result6.errors);
@@ -1400,7 +1442,7 @@ TEST(CompileExpressionTest, Multiply) {
 TEST(CompileExpressionTest, Divide) {
   const CompileExpressionResult result1 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::DIVIDE, 17, 42),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeICONST(42, 1),
                  Operation::MakeI2D(0), Operation::MakeI2D(1),
@@ -1409,7 +1451,7 @@ TEST(CompileExpressionTest, Divide) {
 
   const CompileExpressionResult result2 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, -17),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDDIV(0, 1)}),
@@ -1417,14 +1459,15 @@ TEST(CompileExpressionTest, Divide) {
 
   const CompileExpressionResult result3 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, 2.0),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDDIV(0, 1)}),
             result3.expr.operations());
 
-  const CompileExpressionResult result4 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, 2), Type::INT, {}, {});
+  const CompileExpressionResult result4 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::DIVIDE, 0.5, 2),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found double"}),
@@ -1432,14 +1475,14 @@ TEST(CompileExpressionTest, Divide) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::DIVIDE, 17, true),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator / applied to bool"}),
             result5.errors);
 
   const CompileExpressionResult result6 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::DIVIDE, true, 17),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator / applied to bool"}),
             result6.errors);
@@ -1448,26 +1491,29 @@ TEST(CompileExpressionTest, Divide) {
 TEST(CompileExpressionTest, And) {
   const CompileExpressionResult result1 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::AND, true, false),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeIFFALSE(0, 3),
                                     Operation::MakeICONST(0, 0)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::AND, 17, false), Type::BOOL, {}, {});
+  const CompileExpressionResult result2 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::AND, 17, false),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator & applied to int"}),
             result2.errors);
 
-  const CompileExpressionResult result3 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::AND, true, 0.5), Type::BOOL, {}, {});
+  const CompileExpressionResult result3 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::AND, true, 0.5),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator & applied to double"}),
             result3.errors);
 
-  const CompileExpressionResult result4 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::AND, true, false), Type::INT, {}, {});
+  const CompileExpressionResult result4 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::AND, true, false),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1475,7 +1521,7 @@ TEST(CompileExpressionTest, And) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::AND, true, false),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
@@ -1483,27 +1529,31 @@ TEST(CompileExpressionTest, And) {
 }
 
 TEST(CompileExpressionTest, Or) {
-  const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::OR, true, false), Type::BOOL, {}, {});
+  const CompileExpressionResult result1 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::OR, true, false),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeIFTRUE(0, 3),
                                     Operation::MakeICONST(0, 0)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::OR, 17, false), Type::BOOL, {}, {});
+  const CompileExpressionResult result2 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::OR, 17, false),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator | applied to int"}),
             result2.errors);
 
-  const CompileExpressionResult result3 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::OR, true, 0.5), Type::BOOL, {}, {});
+  const CompileExpressionResult result3 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::OR, true, 0.5),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator | applied to double"}),
             result3.errors);
 
-  const CompileExpressionResult result4 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::OR, true, false), Type::INT, {}, {});
+  const CompileExpressionResult result4 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::OR, true, false),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1511,7 +1561,7 @@ TEST(CompileExpressionTest, Or) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::OR, true, false),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
@@ -1521,7 +1571,7 @@ TEST(CompileExpressionTest, Or) {
 TEST(CompileExpressionTest, Imply) {
   const CompileExpressionResult result1 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IMPLY, true, false),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeNOT(0),
                  Operation::MakeIFTRUE(0, 4), Operation::MakeICONST(0, 0)}),
@@ -1529,21 +1579,21 @@ TEST(CompileExpressionTest, Imply) {
 
   const CompileExpressionResult result2 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IMPLY, 17, false),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator => applied to int"}),
             result2.errors);
 
   const CompileExpressionResult result3 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IMPLY, true, 0.5),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator => applied to double"}),
             result3.errors);
 
   const CompileExpressionResult result4 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IMPLY, true, false),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1551,7 +1601,7 @@ TEST(CompileExpressionTest, Imply) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IMPLY, true, false),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
@@ -1561,26 +1611,29 @@ TEST(CompileExpressionTest, Imply) {
 TEST(CompileExpressionTest, Iff) {
   const CompileExpressionResult result1 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IFF, true, false),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeIEQ(0, 1)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::IFF, 17, false), Type::BOOL, {}, {});
+  const CompileExpressionResult result2 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::IFF, 17, false),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator <=> applied to int"}),
             result2.errors);
 
-  const CompileExpressionResult result3 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::IFF, true, 0.5), Type::BOOL, {}, {});
+  const CompileExpressionResult result3 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::IFF, true, 0.5),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator <=> applied to double"}),
             result3.errors);
 
-  const CompileExpressionResult result4 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::IFF, true, false), Type::INT, {}, {});
+  const CompileExpressionResult result4 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::IFF, true, false),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1588,7 +1641,7 @@ TEST(CompileExpressionTest, Iff) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::IFF, true, false),
-                        Type::DOUBLE, {}, {});
+                        Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type double; found bool"}),
@@ -1596,22 +1649,25 @@ TEST(CompileExpressionTest, Iff) {
 }
 
 TEST(CompileExpressionTest, Less) {
-  const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::LESS, 17, 42), Type::BOOL, {}, {});
+  const CompileExpressionResult result1 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::LESS, 17, 42),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeILT(0, 1)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::LESS, 0.5, -17), Type::BOOL, {}, {});
+  const CompileExpressionResult result2 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::LESS, 0.5, -17),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDLT(0, 1)}),
             result2.expr.operations());
 
-  const CompileExpressionResult result3 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::LESS, 0.5, 2.0), Type::BOOL, {}, {});
+  const CompileExpressionResult result3 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::LESS, 0.5, 2.0),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDLT(0, 1)}),
@@ -1619,27 +1675,29 @@ TEST(CompileExpressionTest, Less) {
 
   const CompileExpressionResult result4 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::LESS, true, false),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeILT(0, 1)}),
             result4.expr.operations());
 
   const CompileExpressionResult result5 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::LESS, 0.5, 2), Type::INT, {}, {});
+      MakeBinaryOperation(BinaryOperator::LESS, 0.5, 2), Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
       result5.errors);
 
-  const CompileExpressionResult result6 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::LESS, 17, true), Type::BOOL, {}, {});
+  const CompileExpressionResult result6 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::LESS, 17, true),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types int and bool"}),
             result6.errors);
 
-  const CompileExpressionResult result7 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::LESS, true, 0.5), Type::BOOL, {}, {});
+  const CompileExpressionResult result7 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::LESS, true, 0.5),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types bool and double"}),
             result7.errors);
@@ -1648,7 +1706,7 @@ TEST(CompileExpressionTest, Less) {
 TEST(CompileExpressionTest, LessEqual) {
   const CompileExpressionResult result1 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 17, 42),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeILE(0, 1)}),
@@ -1656,7 +1714,7 @@ TEST(CompileExpressionTest, LessEqual) {
 
   const CompileExpressionResult result2 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 0.5, -17), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDLE(0, 1)}),
@@ -1664,7 +1722,7 @@ TEST(CompileExpressionTest, LessEqual) {
 
   const CompileExpressionResult result3 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 0.5, 2.0), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDLE(0, 1)}),
@@ -1672,7 +1730,7 @@ TEST(CompileExpressionTest, LessEqual) {
 
   const CompileExpressionResult result4 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::LESS_EQUAL, true, false), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeILE(0, 1)}),
@@ -1680,7 +1738,7 @@ TEST(CompileExpressionTest, LessEqual) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 0.5, 2),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1688,14 +1746,14 @@ TEST(CompileExpressionTest, LessEqual) {
 
   const CompileExpressionResult result6 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::LESS_EQUAL, 17, true), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types int and bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::LESS_EQUAL, true, 0.5), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types bool and double"}),
             result7.errors);
@@ -1704,7 +1762,7 @@ TEST(CompileExpressionTest, LessEqual) {
 TEST(CompileExpressionTest, GreaterEqual) {
   const CompileExpressionResult result1 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 17, 42), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeIGE(0, 1)}),
@@ -1712,7 +1770,7 @@ TEST(CompileExpressionTest, GreaterEqual) {
 
   const CompileExpressionResult result2 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 0.5, -17), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDGE(0, 1)}),
@@ -1720,7 +1778,7 @@ TEST(CompileExpressionTest, GreaterEqual) {
 
   const CompileExpressionResult result3 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 0.5, 2.0), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDGE(0, 1)}),
@@ -1728,7 +1786,7 @@ TEST(CompileExpressionTest, GreaterEqual) {
 
   const CompileExpressionResult result4 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, true, false),
-      Type::BOOL, {}, {});
+      Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeIGE(0, 1)}),
@@ -1736,7 +1794,7 @@ TEST(CompileExpressionTest, GreaterEqual) {
 
   const CompileExpressionResult result5 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 0.5, 2), Type::INT, {},
-      {});
+      {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1744,22 +1802,23 @@ TEST(CompileExpressionTest, GreaterEqual) {
 
   const CompileExpressionResult result6 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, 17, true), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types int and bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER_EQUAL, true, 0.5), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types bool and double"}),
             result7.errors);
 }
 
 TEST(CompileExpressionTest, Greater) {
-  const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::GREATER, 17, 42), Type::BOOL, {}, {});
+  const CompileExpressionResult result1 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::GREATER, 17, 42),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeIGT(0, 1)}),
@@ -1767,7 +1826,7 @@ TEST(CompileExpressionTest, Greater) {
 
   const CompileExpressionResult result2 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::GREATER, 0.5, -17),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDGT(0, 1)}),
@@ -1775,7 +1834,7 @@ TEST(CompileExpressionTest, Greater) {
 
   const CompileExpressionResult result3 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::GREATER, 0.5, 2.0),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDGT(0, 1)}),
@@ -1783,14 +1842,15 @@ TEST(CompileExpressionTest, Greater) {
 
   const CompileExpressionResult result4 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::GREATER, true, false), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeIGT(0, 1)}),
             result4.expr.operations());
 
-  const CompileExpressionResult result5 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::GREATER, 0.5, 2), Type::INT, {}, {});
+  const CompileExpressionResult result5 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::GREATER, 0.5, 2),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1798,36 +1858,39 @@ TEST(CompileExpressionTest, Greater) {
 
   const CompileExpressionResult result6 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::GREATER, 17, true),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types int and bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::GREATER, true, 0.5),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types bool and double"}),
             result7.errors);
 }
 
 TEST(CompileExpressionTest, Equal) {
-  const CompileExpressionResult result1 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::EQUAL, 17, 42), Type::BOOL, {}, {});
+  const CompileExpressionResult result1 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, 17, 42),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeIEQ(0, 1)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, -17), Type::BOOL, {}, {});
+  const CompileExpressionResult result2 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, -17),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDEQ(0, 1)}),
             result2.expr.operations());
 
-  const CompileExpressionResult result3 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, 2.0), Type::BOOL, {}, {});
+  const CompileExpressionResult result3 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, 2.0),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDEQ(0, 1)}),
@@ -1835,28 +1898,30 @@ TEST(CompileExpressionTest, Equal) {
 
   const CompileExpressionResult result4 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, true, false),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeIEQ(0, 1)}),
             result4.expr.operations());
 
-  const CompileExpressionResult result5 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, 2), Type::INT, {}, {});
+  const CompileExpressionResult result5 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, 0.5, 2),
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
       result5.errors);
 
-  const CompileExpressionResult result6 = CompileExpression(
-      MakeBinaryOperation(BinaryOperator::EQUAL, 17, true), Type::BOOL, {}, {});
+  const CompileExpressionResult result6 =
+      CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, 17, true),
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types int and bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::EQUAL, true, 0.5),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types bool and double"}),
             result7.errors);
@@ -1865,7 +1930,7 @@ TEST(CompileExpressionTest, Equal) {
 TEST(CompileExpressionTest, NotEqual) {
   const CompileExpressionResult result1 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 17, 42),
-                        Type::BOOL, {}, {});
+                        Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(17, 0),
                                     Operation::MakeICONST(42, 1),
                                     Operation::MakeINE(0, 1)}),
@@ -1873,7 +1938,7 @@ TEST(CompileExpressionTest, NotEqual) {
 
   const CompileExpressionResult result2 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 0.5, -17), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeICONST(-17, 1),
                  Operation::MakeI2D(1), Operation::MakeDNE(0, 1)}),
@@ -1881,7 +1946,7 @@ TEST(CompileExpressionTest, NotEqual) {
 
   const CompileExpressionResult result3 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 0.5, 2.0), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeDCONST(0.5, 0),
                                     Operation::MakeDCONST(2.0, 1),
                                     Operation::MakeDNE(0, 1)}),
@@ -1889,7 +1954,7 @@ TEST(CompileExpressionTest, NotEqual) {
 
   const CompileExpressionResult result4 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::NOT_EQUAL, true, false), Type::BOOL,
-      {}, {});
+      {}, {}, {});
   EXPECT_EQ(std::vector<Operation>({Operation::MakeICONST(1, 0),
                                     Operation::MakeICONST(0, 1),
                                     Operation::MakeINE(0, 1)}),
@@ -1897,7 +1962,7 @@ TEST(CompileExpressionTest, NotEqual) {
 
   const CompileExpressionResult result5 =
       CompileExpression(MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 0.5, 2),
-                        Type::INT, {}, {});
+                        Type::INT, {}, {}, {});
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type int; found bool"}),
@@ -1905,14 +1970,14 @@ TEST(CompileExpressionTest, NotEqual) {
 
   const CompileExpressionResult result6 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::NOT_EQUAL, 17, true), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types int and bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 = CompileExpression(
       MakeBinaryOperation(BinaryOperator::NOT_EQUAL, true, 0.5), Type::BOOL, {},
-      {});
+      {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible argument types bool and double"}),
             result7.errors);
@@ -1920,31 +1985,31 @@ TEST(CompileExpressionTest, NotEqual) {
 
 TEST(CompileExpressionTest, Conditional) {
   const CompileExpressionResult result1 =
-      CompileExpression(MakeConditional(true, 17, 42), Type::INT, {}, {});
+      CompileExpression(MakeConditional(true, 17, 42), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 5),
                  Operation::MakeICONST(17, 0), Operation::MakeNOP(),
                  Operation::MakeGOTO(6), Operation::MakeICONST(42, 0)}),
             result1.expr.operations());
 
-  const CompileExpressionResult result2 =
-      CompileExpression(MakeConditional(true, 0.5, 42), Type::DOUBLE, {}, {});
+  const CompileExpressionResult result2 = CompileExpression(
+      MakeConditional(true, 0.5, 42), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 4),
                  Operation::MakeDCONST(0.5, 0), Operation::MakeGOTO(6),
                  Operation::MakeICONST(42, 0), Operation::MakeI2D(0)}),
             result2.expr.operations());
 
-  const CompileExpressionResult result3 =
-      CompileExpression(MakeConditional(true, 17, 0.5), Type::DOUBLE, {}, {});
+  const CompileExpressionResult result3 = CompileExpression(
+      MakeConditional(true, 17, 0.5), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 5),
                  Operation::MakeICONST(17, 0), Operation::MakeI2D(0),
                  Operation::MakeGOTO(6), Operation::MakeDCONST(0.5, 0)}),
             result3.expr.operations());
 
-  const CompileExpressionResult result4 =
-      CompileExpression(MakeConditional(true, false, true), Type::BOOL, {}, {});
+  const CompileExpressionResult result4 = CompileExpression(
+      MakeConditional(true, false, true), Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeIFFALSE(0, 4),
                  Operation::MakeICONST(0, 0), Operation::MakeGOTO(5),
@@ -1952,19 +2017,19 @@ TEST(CompileExpressionTest, Conditional) {
             result4.expr.operations());
 
   const CompileExpressionResult result5 =
-      CompileExpression(MakeConditional(4711, 17, 42), Type::INT, {}, {});
+      CompileExpression(MakeConditional(4711, 17, 42), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting condition of type bool; found int"}),
             result5.errors);
 
-  const CompileExpressionResult result6 =
-      CompileExpression(MakeConditional(true, 0.5, true), Type::DOUBLE, {}, {});
+  const CompileExpressionResult result6 = CompileExpression(
+      MakeConditional(true, 0.5, true), Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible branch types double and bool"}),
             result6.errors);
 
   const CompileExpressionResult result7 =
-      CompileExpression(MakeConditional(true, true, 17), Type::INT, {}, {});
+      CompileExpression(MakeConditional(true, true, 17), Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; incompatible branch types bool and int"}),
             result7.errors);
@@ -1976,28 +2041,28 @@ TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
       UntilProperty::New(0, std::numeric_limits<double>::infinity(),
                          Literal::New(true), Identifier::New("a")));
   const CompileExpressionResult result =
-      CompileExpression(expr, Type::BOOL, {}, {});
+      CompileExpression(expr, Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"unexpected probability threshold operation in expression"}),
             result.errors);
 }
 
 TEST(CompileExpressionTest, ComplexExpression) {
+  const BinaryOperation f(BinaryOperator::EQUAL, Identifier::New("a"),
+                          Literal::New(17));
+  const std::map<std::string, const Expression*> formulas_by_name = {{"f", &f}};
   const std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::INT, 0, 0, 1, 17)},
       {"b", IdentifierInfo::Variable(Type::BOOL, 1, 2, 2, false)},
       {"c", IdentifierInfo::Variable(Type::INT, 2, 3, 4, 42)}};
   const BinaryOperation expr(
       BinaryOperator::AND,
-      BinaryOperation::New(
-          BinaryOperator::AND,
-          BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("a"),
-                               Literal::New(17)),
-          Identifier::New("b")),
+      BinaryOperation::New(BinaryOperator::AND, Identifier::New("f"),
+                           Identifier::New("b")),
       BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("c"),
                            Literal::New(42)));
-  const CompileExpressionResult result =
-      CompileExpression(expr, Type::BOOL, identifiers_by_name, {});
+  const CompileExpressionResult result = CompileExpression(
+      expr, Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeILOAD(0, 0), Operation::MakeICONST(17, 1),
                  Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 5),

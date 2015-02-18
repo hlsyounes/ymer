@@ -307,6 +307,17 @@ void AddBoolVariable(const YYLTYPE& location, const std::string* name,
   }
 }
 
+void AddFormula(const YYLTYPE& location, const std::string* name,
+                const Expression* expr, ParserState* state) {
+  std::vector<std::string> errors;
+  if (!state->mutable_model()->AddFormula(*WrapUnique(name), WrapUnique(expr),
+                                          &errors)) {
+    for (const auto& error : errors) {
+      yyerror(location, error, state);
+    }
+  }
+}
+
 void StartModule(const YYLTYPE& location, const std::string* name,
                  ParserState* state) {
   auto name_ptr = WrapUnique(name);
@@ -515,6 +526,7 @@ model_component : model_type
                 | constant
                 | global
                 | module
+                | formula
                 | init
                 | rewards
                 ;
@@ -649,6 +661,10 @@ updates : update
 update : '(' IDENTIFIER PRIME '=' expr ')'
            { $$ = NewUpdate($2, $5); }
        ;
+
+formula : FORMULA IDENTIFIER '=' expr ';'
+            { AddFormula(yylloc, $2, $4, state); }
+        ;
 
 init : INIT expr ENDINIT
          { SetInit($2); }

@@ -756,6 +756,7 @@ namespace {
 class ExpressionCompiler : public ExpressionVisitor {
  public:
   explicit ExpressionCompiler(
+      const std::map<std::string, const Expression*>* formulas_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       std::vector<std::string>* errors);
 
@@ -776,14 +777,19 @@ class ExpressionCompiler : public ExpressionVisitor {
   std::vector<Operation> operations_;
   int dst_;
   Type type_;
+  const std::map<std::string, const Expression*>* formulas_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   std::vector<std::string>* errors_;
 };
 
 ExpressionCompiler::ExpressionCompiler(
+    const std::map<std::string, const Expression*>* formulas_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     std::vector<std::string>* errors)
-    : dst_(0), identifiers_by_name_(identifiers_by_name), errors_(errors) {}
+    : dst_(0),
+      formulas_by_name_(formulas_by_name),
+      identifiers_by_name_(identifiers_by_name),
+      errors_(errors) {}
 
 void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
   TypedValue value = expr.value();
@@ -803,6 +809,11 @@ void ExpressionCompiler::DoVisitLiteral(const Literal& expr) {
 }
 
 void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
+  auto f = formulas_by_name_->find(expr.name());
+  if (f != formulas_by_name_->end()) {
+    f->second->Accept(this);
+    return;
+  }
   auto i = identifiers_by_name_->find(expr.name());
   if (i == identifiers_by_name_->end()) {
     errors_->push_back(
@@ -1229,6 +1240,7 @@ void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
 class ExpressionToAddConverter : public ExpressionVisitor {
  public:
   explicit ExpressionToAddConverter(
+      const std::map<std::string, const Expression*>* formulas_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       const DecisionDiagramManager* dd_manager);
 
@@ -1245,14 +1257,17 @@ class ExpressionToAddConverter : public ExpressionVisitor {
       const ProbabilityThresholdOperation& expr) override;
 
   ADD add_;
+  const std::map<std::string, const Expression*>* formulas_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   const DecisionDiagramManager* dd_manager_;
 };
 
 ExpressionToAddConverter::ExpressionToAddConverter(
+    const std::map<std::string, const Expression*>* formulas_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const DecisionDiagramManager* dd_manager)
     : add_(dd_manager->GetConstant(0)),
+      formulas_by_name_(formulas_by_name),
       identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager) {}
 
@@ -1265,6 +1280,11 @@ void ExpressionToAddConverter::DoVisitLiteral(const Literal& expr) {
 }
 
 void ExpressionToAddConverter::DoVisitIdentifier(const Identifier& expr) {
+  auto j = formulas_by_name_->find(expr.name());
+  if (j != formulas_by_name_->end()) {
+    j->second->Accept(this);
+    return;
+  }
   auto i = identifiers_by_name_->find(expr.name());
   CHECK(i != identifiers_by_name_->end());
   add_ = IdentifierToAdd(*dd_manager_, i->second);
@@ -1395,10 +1415,11 @@ void ExpressionToAddConverter::DoVisitProbabilityThresholdOperation(
 
 Optional<ADD> ExpressionToAdd(
     const Expression& expr,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   if (dd_manager.has_value()) {
-    ExpressionToAddConverter converter(&identifiers_by_name,
+    ExpressionToAddConverter converter(&formulas_by_name, &identifiers_by_name,
                                        &dd_manager.value());
     expr.Accept(&converter);
     return converter.add();
@@ -1430,10 +1451,12 @@ IdentifierInfo IdentifierInfo::Constant(const TypedValue& value) {
 
 CompileExpressionResult CompileExpression(
     const Expression& expr, Type expected_type,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   CompileExpressionResult result;
-  ExpressionCompiler compiler(&identifiers_by_name, &result.errors);
+  ExpressionCompiler compiler(&formulas_by_name, &identifiers_by_name,
+                              &result.errors);
   expr.Accept(&compiler);
   if (!result.errors.empty()) {
     return result;
@@ -1449,7 +1472,8 @@ CompileExpressionResult CompileExpression(
     return result;
   }
   result.expr = CompiledExpression(
-      operations, ExpressionToAdd(expr, identifiers_by_name, dd_manager));
+      operations,
+      ExpressionToAdd(expr, formulas_by_name, identifiers_by_name, dd_manager));
   return result;
 }
 

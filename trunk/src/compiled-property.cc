@@ -308,6 +308,7 @@ class CompilerState {
   bool has_expr() const { return expr_ != nullptr; }
 
   std::unique_ptr<const CompiledProperty> ReleaseProperty(
+      const std::map<std::string, const Expression*>& formulas_by_name,
       const std::map<std::string, IdentifierInfo>& identifiers_by_name,
       const Optional<DecisionDiagramManager>& dd_manager,
       std::vector<std::string>* errors);
@@ -325,13 +326,14 @@ CompilerState::CompilerState(std::unique_ptr<const CompiledProperty>&& property)
 CompilerState::CompilerState(const Expression* expr) : expr_(expr) {}
 
 std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   if (has_expr()) {
     CHECK(expr_);
-    CompileExpressionResult result =
-        CompileExpression(*expr_, Type::BOOL, identifiers_by_name, dd_manager);
+    CompileExpressionResult result = CompileExpression(
+        *expr_, Type::BOOL, formulas_by_name, identifiers_by_name, dd_manager);
     property_ = CompiledExpressionProperty::New(result.expr);
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
   }
@@ -341,13 +343,15 @@ std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
 class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
  public:
   PropertyCompiler(
+      const std::map<std::string, const Expression*>* formulas_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       const Optional<DecisionDiagramManager>* dd_manager,
       std::vector<std::string>* errors);
 
   std::unique_ptr<const CompiledProperty> release_property(
       CompilerState* state) {
-    return state->ReleaseProperty(*identifiers_by_name_, *dd_manager_, errors_);
+    return state->ReleaseProperty(*formulas_by_name_, *identifiers_by_name_,
+                                  *dd_manager_, errors_);
   }
 
   std::unique_ptr<const CompiledProperty> release_property() {
@@ -368,16 +372,19 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
   CompilerState state_;
   int next_path_property_index_;
   std::unique_ptr<const CompiledPathProperty> path_property_;
+  const std::map<std::string, const Expression*>* formulas_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   const Optional<DecisionDiagramManager>* dd_manager_;
   std::vector<std::string>* errors_;
 };
 
 PropertyCompiler::PropertyCompiler(
+    const std::map<std::string, const Expression*>* formulas_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const Optional<DecisionDiagramManager>* dd_manager,
     std::vector<std::string>* errors)
     : next_path_property_index_(0),
+      formulas_by_name_(formulas_by_name),
       identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager),
       errors_(errors) {}
@@ -545,10 +552,12 @@ void PropertyCompiler::DoVisitUntilProperty(
 
 CompilePropertyResult CompileProperty(
     const Expression& expr,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   CompilePropertyResult result;
-  PropertyCompiler compiler(&identifiers_by_name, &dd_manager, &result.errors);
+  PropertyCompiler compiler(&formulas_by_name, &identifiers_by_name,
+                            &dd_manager, &result.errors);
   expr.Accept(&compiler);
   result.property = compiler.release_property();
   return std::move(result);

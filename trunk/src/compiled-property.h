@@ -269,11 +269,12 @@ struct CompilePropertyResult {
 };
 
 // Compiles the given expression property, expecting it to be of type bool, and
-// using the given identifier name to info map to compile identifiers.  On
-// error, the result contains a null compiled property and the errors vector
-// will be populated with error messages.
+// using the given formula name to expression map and identifier name to info
+// map to compile identifiers.  On error, the result contains a null compiled
+// property and the errors vector will be populated with error messages.
 CompilePropertyResult CompileProperty(
     const Expression& expr,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager);
 
