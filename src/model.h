@@ -134,9 +134,11 @@ class ParsedConstant {
 // overrides for init expressions, and this is required for constants with no
 // init expression.  Populates errors with messages describing any errors that
 // are detected during constant resolution.
-void ResolveConstants(const std::vector<ParsedConstant>& constants,
-                      std::map<std::string, TypedValue>* constant_values,
-                      std::vector<std::string>* errors);
+void ResolveConstants(
+    const std::vector<ParsedConstant>& constants,
+    const std::map<std::string, const Expression*>& formulas_by_name,
+    std::map<std::string, TypedValue>* constant_values,
+    std::vector<std::string>* errors);
 
 // A parsed variable.
 class ParsedVariable {
@@ -174,6 +176,24 @@ class ParsedVariable {
   std::unique_ptr<const Expression> min_;
   std::unique_ptr<const Expression> max_;
   std::unique_ptr<const Expression> init_;
+};
+
+// A parsed formula.
+class ParsedFormula {
+ public:
+  // Constructs a parsed formula with the given name and expression.
+  explicit ParsedFormula(const std::string& name,
+                         std::unique_ptr<const Expression>&& expr);
+
+  // Returns the name for this parsed formula.
+  const std::string& name() const { return name_; }
+
+  // Returns the expression for this parsed formula.
+  const Expression& expr() const { return *expr_; }
+
+ private:
+  std::string name_;
+  std::unique_ptr<const Expression> expr_;
 };
 
 // A parsed module.
@@ -243,6 +263,13 @@ class Model {
                        std::unique_ptr<const Expression>&& init,
                        std::vector<std::string>* errors);
 
+  // Adds a formula with the given name and expression to this model.  Returns
+  // false if an identifier with the given name has already been added and adds
+  // a reason for the failure to errors.
+  bool AddFormula(const std::string& name,
+                  std::unique_ptr<const Expression>&& expr,
+                  std::vector<std::string>* errors);
+
   // Marks the start of a new module with the given.  Returns false if a module
   // with the given name already exists.  Requires that no module is currently
   // open.
@@ -278,6 +305,8 @@ class Model {
   // Returns the global variables (just indices) for this model.
   const std::set<int>& global_variables() const { return global_variables_; }
 
+  const std::vector<ParsedFormula>& formulas() const { return formulas_; }
+
   // Returns the modules for this model.
   const std::vector<ParsedModule>& modules() const { return modules_; }
 
@@ -289,7 +318,7 @@ class Model {
 
 private:
   struct IdentifierIndex {
-    enum Type { kConstant, kVariable, kAction } type;
+    enum Type { kConstant, kVariable, kFormula, kAction } type;
     size_t index;
   };
 
@@ -308,6 +337,7 @@ private:
   std::vector<ParsedConstant> constants_;
   std::vector<ParsedVariable> variables_;
   std::set<int> global_variables_;
+  std::vector<ParsedFormula> formulas_;
   int current_module_;
   std::map<std::string, int> module_indices_;
   std::vector<ParsedModule> modules_;

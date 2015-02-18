@@ -245,11 +245,12 @@ bool read_file(const std::string& filename, ModelAndProperties* result,
 
 CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
-  CompileExpressionResult result =
-      CompileExpression(expr, expected_type, identifiers_by_name, dd_manager);
+  CompileExpressionResult result = CompileExpression(
+      expr, expected_type, formulas_by_name, identifiers_by_name, dd_manager);
   if (!result.errors.empty()) {
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
     return CompiledExpression();
@@ -264,6 +265,7 @@ CompiledExpression CompileAndOptimizeExpression(
 class DistributionCompiler : public DistributionVisitor {
  public:
   DistributionCompiler(
+      const std::map<std::string, const Expression*>* formulas_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       const Optional<DecisionDiagramManager>* dd_manager,
       std::vector<std::string>* errors);
@@ -286,33 +288,38 @@ class DistributionCompiler : public DistributionVisitor {
 
   CompiledExpression markov_weight_;
   CompiledGsmpDistribution gsmp_delay_;
+  const std::map<std::string, const Expression*>* formulas_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   const Optional<DecisionDiagramManager>* dd_manager_;
   std::vector<std::string>* errors_;
 };
 
 DistributionCompiler::DistributionCompiler(
+    const std::map<std::string, const Expression*>* formulas_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const Optional<DecisionDiagramManager>* dd_manager,
     std::vector<std::string>* errors)
     : markov_weight_({}),
       gsmp_delay_(CompiledGsmpDistribution::MakeWeibull(0, 0)),
+      formulas_by_name_(formulas_by_name),
       identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager),
       errors_(errors) {
+  CHECK(formulas_by_name);
   CHECK(identifiers_by_name);
   CHECK(errors);
 }
 
 void DistributionCompiler::DoVisitMemoryless(const Memoryless& dist) {
-  markov_weight_ = CompileAndOptimizeExpression(dist.weight(), Type::DOUBLE,
-                                                *identifiers_by_name_,
-                                                *dd_manager_, errors_);
+  markov_weight_ = CompileAndOptimizeExpression(
+      dist.weight(), Type::DOUBLE, *formulas_by_name_, *identifiers_by_name_,
+      *dd_manager_, errors_);
 }
 
 double DistributionCompiler::GetDoubleValue(const Expression& expr) {
   CompiledExpression compiled_expr = CompileAndOptimizeExpression(
-      expr, Type::DOUBLE, *identifiers_by_name_, *dd_manager_, errors_);
+      expr, Type::DOUBLE, *formulas_by_name_, *identifiers_by_name_,
+      *dd_manager_, errors_);
   if (errors_->empty()) {
     if (compiled_expr.operations().size() == 1 &&
         compiled_expr.operations()[0].opcode() == Opcode::DCONST &&
@@ -354,6 +361,7 @@ void DistributionCompiler::DoVisitUniform(const Uniform& dist) {
 
 CompiledUpdate CompileUpdate(
     const Update& update,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
@@ -369,32 +377,44 @@ CompiledUpdate CompileUpdate(
   } else {
     variable = i->second.variable_index();
   }
-  return CompiledUpdate(variable, CompileAndOptimizeExpression(
-                                      update.expr(), Type::INT,
-                                      identifiers_by_name, dd_manager, errors));
+  return CompiledUpdate(
+      variable,
+      CompileAndOptimizeExpression(update.expr(), Type::INT, formulas_by_name,
+                                   identifiers_by_name, dd_manager, errors));
 }
 
 std::vector<CompiledUpdate> CompileUpdates(
     const std::vector<Update>& updates,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   std::vector<CompiledUpdate> compiled_updates;
   compiled_updates.reserve(updates.size());
   for (const auto& update : updates) {
-    compiled_updates.push_back(
-        CompileUpdate(update, identifiers_by_name, dd_manager, errors));
+    compiled_updates.push_back(CompileUpdate(
+        update, formulas_by_name, identifiers_by_name, dd_manager, errors));
   }
   return compiled_updates;
 }
 
+std::map<std::string, const Expression*> GetFormulasByName(
+    const std::vector<ParsedFormula>& formulas) {
+  std::map<std::string, const Expression*> formulas_by_name;
+  for (const auto& formula : formulas) {
+    formulas_by_name.emplace(formula.name(), &formula.expr());
+  }
+  return formulas_by_name;
+}
+
 std::map<std::string, IdentifierInfo> GetConstantIdentifiersByName(
     const std::vector<ParsedConstant>& constants,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, TypedValue>& constant_overrides,
     std::vector<std::string>* errors) {
   std::map<std::string, IdentifierInfo> identifiers_by_name;
   std::map<std::string, TypedValue> constant_values = constant_overrides;
-  ResolveConstants(constants, &constant_values, errors);
+  ResolveConstants(constants, formulas_by_name, &constant_values, errors);
   for (const auto& entry : constant_values) {
     identifiers_by_name.emplace(entry.first,
                                 IdentifierInfo::Constant(entry.second));
@@ -404,10 +424,11 @@ std::map<std::string, IdentifierInfo> GetConstantIdentifiersByName(
 
 int GetIntValue(
     const Expression& expr, Type expected_type,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     std::vector<std::string>* errors) {
   CompiledExpression compiled_expr = CompileAndOptimizeExpression(
-      expr, expected_type, identifiers_by_name, {}, errors);
+      expr, expected_type, formulas_by_name, identifiers_by_name, {}, errors);
   if (errors->empty()) {
     if (compiled_expr.operations().size() == 1 &&
         compiled_expr.operations()[0].opcode() == Opcode::ICONST &&
@@ -428,15 +449,19 @@ struct CompileVariablesResult {
 
 CompileVariablesResult CompileVariables(
     const std::vector<ParsedVariable>& parsed_variables,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     std::map<std::string, IdentifierInfo>* identifiers_by_name,
     std::vector<std::string>* errors) {
   CompileVariablesResult result;
   int index = 0;
   int low_bit = 0;
   for (const auto& v : parsed_variables) {
-    int min = GetIntValue(v.min(), v.type(), *identifiers_by_name, errors);
-    int max = GetIntValue(v.max(), v.type(), *identifiers_by_name, errors);
-    int init = GetIntValue(v.init(), v.type(), *identifiers_by_name, errors);
+    int min = GetIntValue(v.min(), v.type(), formulas_by_name,
+                          *identifiers_by_name, errors);
+    int max = GetIntValue(v.max(), v.type(), formulas_by_name,
+                          *identifiers_by_name, errors);
+    int init = GetIntValue(v.init(), v.type(), formulas_by_name,
+                           *identifiers_by_name, errors);
     if (min >= max) {
       errors->push_back(StrCat("empty domain [", min, "..", max,
                                "] for variable ", v.name()));
@@ -550,23 +575,27 @@ struct PreCompiledCommands {
 
 PreCompiledCommands PreCompileCommands(
     const Model& model,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   PreCompiledCommands result;
-  DistributionCompiler dist_compiler(&identifiers_by_name, &dd_manager, errors);
+  DistributionCompiler dist_compiler(&formulas_by_name, &identifiers_by_name,
+                                     &dd_manager, errors);
   std::vector<CompiledMarkovOutcome> markov_outcomes;
   for (size_t module_index = 0; module_index < model.modules().size();
        ++module_index) {
     const auto& module = model.modules()[module_index];
     for (const auto& command : module.commands()) {
       const auto compiled_guard = CompileAndOptimizeExpression(
-          command.guard(), Type::BOOL, identifiers_by_name, dd_manager, errors);
+          command.guard(), Type::BOOL, formulas_by_name, identifiers_by_name,
+          dd_manager, errors);
       markov_outcomes.clear();
       for (const auto& outcome : command.outcomes()) {
         outcome.delay().Accept(&dist_compiler);
-        const auto compiled_updates = CompileUpdates(
-            outcome.updates(), identifiers_by_name, dd_manager, errors);
+        const auto compiled_updates =
+            CompileUpdates(outcome.updates(), formulas_by_name,
+                           identifiers_by_name, dd_manager, errors);
         if (dist_compiler.has_markov_weight()) {
           markov_outcomes.emplace_back(dist_compiler.markov_weight(),
                                        compiled_updates);
@@ -725,12 +754,13 @@ std::vector<int> FactoredMarkovCommandOffsets(
 
 CompiledCommands CompileCommands(
     const Model& model,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledCommands result;
-  const PreCompiledCommands pre_compiled_commands =
-      PreCompileCommands(model, identifiers_by_name, dd_manager, errors);
+  const PreCompiledCommands pre_compiled_commands = PreCompileCommands(
+      model, formulas_by_name, identifiers_by_name, dd_manager, errors);
   result.single_markov_commands = pre_compiled_commands.single_markov_commands;
   result.single_gsmp_commands = pre_compiled_commands.single_gsmp_commands;
 
@@ -866,18 +896,17 @@ CompiledExpression OptimizeWithAssignment(
 }
 
 CompiledModel CompileModel(
-    const Model& model,
-    const std::vector<StateVariableInfo>& variables,
-    const std::vector<int>& init_values,
-    const std::vector<int>& max_values,
-    std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Model& model, const std::vector<StateVariableInfo>& variables,
+    const std::vector<int>& init_values, const std::vector<int>& max_values,
+    const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledModel compiled_model(CompileModelType(model.type(), errors),
                                variables, init_values);
 
-  const auto& compiled_commands =
-      CompileCommands(model, identifiers_by_name, dd_manager, errors);
+  const auto& compiled_commands = CompileCommands(
+      model, formulas_by_name, identifiers_by_name, dd_manager, errors);
 
   int pivot_variable = -1;
   std::vector<std::vector<CompiledMarkovCommand>>
@@ -949,11 +978,12 @@ CompiledModel CompileModel(
 
 std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const Expression& property,
+    const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
-  CompilePropertyResult result =
-      CompileProperty(property, identifiers_by_name, dd_manager);
+  CompilePropertyResult result = CompileProperty(
+      property, formulas_by_name, identifiers_by_name, dd_manager);
   if (!result.errors.empty()) {
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
   }
@@ -1323,17 +1353,19 @@ int main(int argc, char* argv[]) {
     }
     const Model& model = parse_result.model.value();
     VLOG(2) << model;
+    const std::map<std::string, const Expression*> formulas_by_name =
+        GetFormulasByName(model.formulas());
     std::map<std::string, IdentifierInfo> identifiers_by_name =
-        GetConstantIdentifiersByName(model.constants(), const_overrides,
-                                     &errors);
+        GetConstantIdentifiersByName(model.constants(), formulas_by_name,
+                                     const_overrides, &errors);
     if (!errors.empty()) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ":" << error << std::endl;
       }
       return 1;
     }
-    auto compile_variables_result =
-        CompileVariables(model.variables(), &identifiers_by_name, &errors);
+    auto compile_variables_result = CompileVariables(
+        model.variables(), formulas_by_name, &identifiers_by_name, &errors);
     Optional<DecisionDiagramManager> dd_manager;
     if (params.engine == ModelCheckingEngine::HYBRID ||
         params.engine == ModelCheckingEngine::MIXED) {
@@ -1343,13 +1375,14 @@ int main(int argc, char* argv[]) {
     const CompiledModel compiled_model =
         CompileModel(model, compile_variables_result.variables,
                      compile_variables_result.init_values,
-                     compile_variables_result.max_values, identifiers_by_name,
-                     dd_manager, &errors);
+                     compile_variables_result.max_values, formulas_by_name,
+                     identifiers_by_name, dd_manager, &errors);
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();
     UniquePtrVector<const CompiledProperty> compiled_properties;
     for (const Expression& property : parse_result.properties) {
-      compiled_properties.push_back(CompileAndOptimizeProperty(
-          property, identifiers_by_name, dd_manager, &errors));
+      compiled_properties.push_back(
+          CompileAndOptimizeProperty(property, formulas_by_name,
+                                     identifiers_by_name, dd_manager, &errors));
       auto property_reg_counts =
           GetPropertyRegisterCounts(compiled_properties.back());
       reg_counts.first = std::max(reg_counts.first, property_reg_counts.first);
