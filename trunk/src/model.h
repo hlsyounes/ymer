@@ -178,17 +178,17 @@ class ParsedVariable {
   std::unique_ptr<const Expression> init_;
 };
 
-// A parsed formula.
-class ParsedFormula {
+// A named expression.
+class NamedExpression {
  public:
-  // Constructs a parsed formula with the given name and expression.
-  explicit ParsedFormula(const std::string& name,
-                         std::unique_ptr<const Expression>&& expr);
+  // Constructs a named expression.
+  explicit NamedExpression(const std::string& name,
+                           std::unique_ptr<const Expression>&& expr);
 
-  // Returns the name for this parsed formula.
+  // Returns the name.
   const std::string& name() const { return name_; }
 
-  // Returns the expression for this parsed formula.
+  // Returns the expression.
   const Expression& expr() const { return *expr_; }
 
  private:
@@ -270,6 +270,11 @@ class Model {
                   std::unique_ptr<const Expression>&& expr,
                   std::vector<std::string>* errors);
 
+  // Adds a label with the given name and expression to this model.  Returns
+  // false if a label with the given name has already been added.
+  bool AddLabel(const std::string& name,
+                std::unique_ptr<const Expression>&& expr);
+
   // Marks the start of a new module with the given.  Returns false if a module
   // with the given name already exists.  Requires that no module is currently
   // open.
@@ -305,7 +310,11 @@ class Model {
   // Returns the global variables (just indices) for this model.
   const std::set<int>& global_variables() const { return global_variables_; }
 
-  const std::vector<ParsedFormula>& formulas() const { return formulas_; }
+  // Returns the formulas for this model.
+  const std::vector<NamedExpression>& formulas() const { return formulas_; }
+
+  // Returns the labels for this model.
+  const std::vector<NamedExpression>& labels() const { return labels_; }
 
   // Returns the modules for this model.
   const std::vector<ParsedModule>& modules() const { return modules_; }
@@ -337,7 +346,8 @@ private:
   std::vector<ParsedConstant> constants_;
   std::vector<ParsedVariable> variables_;
   std::set<int> global_variables_;
-  std::vector<ParsedFormula> formulas_;
+  std::vector<NamedExpression> formulas_;
+  std::vector<NamedExpression> labels_;
   int current_module_;
   std::map<std::string, int> module_indices_;
   std::vector<ParsedModule> modules_;

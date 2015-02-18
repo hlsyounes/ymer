@@ -398,13 +398,14 @@ std::vector<CompiledUpdate> CompileUpdates(
   return compiled_updates;
 }
 
-std::map<std::string, const Expression*> GetFormulasByName(
-    const std::vector<ParsedFormula>& formulas) {
-  std::map<std::string, const Expression*> formulas_by_name;
-  for (const auto& formula : formulas) {
-    formulas_by_name.emplace(formula.name(), &formula.expr());
+std::map<std::string, const Expression*> GetExpressionsByName(
+    const std::vector<NamedExpression>& named_expressions) {
+  std::map<std::string, const Expression*> expressions_by_name;
+  for (const auto& named_expression : named_expressions) {
+    expressions_by_name.emplace(named_expression.name(),
+                                &named_expression.expr());
   }
-  return formulas_by_name;
+  return expressions_by_name;
 }
 
 std::map<std::string, IdentifierInfo> GetConstantIdentifiersByName(
@@ -979,11 +980,13 @@ CompiledModel CompileModel(
 std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const Expression& property,
     const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
-  CompilePropertyResult result = CompileProperty(
-      property, formulas_by_name, identifiers_by_name, dd_manager);
+  CompilePropertyResult result =
+      CompileProperty(property, formulas_by_name, labels_by_name,
+                      identifiers_by_name, dd_manager);
   if (!result.errors.empty()) {
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
   }
@@ -1354,7 +1357,9 @@ int main(int argc, char* argv[]) {
     const Model& model = parse_result.model.value();
     VLOG(2) << model;
     const std::map<std::string, const Expression*> formulas_by_name =
-        GetFormulasByName(model.formulas());
+        GetExpressionsByName(model.formulas());
+    const std::map<std::string, const Expression*> labels_by_name =
+        GetExpressionsByName(model.labels());
     std::map<std::string, IdentifierInfo> identifiers_by_name =
         GetConstantIdentifiersByName(model.constants(), formulas_by_name,
                                      const_overrides, &errors);
@@ -1381,7 +1386,7 @@ int main(int argc, char* argv[]) {
     UniquePtrVector<const CompiledProperty> compiled_properties;
     for (const Expression& property : parse_result.properties) {
       compiled_properties.push_back(
-          CompileAndOptimizeProperty(property, formulas_by_name,
+          CompileAndOptimizeProperty(property, formulas_by_name, labels_by_name,
                                      identifiers_by_name, dd_manager, &errors));
       auto property_reg_counts =
           GetPropertyRegisterCounts(compiled_properties.back());

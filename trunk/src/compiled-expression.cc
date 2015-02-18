@@ -767,6 +767,7 @@ class ExpressionCompiler : public ExpressionVisitor {
  private:
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -851,6 +852,10 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
       return;
   }
   LOG(FATAL) << "bad type";
+}
+
+void ExpressionCompiler::DoVisitLabel(const Label& expr) {
+  errors_->push_back("unexpected label in expression");
 }
 
 void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -1249,6 +1254,7 @@ class ExpressionToAddConverter : public ExpressionVisitor {
  private:
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -1288,6 +1294,11 @@ void ExpressionToAddConverter::DoVisitIdentifier(const Identifier& expr) {
   auto i = identifiers_by_name_->find(expr.name());
   CHECK(i != identifiers_by_name_->end());
   add_ = IdentifierToAdd(*dd_manager_, i->second);
+
+}
+
+void ExpressionToAddConverter::DoVisitLabel(const Label& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 void ExpressionToAddConverter::DoVisitFunctionCall(const FunctionCall& expr) {

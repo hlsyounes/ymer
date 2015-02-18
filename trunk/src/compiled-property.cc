@@ -344,6 +344,7 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
  public:
   PropertyCompiler(
       const std::map<std::string, const Expression*>* formulas_by_name,
+      const std::map<std::string, const Expression*>* labels_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       const Optional<DecisionDiagramManager>* dd_manager,
       std::vector<std::string>* errors);
@@ -361,6 +362,7 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
  private:
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -373,6 +375,7 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
   int next_path_property_index_;
   std::unique_ptr<const CompiledPathProperty> path_property_;
   const std::map<std::string, const Expression*>* formulas_by_name_;
+  const std::map<std::string, const Expression*>* labels_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   const Optional<DecisionDiagramManager>* dd_manager_;
   std::vector<std::string>* errors_;
@@ -380,11 +383,13 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
 
 PropertyCompiler::PropertyCompiler(
     const std::map<std::string, const Expression*>* formulas_by_name,
+    const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const Optional<DecisionDiagramManager>* dd_manager,
     std::vector<std::string>* errors)
     : next_path_property_index_(0),
       formulas_by_name_(formulas_by_name),
+      labels_by_name_(labels_by_name),
       identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager),
       errors_(errors) {}
@@ -395,6 +400,15 @@ void PropertyCompiler::DoVisitLiteral(const Literal& expr) {
 
 void PropertyCompiler::DoVisitIdentifier(const Identifier& expr) {
   state_ = CompilerState(&expr);
+}
+
+void PropertyCompiler::DoVisitLabel(const Label& expr) {
+  auto i = labels_by_name_->find(expr.name());
+  if (i == labels_by_name_->end()) {
+    errors_->push_back(StrCat("undefined label ", expr.name(), " in property"));
+    return;
+  }
+  i->second->Accept(this);
 }
 
 void PropertyCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -553,11 +567,12 @@ void PropertyCompiler::DoVisitUntilProperty(
 CompilePropertyResult CompileProperty(
     const Expression& expr,
     const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   CompilePropertyResult result;
-  PropertyCompiler compiler(&formulas_by_name, &identifiers_by_name,
-                            &dd_manager, &result.errors);
+  PropertyCompiler compiler(&formulas_by_name, &labels_by_name,
+                            &identifiers_by_name, &dd_manager, &result.errors);
   expr.Accept(&compiler);
   result.property = compiler.release_property();
   return std::move(result);

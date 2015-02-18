@@ -28,17 +28,17 @@ namespace {
 TEST(CompilePropertyTest, Literal) {
   const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 =
-      CompileProperty(Literal(true), {}, {}, dd_manager);
+      CompileProperty(Literal(true), {}, {}, {}, dd_manager);
   const std::string expected1 = "0: ICONST 1 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 =
-      CompileProperty(Literal(17), {}, {}, dd_manager);
+      CompileProperty(Literal(17), {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result2.errors);
   const CompilePropertyResult result3 =
-      CompileProperty(Literal(0.5), {}, {}, dd_manager);
+      CompileProperty(Literal(0.5), {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
@@ -60,48 +60,71 @@ TEST(CompilePropertyTest, Identifier) {
       {"f", IdentifierInfo::Constant(0.5)}};
 
   const CompilePropertyResult result1 = CompileProperty(
-      Identifier("a"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("a"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result1.errors);
   const CompilePropertyResult result2 = CompileProperty(
-      Identifier("b"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("b"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   const std::string expected2 = "0: ILOAD 1 0";
   EXPECT_EQ(expected2, StrCat(*result2.property));
   const CompilePropertyResult result3 = CompileProperty(
-      Identifier("c"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("c"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result3.errors);
   const CompilePropertyResult result4 = CompileProperty(
-      Identifier("d"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("d"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   const std::string expected4 = "0: ICONST 0 0";
   EXPECT_EQ(expected4, StrCat(*result4.property));
   const CompilePropertyResult result5 = CompileProperty(
-      Identifier("e"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("e"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
             result5.errors);
   const CompilePropertyResult result6 = CompileProperty(
-      Identifier("f"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("f"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
       result6.errors);
   const CompilePropertyResult result7 = CompileProperty(
-      Identifier("g"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("g"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>({"undefined identifier 'g' in expression"}),
       result7.errors);
   const CompilePropertyResult result8 = CompileProperty(
-      Identifier("h"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("h"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(std::vector<std::string>({"double variables not supported"}),
             result8.errors);
   const CompilePropertyResult result9 = CompileProperty(
-      Identifier("i"), formulas_by_name, identifiers_by_name, dd_manager);
+      Identifier("i"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   const std::string expected9 = "0: ILOAD 1 0";
   EXPECT_EQ(expected9, StrCat(*result9.property));
+}
+
+TEST(CompilePropertyTest, Label) {
+  const Optional<DecisionDiagramManager> dd_manager(2);
+  const Literal t(true);
+  const Identifier b("b");
+  const std::map<std::string, const Expression*> labels_by_name = {
+      {"\"t\"", &t}, {"\"b\"", &b}};
+  const std::map<std::string, IdentifierInfo> identifiers_by_name = {
+      {"b", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
+
+  const CompilePropertyResult result1 = CompileProperty(
+      Label("\"t\""), {}, labels_by_name, identifiers_by_name, dd_manager);
+  const std::string expected1 = "0: ICONST 1 0";
+  EXPECT_EQ(expected1, StrCat(*result1.property));
+  const CompilePropertyResult result2 = CompileProperty(
+      Label("\"b\""), {}, labels_by_name, identifiers_by_name, dd_manager);
+  const std::string expected2 = "0: ILOAD 0 0";
+  EXPECT_EQ(expected2, StrCat(*result2.property));
+  const CompilePropertyResult result3 = CompileProperty(
+      Label("\"a\""), {}, labels_by_name, identifiers_by_name, dd_manager);
+  EXPECT_EQ(std::vector<std::string>({"undefined label \"a\" in property"}),
+            result3.errors);
 }
 
 TEST(CompilePropertyTest, FunctionCall) {
@@ -109,13 +132,13 @@ TEST(CompilePropertyTest, FunctionCall) {
   const CompilePropertyResult result1 = CompileProperty(
       FunctionCall(Function::MAX,
                    UniquePtrVector<const Expression>(Literal::New(false))),
-      {}, {}, dd_manager);
+      {}, {}, {}, dd_manager);
   const std::string expected1 = "0: ICONST 0 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
       FunctionCall(Function::FLOOR,
                    UniquePtrVector<const Expression>(Literal::New(0.5))),
-      {}, {}, dd_manager);
+      {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
@@ -123,7 +146,7 @@ TEST(CompilePropertyTest, FunctionCall) {
   const CompilePropertyResult result3 = CompileProperty(
       FunctionCall(Function::MIN,
                    UniquePtrVector<const Expression>(Literal::New(0.5))),
-      {}, {}, dd_manager);
+      {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found double"}),
@@ -134,7 +157,7 @@ TEST(CompilePropertyTest, UnaryOperation) {
   const Optional<DecisionDiagramManager> dd_manager(2);
   const CompilePropertyResult result1 =
       CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(false)),
-                      {}, {}, dd_manager);
+                      {}, {}, {}, dd_manager);
   const std::string expected1 =
       "0: ICONST 0 0\n"
       "1: NOT 0";
@@ -145,7 +168,7 @@ TEST(CompilePropertyTest, UnaryOperation) {
                          ProbabilityThresholdOperator::GREATER, 0.25,
                          UntilProperty::New(17, 42, Literal::New(true),
                                             Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
       "NOT of:\n"
@@ -158,14 +181,14 @@ TEST(CompilePropertyTest, UnaryOperation) {
   EXPECT_EQ(expected2, StrCat(*result2.property));
   const CompilePropertyResult result3 =
       CompileProperty(UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)),
-                      {}, {}, dd_manager);
+                      {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
       result3.errors);
   const CompilePropertyResult result4 =
       CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(0.5)), {},
-                      {}, dd_manager);
+                      {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator ! applied to double"}),
             result4.errors);
@@ -176,7 +199,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
   const CompilePropertyResult result1 = CompileProperty(
       BinaryOperation(BinaryOperator::AND, Literal::New(false),
                       Identifier::New("a")),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected1 =
       "0: ICONST 0 0\n"
@@ -189,7 +212,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
       "AND of 2 operands:\n"
@@ -209,7 +232,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected3 =
       "OR of 2 operands:\n"
@@ -229,7 +252,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected4 =
       "OR of 2 operands:\n"
@@ -250,7 +273,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected5 =
       "IFF of 2 operands:\n"
@@ -270,7 +293,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected6 =
       "AND of 2 operands:\n"
@@ -291,7 +314,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(expected4, StrCat(*result7.property));
   const CompilePropertyResult result8 = CompileProperty(
@@ -300,7 +323,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected8 =
       "OR of 2 operands:\n"
@@ -321,7 +344,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected9 =
       "AND of 2 operands:\n"
@@ -342,7 +365,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(expected5, StrCat(*result10.property));
   const CompilePropertyResult result11 = CompileProperty(
@@ -351,7 +374,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected11 =
       "NOT of:\n"
@@ -368,7 +391,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
   EXPECT_EQ(expected11, StrCat(*result11.property));
   const CompilePropertyResult result12 = CompileProperty(
       BinaryOperation(BinaryOperator::PLUS, Literal::New(17), Literal::New(42)),
-      {}, {}, dd_manager);
+      {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
@@ -379,7 +402,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator + applied to bool"}),
@@ -390,7 +413,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
                           ProbabilityThresholdOperator::GREATER, 0.25,
                           UntilProperty::New(17, 42, Literal::New(true),
                                              Identifier::New("a")))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
@@ -402,7 +425,7 @@ TEST(CompilePropertyTest, Conditional) {
   const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 = CompileProperty(
       Conditional(Literal::New(true), Literal::New(false), Literal::New(true)),
-      {}, {}, dd_manager);
+      {}, {}, {}, dd_manager);
   const std::string expected1 =
       "0: ICONST 1 0\n"
       "1: IFFALSE 0 4\n"
@@ -412,7 +435,7 @@ TEST(CompilePropertyTest, Conditional) {
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
       Conditional(Literal::New(true), Literal::New(17), Literal::New(42)), {},
-      {}, dd_manager);
+      {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int"}),
@@ -423,7 +446,7 @@ TEST(CompilePropertyTest, Conditional) {
                       UntilProperty::New(17, 42, Literal::New(true),
                                          Identifier::New("a"))),
                   Literal::New(false), Literal::New(true)),
-      {}, {}, dd_manager);
+      {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"unexpected probability threshold operation in expression"}),
             result3.errors);
@@ -435,7 +458,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS, 0.25,
           UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected1 =
       "NOT of:\n"
@@ -450,7 +473,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
           UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
       "NOT of:\n"
@@ -465,7 +488,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
           UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected3 =
       "P >= 0.75\n"
@@ -479,7 +502,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
           UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected4 =
       "P > 0.125\n"
@@ -501,7 +524,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
                   ProbabilityThresholdOperator::GREATER, 0.5,
                   UntilProperty::New(0.5, 17, Literal::New(false),
                                      Identifier::New("a"))))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected5 =
       "P > 0.125\n"
@@ -525,7 +548,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, -2,
           UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"threshold -2 is not a probability"}),
             result6.errors);
@@ -533,7 +556,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 1.5,
           UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"threshold 1.5 is not a probability"}),
             result7.errors);
@@ -541,7 +564,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
           UntilProperty::New(42, 17, Literal::New(true), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"bad time range; 42 > 17"}),
             result8.errors);
@@ -549,7 +572,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
           UntilProperty::New(17, 42, Literal::New(0.5), Identifier::New("a"))),
-      {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
+      {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
@@ -563,12 +586,12 @@ TEST(OptimizePropertyTest, NotProperty) {
       {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
   auto property1 = OptimizeProperty(
       *CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(false)),
-                       {}, {}, dd_manager).property,
+                       {}, {}, {}, dd_manager).property,
       dd_manager);
   const std::string expected1 = "0: ICONST 1 0";
   EXPECT_EQ(expected1, StrCat(*property1));
   auto property2 = OptimizeProperty(
-      CompiledNotProperty(CompileProperty(Identifier("a"), {},
+      CompiledNotProperty(CompileProperty(Identifier("a"), {}, {},
                                           identifiers_by_name,
                                           dd_manager).property),
       dd_manager);
@@ -579,7 +602,7 @@ TEST(OptimizePropertyTest, NotProperty) {
   auto property3 = OptimizeProperty(
       CompiledNotProperty(
           CompileProperty(
-              UnaryOperation(UnaryOperator::NOT, Identifier::New("a")), {},
+              UnaryOperation(UnaryOperator::NOT, Identifier::New("a")), {}, {},
               identifiers_by_name, dd_manager).property),
       dd_manager);
   const std::string expected3 = "0: ILOAD 0 0";
@@ -597,7 +620,7 @@ TEST(OptimizePropertyTest, NotProperty) {
                            UnaryOperator::NOT,
                            UnaryOperation::New(UnaryOperator::NOT,
                                                Identifier::New("a")))))),
-           {}, identifiers_by_name, dd_manager).property,
+           {}, {}, identifiers_by_name, dd_manager).property,
       dd_manager);
   const std::string expected4 =
       "P >= 0.25\n"
@@ -616,21 +639,21 @@ TEST(OptimizePropertyTest, NaryProperty) {
   auto property1 = OptimizeProperty(
       *CompileProperty(BinaryOperation(BinaryOperator::AND, Literal::New(false),
                                        Identifier::New("a")),
-                       {}, identifiers_by_name, dd_manager).property,
+                       {}, {}, identifiers_by_name, dd_manager).property,
       dd_manager);
   const std::string expected1 = "0: ICONST 0 0";
   EXPECT_EQ(expected1, StrCat(*property1));
   auto property2 = OptimizeProperty(
       *CompileProperty(BinaryOperation(BinaryOperator::OR, Literal::New(true),
                                        Identifier::New("a")),
-                       {}, identifiers_by_name, dd_manager).property,
+                       {}, {}, identifiers_by_name, dd_manager).property,
       dd_manager);
   const std::string expected2 = "0: ICONST 1 0";
   EXPECT_EQ(expected2, StrCat(*property2));
   auto property3 = OptimizeProperty(
       *CompileProperty(BinaryOperation(BinaryOperator::IFF, Literal::New(true),
                                        Identifier::New("a")),
-                       {}, identifiers_by_name, dd_manager).property,
+                       {}, {}, identifiers_by_name, dd_manager).property,
       dd_manager);
   const std::string expected3 =
       "0: ICONST 1 0\n"
@@ -641,9 +664,9 @@ TEST(OptimizePropertyTest, NaryProperty) {
       CompiledNaryProperty(
           CompiledNaryOperator::AND, nullptr,
           UniquePtrVector<const CompiledProperty>(
-              CompileProperty(Identifier("a"), {}, identifiers_by_name,
+              CompileProperty(Identifier("a"), {}, {}, identifiers_by_name,
                               dd_manager).property,
-              CompileProperty(Identifier("a"), {}, identifiers_by_name,
+              CompileProperty(Identifier("a"), {}, {}, identifiers_by_name,
                               dd_manager).property)),
       dd_manager);
   const std::string expected4 =

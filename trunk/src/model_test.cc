@@ -295,6 +295,14 @@ TEST(ModelTest, AddsFormulas) {
   EXPECT_EQ("x", StrCat(model.formulas()[1].expr()));
 }
 
+TEST(ModelTest, AddsLabels) {
+  Model model;
+  EXPECT_TRUE(model.AddLabel("a", Literal::New(true)));
+  EXPECT_TRUE(model.AddLabel("b", Identifier::New("x")));
+  EXPECT_TRUE(model.AddLabel("c", Literal::New(false)));
+  EXPECT_FALSE(model.AddLabel("b", Identifier::New("y")));
+}
+
 TEST(ModelTest, AddsModules) {
   Model model;
   EXPECT_TRUE(model.StartModule("M1"));

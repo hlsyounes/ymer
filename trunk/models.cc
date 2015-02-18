@@ -93,6 +93,7 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
  private:
   void DoVisitLiteral(const Literal& expr) override;
   void DoVisitIdentifier(const Identifier& expr) override;
+  void DoVisitLabel(const Label& expr) override;
   void DoVisitFunctionCall(const FunctionCall& expr) override;
   void DoVisitUnaryOperation(const UnaryOperation& expr) override;
   void DoVisitBinaryOperation(const BinaryOperation& expr) override;
@@ -111,6 +112,10 @@ void ConstantExpressionEvaluator::DoVisitLiteral(const Literal& expr) {
 
 void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   LOG(FATAL) << "expecting constant expression";
+}
+
+void ConstantExpressionEvaluator::DoVisitLabel(const Label& expr) {
+  LOG(FATAL) << "not an expression";
 }
 
 void ConstantExpressionEvaluator::DoVisitFunctionCall(
@@ -235,7 +240,7 @@ void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
 
 void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
-  LOG(FATAL) << "expecting constant expression";
+  LOG(FATAL) << "not an expression";
 }
 
 TypedValue EvaluateConstantExpression(const Expression& expr) {
