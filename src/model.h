@@ -214,7 +214,7 @@ class ParsedModule {
   const std::string& name() const { return name_; }
 
   // Returns the indices of variables for this parsed module.
-  std::set<int> variables() const { return variables_; }
+  const std::set<int>& variables() const { return variables_; }
 
   // Returns the commands for this parsed module.
   const std::vector<Command>& commands() const { return commands_; }
@@ -308,7 +308,9 @@ class Model {
   const std::vector<ParsedVariable>& variables() const { return variables_; }
 
   // Returns the global variables (just indices) for this model.
-  const std::set<int>& global_variables() const { return global_variables_; }
+  const std::set<int>& global_variables() const {
+    return global_variables_;
+  }
 
   // Returns the formulas for this model.
   const std::vector<NamedExpression>& formulas() const { return formulas_; }

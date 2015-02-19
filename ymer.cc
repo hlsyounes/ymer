@@ -504,6 +504,17 @@ CompiledModelType CompileModelType(ModelType model_type,
   return CompiledModelType::CTMC;
 }
 
+std::vector<std::set<int>> CompileModuleVariables(const Model& model) {
+  LOG(INFO) << "Compiling module variables: " << model.modules().size();
+  std::vector<std::set<int>> module_variables;
+  module_variables.reserve(model.modules().size());
+  for (const auto& module : model.modules()) {
+    module_variables.push_back(module.variables());
+  }
+  LOG(INFO) << "Done compiling module variables.";
+  return module_variables;
+}
+
 bool IsUnitWeight(const CompiledExpression& weight) {
   return weight.operations().size() == 1 &&
          weight.operations()[0].opcode() == Opcode::DCONST &&
@@ -602,8 +613,8 @@ PreCompiledCommands PreCompileCommands(
                                        compiled_updates);
         } else {
           CompiledGsmpCommand compiled_command(
-              compiled_guard, dist_compiler.gsmp_delay(), compiled_updates,
-              result.single_gsmp_commands.size());
+              module_index, compiled_guard, dist_compiler.gsmp_delay(),
+              compiled_updates, result.single_gsmp_commands.size());
           if (command.action().empty()) {
             result.single_gsmp_commands.push_back(compiled_command);
           } else {
@@ -627,8 +638,8 @@ PreCompiledCommands PreCompileCommands(
                                        weight_sum),
               markov_outcome.updates());
         }
-        CompiledMarkovCommand compiled_command(compiled_guard, weight_sum,
-                                               markov_outcomes);
+        CompiledMarkovCommand compiled_command(module_index, compiled_guard,
+                                               weight_sum, markov_outcomes);
         if (command.action().empty()) {
           result.single_markov_commands.push_back(compiled_command);
         } else {
@@ -702,7 +713,7 @@ CompiledMarkovCommand ComposeMarkovCommands(
     }
   }
   return CompiledMarkovCommand(
-      ComposeGuardExpressions(command1.guard(), command2.guard()),
+      {}, ComposeGuardExpressions(command1.guard(), command2.guard()),
       ComposeWeightExpressions(BinaryOperator::MULTIPLY, command1.weight(),
                                command2.weight()),
       outcomes);
@@ -790,8 +801,8 @@ CompiledCommands CompileCommands(
     if (i == pre_compiled_commands.factored_markov_commands.end()) {
       for (const auto& gsmp_command : gsmp_commands) {
         result.single_gsmp_commands.emplace_back(
-            gsmp_command.guard(), gsmp_command.delay(), gsmp_command.updates(),
-            result.single_gsmp_commands.size());
+            gsmp_module_index, gsmp_command.guard(), gsmp_command.delay(),
+            gsmp_command.updates(), result.single_gsmp_commands.size());
       }
     } else if (IsSimpleComposition(i->second, gsmp_module_index,
                                    (gsmp_commands.size() > 1) ? 0 : 1)) {
@@ -814,8 +825,8 @@ CompiledCommands CompileCommands(
           updates.insert(updates.end(), outcome.updates().begin(),
                          outcome.updates().end());
           result.single_gsmp_commands.emplace_back(
-              ComposeGuardExpressions(gsmp_command.guard(),
-                                      markov_command.guard()),
+              Optional<int>(), ComposeGuardExpressions(gsmp_command.guard(),
+                                                       markov_command.guard()),
               gsmp_command.delay(), updates,
               result.single_gsmp_commands.size());
         }
@@ -904,7 +915,8 @@ CompiledModel CompileModel(
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledModel compiled_model(CompileModelType(model.type(), errors),
-                               variables, init_values);
+                               variables, CompileModuleVariables(model),
+                               init_values);
 
   const auto& compiled_commands = CompileCommands(
       model, formulas_by_name, identifiers_by_name, dd_manager, errors);
@@ -943,7 +955,8 @@ CompiledModel CompileModel(
       }
       if (pivot_element.has_value() && unique) {
         pivoted_commands[pivot_element.value().first - min_value].emplace_back(
-            pivot_element.value().second, command.weight(), command.outcomes());
+            command.module(), pivot_element.value().second, command.weight(),
+            command.outcomes());
       } else {
         other_commands.push_back(command);
       }
