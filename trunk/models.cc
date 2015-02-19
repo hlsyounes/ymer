@@ -479,6 +479,18 @@ BDD VariableIdentityBdd(const DecisionDiagramManager& dd_manager,
          PrimedIdentifierToAdd(dd_manager, variable);
 }
 
+BDD UntouchedVariablesBdd(const DecisionDiagramManager& dd_manager,
+                          const std::vector<IdentifierInfo>& variables,
+                          const std::set<int>& excluded_variables) {
+  BDD updates = dd_manager.GetConstant(true);
+  for (size_t i = variables.size(); i > 0; --i) {
+    if (excluded_variables.find(i - 1) == excluded_variables.end()) {
+      updates = VariableIdentityBdd(dd_manager, variables[i - 1]) && updates;
+    }
+  }
+  return updates;
+}
+
 BDD CompiledUpdateToBdd(const DecisionDiagramManager& dd_manager,
                         const std::vector<IdentifierInfo>& variables,
                         const CompiledUpdate& update) {
@@ -488,31 +500,80 @@ BDD CompiledUpdateToBdd(const DecisionDiagramManager& dd_manager,
 
 ADD CompiledMarkovOutcomeToAdd(const DecisionDiagramManager& dd_manager,
                                const std::vector<IdentifierInfo>& variables,
+                               const std::set<int>* module_variables,
                                const CompiledMarkovOutcome& outcome) {
   BDD updates = dd_manager.GetConstant(true);
-  std::set<int> updated_variables;
+  std::set<int> touched_variables;
   for (const auto& update : outcome.updates()) {
     updates = CompiledUpdateToBdd(dd_manager, variables, update) && updates;
-    updated_variables.insert(update.variable());
+    touched_variables.insert(update.variable());
   }
   for (size_t i = variables.size(); i > 0; --i) {
-    if (updated_variables.find(i - 1) == updated_variables.end()) {
+    // If this is not a touched variable, we need to include a variable
+    // identity in the update if:
+    //
+    //   * the outcome is not associated with any module, or
+    //   * the variable belongs to the associated module.
+    //
+    if (touched_variables.find(i - 1) == touched_variables.end() &&
+        (module_variables == nullptr ||
+         module_variables->find(i - 1) != module_variables->end())) {
       updates = VariableIdentityBdd(dd_manager, variables[i - 1]) && updates;
     }
   }
   return outcome.probability().dd().value() * ADD(updates);
 }
 
-ADD CompiledMarkovCommandToAdd(const DecisionDiagramManager& dd_manager,
-                               const std::vector<IdentifierInfo>& variables,
-                               const CompiledMarkovCommand& command) {
-  ADD outcomes = dd_manager.GetConstant(1);
+ADD CompiledMarkovCommandToAdd(
+    const DecisionDiagramManager& dd_manager,
+    const std::vector<IdentifierInfo>& variables,
+    const std::vector<std::set<int>>& module_variables,
+    bool with_all_untouched_variables, const CompiledMarkovCommand& command) {
+  ADD outcomes = dd_manager.GetConstant(0);
+  const std::set<int>* command_module_variables =
+      command.module().has_value() ? &module_variables[command.module().value()]
+                                   : nullptr;
   for (const auto& outcome : command.outcomes()) {
-    outcomes =
-        CompiledMarkovOutcomeToAdd(dd_manager, variables, outcome) * outcomes;
+    outcomes = CompiledMarkovOutcomeToAdd(dd_manager, variables,
+                                          command_module_variables, outcome) +
+               outcomes;
+  }
+  if (with_all_untouched_variables && command_module_variables != nullptr) {
+    outcomes = ADD(UntouchedVariablesBdd(dd_manager, variables,
+                                         *command_module_variables)) *
+               outcomes;
   }
   return command.guard().dd().value() * command.weight().dd().value() *
          outcomes;
+}
+
+ADD FactoredMarkovCommandsToAdd(
+    const DecisionDiagramManager& dd_manager,
+    const std::vector<IdentifierInfo>& variables,
+    const std::vector<std::set<int>>& module_variables,
+    const std::vector<std::vector<CompiledMarkovCommand>>& command_factors) {
+  ADD action = dd_manager.GetConstant(1);
+  std::set<int> touched_variables;
+  for (size_t i = command_factors.size(); i > 0; --i) {
+    ADD module = dd_manager.GetConstant(0);
+    const auto& module_commands = command_factors[i - 1];
+    for (size_t j = module_commands.size(); j > 0; --j) {
+      const auto& command = module_commands[j - 1];
+      CHECK(command.module().has_value());
+      module = CompiledMarkovCommandToAdd(dd_manager, variables,
+                                          module_variables, false, command) +
+               module;
+      const auto& variables_for_module =
+          module_variables[command.module().value()];
+      touched_variables.insert(variables_for_module.begin(),
+                               variables_for_module.end());
+    }
+    action = module * action;
+  }
+  action =
+      ADD(UntouchedVariablesBdd(dd_manager, variables, touched_variables)) *
+      action;
+  return action;
 }
 
 BDD ReachabilityBdd(const DecisionDiagramManager& dd_manager, const BDD& init,
@@ -596,8 +657,10 @@ DecisionDiagramModel DecisionDiagramModel::Make(
       const auto& commands = pivoted_commands[i - 1];
       for (size_t j = commands.size(); j > 0; --j) {
         const auto& command = commands[j - 1];
-        rate_matrix = variable_assignment * CompiledMarkovCommandToAdd(
-                                                *manager, variables, command) +
+        rate_matrix = variable_assignment *
+                          CompiledMarkovCommandToAdd(*manager, variables,
+                                                     model.module_variables(),
+                                                     true, command) +
                       rate_matrix;
       }
     }
@@ -605,11 +668,15 @@ DecisionDiagramModel DecisionDiagramModel::Make(
   for (size_t i = model.single_markov_commands().size(); i > 0; --i) {
     const auto& command = model.single_markov_commands()[i - 1];
     rate_matrix =
-        CompiledMarkovCommandToAdd(*manager, variables, command) + rate_matrix;
+        CompiledMarkovCommandToAdd(*manager, variables,
+                                   model.module_variables(), true, command) +
+        rate_matrix;
   }
   for (size_t i = model.factored_markov_commands().size(); i > 0; --i) {
-    // TODO(hlsyounes): implement.
-    LOG(FATAL) << "not implemented";
+    rate_matrix = FactoredMarkovCommandsToAdd(
+                      *manager, variables, model.module_variables(),
+                      model.factored_markov_commands()[i - 1]) +
+                  rate_matrix;
   }
   if (model.type() == CompiledModelType::DTMC) {
     // Normalize rate matrix.
