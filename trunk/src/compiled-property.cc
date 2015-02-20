@@ -370,6 +370,8 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
   void DoVisitUntilProperty(const UntilProperty& path_property) override;
+  void DoVisitEventuallyProperty(
+      const EventuallyProperty& path_property) override;
 
   CompilerState state_;
   int next_path_property_index_;
@@ -547,16 +549,34 @@ void PropertyCompiler::DoVisitProbabilityThresholdOperation(
 
 void PropertyCompiler::DoVisitUntilProperty(
     const UntilProperty& path_property) {
-  const double min_time = path_property.min_time();
-  const double max_time = path_property.max_time();
+  const double min_time = path_property.time_range().min();
+  const double max_time = path_property.time_range().max();
   if (min_time > max_time) {
     errors_->push_back(StrCat("bad time range; ", min_time, " > ", max_time));
   }
   const int index = next_path_property_index_;
   ++next_path_property_index_;
   path_property.pre_expr().Accept(this);
-  std::unique_ptr<const CompiledProperty>&& pre_property = release_property();
+  std::unique_ptr<const CompiledProperty> pre_property = release_property();
   path_property.post_expr().Accept(this);
+  path_property_ = CompiledUntilProperty::New(
+      min_time, max_time, std::move(pre_property), release_property(), index,
+      StrCat(path_property));
+}
+
+void PropertyCompiler::DoVisitEventuallyProperty(
+    const EventuallyProperty& path_property) {
+  const double min_time = path_property.time_range().min();
+  const double max_time = path_property.time_range().max();
+  if (min_time > max_time) {
+    errors_->push_back(StrCat("bad time range; ", min_time, " > ", max_time));
+  }
+  const int index = next_path_property_index_;
+  ++next_path_property_index_;
+  Literal pre_expr(true);
+  pre_expr.Accept(this);
+  std::unique_ptr<const CompiledProperty> pre_property = release_property();
+  path_property.expr().Accept(this);
   path_property_ = CompiledUntilProperty::New(
       min_time, max_time, std::move(pre_property), release_property(), index,
       StrCat(path_property));

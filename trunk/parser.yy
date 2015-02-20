@@ -244,11 +244,16 @@ const ProbabilityThresholdOperation* NewProbabilityGreater(
       WrapUnique(path_property));
 }
 
-const UntilProperty* NewUntil(double min_time, double max_time,
+const UntilProperty* NewUntil(const TimeRange* time_range,
                               const Expression* pre_expr,
                               const Expression* post_expr) {
-  return new UntilProperty(min_time, max_time, WrapUnique(pre_expr),
+  return new UntilProperty(*WrapUnique(time_range), WrapUnique(pre_expr),
                            WrapUnique(post_expr));
+}
+
+const EventuallyProperty* NewEventually(const TimeRange* time_range,
+                                        const Expression* expr) {
+  return new EventuallyProperty(*WrapUnique(time_range), WrapUnique(expr));
 }
 
 const Memoryless* NewMemoryless(const Expression* rate) {
@@ -490,6 +495,7 @@ void AddProperty(const Expression* property, ParserState* state) {
   Function function;
   UniquePtrVector<const Expression>* arguments;
   const PathProperty* path;
+  const TimeRange* time_range;
 }
 
 %type <type> constant_type
@@ -505,6 +511,7 @@ void AddProperty(const Expression* property, ParserState* state) {
 %type <function> function
 %type <arguments> arguments
 %type <path> path_property
+%type <time_range> time_range
 
 %destructor { delete $$; } <str>
 %destructor { delete $$; } <substitutions>
@@ -516,6 +523,7 @@ void AddProperty(const Expression* property, ParserState* state) {
 %destructor { delete $$; } <number>
 %destructor { delete $$; } <arguments>
 %destructor { delete $$; } <path>
+%destructor { delete $$; } <time_range>
 
 %%
 
@@ -844,14 +852,20 @@ property : NUMBER
              { $$ = $2; }
          ;
 
-path_property : property U LEQ NUMBER property
-                  { $$ = NewUntil(0, Double($4), $1, $5); }
-              | property U '[' NUMBER ',' NUMBER ']' property
-                  { $$ = NewUntil(Double($4), Double($6), $1, $8); }
-              | property U GEQ NUMBER property
-                  { $$ = NewUntil(Double($4), Infinity(), $1, $5); }
-              | property U property
-                  { $$ = NewUntil(0, Infinity(), $1, $3); }
+path_property : property U time_range property
+                  { $$ = NewUntil($3, $1, $4); }
+              | F time_range property
+                  { $$ = NewEventually($2, $3); }
               ;
+
+time_range : /* empty */
+               { $$ = new TimeRange(0, Infinity()); }
+           | LEQ NUMBER
+               { $$ = new TimeRange(0, Double($2)); }
+           | '[' NUMBER ',' NUMBER ']'
+               { $$ = new TimeRange(Double($2), Double($4)); }
+           | GEQ NUMBER
+               { $$ = new TimeRange(Double($2), Infinity()); }
+           ;
 
 %%

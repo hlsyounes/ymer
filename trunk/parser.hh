@@ -176,7 +176,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 479 "parser.yy" /* yacc.c:1909  */
+#line 484 "parser.yy" /* yacc.c:1909  */
 
   Type type;
   const std::string* str;
@@ -191,8 +191,9 @@ union YYSTYPE
   Function function;
   UniquePtrVector<const Expression>* arguments;
   const PathProperty* path;
+  const TimeRange* time_range;
 
-#line 196 "parser.hh" /* yacc.c:1909  */
+#line 197 "parser.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

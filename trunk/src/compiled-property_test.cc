@@ -166,7 +166,7 @@ TEST(CompilePropertyTest, UnaryOperation) {
       UnaryOperation(UnaryOperator::NOT,
                      ProbabilityThresholdOperation::New(
                          ProbabilityThresholdOperator::GREATER, 0.25,
-                         UntilProperty::New(17, 42, Literal::New(true),
+                         UntilProperty::New({17, 42}, Literal::New(true),
                                             Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -207,11 +207,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "2: ILOAD 0 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
-      BinaryOperation(BinaryOperator::AND, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
-                                             Identifier::New("a")))),
+      BinaryOperation(
+          BinaryOperator::AND, Literal::New(false),
+          ProbabilityThresholdOperation::New(
+              ProbabilityThresholdOperator::GREATER, 0.25,
+              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
@@ -230,7 +230,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
       BinaryOperation(BinaryOperator::OR, Literal::New(false),
                       ProbabilityThresholdOperation::New(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
+                          UntilProperty::New({17, 42}, Literal::New(true),
                                              Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -247,11 +247,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected3, StrCat(*result3.property));
   const CompilePropertyResult result4 = CompileProperty(
-      BinaryOperation(BinaryOperator::IMPLY, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
-                                             Identifier::New("a")))),
+      BinaryOperation(
+          BinaryOperator::IMPLY, Literal::New(false),
+          ProbabilityThresholdOperation::New(
+              ProbabilityThresholdOperator::GREATER, 0.25,
+              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected4 =
@@ -271,7 +271,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
       BinaryOperation(BinaryOperator::IFF, Literal::New(false),
                       ProbabilityThresholdOperation::New(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
+                          UntilProperty::New({17, 42}, Literal::New(true),
                                              Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -288,11 +288,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected5, StrCat(*result5.property));
   const CompilePropertyResult result6 = CompileProperty(
-      BinaryOperation(BinaryOperator::LESS, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
-                                             Identifier::New("a")))),
+      BinaryOperation(
+          BinaryOperator::LESS, Literal::New(false),
+          ProbabilityThresholdOperation::New(
+              ProbabilityThresholdOperator::GREATER, 0.25,
+              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected6 =
@@ -312,17 +312,17 @@ TEST(CompilePropertyTest, BinaryOperation) {
       BinaryOperation(BinaryOperator::LESS_EQUAL, Literal::New(false),
                       ProbabilityThresholdOperation::New(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
+                          UntilProperty::New({17, 42}, Literal::New(true),
                                              Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(expected4, StrCat(*result7.property));
   const CompilePropertyResult result8 = CompileProperty(
-      BinaryOperation(BinaryOperator::GREATER_EQUAL, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
-                                             Identifier::New("a")))),
+      BinaryOperation(
+          BinaryOperator::GREATER_EQUAL, Literal::New(false),
+          ProbabilityThresholdOperation::New(
+              ProbabilityThresholdOperator::GREATER, 0.25,
+              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected8 =
@@ -342,7 +342,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
       BinaryOperation(BinaryOperator::GREATER, Literal::New(false),
                       ProbabilityThresholdOperation::New(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
+                          UntilProperty::New({17, 42}, Literal::New(true),
                                              Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -360,11 +360,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected9, StrCat(*result9.property));
   const CompilePropertyResult result10 = CompileProperty(
-      BinaryOperation(BinaryOperator::EQUAL, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
-                                             Identifier::New("a")))),
+      BinaryOperation(
+          BinaryOperator::EQUAL, Literal::New(false),
+          ProbabilityThresholdOperation::New(
+              ProbabilityThresholdOperator::GREATER, 0.25,
+              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(expected5, StrCat(*result10.property));
@@ -372,7 +372,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
       BinaryOperation(BinaryOperator::NOT_EQUAL, Literal::New(false),
                       ProbabilityThresholdOperation::New(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
+                          UntilProperty::New({17, 42}, Literal::New(true),
                                              Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -397,11 +397,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
           {"type mismatch; expecting expression of type bool; found int"}),
       result12.errors);
   const CompilePropertyResult result13 = CompileProperty(
-      BinaryOperation(BinaryOperator::PLUS, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
-                                             Identifier::New("a")))),
+      BinaryOperation(
+          BinaryOperator::PLUS, Literal::New(false),
+          ProbabilityThresholdOperation::New(
+              ProbabilityThresholdOperator::GREATER, 0.25,
+              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>(
@@ -411,7 +411,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
       BinaryOperation(BinaryOperator::AND, Literal::New(17),
                       ProbabilityThresholdOperation::New(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New(17, 42, Literal::New(true),
+                          UntilProperty::New({17, 42}, Literal::New(true),
                                              Identifier::New("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -443,8 +443,7 @@ TEST(CompilePropertyTest, Conditional) {
   const CompilePropertyResult result3 = CompileProperty(
       Conditional(ProbabilityThresholdOperation::New(
                       ProbabilityThresholdOperator::GREATER, 0.25,
-                      UntilProperty::New(17, 42, Literal::New(true),
-                                         Identifier::New("a"))),
+                      EventuallyProperty::New({17, 42}, Identifier::New("a"))),
                   Literal::New(false), Literal::New(true)),
       {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
@@ -452,12 +451,13 @@ TEST(CompilePropertyTest, Conditional) {
             result3.errors);
 }
 
-TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
+TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const Optional<DecisionDiagramManager> dd_manager(2);
   const CompilePropertyResult result1 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS, 0.25,
-          UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
+          UntilProperty::New({17, 42}, Literal::New(true),
+                             Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected1 =
@@ -472,7 +472,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result2 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
-          UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
+          EventuallyProperty::New({17, 42}, Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
@@ -487,7 +487,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result3 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
-          UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
+          UntilProperty::New({17, 42}, Literal::New(true),
+                             Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected3 =
@@ -501,7 +502,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result4 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
+          EventuallyProperty::New({17, 42}, Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected4 =
@@ -516,13 +517,13 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
           UntilProperty::New(
-              17, 42, ProbabilityThresholdOperation::New(
-                          ProbabilityThresholdOperator::GREATER_EQUAL, 0.25,
-                          UntilProperty::New(0, 1, Literal::New(true),
-                                             Identifier::New("a"))),
+              {17, 42},
+              ProbabilityThresholdOperation::New(
+                  ProbabilityThresholdOperator::GREATER_EQUAL, 0.25,
+                  EventuallyProperty::New({0, 1}, Identifier::New("a"))),
               ProbabilityThresholdOperation::New(
                   ProbabilityThresholdOperator::GREATER, 0.5,
-                  UntilProperty::New(0.5, 17, Literal::New(false),
+                  UntilProperty::New({0.5, 17}, Literal::New(false),
                                      Identifier::New("a"))))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
@@ -547,7 +548,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result6 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, -2,
-          UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
+          UntilProperty::New({17, 42}, Literal::New(true),
+                             Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"threshold -2 is not a probability"}),
@@ -555,7 +557,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result7 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 1.5,
-          UntilProperty::New(17, 42, Literal::New(true), Identifier::New("a"))),
+          EventuallyProperty::New({17, 42}, Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"threshold 1.5 is not a probability"}),
@@ -563,7 +565,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result8 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          UntilProperty::New(42, 17, Literal::New(true), Identifier::New("a"))),
+          UntilProperty::New({42, 17}, Literal::New(true),
+                             Identifier::New("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"bad time range; 42 > 17"}),
@@ -571,7 +574,7 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperator) {
   const CompilePropertyResult result9 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          UntilProperty::New(17, 42, Literal::New(0.5), Identifier::New("a"))),
+          EventuallyProperty::New({17, 42}, Literal::New(0.5))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(
@@ -614,8 +617,8 @@ TEST(OptimizePropertyTest, NotProperty) {
                ProbabilityThresholdOperation::New(
                    ProbabilityThresholdOperator::LESS, 0.25,
                    UntilProperty::New(
-                       17, 42, UnaryOperation::New(UnaryOperator::NOT,
-                                                   Literal::New(false)),
+                       {17, 42}, UnaryOperation::New(UnaryOperator::NOT,
+                                                     Literal::New(false)),
                        UnaryOperation::New(
                            UnaryOperator::NOT,
                            UnaryOperation::New(UnaryOperator::NOT,

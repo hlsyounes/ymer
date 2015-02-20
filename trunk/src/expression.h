@@ -323,26 +323,44 @@ class ProbabilityThresholdOperation : public Expression {
   std::unique_ptr<const PathProperty> path_property_;
 };
 
+// A time range used with path properties.
+class TimeRange {
+ public:
+  // Constructs a time range with the given min and max time.  The limits are
+  // inclusive, unless they represent negative or positive infinity.  The range
+  // is empty if min > max.
+  TimeRange(double min, double max);
+
+  // Returns the lower bound of the time range.
+  double min() const { return min_; }
+
+  // Returns the upper bound of the time range.
+  double max() const { return max_; }
+
+ private:
+  double min_;
+  double max_;
+};
+
+// Output operator for time ranges.
+std::ostream& operator<<(std::ostream& os, TimeRange r);
+
 // An until path property.
 class UntilProperty : public PathProperty {
  public:
   // Constructs an until path property with the given time range, pre-, and
   // post-condition expressions.
-  explicit UntilProperty(double min_time, double max_time,
+  explicit UntilProperty(TimeRange time_range,
                          std::unique_ptr<const Expression>&& pre_expr,
                          std::unique_ptr<const Expression>&& post_expr);
 
   // Factory method for until path properties.
   static std::unique_ptr<const UntilProperty> New(
-      double min_time, double max_time,
-      std::unique_ptr<const Expression>&& pre_expr,
+      TimeRange time_range, std::unique_ptr<const Expression>&& pre_expr,
       std::unique_ptr<const Expression>&& post_expr);
 
-  // Returns the min time for this until path property.
-  double min_time() const { return min_time_; }
-
-  // Returns the max time for this until path property.
-  double max_time() const { return max_time_; }
+  // Returns the time range for this until path property.
+  TimeRange time_range() const { return time_range_; }
 
   // Returns the precondition expression for this until path property.
   const Expression& pre_expr() const { return *pre_expr_; }
@@ -353,10 +371,34 @@ class UntilProperty : public PathProperty {
  private:
   void DoAccept(PathPropertyVisitor* visitor) const override;
 
-  double min_time_;
-  double max_time_;
+  TimeRange time_range_;
   std::unique_ptr<const Expression> pre_expr_;
   std::unique_ptr<const Expression> post_expr_;
+};
+
+// An eventually path property.
+class EventuallyProperty : public PathProperty {
+ public:
+  // Constructs an enventually path property with the given time range and
+  // condition expression.
+  explicit EventuallyProperty(TimeRange time_range,
+                              std::unique_ptr<const Expression>&& expr);
+
+  // Factory method for eventually path properties.
+  static std::unique_ptr<const EventuallyProperty> New(
+      TimeRange time_range, std::unique_ptr<const Expression>&& expr);
+
+  // Returns the time range for this eventually path property.
+  TimeRange time_range() const { return time_range_; }
+
+  // Returns the condition expression for this eventually path property.
+  const Expression& expr() const { return *expr_; }
+
+ private:
+  void DoAccept(PathPropertyVisitor* visitor) const override;
+
+  TimeRange time_range_;
+  std::unique_ptr<const Expression> expr_;
 };
 
 // Abstract base class for expression visitors.
@@ -391,12 +433,15 @@ class ExpressionVisitor {
 class PathPropertyVisitor {
  public:
   void VisitUntilProperty(const UntilProperty& path_property);
+  void VisitEventuallyProperty(const EventuallyProperty& path_property);
 
  protected:
   ~PathPropertyVisitor();
 
  private:
   virtual void DoVisitUntilProperty(const UntilProperty& path_property) = 0;
+  virtual void DoVisitEventuallyProperty(
+      const EventuallyProperty& path_property) = 0;
 };
 
 #endif  // EXPRESSION_H_

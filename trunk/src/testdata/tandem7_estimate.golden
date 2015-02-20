@@ -2,7 +2,7 @@ Sampling engine: alpha=0.01, beta=0.01, delta=0.05, seed=0
 Variables: 3
 Events:    5
 
-Model checking P>0[ true U<=26 sc = c & sm = c ] ...
+Model checking P>0[ F<=26 sc = c & sm = c ] ...
 Sequential estimation..257 observations.
-Pr[true U<=26 sc = c & sm = c] = 0.101167 (0.0511673,0.151167)
+Pr[F<=26 sc = c & sm = c] = 0.101167 (0.0511673,0.151167)
 Property is true in the initial state.
