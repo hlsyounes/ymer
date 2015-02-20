@@ -2038,7 +2038,7 @@ TEST(CompileExpressionTest, Conditional) {
 TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
   const ProbabilityThresholdOperation expr(
       ProbabilityThresholdOperator::LESS, 0.25,
-      UntilProperty::New(0, std::numeric_limits<double>::infinity(),
+      UntilProperty::New({0, std::numeric_limits<double>::infinity()},
                          Literal::New(true), Identifier::New("a")));
   const CompileExpressionResult result =
       CompileExpression(expr, Type::BOOL, {}, {}, {});

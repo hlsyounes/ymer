@@ -19,6 +19,8 @@
 
 #include "expression.h"
 
+#include <limits>
+
 #include "strutil.h"
 #include "unique-ptr-vector.h"
 
@@ -626,22 +628,43 @@ TEST(ConditionalTest, OutputConditional) {
 TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
   const ProbabilityThresholdOperation expr1(
       ProbabilityThresholdOperator::LESS, 0.25,
-      UntilProperty::New(0, std::numeric_limits<double>::infinity(),
+      UntilProperty::New({0, std::numeric_limits<double>::infinity()},
                          Literal::New(true), Identifier::New("a")));
   const ProbabilityThresholdOperation expr2(
       ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
-      UntilProperty::New(0.5, 17, Literal::New(true), Identifier::New("b")));
+      UntilProperty::New({0.5, 17}, Literal::New(true), Identifier::New("b")));
   const ProbabilityThresholdOperation expr3(
       ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
-      UntilProperty::New(0, 42, Identifier::New("c"), Identifier::New("d")));
+      UntilProperty::New({0, 42}, Identifier::New("c"), Identifier::New("d")));
   const ProbabilityThresholdOperation expr4(
       ProbabilityThresholdOperator::GREATER, 1,
-      UntilProperty::New(4711, std::numeric_limits<double>::infinity(),
+      UntilProperty::New({4711, std::numeric_limits<double>::infinity()},
                          Literal::New(false), Literal::New(true)));
   EXPECT_EQ("P<0.25[ true U a ];P<=0.5[ true U[0.5,17] b ]",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("P>=0.75[ c U<=42 d ];P>1[ false U>=4711 true ]",
             StrCat(expr3, ';', expr4));
+}
+
+TEST(TimeRangeTest, Output) {
+  EXPECT_EQ("", StrCat(TimeRange(0, std::numeric_limits<double>::infinity())));
+  EXPECT_EQ(">=0.5",
+            StrCat(TimeRange(0.5, std::numeric_limits<double>::infinity())));
+  EXPECT_EQ("<=17", StrCat(TimeRange(0, 17)));
+  EXPECT_EQ("[0.5,17]", StrCat(TimeRange(0.5, 17)));
+}
+
+TEST(EventuallyPropertyTest, Output) {
+  EXPECT_EQ("F a", StrCat(EventuallyProperty(
+                       {0, std::numeric_limits<double>::infinity()},
+                       Identifier::New("a"))));
+  EXPECT_EQ("F[0.5,17] b",
+            StrCat(EventuallyProperty({0.5, 17}, Identifier::New("b"))));
+  EXPECT_EQ("F<=42 d",
+            StrCat(EventuallyProperty({0, 42}, Identifier::New("d"))));
+  EXPECT_EQ("F>=4711 true", StrCat(EventuallyProperty(
+                                {4711, std::numeric_limits<double>::infinity()},
+                                Literal::New(true))));
 }
 
 }  // namespace

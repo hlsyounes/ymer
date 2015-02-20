@@ -2,6 +2,6 @@ Sampling engine: alpha=0.01, beta=0.01, delta=0.01, seed=0
 Variables: 2
 Events:    3
 
-Model checking P<0.18[ true U<=227 sc = c & sm = c ] ...
+Model checking P<0.18[ F<=227 sc = c & sm = c ] ...
 Acceptance sampling.........:1028 observations.
 Property is false in the initial state.

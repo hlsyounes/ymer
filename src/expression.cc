@@ -49,6 +49,8 @@ class Printer : public ExpressionVisitor, public PathPropertyVisitor {
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
   void DoVisitUntilProperty(const UntilProperty& path_property) override;
+  void DoVisitEventuallyProperty(
+      const EventuallyProperty& path_property) override;
 
   std::ostream* os_;
   int parent_precedence_;
@@ -198,20 +200,17 @@ void Printer::DoVisitUntilProperty(const UntilProperty& path_property) {
   int precedence = GetTernaryOperatorPrecedence();
   std::swap(parent_precedence_, precedence);
   path_property.pre_expr().Accept(this);
-  *os_ << " U";
-  const bool has_lower_bound = (path_property.min_time() > 0);
-  const bool has_upper_bound =
-      (path_property.max_time() < std::numeric_limits<double>::infinity());
-  if (has_lower_bound && has_upper_bound) {
-    *os_ << '[' << path_property.min_time() << ',' << path_property.max_time()
-         << ']';
-  } else if (has_lower_bound) {
-    *os_ << ">=" << path_property.min_time();
-  } else if (has_upper_bound) {
-    *os_ << "<=" << path_property.max_time();
-  }
-  *os_ << ' ';
+  *os_ << " U" << path_property.time_range() << ' ';
   path_property.post_expr().Accept(this);
+  std::swap(parent_precedence_, precedence);
+}
+
+void Printer::DoVisitEventuallyProperty(
+    const EventuallyProperty& path_property) {
+  int precedence = GetTernaryOperatorPrecedence();
+  std::swap(parent_precedence_, precedence);
+  *os_ << "F" << path_property.time_range() << ' ';
+  path_property.expr().Accept(this);
   std::swap(parent_precedence_, precedence);
 }
 
@@ -432,24 +431,52 @@ void ProbabilityThresholdOperation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitProbabilityThresholdOperation(*this);
 }
 
-UntilProperty::UntilProperty(double min_time, double max_time,
+TimeRange::TimeRange(double min, double max) : min_(min), max_(max) {}
+
+std::ostream& operator<<(std::ostream& os, TimeRange r) {
+  const bool has_lower_bound = (r.min() > 0);
+  const bool has_upper_bound =
+      (r.max() < std::numeric_limits<double>::infinity());
+  if (has_lower_bound && has_upper_bound) {
+    os << '[' << r.min() << ',' << r.max() << ']';
+  } else if (has_lower_bound) {
+    os << ">=" << r.min();
+  } else if (has_upper_bound) {
+    os << "<=" << r.max();
+  }
+  return os;
+}
+
+UntilProperty::UntilProperty(TimeRange time_range,
                              std::unique_ptr<const Expression>&& pre_expr,
                              std::unique_ptr<const Expression>&& post_expr)
-    : min_time_(min_time),
-      max_time_(max_time),
+    : time_range_(time_range),
       pre_expr_(std::move(pre_expr)),
       post_expr_(std::move(post_expr)) {}
 
 std::unique_ptr<const UntilProperty> UntilProperty::New(
-    double min_time, double max_time,
-    std::unique_ptr<const Expression>&& pre_expr,
+    TimeRange time_range, std::unique_ptr<const Expression>&& pre_expr,
     std::unique_ptr<const Expression>&& post_expr) {
-  return std::unique_ptr<const UntilProperty>(new UntilProperty(
-      min_time, max_time, std::move(pre_expr), std::move(post_expr)));
+  return std::unique_ptr<const UntilProperty>(
+      new UntilProperty(time_range, std::move(pre_expr), std::move(post_expr)));
 }
 
 void UntilProperty::DoAccept(PathPropertyVisitor* visitor) const {
   visitor->VisitUntilProperty(*this);
+}
+
+EventuallyProperty::EventuallyProperty(TimeRange time_range,
+                                       std::unique_ptr<const Expression>&& expr)
+    : time_range_(time_range), expr_(std::move(expr)) {}
+
+std::unique_ptr<const EventuallyProperty> EventuallyProperty::New(
+    TimeRange time_range, std::unique_ptr<const Expression>&& expr) {
+  return std::unique_ptr<const EventuallyProperty>(
+      new EventuallyProperty(time_range, std::move(expr)));
+}
+
+void EventuallyProperty::DoAccept(PathPropertyVisitor* visitor) const {
+  visitor->VisitEventuallyProperty(*this);
 }
 
 ExpressionVisitor::~ExpressionVisitor() = default;
@@ -490,4 +517,9 @@ PathPropertyVisitor::~PathPropertyVisitor() = default;
 void PathPropertyVisitor::VisitUntilProperty(
     const UntilProperty& path_property) {
   DoVisitUntilProperty(path_property);
+}
+
+void PathPropertyVisitor::VisitEventuallyProperty(
+    const EventuallyProperty& path_property) {
+  DoVisitEventuallyProperty(path_property);
 }
