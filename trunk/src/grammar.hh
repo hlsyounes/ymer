@@ -30,8 +30,8 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-#ifndef YY_YY_PARSER_HH_INCLUDED
-# define YY_YY_PARSER_HH_INCLUDED
+#ifndef YY_YY_SRC_GRAMMAR_HH_INCLUDED
+# define YY_YY_SRC_GRAMMAR_HH_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -176,7 +176,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 484 "parser.yy" /* yacc.c:1909  */
+#line 485 "grammar.yy" /* yacc.c:1909  */
 
   Type type;
   const std::string* str;
@@ -193,7 +193,7 @@ union YYSTYPE
   const PathProperty* path;
   const TimeRange* time_range;
 
-#line 197 "parser.hh" /* yacc.c:1909  */
+#line 197 "src/grammar.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -217,4 +217,4 @@ struct YYLTYPE
 
 int yyparse (void* scanner, ParserState* state);
 
-#endif /* !YY_YY_PARSER_HH_INCLUDED  */
+#endif /* !YY_YY_SRC_GRAMMAR_HH_INCLUDED  */

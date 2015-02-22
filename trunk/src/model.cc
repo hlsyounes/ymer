@@ -989,6 +989,13 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << ';';
     }
   }
+  if (!m.formulas().empty()) {
+    os << std::endl;
+    for (const auto& formula : m.formulas()) {
+      os << std::endl
+         << "formula " << formula.name() << " = " << formula.expr() << ';';
+    }
+  }
   for (const auto& module : m.modules()) {
     os << std::endl << std::endl << "module " << module.name();
     for (int variable_index : module.variables()) {
@@ -1011,6 +1018,13 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << std::endl << "  " << command << ';';
     }
     os << std::endl << "endmodule";
+  }
+  if (!m.labels().empty()) {
+    os << std::endl;
+    for (const auto& label : m.labels()) {
+      os << std::endl
+         << "label " << label.name() << " = " << label.expr() << ';';
+    }
   }
   return os;
 }

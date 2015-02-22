@@ -24,11 +24,11 @@
 #include "comm.h"
 #include "models.h"
 #include "formulas.h"
-#include "parser-state.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
 #include "src/distribution.h"
 #include "src/model.h"
+#include "src/parser.h"
 #include "src/rng.h"
 #include "src/simulator.h"
 #include "src/strutil.h"
@@ -57,21 +57,6 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
-
-struct yy_buffer_state;
-
-// Init function for lexical analyzer (scanner).
-extern int yylex_init(void** scanner_ptr);
-// Destroy function for lexical analyzer (scanner).
-extern int yylex_destroy(void* scanner);
-// Creates a scanner buffer for the given file.
-extern yy_buffer_state* yy_create_buffer(FILE* file, int size, void* scanner);
-// Switches to the given scanner buffer.
-extern void yy_switch_to_buffer(yy_buffer_state* buf, void* scanner);
-// Deletes a scanner buffer.
-extern void yy_delete_buffer(yy_buffer_state* buf, void* scanner);
-// Parse function.
-extern int yyparse(void* scanner, ParserState* state);
 
 /* Sockets for communication. */
 int server_socket = -1;
@@ -199,48 +184,6 @@ bool parse_const_overrides(const std::string& spec,
     comma = next_comma;
   }
   return true;
-}
-
-struct ModelAndProperties {
-  Optional<Model> model;
-  UniquePtrVector<const Expression> properties;
-};
-
-// Prepares a scanner to scan the given file.
-yy_buffer_state* PrepareFileScan(FILE* file, void* scanner) {
-  yy_buffer_state* buffer_state = yy_create_buffer(file, 32768, scanner);
-  yy_switch_to_buffer(buffer_state, scanner);
-  return buffer_state;
-}
-
-/* Parses the given file, and returns true on success. */
-bool read_file(const std::string& filename, ModelAndProperties* result,
-               std::vector<std::string>* errors) {
-  FILE* file = (filename == "-") ? stdin : fopen(filename.c_str(), "r");
-  if (file == nullptr) {
-    errors->push_back(StrCat(filename, ":", strerror(errno)));
-    return false;
-  }
-
-  void* scanner;
-  yylex_init(&scanner);
-  yy_buffer_state* buffer_state = PrepareFileScan(file, scanner);
-  ParserState state(filename, errors);
-  bool success = (yyparse(scanner, &state) == 0);
-  if (success) {
-    if (state.has_model()) {
-      result->model = state.release_model();
-    } else {
-      result->properties = state.release_properties();
-    }
-  }
-  yy_delete_buffer(buffer_state, scanner);
-  yylex_destroy(scanner);
-
-  if (file != stdin) {
-    fclose(file);
-  }
-  return success;
 }
 
 CompiledExpression CompileAndOptimizeExpression(
@@ -1348,7 +1291,7 @@ int main(int argc, char* argv[]) {
        * Use remaining command line arguments as file names.
        */
       while (optind < argc) {
-        if (!read_file(argv[optind++], &parse_result, &errors)) {
+        if (!ParseFile(argv[optind++], &parse_result, &errors)) {
           for (const auto& error : errors) {
             std::cerr << PACKAGE << ":" << error << std::endl;
           }
@@ -1359,7 +1302,7 @@ int main(int argc, char* argv[]) {
       /*
        * No remaining command line argument, so read from standard input.
        */
-      if (!read_file("-", &parse_result, &errors)) {
+      if (!ParseFile("-", &parse_result, &errors)) {
         return 1;
       }
     }

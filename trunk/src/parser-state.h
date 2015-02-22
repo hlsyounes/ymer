@@ -25,13 +25,14 @@
 #include <string>
 #include <vector>
 
-#include "src/model.h"
-#include "src/optional.h"
-#include "src/strutil.h"
+#include "model.h"
+#include "optional.h"
+#include "strutil.h"
 
 class ParserState {
  public:
-  ParserState(const std::string& filename, std::vector<std::string>* errors)
+  ParserState(const Optional<std::string>& filename,
+              std::vector<std::string>* errors)
       : filename_(filename), errors_(errors), success_(true) {}
 
   Model* mutable_model() {
@@ -46,10 +47,10 @@ class ParserState {
   }
 
   void add_error(const std::string& error) {
-    if (filename_ == "-") {
+    if (!filename_.has_value() || filename_.value() == "-") {
       errors_->push_back(error);
     } else {
-      errors_->push_back(StrCat(filename_, ":", error));
+      errors_->push_back(StrCat(filename_.value(), ":", error));
     }
     success_ = false;
   }
@@ -65,7 +66,7 @@ class ParserState {
   bool success() const { return success_; }
 
  private:
-  const std::string filename_;
+  const Optional<std::string> filename_;
   std::vector<std::string>* const errors_;
   Optional<Model> model_;
   UniquePtrVector<const Expression> properties_;

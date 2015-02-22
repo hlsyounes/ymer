@@ -23,14 +23,14 @@
 %{
 #include <string>
 
+#include "distribution.h"
+#include "expression.h"
+#include "model.h"
 #include "parser-state.h"
-#include "src/distribution.h"
-#include "src/expression.h"
-#include "src/model.h"
-#include "src/typed-value.h"
-#include "src/unique-ptr-vector.h"
+#include "typed-value.h"
+#include "unique-ptr-vector.h"
 
-#include "parser.hh"
+#include "grammar.hh"
 
 #define YY_USER_INIT yylloc->first_line = yylloc->last_line = 1;
 
