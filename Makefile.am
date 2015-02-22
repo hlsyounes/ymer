@@ -125,6 +125,14 @@ src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
     src/libtyped-value.la glog/libglog.la
 
+# Parser library.
+noinst_LTLIBRARIES += src/libparser.la
+src_libparser_la_SOURCES =  src/parser.h src/parser.cc src/parser-state.h \
+    src/grammar.yy src/tokens.ll
+src_libparser_la_LIBADD = src/libdistribution.la src/libexpression.la \
+    src/libmodel.la src/libtyped-value.la glog/libglog.la
+BUILT_SOURCES = src/grammar.hh
+
 # Compiled expression library.
 noinst_LTLIBRARIES += src/libcompiled-expression.la
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
@@ -157,11 +165,12 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h parser-state.h parser.yy tokenizer.ll $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
-    src/libmodel.la src/libcompiled-model.la src/libcompiled-property.la
+    src/libmodel.la src/libparser.la src/libcompiled-model.la \
+    src/libcompiled-property.la
 
 #
 # Ymer tests.
@@ -221,6 +230,11 @@ src_distribution_test_LDADD = src/libdistribution.la src/libexpression.la \
 check_PROGRAMS += src/model_test
 src_model_test_SOURCES = src/model_test.cc
 src_model_test_LDADD = src/libmodel.la src/libtest-main.la
+
+# Test for parser library.
+check_PROGRAMS += src/parser_test
+src_parser_test_SOURCES = src/parser_test.cc
+src_parser_test_LDADD = src/libparser.la src/libtest-main.la
 
 # Test for compiled expression library.
 check_PROGRAMS += src/compiled-expression_test

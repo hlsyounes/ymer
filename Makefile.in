@@ -84,7 +84,8 @@ check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
 	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
 	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
 	src/expression_test$(EXEEXT) src/distribution_test$(EXEEXT) \
-	src/model_test$(EXEEXT) src/compiled-expression_test$(EXEEXT) \
+	src/model_test$(EXEEXT) src/parser_test$(EXEEXT) \
+	src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
 	src/compiled-model_test$(EXEEXT) src/simulator_test$(EXEEXT) \
 	src/compiled-property_test$(EXEEXT)
@@ -92,9 +93,10 @@ subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
-	$(srcdir)/config.h.in mkinstalldirs parser.hh parser.cc \
-	tokenizer.cc depcomp ylwrap test-driver COPYING compile \
-	config.guess config.sub install-sh missing ltmain.sh
+	$(srcdir)/config.h.in mkinstalldirs src/grammar.hh \
+	src/grammar.cc src/tokens.cc depcomp ylwrap test-driver \
+	COPYING compile config.guess config.sub install-sh missing \
+	ltmain.sh
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
@@ -250,6 +252,12 @@ src_libmodel_la_DEPENDENCIES = src/libdistribution.la \
 	src/libexpression.la src/libtyped-value.la glog/libglog.la
 am_src_libmodel_la_OBJECTS = src/model.lo
 src_libmodel_la_OBJECTS = $(am_src_libmodel_la_OBJECTS)
+src_libparser_la_DEPENDENCIES = src/libdistribution.la \
+	src/libexpression.la src/libmodel.la src/libtyped-value.la \
+	glog/libglog.la
+am_src_libparser_la_OBJECTS = src/parser.lo src/grammar.lo \
+	src/tokens.lo
+src_libparser_la_OBJECTS = $(am_src_libparser_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = src/rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
@@ -306,6 +314,9 @@ src_model_test_DEPENDENCIES = src/libmodel.la src/libtest-main.la
 am_src_optional_test_OBJECTS = src/optional_test.$(OBJEXT)
 src_optional_test_OBJECTS = $(am_src_optional_test_OBJECTS)
 src_optional_test_DEPENDENCIES = src/libtest-main.la
+am_src_parser_test_OBJECTS = src/parser_test.$(OBJEXT)
+src_parser_test_OBJECTS = $(am_src_parser_test_OBJECTS)
+src_parser_test_DEPENDENCIES = src/libparser.la src/libtest-main.la
 am_src_rng_test_OBJECTS = src/rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
@@ -328,12 +339,12 @@ src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
 am__objects_1 =
 am_ymer_OBJECTS = ymer.$(OBJEXT) formulas.$(OBJEXT) models.$(OBJEXT) \
 	sampling.$(OBJEXT) hybrid.$(OBJEXT) symbolic.$(OBJEXT) \
-	parser.$(OBJEXT) tokenizer.$(OBJEXT) $(am__objects_1)
+	$(am__objects_1)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
 	src/libtyped-value.la src/libexpression.la \
-	src/libdistribution.la src/libmodel.la \
+	src/libdistribution.la src/libmodel.la src/libparser.la \
 	src/libcompiled-model.la src/libcompiled-property.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -413,8 +424,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_libparser_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
@@ -422,10 +433,10 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_optional_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
+	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
@@ -435,8 +446,8 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
 	$(src_libddutil_la_SOURCES) $(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_librng_la_SOURCES) $(src_libstatistics_la_SOURCES) \
-	$(src_libtest_main_la_SOURCES) \
+	$(src_libparser_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
@@ -444,10 +455,10 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
 	$(src_ddutil_test_SOURCES) $(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_optional_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
+	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -887,6 +898,8 @@ SUBDIRS = glog gsl gtest
 
 # Model library.
 
+# Parser library.
+
 # Compiled expression library.
 
 # Compiled distribution library.
@@ -898,7 +911,7 @@ noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
 	src/libtyped-value.la src/libexpression.la \
-	src/libdistribution.la src/libmodel.la \
+	src/libdistribution.la src/libmodel.la src/libparser.la \
 	src/libcompiled-expression.la src/libcompiled-distribution.la \
 	src/libcompiled-model.la src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
@@ -973,6 +986,13 @@ src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
     src/libtyped-value.la glog/libglog.la
 
+src_libparser_la_SOURCES = src/parser.h src/parser.cc src/parser-state.h \
+    src/grammar.yy src/tokens.ll
+
+src_libparser_la_LIBADD = src/libdistribution.la src/libexpression.la \
+    src/libmodel.la src/libtyped-value.la glog/libglog.la
+
+BUILT_SOURCES = src/grammar.hh
 src_libcompiled_expression_la_SOURCES = src/compiled-expression.h \
     src/compiled-expression.cc
 
@@ -994,11 +1014,12 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
     src/libddutil.la glog/libglog.la
 
-ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h parser-state.h parser.yy tokenizer.ll $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
-    src/libmodel.la src/libcompiled-model.la src/libcompiled-property.la
+    src/libmodel.la src/libparser.la src/libcompiled-model.la \
+    src/libcompiled-property.la
 
 
 #
@@ -1029,6 +1050,8 @@ src_distribution_test_LDADD = src/libdistribution.la src/libexpression.la \
 
 src_model_test_SOURCES = src/model_test.cc
 src_model_test_LDADD = src/libmodel.la src/libtest-main.la
+src_parser_test_SOURCES = src/parser_test.cc
+src_parser_test_LDADD = src/libparser.la src/libtest-main.la
 src_compiled_expression_test_SOURCES = src/compiled-expression_test.cc
 src_compiled_expression_test_LDADD = src/libcompiled-expression.la \
     src/libtest-main.la
@@ -1060,7 +1083,7 @@ AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
 AM_CXXFLAGS = -Wall -Werror
 AM_YFLAGS = -d
 ACLOCAL_AMFLAGS = -I m4
-all: config.h
+all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
 .SUFFIXES:
@@ -1391,6 +1414,15 @@ src/model.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libmodel.la: $(src_libmodel_la_OBJECTS) $(src_libmodel_la_DEPENDENCIES) $(EXTRA_src_libmodel_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_libmodel_la_OBJECTS) $(src_libmodel_la_LIBADD) $(LIBS)
+src/parser.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/grammar.hh: src/grammar.cc
+	@if test ! -f $@; then rm -f src/grammar.cc; else :; fi
+	@if test ! -f $@; then $(MAKE) $(AM_MAKEFLAGS) src/grammar.cc; else :; fi
+src/grammar.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/tokens.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+
+src/libparser.la: $(src_libparser_la_OBJECTS) $(src_libparser_la_DEPENDENCIES) $(EXTRA_src_libparser_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(AM_V_CXXLD)$(CXXLINK)  $(src_libparser_la_OBJECTS) $(src_libparser_la_LIBADD) $(LIBS)
 src/rng.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1519,6 +1551,12 @@ src/optional_test.$(OBJEXT): src/$(am__dirstamp) \
 src/optional_test$(EXEEXT): $(src_optional_test_OBJECTS) $(src_optional_test_DEPENDENCIES) $(EXTRA_src_optional_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/optional_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_optional_test_OBJECTS) $(src_optional_test_LDADD) $(LIBS)
+src/parser_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/parser_test$(EXEEXT): $(src_parser_test_OBJECTS) $(src_parser_test_DEPENDENCIES) $(EXTRA_src_parser_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/parser_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_parser_test_OBJECTS) $(src_parser_test_LDADD) $(LIBS)
 src/rng_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1549,9 +1587,6 @@ src/typed-value_test.$(OBJEXT): src/$(am__dirstamp) \
 src/typed-value_test$(EXEEXT): $(src_typed_value_test_OBJECTS) $(src_typed_value_test_DEPENDENCIES) $(EXTRA_src_typed_value_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/typed-value_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_typed_value_test_OBJECTS) $(src_typed_value_test_LDADD) $(LIBS)
-parser.hh: parser.cc
-	@if test ! -f $@; then rm -f parser.cc; else :; fi
-	@if test ! -f $@; then $(MAKE) $(AM_MAKEFLAGS) parser.cc; else :; fi
 
 ymer$(EXEEXT): $(ymer_OBJECTS) $(ymer_DEPENDENCIES) $(EXTRA_ymer_DEPENDENCIES) 
 	@rm -f ymer$(EXEEXT)
@@ -1578,10 +1613,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/formulas.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hybrid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/models.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokenizer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ymer.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@cudd/cudd/$(DEPDIR)/cudd_cudd_libcudd_la-cuddAPI.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@cudd/cudd/$(DEPDIR)/cudd_cudd_libcudd_la-cuddAddAbs.Plo@am__quote@
@@ -1681,9 +1714,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/distribution_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/expression_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/grammar.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/optional_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
@@ -1691,6 +1727,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/strutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/test-main.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/tokens.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/typed-value.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/typed-value_test.Po@am__quote@
 
@@ -2661,6 +2698,13 @@ src/model_test.log: src/model_test$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/parser_test.log: src/parser_test$(EXEEXT)
+	@p='src/parser_test$(EXEEXT)'; \
+	b='src/parser_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 src/compiled-expression_test.log: src/compiled-expression_test$(EXEEXT)
 	@p='src/compiled-expression_test$(EXEEXT)'; \
 	b='src/compiled-expression_test'; \
@@ -2905,14 +2949,16 @@ distcleancheck: distclean
 check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) $(check_LTLIBRARIES) $(check_PROGRAMS)
 	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
-check: check-recursive
+check: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) check-recursive
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) config.h
 installdirs: installdirs-recursive
 installdirs-am:
 	for dir in "$(DESTDIR)$(bindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: install-recursive
+install: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) install-recursive
 install-exec: install-exec-recursive
 install-data: install-data-recursive
 uninstall: uninstall-recursive
@@ -2958,9 +3004,10 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-rm -f parser.cc
-	-rm -f parser.hh
-	-rm -f tokenizer.cc
+	-rm -f src/grammar.cc
+	-rm -f src/grammar.hh
+	-rm -f src/tokens.cc
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-recursive
 
 clean-am: clean-binPROGRAMS clean-checkLTLIBRARIES clean-checkPROGRAMS \
@@ -3036,7 +3083,8 @@ ps-am:
 
 uninstall-am: uninstall-binPROGRAMS
 
-.MAKE: $(am__recursive_targets) all check-am install-am install-strip
+.MAKE: $(am__recursive_targets) all check check-am install install-am \
+	install-strip
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am \
 	am--refresh check check-TESTS check-am clean clean-binPROGRAMS \

@@ -1,26 +1,25 @@
 /* -*-C++-*- */
-/*
- * Copyright (C) 2003--2005 Carnegie Mellon University
- * Copyright (C) 2011--2014 Google Inc
- *
- * This file is part of Ymer.
- *
- * Ymer is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * Ymer is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Ymer; if not, write to the Free Software Foundation,
- * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Grammar for Ymer's dialect of the PRISM language.
- */
+//
+// Copyright (C) 2003--2005 Carnegie Mellon University
+// Copyright (C) 2011--2014 Google Inc
+//
+// This file is part of Ymer.
+//
+// Ymer is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Ymer is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+// License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Ymer; if not, write to the Free Software Foundation,
+// Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+//
+// Grammar for Ymer's dialect of the PRISM language.
 
 %{
 #include <limits>
@@ -29,14 +28,16 @@
 #include <string>
 #include <vector>
 
+#include "distribution.h"
+#include "expression.h"
+#include "model.h"
 #include "parser-state.h"
-#include "src/distribution.h"
-#include "src/model.h"
-#include "src/strutil.h"
+#include "strutil.h"
+#include "typed-value.h"
 
 #include "glog/logging.h"
 
-#include "parser.hh"
+#include "grammar.hh"
 
 // Lexical analyzer function.
 extern int yylex(YYSTYPE* lvalp, YYLTYPE* llocp, void* scanner);
@@ -500,7 +501,7 @@ void AddProperty(const Expression* property, ParserState* state) {
 
 %type <type> constant_type
 %type <str> IDENTIFIER LABEL_NAME action
-%type <substitutions> substitutions
+%type <substitutions> substitutions action_substitutions
 %type <outcomes> outcomes update_distribution
 %type <outcome> distribution_and_updates
 %type <dist> distribution
@@ -550,6 +551,7 @@ model_component : model_type
                 | label
                 | init
                 | rewards
+                | system
                 ;
 
 model_type : NONDETERMINISTIC
@@ -717,6 +719,33 @@ state_reward : expr ':' expr ';'
 transition_reward : '[' action ']' expr ':' expr ';'
                       { AddTransitionReward($2, $4, $6); }
                   ;
+
+system : SYSTEM process_algebra ENDSYSTEM
+       ;
+
+process_algebra : IDENTIFIER
+                    { delete $1; }
+                | '(' process_algebra ')'
+                | process_algebra '/' '{' action_list '}'
+                | process_algebra '{' action_substitutions '}'
+                    { delete $3; }
+                | process_algebra '|' '[' action_list ']' '|' process_algebra
+                | process_algebra DOUBLE_BAR process_algebra
+                | process_algebra TRIPLE_BAR process_algebra
+                ;
+
+action_list : IDENTIFIER
+                { delete $1; }
+            | action_list ',' IDENTIFIER
+                { delete $3; }
+            ;
+
+action_substitutions : IDENTIFIER BACK_ARROW IDENTIFIER
+                         { $$ = AddSubstitution(yylloc, $1, $3, nullptr,
+                                                state); }
+                     | action_substitutions ',' IDENTIFIER BACK_ARROW IDENTIFIER
+                         { $$ = AddSubstitution(yylloc, $3, $5, $1, state); }
+                     ;
 
 expr : NUMBER
          { $$ = NewLiteral($1); }
