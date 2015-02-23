@@ -156,35 +156,66 @@ TEST(SampleTest, IntegerObservations) {
   EXPECT_EQ(1, s.sample_stddev());
 }
 
-TEST(SequentialEstimatorTest, IntegerObservations) {
-  SequentialEstimator<int> estimator(0.05, 0.01);
-  EXPECT_EQ(0.05, estimator.delta());
-  EXPECT_EQ(0.01, estimator.alpha());
-  EXPECT_EQ(0, estimator.count());
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), estimator.state());
-  EXPECT_EQ(0, estimator.bound());
+TEST(SampleTest, BoolObservations) {
+  Sample<bool> s;
+  EXPECT_EQ(0, s.count());
 
-  estimator.AddObservation(2);
-  EXPECT_EQ(1, estimator.count());
-  EXPECT_EQ(2, estimator.value());
-  EXPECT_EQ(1, estimator.state());
-  EXPECT_EQ(0, estimator.bound());
+  s.AddObservation(true);
+  EXPECT_TRUE(s.min());
+  EXPECT_TRUE(s.max());
+  EXPECT_EQ(1, s.sum());
+  EXPECT_EQ(1, s.count());
+  EXPECT_EQ(1, s.mean());
+  EXPECT_EQ(0, s.variance());
+  EXPECT_EQ(0, s.sample_variance());
+  EXPECT_EQ(0, s.sample_stddev());
 
-  estimator.AddObservation(3);
-  EXPECT_EQ(2, estimator.count());
-  EXPECT_EQ(2.5, estimator.value());
-  EXPECT_EQ(0.75, estimator.state());
-  EXPECT_LT(0, estimator.bound());
+  s.AddObservation(false);
+  EXPECT_FALSE(s.min());
+  EXPECT_TRUE(s.max());
+  EXPECT_EQ(1, s.sum());
+  EXPECT_EQ(2, s.count());
+  EXPECT_EQ(0.5, s.mean());
+  EXPECT_EQ(0.25, s.variance());
+  EXPECT_EQ(0.5, s.sample_variance());
+  EXPECT_EQ(sqrt(0.5), s.sample_stddev());
 
-  estimator.AddObservation(1);
-  EXPECT_EQ(3, estimator.count());
-  EXPECT_EQ(2, estimator.value());
-  EXPECT_EQ(1, estimator.state());
-  EXPECT_LT(0, estimator.bound());
+  s.AddObservation(true);
+  EXPECT_FALSE(s.min());
+  EXPECT_TRUE(s.max());
+  EXPECT_EQ(2, s.sum());
+  EXPECT_EQ(3, s.count());
+  EXPECT_EQ(2.0 / 3.0, s.mean());
+  EXPECT_DOUBLE_EQ(2.0 / 9.0, s.variance());
+  EXPECT_DOUBLE_EQ(2.0 / 6.0, s.sample_variance());
+  EXPECT_DOUBLE_EQ(sqrt(2.0 / 6.0), s.sample_stddev());
 }
 
-TEST(FixedBernoulliTesterTest, AcceptsThenRejects) {
-  FixedBernoulliTester tester(0.6, 0.4, 3);
+TEST(ChowRobbinsTesterTest, IntegerObservations) {
+  ChowRobbinsTester<int> tester(0.6, 0.4, 0.01);
+  EXPECT_EQ(0.6, tester.theta0());
+  EXPECT_EQ(0.4, tester.theta1());
+  EXPECT_EQ(0.01, tester.alpha());
+  EXPECT_FALSE(tester.done());
+
+  tester.AddObservation(2);
+  EXPECT_FALSE(tester.done());
+  EXPECT_EQ(1, tester.sample().count());
+  EXPECT_EQ(2, tester.sample().mean());
+
+  tester.AddObservation(3);
+  EXPECT_FALSE(tester.done());
+  EXPECT_EQ(2, tester.sample().count());
+  EXPECT_EQ(2.5, tester.sample().mean());
+
+  tester.AddObservation(1);
+  EXPECT_FALSE(tester.done());
+  EXPECT_EQ(3, tester.sample().count());
+  EXPECT_EQ(2, tester.sample().mean());
+}
+
+TEST(FixedSampleSizeTesterTest, AcceptsThenRejects) {
+  FixedSampleSizeTester<bool> tester(0.6, 0.4, 3);
   EXPECT_EQ(0.6, tester.theta0());
   EXPECT_EQ(0.4, tester.theta1());
   EXPECT_FALSE(tester.done());
@@ -196,7 +227,7 @@ TEST(FixedBernoulliTesterTest, AcceptsThenRejects) {
   EXPECT_TRUE(tester.done());
   EXPECT_TRUE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(false);
   sample.AddObservation(true);
   tester.SetSample(sample);
@@ -206,8 +237,8 @@ TEST(FixedBernoulliTesterTest, AcceptsThenRejects) {
   EXPECT_FALSE(tester.accept());
 }
 
-TEST(FixedBernoulliTesterTest, RejectsThenAccepts) {
-  FixedBernoulliTester tester(0.75, 0.75, 3);
+TEST(FixedSampleSizeTesterTest, RejectsThenAccepts) {
+  FixedSampleSizeTester<bool> tester(0.75, 0.75, 3);
   EXPECT_EQ(0.75, tester.theta0());
   EXPECT_EQ(0.75, tester.theta1());
   EXPECT_FALSE(tester.done());
@@ -219,7 +250,7 @@ TEST(FixedBernoulliTesterTest, RejectsThenAccepts) {
   EXPECT_TRUE(tester.done());
   EXPECT_FALSE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(true);
   sample.AddObservation(true);
   tester.SetSample(sample);
@@ -240,7 +271,7 @@ TEST(SingleSamplingBernoulliTesterTest, AcceptsThenRejects) {
   EXPECT_TRUE(tester.done());
   EXPECT_TRUE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(true);
   for (int i = 0; i < 17; ++i) {
     sample.AddObservation(false);
@@ -264,7 +295,7 @@ TEST(SingleSamplingBernoulliTesterTest, RejectsThenAccepts) {
   EXPECT_TRUE(tester.done());
   EXPECT_FALSE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(false);
   for (int i = 0; i < 12; ++i) {
     sample.AddObservation(true);
@@ -300,7 +331,7 @@ TEST(SprtBernoulliTesterTest, AcceptsThenRejects) {
   EXPECT_TRUE(tester.done());
   EXPECT_TRUE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(false);
   sample.AddObservation(false);
   sample.AddObservation(false);
@@ -329,7 +360,7 @@ TEST(SprtBernoulliTesterTest, RejectsThenAccepts) {
   EXPECT_TRUE(tester.done());
   EXPECT_FALSE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(true);
   sample.AddObservation(false);
   sample.AddObservation(true);
@@ -353,7 +384,7 @@ TEST(SprtBernoulliTesterTest, AcceptsThenRejectsWithMaxTheta0) {
   EXPECT_TRUE(tester.done());
   EXPECT_TRUE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(true);
   tester.SetSample(sample);
   EXPECT_FALSE(tester.done());
@@ -371,7 +402,7 @@ TEST(SprtBernoulliTesterTest, RejectsThenAcceptsWithMinTheta1) {
   EXPECT_TRUE(tester.done());
   EXPECT_FALSE(tester.accept());
 
-  Sample<int> sample;
+  Sample<bool> sample;
   sample.AddObservation(false);
   tester.SetSample(sample);
   EXPECT_FALSE(tester.done());

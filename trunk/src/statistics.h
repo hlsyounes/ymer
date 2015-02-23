@@ -26,7 +26,11 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <type_traits>
 
+#include "strutil.h"
+
+#include "glog/logging.h"
 #include "gsl/gsl_cdf.h"
 
 // Returns the natural logarithm of the generalized binomial coefficient.
@@ -59,13 +63,16 @@ class SingleSamplingPlan {
 template <typename T>
 class Sample {
  public:
+  using SumType = typename std::decay<decltype(std::declval<const T&>() +
+                                               std::declval<const T&>())>::type;
+
   Sample();
 
   void AddObservation(T x);
 
   T min() const { return min_; }
   T max() const { return max_; }
-  T sum() const { return sum_; }
+  SumType sum() const { return sum_; }
   int count() const { return count_; }
   double mean() const { return mean_; }
   double variance() const { return (count_ > 1) ? m2_ / count_ : 0.0; }
@@ -77,67 +84,38 @@ class Sample {
  private:
   T min_;
   T max_;
-  T sum_;
+  SumType sum_;
   int count_;
   double mean_;
   double m2_;
 };
 
-// A sequential estimator based on the paper "On the Asymptotic Theory of
-// Fixed-Width Sequential Confidence Intervals for the Mean" by Chow & Robbins.
-// Stop estimation when state() <= bound().
+// An abstract sequential hypothesis tester.  Tests the hypothesis H0: mu >
+// theta0 against the hypothesis H1: mu < theta1, where mu is the expected value
+// of the random variable being observed.  Continue to add observations until
+// done() is true.  At that point, accept H0 if accept() is true, and accept H1
+// if accept() is false.  While done() is false, accept() has no meaning.
+//
+// NOTE: all implementaitons require that theta0 >= theta1, but some also
+// require that theta0 != theta1.
 template <typename T>
-class SequentialEstimator {
+class SequentialTester {
  public:
-  // Constructs a sequential estimator for estimating an interval of width
-  // 2*delta with coverage probability 1-alpha.
-  SequentialEstimator(double delta, double alpha);
+  virtual ~SequentialTester();
 
   void AddObservation(T x);
-
-  double delta() const { return delta_; }
-  double alpha() const { return alpha_; }
-  int count() const { return sample_.count(); }
-  // The current estimated value.
-  double value() const { return sample_.mean(); }
-  // The current state of the estimator.
-  double state() const { return state_; }
-  // The current bound of the estimator.
-  double bound() const { return bound_; }
-
- private:
-  double delta_;
-  double alpha_;
-  Sample<T> sample_;
-  double state_;
-  double bound_;
-};
-
-// An abstract sequential hypothesis tester for Bernoulli trials.  Tests the the
-// hypothesis H0: p > theta0 against the hypothesis H1: p < theta1.  Continue to
-// add observations until done() is true.  At that point, accept H0 if accept()
-// is true, and accept H1 if accept() is false.  While done() is false, accept()
-// has no meaning.
-//
-// NOTE: all implementations require that theta0 >= theta1, but some also
-// require that theta0 != theta1.
-class BernoulliTester {
- public:
-  virtual ~BernoulliTester();
-
-  void AddObservation(bool x);
-  void SetSample(const Sample<int>& sample);
+  void SetSample(const Sample<T>& sample);
 
   double theta0() const { return theta0_; }
   double theta1() const { return theta1_; }
   bool done() const { return done_; }
   bool accept() const { return accept_; }
-  const Sample<int> sample() const { return sample_; }
+  const Sample<T>& sample() const { return sample_; }
 
   std::string StateToString() const;
 
  protected:
-  BernoulliTester(double theta0, double theta1);
+  SequentialTester(double theta0, double theta1);
 
   bool done_;
   bool accept_;
@@ -148,17 +126,18 @@ class BernoulliTester {
 
   const double theta0_;
   const double theta1_;
-  Sample<int> sample_;
+  Sample<T> sample_;
 };
 
-// A simple BernoulliTester that stops when a fixed sample size has been
+// A simple SequentialTester that stops when a fixed sample size has been
 // reached.  Accepts H0 if mean() > 0.5 * (theta0 + theta1).
 //
 // This implementation provides no error guarantees.  Error guarantees will
 // depend on the provided sample size.  Allows theta0 == theta1.
-class FixedBernoulliTester : public BernoulliTester {
+template <typename T>
+class FixedSampleSizeTester : public SequentialTester<T> {
  public:
-  FixedBernoulliTester(double theta0, double theta1, int sample_size);
+  FixedSampleSizeTester(double theta0, double theta1, int sample_size);
 
  private:
   void UpdateState() override;
@@ -167,11 +146,34 @@ class FixedBernoulliTester : public BernoulliTester {
   const int sample_size_;
 };
 
-// A BernoulliTester based on a single sampling plan with a sequential stopping
-// rule.
+// A SequentialTester that uses a sequential estimator based on the paper "On
+// the Asymptotic Theory of Fixed-Width Sequential Confidence Intervals for the
+// Mean" by Chow & Robbins.  Accepts H0 if mean() > 0.5 * (theta0 + theta1).
+//
+// Does not allow theta0 == theta1.
+template <typename T>
+class ChowRobbinsTester : public SequentialTester<T> {
+ public:
+  // Constructs a ChowRobbinsTester that estimates an interval of width
+  // (theta0 - theta1) with coverage probability 1 - alpha.
+  ChowRobbinsTester(double theta0, double theta1, double alpha);
+
+  double alpha() const { return alpha_; }
+
+ private:
+  void UpdateState() override;
+  std::string StateToStringImpl() const override;
+
+  double alpha_;
+  double state_;
+  double bound_;
+};
+
+// A SequantialTester based on a single sampling plan for Bernoulli trials with
+// a sequential stopping rule.
 //
 // Respects error bounds alpha and beta.  Does not allow theta0 == theta1.
-class SingleSamplingBernoulliTester : public BernoulliTester {
+class SingleSamplingBernoulliTester : public SequentialTester<bool> {
  public:
   SingleSamplingBernoulliTester(double theta0, double theta1, double alpha,
                                 double beta);
@@ -183,10 +185,11 @@ class SingleSamplingBernoulliTester : public BernoulliTester {
   const SingleSamplingPlan ssp_;
 };
 
-// A BernoulliTester based on Wald's Sequential Probability Ratio Test.
+// A SequentialTester based on Wald's Sequential Probability Ratio Test for
+// Bernoulli trials.
 //
 // Respects error bounds alpha and beta.  Does not allow theta0 == theta1.
-class SprtBernoulliTester : public BernoulliTester {
+class SprtBernoulliTester : public SequentialTester<bool> {
  public:
   SprtBernoulliTester(double theta0, double theta1, double alpha, double beta);
 
@@ -216,20 +219,84 @@ void Sample<T>::AddObservation(T x) {
 }
 
 template <typename T>
-SequentialEstimator<T>::SequentialEstimator(double delta, double alpha)
-    : delta_(delta),
-      alpha_(alpha),
-      state_(std::numeric_limits<double>::infinity()),
-      bound_(0) {}
+SequentialTester<T>::SequentialTester(double theta0, double theta1)
+    : done_(false), theta0_(theta0), theta1_(theta1) {
+  CHECK_GE(theta0, theta1);
+}
 
 template <typename T>
-void SequentialEstimator<T>::AddObservation(T x) {
+SequentialTester<T>::~SequentialTester() = default;
+
+template <typename T>
+void SequentialTester<T>::AddObservation(T x) {
   sample_.AddObservation(x);
-  state_ = 1.0 / sample_.count() + sample_.variance();
-  if (sample_.count() > 1) {
-    const double a = gsl_cdf_tdist_Pinv(1 - 0.5 * alpha_, sample_.count() - 1);
-    bound_ = sample_.count() * delta_ * delta_ / a / a;
+  UpdateState();
+}
+
+template <typename T>
+void SequentialTester<T>::SetSample(const Sample<T>& sample) {
+  sample_ = sample;
+  UpdateState();
+}
+
+template <typename T>
+std::string SequentialTester<T>::StateToString() const {
+  return StateToStringImpl();
+}
+
+template <typename T>
+FixedSampleSizeTester<T>::FixedSampleSizeTester(double theta0, double theta1,
+                                                int sample_size)
+    : SequentialTester<T>(theta0, theta1), sample_size_(sample_size) {
+  CHECK_GT(sample_size_, 0);
+}
+
+template <typename T>
+void FixedSampleSizeTester<T>::UpdateState() {
+  this->done_ = this->sample().count() >= sample_size_;
+  if (this->done_) {
+    this->accept_ =
+        this->sample().mean() > 0.5 * (this->theta0() + this->theta1());
   }
+}
+
+template <typename T>
+std::string FixedSampleSizeTester<T>::StateToStringImpl() const {
+  return StrCat(this->sample().count(), '\t', this->sample().sum());
+}
+
+template <typename T>
+ChowRobbinsTester<T>::ChowRobbinsTester(double theta0, double theta1,
+                                        double alpha)
+    : SequentialTester<T>(theta0, theta1),
+      alpha_(alpha),
+      state_(std::numeric_limits<double>::infinity()),
+      bound_(0) {
+  CHECK_NE(theta0, theta1);
+}
+
+template <typename T>
+void ChowRobbinsTester<T>::UpdateState() {
+  const auto n = this->sample().count();
+  const double delta = 0.5 * (this->theta0() - this->theta1());
+  if (n > 0) {
+    state_ = 1.0 / n + this->sample().variance();
+    if (n > 1) {
+      const double a = gsl_cdf_tdist_Pinv(1 - 0.5 * alpha_, n - 1);
+      LOG(INFO) << "delta = " << delta << " theta0 = " << this->theta0()
+                << " theta1 = " << this->theta1();
+      bound_ = n * delta * delta / a / a;
+    }
+  }
+  this->done_ = (state_ <= bound_);
+  if (this->done_) {
+    this->accept_ = this->sample().mean() > this->theta0() - delta;
+  }
+}
+
+template <typename T>
+std::string ChowRobbinsTester<T>::StateToStringImpl() const {
+  return StrCat(this->sample().count(), '\t', state_, '\t', bound_);
 }
 
 #endif  // STATISTICS_H_
