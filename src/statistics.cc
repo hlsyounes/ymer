@@ -21,10 +21,6 @@
 
 #include <cmath>
 
-#include "glog/logging.h"
-
-#include "strutil.h"
-
 double lchoose(double x, double y) {
   return lgamma(x + 1) - lgamma(y + 1) - lgamma(x - y + 1);
 }
@@ -91,49 +87,11 @@ SingleSamplingPlan SingleSamplingPlan::Create(double theta0, double theta1,
   return SingleSamplingPlan(n, (c0 + c1) / 2);
 }
 
-BernoulliTester::BernoulliTester(double theta0, double theta1)
-    : done_(false), theta0_(theta0), theta1_(theta1) {
-  CHECK_GE(theta0_, theta1_);
-}
-
-BernoulliTester::~BernoulliTester() = default;
-
-void BernoulliTester::AddObservation(bool x) {
-  sample_.AddObservation(x ? 1 : 0);
-  UpdateState();
-}
-
-void BernoulliTester::SetSample(const Sample<int>& sample) {
-  sample_ = sample;
-  UpdateState();
-}
-
-std::string BernoulliTester::StateToString() const {
-  return StateToStringImpl();
-}
-
-FixedBernoulliTester::FixedBernoulliTester(double theta0, double theta1,
-                                           int sample_size)
-    : BernoulliTester(theta0, theta1), sample_size_(sample_size) {
-  CHECK_GT(sample_size_, 0);
-}
-
-void FixedBernoulliTester::UpdateState() {
-  done_ = sample().count() >= sample_size_;
-  if (done_) {
-    accept_ = sample().mean() > 0.5 * (theta0() + theta1());
-  }
-}
-
-std::string FixedBernoulliTester::StateToStringImpl() const {
-  return StrCat(sample().count(), '\t', sample().sum());
-}
-
 SingleSamplingBernoulliTester::SingleSamplingBernoulliTester(double theta0,
                                                              double theta1,
                                                              double alpha,
                                                              double beta)
-    : BernoulliTester(theta0, theta1),
+    : SequentialTester<bool>(theta0, theta1),
       ssp_(SingleSamplingPlan::Create(theta0, theta1, alpha, beta)) {
   CHECK_NE(theta0, theta1);
 }
@@ -144,7 +102,7 @@ int SingleSamplingAcceptThreshold(const SingleSamplingPlan& ssp) {
   return ssp.c() + 1;
 }
 
-int SingleSamplingRejectThreshold(const Sample<int>& sample,
+int SingleSamplingRejectThreshold(const Sample<bool>& sample,
                                   const SingleSamplingPlan& ssp) {
   return sample.count() + ssp.c() - ssp.n();
 }
@@ -209,7 +167,7 @@ double SprtRejectThreshold(double theta1, double alpha, double beta) {
 
 SprtBernoulliTester::SprtBernoulliTester(double theta0, double theta1,
                                          double alpha, double beta)
-    : BernoulliTester(theta0, theta1),
+    : SequentialTester<bool>(theta0, theta1),
       positive_coefficient_(SprtPositiveCoefficient(theta0, theta1)),
       negative_coefficient_(SprtNegativeCoefficient(theta0, theta1)),
       accept_threshold_(SprtAcceptThreshold(theta0, alpha, beta)),
@@ -219,7 +177,7 @@ SprtBernoulliTester::SprtBernoulliTester(double theta0, double theta1,
 
 namespace {
 
-double SprtState(const Sample<int>& sample, double positive_coefficient,
+double SprtState(const Sample<bool>& sample, double positive_coefficient,
                  double negative_coefficient) {
   double state = 0;
   if (sample.sum() > 0) {

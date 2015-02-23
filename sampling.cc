@@ -104,7 +104,7 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   const State* state_;
   int probabilistic_level_;
   ModelCheckingStats* stats_;
-  std::unordered_map<int, std::map<std::vector<int>, Sample<int>>>
+  std::unordered_map<int, std::map<std::vector<int>, Sample<bool>>>
       sample_cache_;
   std::unordered_map<int, DdCacheEntry> dd_cache_;
 
@@ -235,50 +235,43 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     if (probabilistic_level_ == 1) {
       std::cout << "Sequential estimation";
     }
-    SequentialEstimator<int> estimator(params_.delta, params_.alpha);
+    ChowRobbinsTester<bool> estimator(2 * params_.delta, 0, params_.alpha);
     std::swap(params_, nested_params);
     while (true) {
       property.path_property().Accept(this);
       const bool x = result_;
-      estimator.AddObservation(x ? 1 : 0);
+      estimator.AddObservation(x);
       if (probabilistic_level_ == 1) {
-        PrintProgress(estimator.count());
+        PrintProgress(estimator.sample().count());
       }
       if (VLOG_IS_ON(2)) {
         LOG(INFO) << std::string(2 * (probabilistic_level_ - 1), ' ')
-                  << estimator.count() << '\t' << estimator.value() << '\t'
-                  << estimator.state() << '\t' << estimator.bound();
+                  << estimator.StateToString();
       }
-      if (estimator.state() <= estimator.bound()) {
+      if (estimator.done()) {
         break;
       }
     }
     std::swap(params_, nested_params);
     if (probabilistic_level_ == 1) {
-      std::cout << estimator.count() << " observations." << std::endl;
+      std::cout << estimator.sample().count() << " observations." << std::endl;
       std::cout << "Pr[" << property.path_property().string()
-                << "] = " << estimator.value() << " ("
-                << std::max(0.0, estimator.value() - params_.delta) << ','
-                << std::min(1.0, estimator.value() + params_.delta) << ")"
-                << std::endl;
-      stats_->sample_size.AddObservation(estimator.count());
+                << "] = " << estimator.sample().mean() << " ("
+                << std::max(0.0, estimator.sample().mean() - params_.delta)
+                << ','
+                << std::min(1.0, estimator.sample().mean() + params_.delta)
+                << ")" << std::endl;
+      stats_->sample_size.AddObservation(estimator.sample().count());
     }
-    switch (property.op()) {
-      case CompiledProbabilityThresholdOperator::GREATER_EQUAL:
-        result_ = estimator.value() >= theta;
-        break;
-      case CompiledProbabilityThresholdOperator::GREATER:
-        result_ = estimator.value() > theta;
-        break;
-    }
+    result_ = estimator.accept();
     --probabilistic_level_;
     return;
   }
 
-  std::unique_ptr<BernoulliTester> tester;
+  std::unique_ptr<SequentialTester<bool>> tester;
   if (params_.algorithm == FIXED) {
-    tester.reset(
-        new FixedBernoulliTester(theta, theta, params_.fixed_sample_size));
+    tester.reset(new FixedSampleSizeTester<bool>(theta, theta,
+                                                 params_.fixed_sample_size));
   } else if (params_.algorithm == SSP) {
     tester.reset(new SingleSamplingBernoulliTester(
         theta0, theta1, params_.alpha, params_.beta));

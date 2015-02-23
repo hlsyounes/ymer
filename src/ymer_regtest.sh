@@ -125,7 +125,7 @@ expect_ok ${start}
 
 echo -n robot4_estimate...
 start=$(timestamp)
-HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --engine=mixed --delta=0.05 --const=n=4 src/testdata/robot.sm <(echo 'P>=0.86[ P>=0.5[ F<=9 c=1 ] U<=10 (x1=n & y1=n) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/robot4_estimate.golden -
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --estimate-probabilities --engine=mixed --delta=0.05 --const=n=4 src/testdata/robot.sm <(echo 'P>0[ P>=0.5[ F<=9 c=1 ] U<=10 (x1=n & y1=n) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/robot4_estimate.golden -
 expect_ok ${start}
 
 echo -n robot4_hybrid...
