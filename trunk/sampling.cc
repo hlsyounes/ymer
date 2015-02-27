@@ -231,42 +231,6 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
   ModelCheckingParams nested_params = params_;
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
-  if (params_.algorithm == ESTIMATE) {
-    if (probabilistic_level_ == 1) {
-      std::cout << "Sequential estimation";
-    }
-    ChowRobbinsTester<bool> estimator(2 * params_.delta, 0, params_.alpha);
-    std::swap(params_, nested_params);
-    while (true) {
-      property.path_property().Accept(this);
-      const bool x = result_;
-      estimator.AddObservation(x);
-      if (probabilistic_level_ == 1) {
-        PrintProgress(estimator.sample().count());
-      }
-      if (VLOG_IS_ON(2)) {
-        LOG(INFO) << std::string(2 * (probabilistic_level_ - 1), ' ')
-                  << estimator.StateToString();
-      }
-      if (estimator.done()) {
-        break;
-      }
-    }
-    std::swap(params_, nested_params);
-    if (probabilistic_level_ == 1) {
-      std::cout << estimator.sample().count() << " observations." << std::endl;
-      std::cout << "Pr[" << property.path_property().string()
-                << "] = " << estimator.sample().mean() << " ("
-                << std::max(0.0, estimator.sample().mean() - params_.delta)
-                << ','
-                << std::min(1.0, estimator.sample().mean() + params_.delta)
-                << ")" << std::endl;
-      stats_->sample_size.AddObservation(estimator.sample().count());
-    }
-    result_ = estimator.accept();
-    --probabilistic_level_;
-    return;
-  }
 
   std::unique_ptr<SequentialTester<bool>> tester;
   if (params_.algorithm == FIXED) {
@@ -275,12 +239,20 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
   } else if (params_.algorithm == SSP) {
     tester.reset(new SingleSamplingBernoulliTester(
         theta0, theta1, params_.alpha, params_.beta));
-  } else { /* algorithm == SPRT */
+  } else if (params_.algorithm == SPRT) {
     tester.reset(
         new SprtBernoulliTester(theta0, theta1, params_.alpha, params_.beta));
+  } else {  /* algorithm == ESTIMATE */
+    // TODO(hlsyounes): For nested properties, use a smaller delta.
+    tester.reset(
+        new ChowRobbinsTester<bool>(2 * params_.delta, 0, params_.alpha));
   }
   if (probabilistic_level_ == 1) {
-    std::cout << "Acceptance sampling";
+    if (params_.algorithm == ESTIMATE) {
+      std::cout << "Sequential estimation";
+    } else {
+      std::cout << "Acceptance sampling";
+    }
   }
   if (params_.memoization) {
     auto& sample_cache = sample_cache_[property.path_property().index()];
@@ -460,6 +432,13 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
   std::swap(params_, nested_params);
   if (probabilistic_level_ == 1) {
     std::cout << tester->sample().count() << " observations." << std::endl;
+    if (params_.algorithm == ESTIMATE) {
+      std::cout << "Pr[" << property.path_property().string()
+                << "] = " << tester->sample().mean() << " ("
+                << std::max(0.0, tester->sample().mean() - params_.delta) << ','
+                << std::min(1.0, tester->sample().mean() + params_.delta) << ")"
+                << std::endl;
+    }
     stats_->sample_size.AddObservation(tester->sample().count());
   }
   if (server_socket != -1) {
