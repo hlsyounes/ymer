@@ -195,7 +195,6 @@ TEST(ChowRobbinsTesterTest, IntegerObservations) {
   ChowRobbinsTester<int> tester(0.6, 0.4, 0.01);
   EXPECT_EQ(0.6, tester.theta0());
   EXPECT_EQ(0.4, tester.theta1());
-  EXPECT_EQ(0.01, tester.alpha());
   EXPECT_FALSE(tester.done());
 
   tester.AddObservation(2);
