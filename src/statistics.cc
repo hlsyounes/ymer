@@ -19,6 +19,7 @@
 
 #include "statistics.h"
 
+#include <algorithm>
 #include <cmath>
 
 double lchoose(double x, double y) {
@@ -175,25 +176,8 @@ SprtBernoulliTester::SprtBernoulliTester(double theta0, double theta1,
   CHECK_NE(theta0, theta1);
 }
 
-namespace {
-
-double SprtState(const Sample<bool>& sample, double positive_coefficient,
-                 double negative_coefficient) {
-  double state = 0;
-  if (sample.sum() > 0) {
-    state += sample.sum() * positive_coefficient;
-  }
-  if (sample.sum() < sample.count()) {
-    state += (sample.count() - sample.sum()) * negative_coefficient;
-  }
-  return state;
-}
-
-}  // namespace
-
 void SprtBernoulliTester::UpdateState() {
-  const double state =
-      SprtState(sample(), positive_coefficient_, negative_coefficient_);
+  const double state = State();
   if (state <= accept_threshold_) {
     done_ = true;
     accept_ = true;
@@ -206,8 +190,90 @@ void SprtBernoulliTester::UpdateState() {
 }
 
 std::string SprtBernoulliTester::StateToStringImpl() const {
-  const double state =
-      SprtState(sample(), positive_coefficient_, negative_coefficient_);
-  return StrCat(sample().count(), '\t', state, '\t', accept_threshold_, '\t',
+  return StrCat(sample().count(), '\t', State(), '\t', accept_threshold_, '\t',
                 reject_threshold_);
+}
+
+double SprtBernoulliTester::State() const {
+  double state = 0;
+  if (sample().sum() > 0) {
+    state += sample().sum() * positive_coefficient_;
+  }
+  if (sample().sum() < sample().count()) {
+    state += (sample().count() - sample().sum()) * negative_coefficient_;
+  }
+  return state;
+}
+
+namespace {
+
+double LaiIFunctionBernoulli(double theta_tilde, double theta) {
+  double result = 0.0;
+  if (theta_tilde > 0.0) {
+    result += theta_tilde * log(theta_tilde / theta);
+  }
+  if (theta_tilde < 1.0) {
+    result += (1.0 - theta_tilde) * log((1.0 - theta_tilde) / (1.0 - theta));
+  }
+  return result;
+}
+
+double LaiHFunction(double gamma, double t) {
+  if (gamma == 0.0) {
+    if (t >= 0.8) {
+      return 0.25 * sqrt(2.0 / M_PI) *
+             (1.0 / sqrt(t) - 5.0 / pow(t, 2.5) / 48.0 / M_PI);
+    } else if (t >= 0.1) {
+      return exp(-0.69 * t - 1.0);
+    } else if (t >= 0.01) {
+      return 0.39 - 0.015 / sqrt(t);
+    } else {
+      return sqrt(t * (2.0 * log(1.0 / t) + log(log(1.0 / t)) -
+                       log(4.0 * M_PI) - 3.0 * exp(-0.016 / sqrt(t))));
+    }
+  } else if (gamma <= 20.0) {
+    if (t >= 1.0) {
+      return LaiHFunction(0.0, t) * exp(-0.5 * gamma * gamma * t);
+    } else {
+      return LaiHFunction(0.0, t) * exp(-0.5 * gamma * gamma * pow(t, 1.125));
+    }
+  } else {
+    return (sqrt(t) *
+                sqrt(2.0 * log(1.0 / t) + log(log(1.0 / t)) - log(4.0 * M_PI)) -
+            gamma * t);
+  }
+}
+
+double LaiGFunction(double gamma, double t) {
+  const double g = LaiHFunction(gamma, t) + gamma * t;
+  return 0.5 * g * g / t;
+}
+
+}  // namespace
+
+LaiBernoulliTester::LaiBernoulliTester(double theta0, double theta1, double c)
+    : SequentialTester<bool>(theta0, theta1), c_(c) {}
+
+void LaiBernoulliTester::UpdateState() {
+  done_ = (State() >= Bound());
+  if (done_) {
+    accept_ = this->sample().mean() > 0.5 * (theta0() + theta1());
+  }
+}
+
+std::string LaiBernoulliTester::StateToStringImpl() const {
+  return StrCat(sample().count(), '\t', State(), '\t', Bound());
+}
+
+double LaiBernoulliTester::State() const {
+  double state = LaiIFunctionBernoulli(sample().mean(), theta0());
+  if (theta0() != theta1()) {
+    state = std::max(state, LaiIFunctionBernoulli(sample().mean(), theta1()));
+  }
+  return state;
+}
+
+double LaiBernoulliTester::Bound() const {
+  const auto n = sample().count();
+  return LaiGFunction(0.5 * (theta0() - theta1()) / sqrt(c_), c_ * n) / n;
 }

@@ -146,11 +146,15 @@ class FixedSampleSizeTester : public SequentialTester<T> {
   const int sample_size_;
 };
 
-// A SequentialTester that uses a sequential estimator based on the paper "On
-// the Asymptotic Theory of Fixed-Width Sequential Confidence Intervals for the
-// Mean" by Chow & Robbins.  Accepts H0 if mean() > 0.5 * (theta0 + theta1).
+// A SequentialTester that uses the sequential estimator by Chow and Robbins for
+// fixed-width confidence intervals:
 //
-// Does not allow theta0 == theta1.
+// Chow, Y. S. and Herbert Robbins.  1965.  On the asymptotic theory of
+// fixed-width sequential confidence intervals for the mean.  Annals of
+// Mathematical Statistics 36, no. 3: 457-462.
+//
+// Accepts H0 if mean() > 0.5 * (theta0 + theta1).  Does not allow theta0 ==
+// theta1.
 template <typename T>
 class ChowRobbinsTester : public SequentialTester<T> {
  public:
@@ -158,15 +162,14 @@ class ChowRobbinsTester : public SequentialTester<T> {
   // (theta0 - theta1) with coverage probability 1 - alpha.
   ChowRobbinsTester(double theta0, double theta1, double alpha);
 
-  double alpha() const { return alpha_; }
-
  private:
   void UpdateState() override;
   std::string StateToStringImpl() const override;
 
-  double alpha_;
-  double state_;
-  double bound_;
+  double State() const;
+  double Bound() const;
+
+  double tdist_quantile_;
 };
 
 // A SequantialTester based on a single sampling plan for Bernoulli trials with
@@ -186,7 +189,10 @@ class SingleSamplingBernoulliTester : public SequentialTester<bool> {
 };
 
 // A SequentialTester based on Wald's Sequential Probability Ratio Test for
-// Bernoulli trials.
+// Bernoulli trials:
+//
+// Wald, Abraham.  1945.  Sequential tests of statistical hypotheses.  Annals of
+// Mathematical Statistics 16, no. 2: 117-186.
 //
 // Respects error bounds alpha and beta.  Does not allow theta0 == theta1.
 class SprtBernoulliTester : public SequentialTester<bool> {
@@ -197,10 +203,35 @@ class SprtBernoulliTester : public SequentialTester<bool> {
   void UpdateState() override;
   std::string StateToStringImpl() const override;
 
+  double State() const;
+
   const double positive_coefficient_;
   const double negative_coefficient_;
   const double accept_threshold_;
   const double reject_threshold_;
+};
+
+// A SequentialTester that implements Lai's sequential test for Bernoulli
+// trials:
+//
+// Lai, Tze Leung.  1988.  Nearly optimal sequential tests of composite
+// hypotheses.  The Annals of Statistics 16, no. 2: 856-886.
+//
+// Takes an observation cost, c, instead of error bounds, and aims to minimize
+// overall cost of the test assuming that accepting the wrong hypothesis has
+// cost 1.  Allows theta0 == theta1.
+class LaiBernoulliTester : public SequentialTester<bool> {
+ public:
+  LaiBernoulliTester(double theta0, double theta1, double c);
+
+ private:
+  void UpdateState() override;
+  std::string StateToStringImpl() const override;
+
+  double State() const;
+  double Bound() const;
+
+  double c_;
 };
 
 template <typename T>
@@ -268,35 +299,40 @@ std::string FixedSampleSizeTester<T>::StateToStringImpl() const {
 template <typename T>
 ChowRobbinsTester<T>::ChowRobbinsTester(double theta0, double theta1,
                                         double alpha)
-    : SequentialTester<T>(theta0, theta1),
-      alpha_(alpha),
-      state_(std::numeric_limits<double>::infinity()),
-      bound_(0) {
+    : SequentialTester<T>(theta0, theta1), tdist_quantile_(1 - 0.5 * alpha) {
   CHECK_NE(theta0, theta1);
 }
 
 template <typename T>
 void ChowRobbinsTester<T>::UpdateState() {
-  const auto n = this->sample().count();
-  const double delta = 0.5 * (this->theta0() - this->theta1());
-  if (n > 0) {
-    state_ = 1.0 / n + this->sample().variance();
-    if (n > 1) {
-      const double a = gsl_cdf_tdist_Pinv(1 - 0.5 * alpha_, n - 1);
-      LOG(INFO) << "delta = " << delta << " theta0 = " << this->theta0()
-                << " theta1 = " << this->theta1();
-      bound_ = n * delta * delta / a / a;
-    }
-  }
-  this->done_ = (state_ <= bound_);
+  this->done_ = (State() <= Bound());
   if (this->done_) {
-    this->accept_ = this->sample().mean() > this->theta0() - delta;
+    this->accept_ =
+        this->sample().mean() > 0.5 * (this->theta0() + this->theta1());
   }
 }
 
 template <typename T>
 std::string ChowRobbinsTester<T>::StateToStringImpl() const {
-  return StrCat(this->sample().count(), '\t', state_, '\t', bound_);
+  return StrCat(this->sample().count(), '\t', State(), '\t', Bound());
+}
+
+template <typename T>
+double ChowRobbinsTester<T>::State() const {
+  return (this->sample().count() > 0)
+             ? 1.0 / this->sample().count() + this->sample().variance()
+             : std::numeric_limits<double>::infinity();
+}
+
+template <typename T>
+double ChowRobbinsTester<T>::Bound() const {
+  if (this->sample().count() > 1) {
+    const double delta = 0.5 * (this->theta0() - this->theta1());
+    const double a =
+        gsl_cdf_tdist_Pinv(tdist_quantile_, this->sample().count() - 1);
+    return this->sample().count() * delta * delta / a / a;
+  }
+  return 0;
 }
 
 #endif  // STATISTICS_H_
