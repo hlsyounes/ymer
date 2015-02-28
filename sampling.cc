@@ -83,10 +83,15 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
   void DoVisitCompiledUntilProperty(
       const CompiledUntilProperty& path_property) override;
+
+  void VerifyProbabilisticProperty(double theta,
+                                   const CompiledPathProperty& path_property);
 
   template <typename OutputIterator>
   bool VerifyHelper(const CompiledProperty& property, const Optional<BDD>& ddf,
@@ -207,9 +212,19 @@ void SamplingVerifier::DoVisitCompiledNotProperty(
 
 void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
+  VerifyProbabilisticProperty(property.threshold(), property.path_property());
+}
+
+void SamplingVerifier::DoVisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
+  VerifyProbabilisticProperty(0.5, property.path_property());
+}
+
+void SamplingVerifier::VerifyProbabilisticProperty(
+    const double theta, const CompiledPathProperty& path_property) {
   ++probabilistic_level_;
   double nested_error = 0.0;
-  if (dd_model_ == nullptr && property.path_property().is_probabilistic()) {
+  if (dd_model_ == nullptr && path_property.is_probabilistic()) {
     if (params_.nested_error > 0) {
       // User-specified nested error.
       nested_error = params_.nested_error;
@@ -223,7 +238,6 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
               << MaxNestedError(params_.delta);
     }
   }
-  const double theta = property.threshold();
   const double theta0 =
       std::min(1.0, (theta + params_.delta) * (1.0 - nested_error));
   const double theta1 = std::max(
@@ -255,7 +269,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     }
   }
   if (params_.memoization) {
-    auto& sample_cache = sample_cache_[property.path_property().index()];
+    auto& sample_cache = sample_cache_[path_property.index()];
     auto ci = sample_cache.find(state_->values());
     if (ci != sample_cache.end()) {
       tester->SetSample(ci->second);
@@ -413,7 +427,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
       }
     } else {
       /* Local mode. */
-      property.path_property().Accept(this);
+      path_property.Accept(this);
       s = result_;
       have_sample = true;
     }
@@ -433,7 +447,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
   if (probabilistic_level_ == 1) {
     std::cout << tester->sample().count() << " observations." << std::endl;
     if (params_.algorithm == ESTIMATE) {
-      std::cout << "Pr[" << property.path_property().string()
+      std::cout << "Pr[" << path_property.string()
                 << "] = " << tester->sample().mean() << " ("
                 << std::max(0.0, tester->sample().mean() - params_.delta) << ','
                 << std::min(1.0, tester->sample().mean() + params_.delta) << ")"
@@ -460,8 +474,7 @@ void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     }
   }
   if (params_.memoization) {
-    sample_cache_[property.path_property().index()][state_->values()] =
-        tester->sample();
+    sample_cache_[path_property.index()][state_->values()] = tester->sample();
   }
   result_ = tester->accept();
   --probabilistic_level_;

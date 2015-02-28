@@ -51,6 +51,8 @@ class SymbolicVerifier : public CompiledPropertyVisitor,
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
   void DoVisitCompiledUntilProperty(
@@ -130,6 +132,13 @@ void SymbolicVerifier::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
   threshold_ = property.threshold();
   strict_ = property.op() == CompiledProbabilityThresholdOperator::GREATER;
+  property.path_property().Accept(this);
+}
+
+void SymbolicVerifier::DoVisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
+  threshold_ = 0.5;
+  strict_ = true;
   property.path_property().Accept(this);
 }
 

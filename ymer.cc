@@ -959,6 +959,8 @@ class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
 
@@ -983,6 +985,12 @@ void CompiledPathPropertyExtractor::DoVisitCompiledNotProperty(
 
 void CompiledPathPropertyExtractor::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
+  path_properties_.push_back(&property.path_property());
+}
+
+void CompiledPathPropertyExtractor::
+    DoVisitCompiledProbabilityEstimationProperty(
+        const CompiledProbabilityEstimationProperty& property) {
   path_properties_.push_back(&property.path_property());
 }
 
@@ -1012,6 +1020,8 @@ class CompiledPropertyInspector : public CompiledPropertyVisitor,
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
   void DoVisitCompiledUntilProperty(
@@ -1043,6 +1053,11 @@ void CompiledPropertyInspector::DoVisitCompiledNotProperty(
 
 void CompiledPropertyInspector::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
+  property.path_property().Accept(this);
+}
+
+void CompiledPropertyInspector::DoVisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
   property.path_property().Accept(this);
 }
 
