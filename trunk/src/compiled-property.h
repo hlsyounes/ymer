@@ -192,6 +192,23 @@ class CompiledProbabilityThresholdProperty : public CompiledProperty {
   std::unique_ptr<const CompiledPathProperty> path_property_;
 };
 
+// A compiled probability estimation property.
+class CompiledProbabilityEstimationProperty : public CompiledProperty {
+ public:
+  explicit CompiledProbabilityEstimationProperty(
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+
+  static std::unique_ptr<const CompiledProbabilityEstimationProperty> New(
+      std::unique_ptr<const CompiledPathProperty>&& path_property);
+
+  const CompiledPathProperty& path_property() const { return *path_property_; }
+
+ private:
+  void DoAccept(CompiledPropertyVisitor* visitor) const override;
+
+  std::unique_ptr<const CompiledPathProperty> path_property_;
+};
+
 // A compiled until property.
 class CompiledUntilProperty : public CompiledPathProperty {
  public:
@@ -230,6 +247,8 @@ class CompiledPropertyVisitor {
   void VisitCompiledNotProperty(const CompiledNotProperty& property);
   void VisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property);
+  void VisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property);
   void VisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property);
 
@@ -243,6 +262,8 @@ class CompiledPropertyVisitor {
       const CompiledNotProperty& property) = 0;
   virtual void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) = 0;
+  virtual void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) = 0;
   virtual void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) = 0;
 };

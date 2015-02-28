@@ -51,6 +51,8 @@ class CompiledPropertyPrinter : public CompiledPropertyVisitor,
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
   void DoVisitCompiledUntilProperty(
@@ -88,6 +90,12 @@ void CompiledPropertyPrinter::DoVisitCompiledNotProperty(
 void CompiledPropertyPrinter::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
   *os_ << "P " << property.op() << ' ' << property.threshold() << std::endl;
+  property.path_property().Accept(this);
+}
+
+void CompiledPropertyPrinter::DoVisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
+  *os_ << "P = ?" << std::endl;
   property.path_property().Accept(this);
 }
 
@@ -225,6 +233,22 @@ void CompiledProbabilityThresholdProperty::DoAccept(
   visitor->VisitCompiledProbabilityThresholdProperty(*this);
 }
 
+CompiledProbabilityEstimationProperty::CompiledProbabilityEstimationProperty(
+    std::unique_ptr<const CompiledPathProperty>&& path_property)
+    : CompiledProperty(true), path_property_(std::move(path_property)) {}
+
+std::unique_ptr<const CompiledProbabilityEstimationProperty>
+CompiledProbabilityEstimationProperty::New(
+    std::unique_ptr<const CompiledPathProperty>&& path_property) {
+  return std::unique_ptr<const CompiledProbabilityEstimationProperty>(
+      new CompiledProbabilityEstimationProperty(std::move(path_property)));
+}
+
+void CompiledProbabilityEstimationProperty::DoAccept(
+    CompiledPropertyVisitor* visitor) const {
+  visitor->VisitCompiledProbabilityEstimationProperty(*this);
+}
+
 CompiledExpressionProperty::CompiledExpressionProperty(
     const CompiledExpression& expr)
     : CompiledProperty(false), expr_(expr) {}
@@ -283,6 +307,11 @@ void CompiledPropertyVisitor::VisitCompiledNotProperty(
 void CompiledPropertyVisitor::VisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
   DoVisitCompiledProbabilityThresholdProperty(property);
+}
+
+void CompiledPropertyVisitor::VisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
+  DoVisitCompiledProbabilityEstimationProperty(property);
 }
 
 void CompiledPropertyVisitor::VisitCompiledExpressionProperty(
@@ -607,6 +636,8 @@ class OptimizerState {
       std::unique_ptr<const CompiledExpressionProperty>&& expr_operand);
   explicit OptimizerState(
       std::unique_ptr<const CompiledProbabilityThresholdProperty>&& property);
+  explicit OptimizerState(
+      std::unique_ptr<const CompiledProbabilityEstimationProperty>&& property);
 
   bool is_expr() const {
     return expr_operand_ != nullptr && other_operands_.empty();
@@ -636,6 +667,12 @@ OptimizerState::OptimizerState(
 
 OptimizerState::OptimizerState(
     std::unique_ptr<const CompiledProbabilityThresholdProperty>&& property)
+    : is_negated_(false) {
+  other_operands_.push_back(std::move(property));
+}
+
+OptimizerState::OptimizerState(
+    std::unique_ptr<const CompiledProbabilityEstimationProperty>&& property)
     : is_negated_(false) {
   other_operands_.push_back(std::move(property));
 }
@@ -770,6 +807,8 @@ class CompiledPropertyOptimizer : public CompiledPropertyVisitor,
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
   void DoVisitCompiledUntilProperty(
@@ -838,6 +877,13 @@ void CompiledPropertyOptimizer::DoVisitCompiledProbabilityThresholdProperty(
   }
 }
 
+void CompiledPropertyOptimizer::DoVisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
+  property.path_property().Accept(this);
+  state_ = OptimizerState(
+      CompiledProbabilityEstimationProperty::New(std::move(path_property_)));
+}
+
 void CompiledPropertyOptimizer::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
   state_ = OptimizerState(CompiledExpressionProperty::New(property.expr()));
@@ -879,6 +925,8 @@ class PropertyRegisterCounter : public CompiledPropertyVisitor,
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
   void DoVisitCompiledProbabilityThresholdProperty(
       const CompiledProbabilityThresholdProperty& property) override;
+  void DoVisitCompiledProbabilityEstimationProperty(
+      const CompiledProbabilityEstimationProperty& property) override;
   void DoVisitCompiledExpressionProperty(
       const CompiledExpressionProperty& property) override;
   void DoVisitCompiledUntilProperty(
@@ -906,6 +954,11 @@ void PropertyRegisterCounter::DoVisitCompiledNotProperty(
 
 void PropertyRegisterCounter::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
+  property.path_property().Accept(this);
+}
+
+void PropertyRegisterCounter::DoVisitCompiledProbabilityEstimationProperty(
+    const CompiledProbabilityEstimationProperty& property) {
   property.path_property().Accept(this);
 }
 
