@@ -774,6 +774,8 @@ class ExpressionCompiler : public ExpressionVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
 
   std::vector<Operation> operations_;
   int dst_;
@@ -1242,6 +1244,12 @@ void ExpressionCompiler::DoVisitProbabilityThresholdOperation(
       "unexpected probability threshold operation in expression");
 }
 
+void ExpressionCompiler::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
+  errors_->push_back(
+      "unexpected probability estimation operation in expression");
+}
+
 class ExpressionToAddConverter : public ExpressionVisitor {
  public:
   explicit ExpressionToAddConverter(
@@ -1261,6 +1269,8 @@ class ExpressionToAddConverter : public ExpressionVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
 
   ADD add_;
   const std::map<std::string, const Expression*>* formulas_by_name_;
@@ -1421,6 +1431,11 @@ void ExpressionToAddConverter::DoVisitConditional(const Conditional& expr) {
 
 void ExpressionToAddConverter::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
+}
+
+void ExpressionToAddConverter::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
   LOG(FATAL) << "not an expression";
 }
 

@@ -90,9 +90,11 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   void DoVisitCompiledUntilProperty(
       const CompiledUntilProperty& path_property) override;
 
-  void VerifyProbabilisticProperty(double theta,
-                                   const CompiledPathProperty& path_property);
-
+  std::unique_ptr<SequentialTester<bool>> VerifyProbabilisticProperty(
+      SamplingAlgorithm algorithm, double theta,
+      const CompiledPathProperty& path_property);
+  std::unique_ptr<SequentialTester<bool>> NewSequentialTester(
+      SamplingAlgorithm algorithm, double theta0, double theta1) const;
   template <typename OutputIterator>
   bool VerifyHelper(const CompiledProperty& property, const Optional<BDD>& ddf,
                     const Optional<BDD>& feasible, bool default_result,
@@ -212,16 +214,27 @@ void SamplingVerifier::DoVisitCompiledNotProperty(
 
 void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
-  VerifyProbabilisticProperty(property.threshold(), property.path_property());
+  VerifyProbabilisticProperty(params_.threshold_algorithm, property.threshold(),
+                              property.path_property());
 }
 
 void SamplingVerifier::DoVisitCompiledProbabilityEstimationProperty(
     const CompiledProbabilityEstimationProperty& property) {
-  VerifyProbabilisticProperty(0.5, property.path_property());
+  auto tester = VerifyProbabilisticProperty(params_.estimation_algorithm, 0.5,
+                                            property.path_property());
+  if (probabilistic_level_ == 0) {
+    std::cout << "Pr[" << property.path_property().string()
+              << "] = " << tester->sample().mean() << " ("
+              << std::max(0.0, tester->sample().mean() - params_.delta) << ','
+              << std::min(1.0, tester->sample().mean() + params_.delta) << ")"
+              << std::endl;
+  }
 }
 
-void SamplingVerifier::VerifyProbabilisticProperty(
-    const double theta, const CompiledPathProperty& path_property) {
+std::unique_ptr<SequentialTester<bool>>
+SamplingVerifier::VerifyProbabilisticProperty(
+    SamplingAlgorithm algorithm, const double theta,
+    const CompiledPathProperty& path_property) {
   ++probabilistic_level_;
   double nested_error = 0.0;
   if (dd_model_ == nullptr && path_property.is_probabilistic()) {
@@ -246,27 +259,10 @@ void SamplingVerifier::VerifyProbabilisticProperty(
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
 
-  std::unique_ptr<SequentialTester<bool>> tester;
-  if (params_.algorithm == FIXED) {
-    tester.reset(new FixedSampleSizeTester<bool>(theta, theta,
-                                                 params_.fixed_sample_size));
-  } else if (params_.algorithm == SSP) {
-    tester.reset(new SingleSamplingBernoulliTester(
-        theta0, theta1, params_.alpha, params_.beta));
-  } else if (params_.algorithm == SPRT) {
-    tester.reset(
-        new SprtBernoulliTester(theta0, theta1, params_.alpha, params_.beta));
-  } else {  /* algorithm == ESTIMATE */
-    // TODO(hlsyounes): For nested properties, use a smaller delta.
-    tester.reset(
-        new ChowRobbinsTester<bool>(2 * params_.delta, 0, params_.alpha));
-  }
+  std::unique_ptr<SequentialTester<bool>> tester =
+      NewSequentialTester(algorithm, theta0, theta1);
   if (probabilistic_level_ == 1) {
-    if (params_.algorithm == ESTIMATE) {
-      std::cout << "Sequential estimation";
-    } else {
-      std::cout << "Acceptance sampling";
-    }
+    std::cout << "Acceptance sampling";
   }
   if (params_.memoization) {
     auto& sample_cache = sample_cache_[path_property.index()];
@@ -446,13 +442,6 @@ void SamplingVerifier::VerifyProbabilisticProperty(
   std::swap(params_, nested_params);
   if (probabilistic_level_ == 1) {
     std::cout << tester->sample().count() << " observations." << std::endl;
-    if (params_.algorithm == ESTIMATE) {
-      std::cout << "Pr[" << path_property.string()
-                << "] = " << tester->sample().mean() << " ("
-                << std::max(0.0, tester->sample().mean() - params_.delta) << ','
-                << std::min(1.0, tester->sample().mean() + params_.delta) << ")"
-                << std::endl;
-    }
     stats_->sample_size.AddObservation(tester->sample().count());
   }
   if (server_socket != -1) {
@@ -478,6 +467,28 @@ void SamplingVerifier::VerifyProbabilisticProperty(
   }
   result_ = tester->accept();
   --probabilistic_level_;
+  return std::move(tester);
+}
+
+std::unique_ptr<SequentialTester<bool>> SamplingVerifier::NewSequentialTester(
+    SamplingAlgorithm algorithm, double theta0, double theta1) const {
+  switch (algorithm) {
+    case SamplingAlgorithm::FIXED:
+      return std::unique_ptr<SequentialTester<bool>>(
+          new FixedSampleSizeTester<bool>(theta0, theta1,
+                                          params_.fixed_sample_size));
+    case SamplingAlgorithm::SSP:
+      return std::unique_ptr<SequentialTester<bool>>(
+          new SingleSamplingBernoulliTester(theta0, theta1, params_.alpha,
+                                            params_.beta));
+    case SamplingAlgorithm::SPRT:
+      return std::unique_ptr<SequentialTester<bool>>(
+          new SprtBernoulliTester(theta0, theta1, params_.alpha, params_.beta));
+    case SamplingAlgorithm::CHOW_ROBBINS:
+      return std::unique_ptr<SequentialTester<bool>>(
+          new ChowRobbinsTester<bool>(theta0, theta1, params_.alpha));
+  }
+  LOG(FATAL) << "bad sampling algorithm";
 }
 
 void SamplingVerifier::DoVisitCompiledExpressionProperty(
@@ -506,9 +517,9 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       dd2 = i->second.dd2;
       feasible = i->second.feasible;
     } else {
-      dd1 = Verify(path_property.pre_property(), *dd_model_, false, false,
+      dd1 = Verify(path_property.pre_property(), *dd_model_, false,
                    params_.epsilon);
-      dd2 = Verify(path_property.post_property(), *dd_model_, false, false,
+      dd2 = Verify(path_property.post_property(), *dd_model_, false,
                    params_.epsilon);
       if (path_property.max_time() == std::numeric_limits<double>::infinity()) {
         feasible = VerifyExistsUntil(*dd_model_, dd1.value(), dd2.value());

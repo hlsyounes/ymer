@@ -2,7 +2,6 @@ Sampling engine: alpha=0.01, beta=0.01, delta=0.01, seed=0
 Variables: 7
 Events:    20
 
-Model checking P>0[ F<=10 s = 1 & a = 0 ] ...
-Sequential estimation.........:.........:....2414 observations.
+Model checking P=?[ F<=10 s = 1 & a = 0 ] ...
+Acceptance sampling.........:.........:....2414 observations.
 Pr[F<=10 s = 1 & a = 0] = 0.962717 (0.952717,0.972717)
-Property is true in the initial state.

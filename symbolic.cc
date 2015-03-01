@@ -40,7 +40,7 @@ namespace {
 class SymbolicVerifier : public CompiledPropertyVisitor,
                          public CompiledPathPropertyVisitor {
  public:
-  explicit SymbolicVerifier(const DecisionDiagramModel* dd_model, bool estimate,
+  explicit SymbolicVerifier(const DecisionDiagramModel* dd_model,
                             bool top_level_property, double epsilon);
 
   BDD result() const { return result_; }
@@ -68,10 +68,9 @@ class SymbolicVerifier : public CompiledPropertyVisitor,
 };
 
 SymbolicVerifier::SymbolicVerifier(const DecisionDiagramModel* dd_model,
-                                   bool estimate, bool top_level_property,
-                                   double epsilon)
+                                   bool top_level_property, double epsilon)
     : dd_model_(dd_model),
-      estimate_(estimate),
+      estimate_(false),
       top_level_property_(top_level_property),
       epsilon_(epsilon),
       result_(dd_model->manager().GetConstant(false)) {}
@@ -130,16 +129,30 @@ void SymbolicVerifier::DoVisitCompiledNotProperty(
 
 void SymbolicVerifier::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
-  threshold_ = property.threshold();
-  strict_ = property.op() == CompiledProbabilityThresholdOperator::GREATER;
+  double threshold = property.threshold();
+  bool estimate = false;
+  bool strict = property.op() == CompiledProbabilityThresholdOperator::GREATER;
+  std::swap(threshold_, threshold);
+  std::swap(estimate_, estimate);
+  std::swap(strict_, strict);
   property.path_property().Accept(this);
+  std::swap(threshold_, threshold);
+  std::swap(estimate_, estimate);
+  std::swap(strict_, strict);
 }
 
 void SymbolicVerifier::DoVisitCompiledProbabilityEstimationProperty(
     const CompiledProbabilityEstimationProperty& property) {
-  threshold_ = 0.5;
-  strict_ = true;
+  double threshold = 0.5;
+  bool estimate = true;
+  bool strict = true;
+  std::swap(threshold_, threshold);
+  std::swap(estimate_, estimate);
+  std::swap(strict_, strict);
   property.path_property().Accept(this);
+  std::swap(threshold_, threshold);
+  std::swap(estimate_, estimate);
+  std::swap(strict_, strict);
 }
 
 void SymbolicVerifier::DoVisitCompiledExpressionProperty(
@@ -410,13 +423,10 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   /*
    * Verify postcondition property.
    */
-  bool estimate = false;
   bool top_level_property = false;
-  std::swap(estimate_, estimate);
   std::swap(top_level_property_, top_level_property);
   path_property.post_property().Accept(this);
   BDD dd2 = result_;
-  std::swap(estimate_, estimate);
   std::swap(top_level_property_, top_level_property);
   if (path_property.max_time() == 0) {
     /* No time is allowed to pass so solution is simply dd2. */
@@ -427,11 +437,9 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   /*
    * Verify precondition property.
    */
-  std::swap(estimate_, estimate);
   std::swap(top_level_property_, top_level_property);
   path_property.pre_property().Accept(this);
   BDD dd1 = result_;
-  std::swap(estimate_, estimate);
   std::swap(top_level_property_, top_level_property);
 
   if (path_property.min_time() > 0) {
@@ -693,15 +701,15 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   }
   if (top_level_property_) {
     std::cout << ' ' << iters << " iterations." << std::endl;
-  }
-  if (estimate_) {
-    std::cout.precision(10);
-    std::cout << "Pr[" << path_property.string() << "] = " << sum[0]
-              << std::endl;
-    std::cout.precision(6);
-  }
-  if (steady && top_level_property_) {
-    std::cout << "Steady state detected." << std::endl;
+    if (steady) {
+      std::cout << "Steady state detected." << std::endl;
+    }
+    if (estimate_) {
+      std::cout.precision(10);
+      std::cout << "Pr[" << path_property.string() << "] = " << sum[0]
+                << std::endl;
+      std::cout.precision(6);
+    }
   }
   /*
    * Free memory.
@@ -716,24 +724,21 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
     if ((strict_ && sum[0] > threshold_) ||
         (!strict_ && sum[0] >= threshold_)) {
       result_ = dd_model_->initial_state();
-      return;
     } else {
       result_ = dd_model_->manager().GetConstant(false);
-      return;
     }
   } else {
     result_ = double_vector_to_bdd(dd_model_->manager(), sum, strict_,
                                    threshold_, odd);
-    return;
   }
 }
 
 }  // namespace
 
 BDD Verify(const CompiledProperty& property,
-           const DecisionDiagramModel& dd_model, bool estimate,
-           bool top_level_property, double epsilon) {
-  SymbolicVerifier verifier(&dd_model, estimate, top_level_property, epsilon);
+           const DecisionDiagramModel& dd_model, bool top_level_property,
+           double epsilon) {
+  SymbolicVerifier verifier(&dd_model, top_level_property, epsilon);
   property.Accept(&verifier);
   return verifier.result();
 }

@@ -245,6 +245,11 @@ const ProbabilityThresholdOperation* NewProbabilityGreater(
       WrapUnique(path_property));
 }
 
+const ProbabilityEstimationOperation* NewProbabilityEqual(
+    const PathProperty* path_property) {
+  return new ProbabilityEstimationOperation(WrapUnique(path_property));
+}
+
 const UntilProperty* NewUntil(const TimeRange* time_range,
                               const Expression* pre_expr,
                               const Expression* post_expr) {
@@ -843,6 +848,8 @@ property : NUMBER
              { $$ = NewProbabilityGreaterEqual(Double($3), $5); }
          | P '>' NUMBER '[' path_property ']'
              { $$ = NewProbabilityGreater(Double($3), $5); }
+         | P '=' '?' '[' path_property ']'
+             { $$ = NewProbabilityEqual($5); }
          | '-' property %prec UMINUS
              { $$ = NewNegate($2); }
          | '!' property

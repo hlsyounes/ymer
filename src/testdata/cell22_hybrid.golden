@@ -6,11 +6,10 @@ Transitions: 44
 Rate matrix: 132 nodes 24 leaves 44 minterms
 ODD:         11 nodes
 
-Model checking P>0[ F<=1 n = N ] ...
+Model checking P=?[ F<=1 n = N ] ...
 Building hybrid MTBDD matrix...132 nodes.
 Adding sparse bits...5 levels, 1 bits.
 Uniformization: 87*1 = 87
 Fox-Glynn: left = 39, right = 230
 Computing probabilities.. 230 iterations.
 Pr[F<=1 n = N] = 0.759583891
-Property is true in the initial state.

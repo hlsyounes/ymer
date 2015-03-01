@@ -48,6 +48,8 @@ class Printer : public ExpressionVisitor, public PathPropertyVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
   void DoVisitUntilProperty(const UntilProperty& path_property) override;
   void DoVisitEventuallyProperty(
       const EventuallyProperty& path_property) override;
@@ -189,6 +191,16 @@ void Printer::DoVisitConditional(const Conditional& expr) {
 void Printer::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
   *os_ << 'P' << expr.op() << expr.threshold() << "[ ";
+  int precedence = GetTernaryOperatorPrecedence();
+  std::swap(parent_precedence_, precedence);
+  expr.path_property().Accept(this);
+  std::swap(parent_precedence_, precedence);
+  *os_ << " ]";
+}
+
+void Printer::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
+  *os_ << "P=?[ ";
   int precedence = GetTernaryOperatorPrecedence();
   std::swap(parent_precedence_, precedence);
   expr.path_property().Accept(this);
@@ -431,6 +443,22 @@ void ProbabilityThresholdOperation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitProbabilityThresholdOperation(*this);
 }
 
+ProbabilityEstimationOperation::ProbabilityEstimationOperation(
+    std::unique_ptr<const PathProperty>&& path_property)
+    : path_property_(std::move(path_property)) {}
+
+std::unique_ptr<const ProbabilityEstimationOperation>
+ProbabilityEstimationOperation::New(
+    std::unique_ptr<const PathProperty>&& path_property) {
+  return std::unique_ptr<const ProbabilityEstimationOperation>(
+      new ProbabilityEstimationOperation(std::move(path_property)));
+}
+
+void ProbabilityEstimationOperation::DoAccept(
+    ExpressionVisitor* visitor) const {
+  visitor->VisitProbabilityEstimationOperation(*this);
+}
+
 TimeRange::TimeRange(double min, double max) : min_(min), max_(max) {}
 
 std::ostream& operator<<(std::ostream& os, TimeRange r) {
@@ -510,6 +538,11 @@ void ExpressionVisitor::VisitConditional(const Conditional& expr) {
 void ExpressionVisitor::VisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
   DoVisitProbabilityThresholdOperation(expr);
+}
+
+void ExpressionVisitor::VisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
+  DoVisitProbabilityEstimationOperation(expr);
 }
 
 PathPropertyVisitor::~PathPropertyVisitor() = default;

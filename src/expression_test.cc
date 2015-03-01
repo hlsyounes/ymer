@@ -646,6 +646,12 @@ TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
             StrCat(expr3, ';', expr4));
 }
 
+TEST(ProbabilityEstimationOperationTest, OutputProbabilityEstimationOperation) {
+  const ProbabilityEstimationOperation expr(EventuallyProperty::New(
+      {0, std::numeric_limits<double>::infinity()}, Identifier::New("a")));
+  EXPECT_EQ("P=?[ F a ]", StrCat(expr));
+}
+
 TEST(TimeRangeTest, Output) {
   EXPECT_EQ("", StrCat(TimeRange(0, std::numeric_limits<double>::infinity())));
   EXPECT_EQ(">=0.5",

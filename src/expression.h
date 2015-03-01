@@ -313,6 +313,7 @@ class ProbabilityThresholdOperation : public Expression {
   // Returns the threshold for this probability threshold operation.
   double threshold() const { return threshold_; }
 
+  // Returns the path property for this probability threshold operation.
   const PathProperty& path_property() const { return *path_property_; }
 
  private:
@@ -320,6 +321,27 @@ class ProbabilityThresholdOperation : public Expression {
 
   ProbabilityThresholdOperator op_;
   double threshold_;
+  std::unique_ptr<const PathProperty> path_property_;
+};
+
+// A probability estimation operation.
+class ProbabilityEstimationOperation : public Expression {
+ public:
+  // Constructs a probability estimation expression with the given path
+  // property.
+  explicit ProbabilityEstimationOperation(
+      std::unique_ptr<const PathProperty>&& path_property);
+
+  // Factory method for probability estimation operations.
+  static std::unique_ptr<const ProbabilityEstimationOperation> New(
+      std::unique_ptr<const PathProperty>&& path_property);
+
+  // Returns the path property for this probability estimation operation.
+  const PathProperty& path_property() const { return *path_property_; }
+
+ private:
+  void DoAccept(ExpressionVisitor* visitor) const override;
+
   std::unique_ptr<const PathProperty> path_property_;
 };
 
@@ -413,6 +435,8 @@ class ExpressionVisitor {
   void VisitConditional(const Conditional& expr);
   void VisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr);
+  void VisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr);
 
  protected:
   ~ExpressionVisitor();
@@ -427,6 +451,8 @@ class ExpressionVisitor {
   virtual void DoVisitConditional(const Conditional& expr) = 0;
   virtual void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) = 0;
+  virtual void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) = 0;
 };
 
 // Abstract base class for path property visitors.

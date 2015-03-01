@@ -2,7 +2,6 @@ Sampling engine: alpha=0.01, beta=0.01, delta=0.05, seed=0
 Variables: 4
 Events:    4
 
-Model checking P>0[ F[0.001,0.001] na = 6 ] ...
-Sequential estimation.....537 observations.
+Model checking P=?[ F[0.001,0.001] na = 6 ] ...
+Acceptance sampling.....537 observations.
 Pr[F[0.001,0.001] na = 6] = 0.273743 (0.223743,0.323743)
-Property is true in the initial state.
