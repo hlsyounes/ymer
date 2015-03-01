@@ -77,69 +77,71 @@ static option long_options[] = {
     {"matching-moments", required_argument, 0, 'm'},
     {"fixed-sample-size", required_argument, 0, 'N'},
     {"nested-error", required_argument, 0, 'n'},
-    {"estimate-probabilities", no_argument, 0, 'p'},
+    {"estimation-algorithm", required_argument, 0, 'p'},
     {"port", required_argument, 0, 'P'},
-    {"sampling-algorithm", required_argument, 0, 's'},
     {"seed", required_argument, 0, 'S'},
     {"trials", required_argument, 0, 'T'},
+    {"threshold-algorithm", required_argument, 0, 't'},
     {"version", no_argument, 0, 'V'},
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}};
-static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:pP:s:S:T:V";
+static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:p:P:S:T:t:V";
 
 namespace {
 
 /* Displays help. */
 void display_help() {
-  std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
-            << "options:" << std::endl << "  -A a,  --alpha=a\t"
-            << "use bound a on false negatives with sampling engine"
-            << std::endl << "\t\t\t  (default is 1e-2)" << std::endl
-            << "  -B b,  --beta=b\t"
-            << "use bound b on false positives with sampling engine"
-            << std::endl << "\t\t\t  (default is 1e-2)" << std::endl
-            << "  -c c,  --const=c\t"
-            << "overrides for model constants" << std::endl
-            << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
-            << "  -D d,  --delta=d\t"
-            << "use indifference region of width 2*d with sampling" << std::endl
-            << "\t\t\t  engine (default is 1e-2)" << std::endl
-            << "  -E e,  --epsilon=e\t"
-            << "use precision e with hybrid engine (default is 1e-6)"
-            << std::endl << "  -e e,  --engine=e\t"
-            << "use engine e; can be `sampling' (default), `hybrid',"
-            << std::endl << "\t\t\t  or `mixed'" << std::endl
-            << "  -H h,  --host=h\t"
-            << "connect to server on host h" << std::endl
-            << "  -L l,  --max_path-length=l" << std::endl
-            << "\t\t\tlimit sample path to l states" << std::endl
-            << "  -M,    --memoization\t"
-            << "use memoization for sampling engine" << std::endl
-            << "  -m m,  --matching-moments=m" << std::endl
-            << "\t\t\tmatch the first m moments of general distributions"
-            << std::endl << "  -N n,  --fixed-sample-size=n" << std::endl
-            << "\t\t\tuse a fixed sample size" << std::endl
-            << "  -p,    --estimate-probabilities" << std::endl
-            << "\t\t\testimates probabilities of path formulae holding"
-            << std::endl << "  -P p,  --port=p\t"
-            << "communicate using port p" << std::endl
-            << "  -s s,  --sampling-algorithm=s" << std::endl
-            << "\t\t\tuse sampling algorithm s" << std::endl
-            << "  -S s,  --seed=s\t"
-            << "use seed s with random number generator" << std::endl
-            << "\t\t\t  (sampling engine only)" << std::endl
-            << "  -T t,  --trials=t\t"
-            << "number of trials for sampling engine (default is 1)"
-            << std::endl
-            << "\t\t\t  default level is 1 if optional argument is left out"
-            << std::endl << "  -V,    --version\t"
-            << "display version information and exit" << std::endl
-            << "  -h,    --help\t\t"
-            << "display this help and exit" << std::endl << "  file ...\t\t"
-            << "files containing models and properties;" << std::endl
-            << "\t\t\t  if none, descriptions are read from standard input"
-            << std::endl << std::endl
-            << "Report bugs to <" PACKAGE_BUGREPORT ">." << std::endl;
+  std::cout
+      << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
+      << "options:" << std::endl
+      << "  -A a,  --alpha=a\t"
+      << "use bound a on false negatives with sampling engine" << std::endl
+      << "\t\t\t  (default is 1e-2)" << std::endl
+      << "  -B b,  --beta=b\t"
+      << "use bound b on false positives with sampling engine" << std::endl
+      << "\t\t\t  (default is 1e-2)" << std::endl
+      << "  -c c,  --const=c\t"
+      << "overrides for model constants" << std::endl
+      << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
+      << "  -D d,  --delta=d\t"
+      << "use indifference region of width 2*d with sampling" << std::endl
+      << "\t\t\t  engine (default is 1e-2)" << std::endl
+      << "  -E e,  --epsilon=e\t"
+      << "use precision e with hybrid engine (default is 1e-6)" << std::endl
+      << "  -e e,  --engine=e\t"
+      << "use engine e; can be `sampling' (default), `hybrid'," << std::endl
+      << "\t\t\t  or `mixed'" << std::endl
+      << "  -H h,  --host=h\t"
+      << "connect to server on host h" << std::endl
+      << "  -L l,  --max_path-length=l" << std::endl
+      << "\t\t\tlimit sample path to l states" << std::endl
+      << "  -M,    --memoization\t"
+      << "use memoization for sampling engine" << std::endl
+      << "  -m m,  --matching-moments=m" << std::endl
+      << "\t\t\tmatch the first m moments of general distributions" << std::endl
+      << "  -N n,  --fixed-sample-size=n" << std::endl
+      << "\t\t\tuse a fixed sample size" << std::endl
+      << "  -p p,  --estimation-algorithm=p" << std::endl
+      << "\t\t\tuse sampling algorithm p for estimation" << std::endl
+      << "  -P p,  --port=p\t"
+      << "communicate using port p" << std::endl
+      << "  -S s,  --seed=s\t"
+      << "use seed s with random number generator" << std::endl
+      << "\t\t\t  (sampling engine only)" << std::endl
+      << "  -T t,  --trials=t\t"
+      << "number of trials for sampling engine (default is 1)" << std::endl
+      << "  -t t,  --threshold-algorithm=t" << std::endl
+      << "\t\t\tuse sampling algorithm t for hypothesis testing" << std::endl
+      << "  -V,    --version\t"
+      << "display version information and exit" << std::endl
+      << "  -h,    --help\t\t"
+      << "display this help and exit" << std::endl
+      << "  file ...\t\t"
+      << "files containing models and properties;" << std::endl
+      << "\t\t\t  if none, descriptions are read from standard input"
+      << std::endl
+      << std::endl
+      << "Report bugs to <" PACKAGE_BUGREPORT ">." << std::endl;
 }
 
 /* Displays version information. */
@@ -1013,6 +1015,7 @@ class CompiledPropertyInspector : public CompiledPropertyVisitor,
   bool has_unbounded() const { return has_unbounded_; }
   bool has_nested_nested() const { return has_nested_nested_; }
   bool has_nested_unbounded() const { return has_nested_unbounded_; }
+  bool is_estimation() const { return is_estimation_; }
 
  private:
   void DoVisitCompiledNaryProperty(
@@ -1031,13 +1034,15 @@ class CompiledPropertyInspector : public CompiledPropertyVisitor,
   bool has_unbounded_;
   bool has_nested_nested_;
   bool has_nested_unbounded_;
+  bool is_estimation_;
 };
 
 CompiledPropertyInspector::CompiledPropertyInspector()
     : has_nested_(false),
       has_unbounded_(false),
       has_nested_nested_(false),
-      has_nested_unbounded_(false) {}
+      has_nested_unbounded_(false),
+      is_estimation_(false) {}
 
 void CompiledPropertyInspector::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
@@ -1058,6 +1063,7 @@ void CompiledPropertyInspector::DoVisitCompiledProbabilityThresholdProperty(
 
 void CompiledPropertyInspector::DoVisitCompiledProbabilityEstimationProperty(
     const CompiledProbabilityEstimationProperty& property) {
+  is_estimation_ = true;
   property.path_property().Accept(this);
 }
 
@@ -1083,13 +1089,16 @@ void CompiledPropertyInspector::DoVisitCompiledUntilProperty(
   path_property.post_property().Accept(this);
 }
 
-void CheckUnsupported(
+std::vector<bool> CheckUnsupported(
     const ModelCheckingParams& params, const CompiledModelType& model_type,
     const UniquePtrVector<const CompiledProperty>& properties,
     std::vector<std::string>* errors) {
+  std::vector<bool> is_estimation;
+  is_estimation.reserve(properties.size());
   for (const auto& property : properties) {
     CompiledPropertyInspector inspector;
     property.Accept(&inspector);
+    is_estimation.push_back(inspector.is_estimation());
     switch (params.engine) {
       case ModelCheckingEngine::SAMPLING:
         if (inspector.has_nested() && model_type == CompiledModelType::GSMP) {
@@ -1140,6 +1149,19 @@ void CheckUnsupported(
         break;
     }
   }
+  return is_estimation;
+}
+
+SamplingAlgorithm ParseSamplingAlgorithm(const std::string& name) {
+  if (strcasecmp(name.c_str(), "ssp") == 0) {
+    return SamplingAlgorithm::SSP;
+  } else if (strcasecmp(name.c_str(), "sprt") == 0) {
+    return SamplingAlgorithm::SPRT;
+  } else if (strcasecmp(name.c_str(), "chow-robbins") == 0) {
+    return SamplingAlgorithm::CHOW_ROBBINS;
+  }
+  throw std::invalid_argument(
+      StrCat("unsupported sampling algorithm `", name, "'"));
 }
 
 }  // namespace
@@ -1149,8 +1171,6 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   ModelCheckingParams params;
-  /* Verification without estimation by default. */
-  bool estimate = false;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */
@@ -1249,15 +1269,15 @@ int main(int argc, char* argv[]) {
           }
           break;
         case 'N':
-          params.algorithm = FIXED;
+          params.threshold_algorithm = SamplingAlgorithm::FIXED;
+          params.estimation_algorithm = SamplingAlgorithm::FIXED;
           params.fixed_sample_size = atoi(optarg);
           break;
         case 'n':
           params.nested_error = atof(optarg);
           break;
         case 'p':
-          estimate = true;
-          params.algorithm = ESTIMATE;
+          params.estimation_algorithm = ParseSamplingAlgorithm(optarg);
           break;
         case 'P':
           port = atoi(optarg);
@@ -1265,21 +1285,14 @@ int main(int argc, char* argv[]) {
             throw std::invalid_argument("invalid port number");
           }
           break;
-        case 's':
-          if (strcasecmp(optarg, "ssp") == 0) {
-            params.algorithm = SSP;
-          } else if (strcasecmp(optarg, "sprt") == 0) {
-            params.algorithm = SPRT;
-          } else {
-            throw std::invalid_argument("unsupported sampling algorithm `" +
-                                        std::string(optarg) + "'");
-          }
-          break;
         case 'S':
           seed = atoi(optarg);
           break;
         case 'T':
           trials = atoi(optarg);
+          break;
+        case 't':
+          params.threshold_algorithm = ParseSamplingAlgorithm(optarg);
           break;
         case 'V':
           display_version();
@@ -1365,8 +1378,8 @@ int main(int argc, char* argv[]) {
       reg_counts.second =
           std::max(reg_counts.second, property_reg_counts.second);
     }
-    CheckUnsupported(params, compiled_model.type(), compiled_properties,
-                     &errors);
+    const auto is_estimation = CheckUnsupported(params, compiled_model.type(),
+                                                compiled_properties, &errors);
     if (!errors.empty()) {
       for (const std::string& error : errors) {
         std::cerr << PACKAGE << ":" << error << std::endl;
@@ -1591,12 +1604,14 @@ int main(int argc, char* argv[]) {
           if (trials == 1) {
             std::cout << "Model checking completed in " << t << " seconds."
                       << std::endl;
-            if (sol) {
-              std::cout << "Property is true in the initial state."
-                        << std::endl;
-            } else {
-              std::cout << "Property is false in the initial state."
-                        << std::endl;
+            if (!is_estimation[current_property]) {
+              if (sol) {
+                std::cout << "Property is true in the initial state."
+                          << std::endl;
+              } else {
+                std::cout << "Property is false in the initial state."
+                          << std::endl;
+              }
             }
           } else {
             if (sol) {
@@ -1682,7 +1697,7 @@ int main(int argc, char* argv[]) {
           setitimer(ITIMER_PROF, &timer, 0);
           getitimer(ITIMER_PROF, &stimer);
 #endif
-          BDD ddf = Verify(property, dd_model, estimate, true, params.epsilon);
+          BDD ddf = Verify(property, dd_model, true, params.epsilon);
           BDD sol = ddf && dd_model.initial_state();
 #ifdef PROFILING
           getitimer(ITIMER_VIRTUAL, &timer);
@@ -1701,10 +1716,12 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "Model checking completed in " << total_time / trials
                   << " seconds." << std::endl;
-        if (accepted) {
-          std::cout << "Property is true in the initial state." << std::endl;
-        } else {
-          std::cout << "Property is false in the initial state." << std::endl;
+        if (!is_estimation[current_property]) {
+          if (accepted) {
+            std::cout << "Property is true in the initial state." << std::endl;
+          } else {
+            std::cout << "Property is false in the initial state." << std::endl;
+          }
         }
       }
     } else if (params.engine == ModelCheckingEngine::MIXED) {
@@ -1784,12 +1801,14 @@ int main(int argc, char* argv[]) {
           if (trials == 1) {
             std::cout << "Model checking completed in " << t << " seconds."
                       << std::endl;
-            if (sol) {
-              std::cout << "Property is true in the initial state."
-                        << std::endl;
-            } else {
-              std::cout << "Property is false in the initial state."
-                        << std::endl;
+            if (!is_estimation[current_property]) {
+              if (sol) {
+                std::cout << "Property is true in the initial state."
+                          << std::endl;
+              } else {
+                std::cout << "Property is false in the initial state."
+                          << std::endl;
+              }
             }
           } else {
             if (sol) {

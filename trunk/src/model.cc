@@ -130,6 +130,8 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
 
   TypedValue value_;
   std::set<std::string> pending_constants_;
@@ -472,6 +474,12 @@ void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
       "unexpected probability threshold operation in expression");
 }
 
+void ConstantExpressionEvaluator::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
+  errors_->push_back(
+      "unexpected probability estimation operation in expression");
+}
+
 }  // namespace
 
 void ResolveConstants(
@@ -735,6 +743,8 @@ class ExpressionRewriter : public ExpressionVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
 
   std::unique_ptr<const Expression> expr_;
   const std::vector<NamedExpression>* formulas_;
@@ -800,6 +810,11 @@ void ExpressionRewriter::DoVisitConditional(const Conditional& expr) {
 
 void ExpressionRewriter::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
+}
+
+void ExpressionRewriter::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
   LOG(FATAL) << "not an expression";
 }
 

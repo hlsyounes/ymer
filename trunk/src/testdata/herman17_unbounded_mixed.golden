@@ -8,7 +8,6 @@ Transitions: 1.2914e+08
 Rate matrix: 1053 nodes 10 leaves 1.2914e+08 minterms
 ODD:         18 nodes
 
-Model checking P>0[ F "stable" ] ...
-Sequential estimation..260 observations.
+Model checking P=?[ F "stable" ] ...
+Acceptance sampling..260 observations.
 Pr[F "stable"] = 1 (0.99,1)
-Property is true in the initial state.

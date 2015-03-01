@@ -331,10 +331,14 @@ namespace {
 class CompilerState {
  public:
   CompilerState();
+  explicit CompilerState(
+      std::unique_ptr<const CompiledProbabilityEstimationProperty>&& property);
   explicit CompilerState(std::unique_ptr<const CompiledProperty>&& property);
   explicit CompilerState(const Expression* expr);
 
   bool has_expr() const { return expr_ != nullptr; }
+
+  bool is_estimation() const { return estimation_; }
 
   std::unique_ptr<const CompiledProperty> ReleaseProperty(
       const std::map<std::string, const Expression*>& formulas_by_name,
@@ -343,16 +347,22 @@ class CompilerState {
       std::vector<std::string>* errors);
 
  private:
+  bool estimation_;
   std::unique_ptr<const CompiledProperty> property_;
   const Expression* expr_;
 };
 
-CompilerState::CompilerState() : expr_(nullptr) {}
+CompilerState::CompilerState() : estimation_(false), expr_(nullptr) {}
+
+CompilerState::CompilerState(
+    std::unique_ptr<const CompiledProbabilityEstimationProperty>&& property)
+    : estimation_(true), property_(std::move(property)), expr_(nullptr) {}
 
 CompilerState::CompilerState(std::unique_ptr<const CompiledProperty>&& property)
-    : property_(std::move(property)), expr_(nullptr) {}
+    : estimation_(false), property_(std::move(property)), expr_(nullptr) {}
 
-CompilerState::CompilerState(const Expression* expr) : expr_(expr) {}
+CompilerState::CompilerState(const Expression* expr)
+    : estimation_(false), expr_(expr) {}
 
 std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
     const std::map<std::string, const Expression*>& formulas_by_name,
@@ -398,6 +408,8 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
   void DoVisitUntilProperty(const UntilProperty& path_property) override;
   void DoVisitEventuallyProperty(
       const EventuallyProperty& path_property) override;
@@ -452,6 +464,10 @@ void PropertyCompiler::DoVisitUnaryOperation(const UnaryOperation& expr) {
     state_ = CompilerState(&expr);
     return;
   }
+  if (state_.is_estimation()) {
+    errors_->push_back("only top-level estimation is suported");
+    return;
+  }
   switch (expr.op()) {
     case UnaryOperator::NEGATE:
       errors_->push_back(StrCat("type mismatch; unary operator ", expr.op(),
@@ -470,6 +486,10 @@ void PropertyCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
   expr.operand2().Accept(this);
   if (state1.has_expr() && state_.has_expr()) {
     state_ = CompilerState(&expr);
+    return;
+  }
+  if (state_.is_estimation()) {
+    errors_->push_back("only top-level estimation is suported");
     return;
   }
   switch (expr.op()) {
@@ -574,6 +594,13 @@ void PropertyCompiler::DoVisitProbabilityThresholdOperation(
       return;
   }
   LOG(FATAL) << "bad probability threshold operator";
+}
+
+void PropertyCompiler::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
+  expr.path_property().Accept(this);
+  state_ = CompilerState(
+      CompiledProbabilityEstimationProperty::New(std::move(path_property_)));
 }
 
 void PropertyCompiler::DoVisitUntilProperty(

@@ -100,6 +100,8 @@ class ConstantExpressionEvaluator : public ExpressionVisitor {
   void DoVisitConditional(const Conditional& expr) override;
   void DoVisitProbabilityThresholdOperation(
       const ProbabilityThresholdOperation& expr) override;
+  void DoVisitProbabilityEstimationOperation(
+      const ProbabilityEstimationOperation& expr) override;
 
   TypedValue value_;
 };
@@ -240,6 +242,11 @@ void ConstantExpressionEvaluator::DoVisitConditional(const Conditional& expr) {
 
 void ConstantExpressionEvaluator::DoVisitProbabilityThresholdOperation(
     const ProbabilityThresholdOperation& expr) {
+  LOG(FATAL) << "not an expression";
+}
+
+void ConstantExpressionEvaluator::DoVisitProbabilityEstimationOperation(
+    const ProbabilityEstimationOperation& expr) {
   LOG(FATAL) << "not an expression";
 }
 

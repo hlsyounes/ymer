@@ -37,7 +37,7 @@
 enum class ModelCheckingEngine { SAMPLING, HYBRID, MIXED };
 
 // Sampling algorithms.
-enum SamplingAlgorithm { ESTIMATE, SSP, SPRT, FIXED };
+enum class SamplingAlgorithm { CHOW_ROBBINS, SSP, SPRT, FIXED };
 
 struct ModelCheckingParams {
   ModelCheckingParams();
@@ -47,7 +47,8 @@ struct ModelCheckingParams {
   double delta;
   double epsilon;
   ModelCheckingEngine engine;
-  SamplingAlgorithm algorithm;
+  SamplingAlgorithm threshold_algorithm;
+  SamplingAlgorithm estimation_algorithm;
   int fixed_sample_size;
   size_t max_path_length;
   double nested_error;
@@ -69,8 +70,8 @@ bool Verify(const CompiledProperty& property, const CompiledModel& model,
             ModelCheckingStats* stats);
 
 BDD Verify(const CompiledProperty& property,
-           const DecisionDiagramModel& dd_model, bool estimate,
-           bool top_level_property, double epsilon);
+           const DecisionDiagramModel& dd_model, bool top_level_property,
+           double epsilon);
 
 BDD VerifyExistsUntil(const DecisionDiagramModel& dd_model, const BDD& pre,
                       const BDD& post);
