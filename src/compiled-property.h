@@ -69,19 +69,22 @@ class CompiledPathProperty {
 
   bool is_probabilistic() const { return is_probabilistic_; }
 
+  bool is_unbounded() const { return is_unbounded_; }
+
   const std::string& string() const { return string_; }
 
   void Accept(CompiledPathPropertyVisitor* visitor) const;
 
  protected:
   explicit CompiledPathProperty(int index, bool is_probabilistic,
-                                const std::string& string);
+                                bool is_unbounded, const std::string& string);
 
  private:
   virtual void DoAccept(CompiledPathPropertyVisitor* visitor) const = 0;
 
   int index_;
   bool is_probabilistic_;
+  bool is_unbounded_;
   std::string string_;
 };
 

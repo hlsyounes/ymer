@@ -19,6 +19,7 @@
 
 #include "compiled-property.h"
 
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -123,8 +124,12 @@ std::ostream& operator<<(std::ostream& os, const CompiledProperty& p) {
 }
 
 CompiledPathProperty::CompiledPathProperty(int index, bool is_probabilistic,
+                                           bool is_unbounded,
                                            const std::string& string)
-    : index_(index), is_probabilistic_(is_probabilistic), string_(string) {}
+    : index_(index),
+      is_probabilistic_(is_probabilistic),
+      is_unbounded_(is_unbounded),
+      string_(string) {}
 
 CompiledPathProperty::~CompiledPathProperty() = default;
 
@@ -269,9 +274,10 @@ CompiledUntilProperty::CompiledUntilProperty(
     std::unique_ptr<const CompiledProperty>&& pre_property,
     std::unique_ptr<const CompiledProperty>&& post_property, int index,
     const std::string& string)
-    : CompiledPathProperty(index, pre_property->is_probabilistic() ||
-                                      post_property->is_probabilistic(),
-                           string),
+    : CompiledPathProperty(
+          index,
+          pre_property->is_probabilistic() || post_property->is_probabilistic(),
+          max_time == std::numeric_limits<double>::infinity(), string),
       min_time_(min_time),
       max_time_(max_time),
       pre_property_(std::move(pre_property)),

@@ -77,15 +77,16 @@ static option long_options[] = {
     {"matching-moments", required_argument, 0, 'm'},
     {"fixed-sample-size", required_argument, 0, 'N'},
     {"nested-error", required_argument, 0, 'n'},
-    {"estimation-algorithm", required_argument, 0, 'p'},
     {"port", required_argument, 0, 'P'},
+    {"termination-probability", required_argument, 0, 'p'},
+    {"estimation-algorithm", required_argument, 0, 'q'},
     {"seed", required_argument, 0, 'S'},
     {"trials", required_argument, 0, 'T'},
     {"threshold-algorithm", required_argument, 0, 't'},
     {"version", no_argument, 0, 'V'},
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}};
-static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:p:P:S:T:t:V";
+static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:p:P:q:S:T:t:V";
 
 namespace {
 
@@ -121,10 +122,13 @@ void display_help() {
       << "\t\t\tmatch the first m moments of general distributions" << std::endl
       << "  -N n,  --fixed-sample-size=n" << std::endl
       << "\t\t\tuse a fixed sample size" << std::endl
-      << "  -p p,  --estimation-algorithm=p" << std::endl
-      << "\t\t\tuse sampling algorithm p for estimation" << std::endl
       << "  -P p,  --port=p\t"
       << "communicate using port p" << std::endl
+      << "  -p p,  --termination-probability=p" << std::endl
+      << "\t\t\tuse termination probability p for unbounded path properties"
+      << std::endl
+      << "  -q q,  --estimation-algorithm=q" << std::endl
+      << "\t\t\tuse sampling algorithm q for estimation" << std::endl
       << "  -S s,  --seed=s\t"
       << "use seed s with random number generator" << std::endl
       << "\t\t\t  (sampling engine only)" << std::endl
@@ -1072,7 +1076,7 @@ void CompiledPropertyInspector::DoVisitCompiledExpressionProperty(
 
 void CompiledPropertyInspector::DoVisitCompiledUntilProperty(
     const CompiledUntilProperty& path_property) {
-  if (path_property.max_time() == std::numeric_limits<double>::infinity()) {
+  if (path_property.is_unbounded()) {
     has_unbounded_ = true;
     if (has_nested_) {
       has_nested_unbounded_ = true;
@@ -1106,11 +1110,6 @@ std::vector<bool> CheckUnsupported(
           errors->push_back(
               "sampling engine does not support nested probabilistic "
               "properties for GSMPs");
-        }
-        if (inspector.has_unbounded()) {
-          // TODO(hlsyounes): Implement support with weighted sampling.
-          errors->push_back(
-              "sampling engine does not support unbounded properties");
         }
         break;
       case ModelCheckingEngine::HYBRID:
@@ -1152,16 +1151,24 @@ std::vector<bool> CheckUnsupported(
   return is_estimation;
 }
 
-SamplingAlgorithm ParseSamplingAlgorithm(const std::string& name) {
+ThresholdAlgorithm ParseThresholdAlgorithm(const std::string& name) {
   if (strcasecmp(name.c_str(), "ssp") == 0) {
-    return SamplingAlgorithm::SSP;
+    return ThresholdAlgorithm::SSP;
   } else if (strcasecmp(name.c_str(), "sprt") == 0) {
-    return SamplingAlgorithm::SPRT;
+    return ThresholdAlgorithm::SPRT;
   } else if (strcasecmp(name.c_str(), "chow-robbins") == 0) {
-    return SamplingAlgorithm::CHOW_ROBBINS;
+    return ThresholdAlgorithm::CHOW_ROBBINS;
   }
   throw std::invalid_argument(
-      StrCat("unsupported sampling algorithm `", name, "'"));
+      StrCat("unsupported threshold algorithm `", name, "'"));
+}
+
+EstimationAlgorithm ParseEstimationAlgorithm(const std::string& name) {
+  if (strcasecmp(name.c_str(), "chow-robbins") == 0) {
+    return EstimationAlgorithm::CHOW_ROBBINS;
+  }
+  throw std::invalid_argument(
+      StrCat("unsupported estimation algorithm `", name, "'"));
 }
 
 }  // namespace
@@ -1269,21 +1276,24 @@ int main(int argc, char* argv[]) {
           }
           break;
         case 'N':
-          params.threshold_algorithm = SamplingAlgorithm::FIXED;
-          params.estimation_algorithm = SamplingAlgorithm::FIXED;
+          params.threshold_algorithm = ThresholdAlgorithm::FIXED;
+          params.estimation_algorithm = EstimationAlgorithm::FIXED;
           params.fixed_sample_size = atoi(optarg);
           break;
         case 'n':
           params.nested_error = atof(optarg);
-          break;
-        case 'p':
-          params.estimation_algorithm = ParseSamplingAlgorithm(optarg);
           break;
         case 'P':
           port = atoi(optarg);
           if (port < 0 || port > 0xffff) {
             throw std::invalid_argument("invalid port number");
           }
+          break;
+        case 'p':
+          params.termination_probability = atof(optarg);
+          break;
+        case 'q':
+          params.estimation_algorithm = ParseEstimationAlgorithm(optarg);
           break;
         case 'S':
           seed = atoi(optarg);
@@ -1292,7 +1302,7 @@ int main(int argc, char* argv[]) {
           trials = atoi(optarg);
           break;
         case 't':
-          params.threshold_algorithm = ParseSamplingAlgorithm(optarg);
+          params.threshold_algorithm = ParseThresholdAlgorithm(optarg);
           break;
         case 'V':
           display_version();

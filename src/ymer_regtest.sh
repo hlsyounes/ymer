@@ -151,6 +151,21 @@ expect_ok ${start}
 # TODO(hlsyounes): Add knacl10_hybrid regression test.  Requires support for
 # interval time bounds in hybrid engine.
 
+echo -n poll14_unbounded_cr47...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.05 src/testdata/poll14.sm <(echo 'P<0.47[ !(s=2 & a=1) U (s=1 & a=1) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll14_unbounded_cr47.golden -
+expect_ok ${start}
+
+echo -n poll14_unbounded_cr59...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.05 src/testdata/poll14.sm <(echo 'P<0.59[ !(s=2 & a=1) U (s=1 & a=1) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll14_unbounded_cr59.golden -
+expect_ok ${start}
+
+echo -n poll14_unbounded_estimate...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.05 src/testdata/poll14.sm <(echo 'P=?[ !(s=2 & a=1) U (s=1 & a=1) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll14_unbounded_estimate.golden -
+expect_ok ${start}
+
 echo -n poll14_unbounded_mixed...
 start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.05 --engine=mixed src/testdata/poll14.sm <(echo 'P=?[ !(s=2 & a=1) U (s=1 & a=1) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll14_unbounded_mixed.golden -
