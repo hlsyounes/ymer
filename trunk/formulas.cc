@@ -26,11 +26,11 @@ ModelCheckingParams::ModelCheckingParams()
       beta(1e-2),
       delta(1e-2),
       epsilon(1e-6),
+      termination_probability(1e-6),
       engine(ModelCheckingEngine::SAMPLING),
-      threshold_algorithm(SamplingAlgorithm::SPRT),
-      estimation_algorithm(SamplingAlgorithm::CHOW_ROBBINS),
+      threshold_algorithm(ThresholdAlgorithm::SPRT),
+      estimation_algorithm(EstimationAlgorithm::CHOW_ROBBINS),
       fixed_sample_size(0),
-      max_path_length(std::numeric_limits<size_t>::max()),
+      max_path_length(std::numeric_limits<int>::max()),
       nested_error(-1),
-      memoization(false) {
-}
+      memoization(false) {}

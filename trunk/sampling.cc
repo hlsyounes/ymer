@@ -48,6 +48,20 @@
 
 namespace {
 
+template <typename Algorithm>
+struct ResultType {
+};
+
+template <>
+struct ResultType<ThresholdAlgorithm> {
+  using type = bool;
+};
+
+template <>
+struct ResultType<EstimationAlgorithm> {
+  using type = double;
+};
+
 void PrintProgress(int n) {
   if (n % 1000 == 0) {
     std::cout << ':';
@@ -90,11 +104,13 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   void DoVisitCompiledUntilProperty(
       const CompiledUntilProperty& path_property) override;
 
-  std::unique_ptr<SequentialTester<bool>> VerifyProbabilisticProperty(
-      SamplingAlgorithm algorithm, double theta,
-      const CompiledPathProperty& path_property);
-  std::unique_ptr<SequentialTester<bool>> NewSequentialTester(
-      SamplingAlgorithm algorithm, double theta0, double theta1) const;
+  template <typename Algorithm>
+  std::unique_ptr<SequentialTester<typename ResultType<Algorithm>::type>>
+  VerifyProbabilisticProperty(Algorithm algorithm, double theta,
+                              const CompiledPathProperty& path_property);
+  template <typename Algorithm>
+  std::unique_ptr<SequentialTester<typename ResultType<Algorithm>::type>>
+  NewSequentialTester(Algorithm algorithm, double theta0, double theta1) const;
   template <typename OutputIterator>
   bool VerifyHelper(const CompiledProperty& property, const Optional<BDD>& ddf,
                     const Optional<BDD>& feasible, bool default_result,
@@ -102,6 +118,7 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   std::string StateToString(const State& state) const;
 
   bool result_;
+  double observation_weight_;
   const CompiledModel* model_;
   const DecisionDiagramModel* dd_model_;
   ModelCheckingParams params_;
@@ -111,7 +128,7 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   const State* state_;
   int probabilistic_level_;
   ModelCheckingStats* stats_;
-  std::unordered_map<int, std::map<std::vector<int>, Sample<bool>>>
+  std::unordered_map<int, std::map<std::vector<int>, Sample<double>>>
       sample_cache_;
   std::unordered_map<int, DdCacheEntry> dd_cache_;
 
@@ -214,8 +231,13 @@ void SamplingVerifier::DoVisitCompiledNotProperty(
 
 void SamplingVerifier::DoVisitCompiledProbabilityThresholdProperty(
     const CompiledProbabilityThresholdProperty& property) {
-  VerifyProbabilisticProperty(params_.threshold_algorithm, property.threshold(),
-                              property.path_property());
+  if (dd_model_ == nullptr && property.path_property().is_unbounded()) {
+    VerifyProbabilisticProperty(params_.estimation_algorithm,
+                                property.threshold(), property.path_property());
+  } else {
+    VerifyProbabilisticProperty(params_.threshold_algorithm,
+                                property.threshold(), property.path_property());
+  }
 }
 
 void SamplingVerifier::DoVisitCompiledProbabilityEstimationProperty(
@@ -231,9 +253,10 @@ void SamplingVerifier::DoVisitCompiledProbabilityEstimationProperty(
   }
 }
 
-std::unique_ptr<SequentialTester<bool>>
+template <typename Algorithm>
+std::unique_ptr<SequentialTester<typename ResultType<Algorithm>::type>>
 SamplingVerifier::VerifyProbabilisticProperty(
-    SamplingAlgorithm algorithm, const double theta,
+    Algorithm algorithm, const double theta,
     const CompiledPathProperty& path_property) {
   ++probabilistic_level_;
   double nested_error = 0.0;
@@ -259,8 +282,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
   nested_params.alpha = nested_error;
   nested_params.beta = nested_error;
 
-  std::unique_ptr<SequentialTester<bool>> tester =
-      NewSequentialTester(algorithm, theta0, theta1);
+  auto tester = NewSequentialTester(algorithm, theta0, theta1);
   if (probabilistic_level_ == 1) {
     std::cout << "Acceptance sampling";
   }
@@ -421,6 +443,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
            ci != closed_sockets.end(); ci++) {
         registered_clients_.erase(*ci);
       }
+      observation_weight_ = 1;
     } else {
       /* Local mode. */
       path_property.Accept(this);
@@ -430,7 +453,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
     if (!have_sample) {
       continue;
     }
-    tester->AddObservation(s);
+    tester->AddObservation(s ? observation_weight_ : 0);
     if (probabilistic_level_ == 1) {
       PrintProgress(tester->sample().count());
     }
@@ -470,25 +493,41 @@ SamplingVerifier::VerifyProbabilisticProperty(
   return std::move(tester);
 }
 
+template <>
 std::unique_ptr<SequentialTester<bool>> SamplingVerifier::NewSequentialTester(
-    SamplingAlgorithm algorithm, double theta0, double theta1) const {
+    ThresholdAlgorithm algorithm, double theta0, double theta1) const {
   switch (algorithm) {
-    case SamplingAlgorithm::FIXED:
+    case ThresholdAlgorithm::FIXED:
       return std::unique_ptr<SequentialTester<bool>>(
           new FixedSampleSizeTester<bool>(theta0, theta1,
                                           params_.fixed_sample_size));
-    case SamplingAlgorithm::SSP:
+    case ThresholdAlgorithm::SSP:
       return std::unique_ptr<SequentialTester<bool>>(
           new SingleSamplingBernoulliTester(theta0, theta1, params_.alpha,
                                             params_.beta));
-    case SamplingAlgorithm::SPRT:
+    case ThresholdAlgorithm::SPRT:
       return std::unique_ptr<SequentialTester<bool>>(
           new SprtBernoulliTester(theta0, theta1, params_.alpha, params_.beta));
-    case SamplingAlgorithm::CHOW_ROBBINS:
+    case ThresholdAlgorithm::CHOW_ROBBINS:
       return std::unique_ptr<SequentialTester<bool>>(
           new ChowRobbinsTester<bool>(theta0, theta1, params_.alpha));
   }
-  LOG(FATAL) << "bad sampling algorithm";
+  LOG(FATAL) << "bad threshold algorithm";
+}
+
+template <>
+std::unique_ptr<SequentialTester<double>> SamplingVerifier::NewSequentialTester(
+    EstimationAlgorithm algorithm, double theta0, double theta1) const {
+  switch (algorithm) {
+    case EstimationAlgorithm::FIXED:
+      return std::unique_ptr<SequentialTester<double>>(
+          new FixedSampleSizeTester<double>(theta0, theta1,
+                                            params_.fixed_sample_size));
+    case EstimationAlgorithm::CHOW_ROBBINS:
+      return std::unique_ptr<SequentialTester<double>>(
+          new ChowRobbinsTester<double>(theta0, theta1, params_.alpha));
+  }
+  LOG(FATAL) << "bad estimation algorithm";
 }
 
 void SamplingVerifier::DoVisitCompiledExpressionProperty(
@@ -509,7 +548,11 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   Optional<BDD> dd1;
   Optional<BDD> dd2;
   Optional<BDD> feasible;
-  if (dd_model_ != nullptr) {
+  bool use_termination_probability = false;
+  if (dd_model_ == nullptr) {
+    // Sampling engine.
+    use_termination_probability = path_property.is_unbounded();
+  } else  {
     // Mixed engine.
     auto i = dd_cache_.find(path_property.index());
     if (i != dd_cache_.end()) {
@@ -521,7 +564,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
                    params_.epsilon);
       dd2 = Verify(path_property.post_property(), *dd_model_, false,
                    params_.epsilon);
-      if (path_property.max_time() == std::numeric_limits<double>::infinity()) {
+      if (path_property.is_unbounded()) {
         feasible = VerifyExistsUntil(*dd_model_, dd1.value(), dd2.value());
         if (feasible.value().is_same(dd_model_->reachable_states())) {
           // All reachable states are feasible.
@@ -537,7 +580,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   State next_state = *state_;
   const double t_min = path_property.min_time();
   const double t_max = path_property.max_time();
-  size_t path_length = 1;
+  int path_length = 1;
   bool done = false, output = false;
   std::set<State, StateLess> unique_pre_states;
   auto pre_states_inserter =
@@ -553,6 +596,10 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   while (!done && path_length < params_.max_path_length) {
     if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
+    }
+    if (use_termination_probability &&
+        sampler_->StandardUniform() < params_.termination_probability) {
+      next_state.set_time(std::numeric_limits<double>::infinity());
     }
     simulator_.NextState(curr_state, &next_state);
     double next_t = t + (next_state.time() - curr_state.time());
@@ -687,6 +734,10 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   if (probabilistic_level_ == 1) {
     stats_->path_length.AddObservation(path_length);
   }
+  observation_weight_ =
+      use_termination_probability
+          ? pow(1 - params_.termination_probability, -(path_length - 1))
+          : 1;
 }
 
 template <typename OutputIterator>

@@ -36,8 +36,10 @@
 // Model checking eninges.
 enum class ModelCheckingEngine { SAMPLING, HYBRID, MIXED };
 
-// Sampling algorithms.
-enum class SamplingAlgorithm { CHOW_ROBBINS, SSP, SPRT, FIXED };
+// Hypothesis testing algorithms.
+enum class ThresholdAlgorithm { FIXED, SSP, SPRT, CHOW_ROBBINS };
+// Estimation algorithm.
+enum class EstimationAlgorithm { FIXED, CHOW_ROBBINS };
 
 struct ModelCheckingParams {
   ModelCheckingParams();
@@ -46,11 +48,12 @@ struct ModelCheckingParams {
   double beta;
   double delta;
   double epsilon;
+  double termination_probability;
   ModelCheckingEngine engine;
-  SamplingAlgorithm threshold_algorithm;
-  SamplingAlgorithm estimation_algorithm;
+  ThresholdAlgorithm threshold_algorithm;
+  EstimationAlgorithm estimation_algorithm;
   int fixed_sample_size;
-  size_t max_path_length;
+  int max_path_length;
   double nested_error;
   bool memoization;
 };
@@ -59,7 +62,7 @@ struct ModelCheckingStats {
   Sample<double> time;
   Sample<int> sample_size;
   Sample<int> sample_cache_size;
-  Sample<size_t> path_length;
+  Sample<int> path_length;
 };
 
 bool Verify(const CompiledProperty& property, const CompiledModel& model,

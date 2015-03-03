@@ -67,6 +67,8 @@ class Sample {
                                                std::declval<const T&>())>::type;
 
   Sample();
+  template <typename U>
+  Sample(const Sample<U>& sample);
 
   void AddObservation(T x);
 
@@ -237,6 +239,16 @@ class LaiBernoulliTester : public SequentialTester<bool> {
 template <typename T>
 Sample<T>::Sample()
     : sum_(0), count_(0), mean_(0.0), m2_(0.0) {}
+
+template <typename T>
+template <typename U>
+Sample<T>::Sample(const Sample<U>& sample)
+    : min_(sample.min()),
+      max_(sample.max()),
+      sum_(sample.sum()),
+      count_(sample.count()),
+      mean_(sample.mean()),
+      m2_(sample.variance() * sample.count()) {}
 
 template <typename T>
 void Sample<T>::AddObservation(T x) {
