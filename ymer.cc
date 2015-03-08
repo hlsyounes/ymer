@@ -28,6 +28,7 @@
 #include "src/ddutil.h"
 #include "src/distribution.h"
 #include "src/model.h"
+#include "src/model-checking-params.h"
 #include "src/parser.h"
 #include "src/rng.h"
 #include "src/simulator.h"
@@ -1178,6 +1179,18 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   ModelCheckingParams params;
+  params.alpha = 1e-2;
+  params.beta = 1e-2;
+  params.delta = 1e-2;
+  params.epsilon = 1e-6;
+  params.termination_probability = 1e-6;
+  params.engine = ModelCheckingEngine::SAMPLING;
+  params.threshold_algorithm = ThresholdAlgorithm::SPRT;
+  params.estimation_algorithm = EstimationAlgorithm::CHOW_ROBBINS;
+  params.fixed_sample_size = 0;
+  params.max_path_length = std::numeric_limits<int>::max();
+  params.nested_error = -1;
+  params.memoization = false;
   /* Number of moments to match. */
   size_t moments = 3;
   /* Set default seed. */

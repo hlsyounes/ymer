@@ -337,9 +337,8 @@ src_typed_value_test_OBJECTS = $(am_src_typed_value_test_OBJECTS)
 src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
 	src/libtest-main.la
 am__objects_1 =
-am_ymer_OBJECTS = ymer.$(OBJEXT) formulas.$(OBJEXT) models.$(OBJEXT) \
-	sampling.$(OBJEXT) hybrid.$(OBJEXT) symbolic.$(OBJEXT) \
-	$(am__objects_1)
+am_ymer_OBJECTS = ymer.$(OBJEXT) models.$(OBJEXT) sampling.$(OBJEXT) \
+	hybrid.$(OBJEXT) symbolic.$(OBJEXT) $(am__objects_1)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
@@ -967,8 +966,8 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 #
 # Ymer libraries.
 #
-HEADER_FILES = src/fake_rng.h src/optional.h src/simulator.h src/strutil.h \
-    src/unique-ptr-vector.h
+HEADER_FILES = src/fake_rng.h src/model-checking-params.h src/optional.h \
+    src/simulator.h src/strutil.h src/unique-ptr-vector.h
 
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
 src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
@@ -1014,7 +1013,7 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
     src/libddutil.la glog/libglog.la
 
-ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
@@ -1610,7 +1609,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/formulas.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hybrid.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/models.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
