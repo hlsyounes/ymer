@@ -86,8 +86,8 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 # Ymer libraries.
 #
 
-HEADER_FILES = src/fake_rng.h src/optional.h src/simulator.h src/strutil.h \
-    src/unique-ptr-vector.h
+HEADER_FILES = src/fake_rng.h src/model-checking-params.h src/optional.h \
+    src/simulator.h src/strutil.h src/unique-ptr-vector.h
 
 # Statistics library.
 noinst_LTLIBRARIES += src/libstatistics.la
@@ -165,7 +165,7 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc formulas.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \

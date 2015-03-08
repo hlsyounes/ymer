@@ -29,34 +29,10 @@
 #include "src/compiled-model.h"
 #include "src/compiled-property.h"
 #include "src/ddutil.h"
+#include "src/model-checking-params.h"
 #include "src/rng.h"
 #include "src/simulator.h"
 #include "src/statistics.h"
-
-// Model checking eninges.
-enum class ModelCheckingEngine { SAMPLING, HYBRID, MIXED };
-
-// Hypothesis testing algorithms.
-enum class ThresholdAlgorithm { FIXED, SSP, SPRT, CHOW_ROBBINS };
-// Estimation algorithm.
-enum class EstimationAlgorithm { FIXED, CHOW_ROBBINS };
-
-struct ModelCheckingParams {
-  ModelCheckingParams();
-
-  double alpha;
-  double beta;
-  double delta;
-  double epsilon;
-  double termination_probability;
-  ModelCheckingEngine engine;
-  ThresholdAlgorithm threshold_algorithm;
-  EstimationAlgorithm estimation_algorithm;
-  int fixed_sample_size;
-  int max_path_length;
-  double nested_error;
-  bool memoization;
-};
 
 struct ModelCheckingStats {
   Sample<double> time;
