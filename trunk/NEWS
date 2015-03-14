@@ -1,3 +1,18 @@
+Version 4.1 (Mar 14, 2015):
+
+* Support for formulas and labels.
+
+* Support for eventually (F) path operator.
+
+* Support for Pr=?[...] properties.
+
+* Support for unbounded until with sampling engine using weighted sampling.
+
+* Parser support for init state expressions and system specifications.
+
+* Fixed bug in compilation of updates for variables of type bool.
+
+
 Version 3.2 (Jan 25, 2015):
 
 * Support for DTMC model checking with sampling engine.
