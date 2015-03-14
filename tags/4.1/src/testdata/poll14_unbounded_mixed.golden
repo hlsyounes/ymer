@@ -1,0 +1,13 @@
+Mixed engine: alpha=0.01, beta=0.01, delta=0.05, epsilon=1e-06, seed=0
+Building model...38 variables.
+Computing reachable states 29 iterations.
+Variables: 16
+Events:    56
+States:      344064
+Transitions: 2.69517e+06
+Rate matrix: 1707 nodes 4 leaves 2.69517e+06 minterms
+ODD:         149 nodes
+
+Model checking P=?[ !(s = 2 & a = 1) U s = 1 & a = 1 ] ...
+Acceptance sampling......668 observations.
+Pr[!(s = 2 & a = 1) U s = 1 & a = 1] = 0.538922 (0.488922,0.588922)
