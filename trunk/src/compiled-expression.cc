@@ -1494,7 +1494,7 @@ CompileExpressionResult CompileExpression(
   } else if (type != expected_type) {
     result.errors.push_back(
         StrCat("type mismatch; expecting expression of type ", expected_type,
-               "; found ", type));
+               "; found ", type, ": ", expr));
     return result;
   }
   result.expr = CompiledExpression(

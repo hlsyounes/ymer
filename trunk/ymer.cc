@@ -317,20 +317,24 @@ CompiledUpdate CompileUpdate(
     std::vector<std::string>* errors) {
   auto i = identifiers_by_name.find(update.variable());
   int variable;
+  Type variable_type;
   if (i == identifiers_by_name.end()) {
     errors->push_back(
         StrCat("undefined variable '", update.variable(), "' in update"));
     variable = -1;
+    variable_type = Type::INT;
   } else if (!i->second.is_variable()) {
     errors->push_back(StrCat("constant '", update.variable(), "' in update"));
     variable = -1;
+    variable_type = Type::INT;
   } else {
     variable = i->second.variable_index();
+    variable_type = i->second.type();
   }
-  return CompiledUpdate(
-      variable,
-      CompileAndOptimizeExpression(update.expr(), Type::INT, formulas_by_name,
-                                   identifiers_by_name, dd_manager, errors));
+  return CompiledUpdate(variable,
+                        CompileAndOptimizeExpression(
+                            update.expr(), variable_type, formulas_by_name,
+                            identifiers_by_name, dd_manager, errors));
 }
 
 std::vector<CompiledUpdate> CompileUpdates(

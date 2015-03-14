@@ -35,14 +35,14 @@ TEST(CompilePropertyTest, Literal) {
       CompileProperty(Literal(17), {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
+          {"type mismatch; expecting expression of type bool; found int: 17"}),
       result2.errors);
   const CompilePropertyResult result3 =
       CompileProperty(Literal(0.5), {}, {}, {}, dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found double"}),
-      result3.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found "
+                 "double: 0.5"}),
+            result3.errors);
 }
 
 TEST(CompilePropertyTest, Identifier) {
@@ -63,7 +63,7 @@ TEST(CompilePropertyTest, Identifier) {
       Identifier("a"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
+          {"type mismatch; expecting expression of type bool; found int: a"}),
       result1.errors);
   const CompilePropertyResult result2 = CompileProperty(
       Identifier("b"), formulas_by_name, {}, identifiers_by_name, dd_manager);
@@ -73,7 +73,7 @@ TEST(CompilePropertyTest, Identifier) {
       Identifier("c"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
+          {"type mismatch; expecting expression of type bool; found int: c"}),
       result3.errors);
   const CompilePropertyResult result4 = CompileProperty(
       Identifier("d"), formulas_by_name, {}, identifiers_by_name, dd_manager);
@@ -85,10 +85,10 @@ TEST(CompilePropertyTest, Identifier) {
             result5.errors);
   const CompilePropertyResult result6 = CompileProperty(
       Identifier("f"), formulas_by_name, {}, identifiers_by_name, dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found double"}),
-      result6.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found "
+                 "double: f"}),
+            result6.errors);
   const CompilePropertyResult result7 = CompileProperty(
       Identifier("g"), formulas_by_name, {}, identifiers_by_name, dd_manager);
   EXPECT_EQ(
@@ -139,18 +139,18 @@ TEST(CompilePropertyTest, FunctionCall) {
       FunctionCall(Function::FLOOR,
                    UniquePtrVector<const Expression>(Literal::New(0.5))),
       {}, {}, {}, dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
-      result2.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found int: "
+                 "floor(0.5)"}),
+            result2.errors);
   const CompilePropertyResult result3 = CompileProperty(
       FunctionCall(Function::MIN,
                    UniquePtrVector<const Expression>(Literal::New(0.5))),
       {}, {}, {}, dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found double"}),
-      result3.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found "
+                 "double: min(0.5)"}),
+            result3.errors);
 }
 
 TEST(CompilePropertyTest, UnaryOperation) {
@@ -184,7 +184,7 @@ TEST(CompilePropertyTest, UnaryOperation) {
                       {}, {}, {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
+          {"type mismatch; expecting expression of type bool; found int: -17"}),
       result3.errors);
   const CompilePropertyResult result4 =
       CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(0.5)), {},
@@ -392,10 +392,10 @@ TEST(CompilePropertyTest, BinaryOperation) {
   const CompilePropertyResult result12 = CompileProperty(
       BinaryOperation(BinaryOperator::PLUS, Literal::New(17), Literal::New(42)),
       {}, {}, {}, dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
-      result12.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found int: "
+                 "17 + 42"}),
+            result12.errors);
   const CompilePropertyResult result13 = CompileProperty(
       BinaryOperation(
           BinaryOperator::PLUS, Literal::New(false),
@@ -417,7 +417,7 @@ TEST(CompilePropertyTest, BinaryOperation) {
       dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
+          {"type mismatch; expecting expression of type bool; found int: 17"}),
       result14.errors);
 }
 
@@ -436,10 +436,10 @@ TEST(CompilePropertyTest, Conditional) {
   const CompilePropertyResult result2 = CompileProperty(
       Conditional(Literal::New(true), Literal::New(17), Literal::New(42)), {},
       {}, {}, dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found int"}),
-      result2.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found int: "
+                 "true ? 17 : 42"}),
+            result2.errors);
   const CompilePropertyResult result3 = CompileProperty(
       Conditional(ProbabilityThresholdOperation::New(
                       ProbabilityThresholdOperator::GREATER, 0.25,
@@ -577,10 +577,10 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
           EventuallyProperty::New({17, 42}, Literal::New(0.5))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
-  EXPECT_EQ(
-      std::vector<std::string>(
-          {"type mismatch; expecting expression of type bool; found double"}),
-      result9.errors);
+  EXPECT_EQ(std::vector<std::string>(
+                {"type mismatch; expecting expression of type bool; found "
+                 "double: 0.5"}),
+            result9.errors);
 }
 
 TEST(OptimizePropertyTest, NotProperty) {
