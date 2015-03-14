@@ -1,0 +1,5 @@
+ctmc
+module M
+  b : bool;
+  [] true -> (b'=!b);
+endmodule
