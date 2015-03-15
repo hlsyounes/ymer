@@ -1071,9 +1071,9 @@ src_compiled_property_test_LDADD = src/libcompiled-property.la \
 
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
-TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
+TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1 TEST_SRCDIR=$(srcdir)
 TESTS = $(check_PROGRAMS)
-EXTRA_DIST = cudd examples scripts
+EXTRA_DIST = cudd examples scripts src/ymer_regtest.sh src/testdata
 CLEANFILES = core
 AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
     -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
@@ -3108,9 +3108,9 @@ dist-hook:
 	rm -rf `find $(distdir)/cudd -type d -name .deps`
 	rm -rf `find $(distdir)/cudd -type d -name .libs`
 	rm -rf `find $(distdir)/cudd -type f -name .dirstamp`
-	rm -rf `find $(distdir)/cudd -type f -name *.la`
-	rm -rf `find $(distdir)/cudd -type f -name *.lo`
-	rm -rf `find $(distdir)/cudd -type f -name *.o`
+	rm -rf `find $(distdir)/cudd -type f -name '*.la'`
+	rm -rf `find $(distdir)/cudd -type f -name '*.lo'`
+	rm -rf `find $(distdir)/cudd -type f -name '*.o'`
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

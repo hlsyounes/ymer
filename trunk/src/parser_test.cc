@@ -19,11 +19,22 @@
 
 #include "parser.h"
 
+#include <cstdlib>
+#include <regex>
+
 #include "strutil.h"
 
 #include "gtest/gtest.h"
 
 namespace {
+
+bool MatchesRegex(const std::string& r, const std::string& s) {
+  return regex_match(s, std::regex(r));
+}
+
+std::string GetTestPath(const std::string& path) {
+  return StrCat(CHECK_NOTNULL(getenv("TEST_SRCDIR")), '/', path);
+}
 
 TEST(ParseStringTest, ParsesValidModel) {
   const std::string kModelSource =
@@ -99,13 +110,14 @@ TEST(ParseStringTest, ReportsErrorForInvalidModel) {
   std::vector<std::string> errors;
   EXPECT_FALSE(ParseString(kModelSource, &result, &errors));
   ASSERT_EQ(1, errors.size());
-  EXPECT_EQ("2:syntax error", errors[0].substr(0, 14));
+  EXPECT_PRED2(MatchesRegex, "2:syntax error.*", errors[0]);
 }
 
 TEST(ParseFileTest, ParsesValidModel) {
   ModelAndProperties result;
   std::vector<std::string> errors;
-  EXPECT_TRUE(ParseFile("src/testdata/example.sm", &result, &errors));
+  EXPECT_TRUE(
+      ParseFile(GetTestPath("src/testdata/example.sm"), &result, &errors));
   EXPECT_TRUE(errors.empty());
   ASSERT_TRUE(result.model.has_value());
   EXPECT_EQ(
@@ -120,18 +132,23 @@ TEST(ParseFileTest, ParsesValidModel) {
 TEST(ParseFileTest, MissingFile) {
   ModelAndProperties result;
   std::vector<std::string> errors;
-  EXPECT_FALSE(ParseFile("src/testdata/missing.sm", &result, &errors));
-  EXPECT_EQ(std::vector<std::string>(
-                {"src/testdata/missing.sm:No such file or directory"}),
-            errors);
+  EXPECT_FALSE(
+      ParseFile(GetTestPath("src/testdata/missing.sm"), &result, &errors));
+  EXPECT_EQ(
+      std::vector<std::string>({StrCat(GetTestPath("src/testdata/missing.sm"),
+                                       ":No such file or directory")}),
+      errors);
 }
 
 TEST(ParseFileTest, ReportsErrorForInvalidModel) {
   ModelAndProperties result;
   std::vector<std::string> errors;
-  EXPECT_FALSE(ParseFile("src/testdata/invalid.pm", &result, &errors));
+  EXPECT_FALSE(
+      ParseFile(GetTestPath("src/testdata/invalid.pm"), &result, &errors));
   ASSERT_EQ(1, errors.size());
-  EXPECT_EQ("src/testdata/invalid.pm:4:syntax error", errors[0].substr(0, 38));
+  EXPECT_PRED2(MatchesRegex, StrCat(GetTestPath("src/testdata/invalid.pm"),
+                                    ":4:syntax error.*"),
+               errors[0]);
 }
 
 }  // namespace
