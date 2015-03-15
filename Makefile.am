@@ -266,17 +266,17 @@ src_compiled_property_test_LDADD = src/libcompiled-property.la \
      src/libtest-main.la
 
 # Note: heap checking is enabled only if tests were linked with tcmalloc.
-TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1
+TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1 TEST_SRCDIR=$(srcdir)
 TESTS = $(check_PROGRAMS)
 
-EXTRA_DIST = cudd examples scripts
+EXTRA_DIST = cudd examples scripts src/ymer_regtest.sh src/testdata
 dist-hook:
 	rm -rf `find $(distdir)/cudd -type d -name .deps`
 	rm -rf `find $(distdir)/cudd -type d -name .libs`
 	rm -rf `find $(distdir)/cudd -type f -name .dirstamp`
-	rm -rf `find $(distdir)/cudd -type f -name *.la`
-	rm -rf `find $(distdir)/cudd -type f -name *.lo`
-	rm -rf `find $(distdir)/cudd -type f -name *.o`
+	rm -rf `find $(distdir)/cudd -type f -name '*.la'`
+	rm -rf `find $(distdir)/cudd -type f -name '*.lo'`
+	rm -rf `find $(distdir)/cudd -type f -name '*.o'`
 
 CLEANFILES = core
 
