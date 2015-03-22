@@ -118,6 +118,33 @@ TEST(OperationTest, Shift) {
   EXPECT_EQ(Operation::MakeMOD(17, 42), Operation::MakeMOD(15, 40).Shift(3, 2));
 }
 
+TEST(CompiledExpressionTest, WithAssignment) {
+  const CompiledExpression expr(
+      {Operation::MakeILOAD(0, 0), Operation::MakeICONST(4, 1),
+       Operation::MakeILT(0, 1), Operation::MakeIFFALSE(0, 18),
+       Operation::MakeILOAD(2, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 18),
+       Operation::MakeILOAD(0, 0), Operation::MakeICONST(1, 1),
+       Operation::MakeIADD(0, 1), Operation::MakeILOAD(3, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 17),
+       Operation::MakeILOAD(1, 0), Operation::MakeILOAD(4, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeNOT(0)},
+      {});
+  const std::vector<Operation> expected = {
+      Operation::MakeICONST(1, 0), Operation::MakeICONST(4, 1),
+      Operation::MakeILT(0, 1),    Operation::MakeIFFALSE(0, 18),
+      Operation::MakeILOAD(2, 0),  Operation::MakeICONST(0, 1),
+      Operation::MakeIEQ(0, 1),    Operation::MakeIFFALSE(0, 18),
+      Operation::MakeICONST(1, 0), Operation::MakeICONST(1, 1),
+      Operation::MakeIADD(0, 1),   Operation::MakeILOAD(3, 1),
+      Operation::MakeIEQ(0, 1),    Operation::MakeIFFALSE(0, 17),
+      Operation::MakeILOAD(1, 0),  Operation::MakeILOAD(4, 1),
+      Operation::MakeIEQ(0, 1),    Operation::MakeNOT(0)};
+  EXPECT_EQ(expected,
+            expr.WithAssignment(IdentifierInfo::Variable(Type::INT, 0, 0, 1, 1),
+                                1, {}).operations());
+}
+
 TEST(GetExpressionRegisterCountsTest, Constant) {
   const CompiledExpression expr1({Operation::MakeICONST(17, 3)}, {});
   EXPECT_EQ(std::make_pair(4, 0), GetExpressionRegisterCounts(expr1));
@@ -2640,6 +2667,28 @@ TEST(OptimizeIntExpressionTest, EliminatesDeadCode) {
       Operation::MakeDCONST(0.5, 1), Operation::MakeILOAD(0, 0),
       Operation::MakeI2D(0), Operation::MakeDEQ(0, 1)};
   EXPECT_EQ(expected6, OptimizeIntExpression(expr6).operations());
+}
+
+TEST(OptimizeIntExpressionTest, ConstantFolding) {
+  const CompiledExpression expr(
+      {Operation::MakeICONST(1, 0), Operation::MakeICONST(4, 1),
+       Operation::MakeILT(0, 1), Operation::MakeIFFALSE(0, 18),
+       Operation::MakeILOAD(2, 0), Operation::MakeICONST(0, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 18),
+       Operation::MakeICONST(1, 0), Operation::MakeICONST(1, 1),
+       Operation::MakeIADD(0, 1), Operation::MakeILOAD(3, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeIFFALSE(0, 17),
+       Operation::MakeILOAD(1, 0), Operation::MakeILOAD(4, 1),
+       Operation::MakeIEQ(0, 1), Operation::MakeNOT(0)},
+      {});
+  const std::vector<Operation> expected = {
+      Operation::MakeILOAD(2, 0),  Operation::MakeICONST(0, 1),
+      Operation::MakeIEQ(0, 1),    Operation::MakeIFFALSE(0, 12),
+      Operation::MakeICONST(2, 0), Operation::MakeILOAD(3, 1),
+      Operation::MakeIEQ(0, 1),    Operation::MakeIFFALSE(0, 11),
+      Operation::MakeILOAD(1, 0),  Operation::MakeILOAD(4, 1),
+      Operation::MakeIEQ(0, 1),    Operation::MakeNOT(0)};
+  EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
 }
 
 TEST(OptimizeDoubleExpressionTest, Constant) {

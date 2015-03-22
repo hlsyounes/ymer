@@ -527,7 +527,7 @@ CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
   if (expr1.dd().has_value() && expr2.dd().has_value()) {
     dd = ADD(BDD(expr1.dd().value()) && BDD(expr2.dd().value()));
   }
-  return CompiledExpression(operations, dd);
+  return OptimizeIntExpression(CompiledExpression(operations, dd));
 }
 
 struct PreCompiledCommands {
@@ -841,24 +841,8 @@ CompiledCommands CompileCommands(
 CompiledExpression OptimizeWithAssignment(
     const CompiledExpression& expr, const IdentifierInfo& variable, int value,
     const Optional<DecisionDiagramManager>& dd_manager) {
-  std::vector<Operation> operations;
-  operations.reserve(expr.operations().size());
-  for (size_t pc = 0; pc < expr.operations().size(); ++pc) {
-    const Operation& o = expr.operations()[pc];
-    if (o.opcode() == Opcode::ILOAD &&
-        o.ioperand1() == variable.variable_index()) {
-      operations.push_back(Operation::MakeICONST(value, o.operand2()));
-    } else {
-      operations.push_back(o);
-    }
-  }
-  Optional<ADD> dd;
-  if (expr.dd().has_value()) {
-    dd = ADD(IdentifierToAdd(dd_manager.value(), variable)
-                 .Interval(value, value)) *
-         expr.dd().value();
-  }
-  return OptimizeIntExpression(CompiledExpression(operations, dd));
+  return OptimizeIntExpression(
+      expr.WithAssignment(variable, value, dd_manager));
 }
 
 CompiledModel CompileModel(
