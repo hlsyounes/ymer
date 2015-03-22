@@ -522,6 +522,30 @@ CompiledExpression::CompiledExpression(const std::vector<Operation>& operations,
                                        const Optional<ADD>& dd)
     : operations_(operations), dd_(dd) {}
 
+CompiledExpression CompiledExpression::WithAssignment(
+    const IdentifierInfo& variable, int value,
+    const Optional<DecisionDiagramManager>& dd_manager) const {
+  CHECK(variable.is_variable());
+  std::vector<Operation> operations;
+  operations.reserve(operations_.size());
+  for (size_t pc = 0; pc < operations_.size(); ++pc) {
+    const Operation& o = operations_[pc];
+    if (o.opcode() == Opcode::ILOAD &&
+        o.ioperand1() == variable.variable_index()) {
+      operations.push_back(Operation::MakeICONST(value, o.operand2()));
+    } else {
+      operations.push_back(o);
+    }
+  }
+  Optional<ADD> dd;
+  if (dd_.has_value()) {
+    dd = ADD(IdentifierToAdd(dd_manager.value(), variable)
+                 .Interval(value, value)) *
+         dd_.value();
+  }
+  return CompiledExpression(operations, dd);
+}
+
 std::ostream& operator<<(std::ostream& os, const CompiledExpression& expr) {
   for (size_t pc = 0; pc < expr.operations().size(); ++pc) {
     if (pc > 0) {
@@ -1595,6 +1619,7 @@ void RegisterState<T>::SetDependency(const OperationIndex& dependency) {
 template <typename T>
 void RegisterState<T>::AddDependencies(
     const std::set<OperationIndex>& dependencies) {
+  has_value_ = false;
   dependencies_.insert(dependencies.begin(), dependencies.end());
 }
 

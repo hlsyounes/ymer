@@ -220,6 +220,33 @@ bool operator==(const Operation& left, const Operation& right);
 // Output operator for operations.
 std::ostream& operator<<(std::ostream& os, const Operation& operation);
 
+// Information for an identifier, used for expression compilation.  Can
+// represent either a variable or a constant.
+class IdentifierInfo {
+ public:
+  static IdentifierInfo Variable(Type type, int index, int low_bit,
+                                 int high_bit, const TypedValue& min_value);
+  static IdentifierInfo Constant(const TypedValue& value);
+
+  Type type() const { return type_; }
+  bool is_variable() const { return variable_index_ >= 0; }
+  int variable_index() const { return variable_index_; }
+  int low_bit() const { return low_bit_; }
+  int high_bit() const { return high_bit_; }
+  TypedValue min_value() const { return value_; }
+  TypedValue constant_value() const { return value_; }
+
+ private:
+  explicit IdentifierInfo(Type type, int variable_index, int low_bit,
+                          int high_bit, const TypedValue& value);
+
+  Type type_;
+  int variable_index_;
+  int low_bit_;
+  int high_bit_;
+  TypedValue value_;
+};
+
 // A compiled expression.
 class CompiledExpression {
  public:
@@ -236,6 +263,11 @@ class CompiledExpression {
 
   // Returns the optional decision diagram for this compiled expression.
   const Optional<ADD>& dd() const { return dd_; }
+
+  // Returns this compiled expression after the given variable assignment.
+  CompiledExpression WithAssignment(
+      const IdentifierInfo& variable, int value,
+      const Optional<DecisionDiagramManager>& dd_manager) const;
 
  private:
   std::vector<Operation> operations_;
@@ -283,33 +315,6 @@ struct CompileExpressionResult {
 
   CompiledExpression expr;
   std::vector<std::string> errors;
-};
-
-// Information for an identifier, used for expression compilation.  Can
-// represent either a variable or a constant.
-class IdentifierInfo {
- public:
-  static IdentifierInfo Variable(Type type, int index, int low_bit,
-                                 int high_bit, const TypedValue& min_value);
-  static IdentifierInfo Constant(const TypedValue& value);
-
-  Type type() const { return type_; }
-  bool is_variable() const { return variable_index_ >= 0; }
-  int variable_index() const { return variable_index_; }
-  int low_bit() const { return low_bit_; }
-  int high_bit() const { return high_bit_; }
-  TypedValue min_value() const { return value_; }
-  TypedValue constant_value() const { return value_; }
-
- private:
-  explicit IdentifierInfo(Type type, int variable_index, int low_bit,
-                          int high_bit, const TypedValue& value);
-
-  Type type_;
-  int variable_index_;
-  int low_bit_;
-  int high_bit_;
-  TypedValue value_;
 };
 
 // Compiles the given expression, expecting it to be of the given type, and
