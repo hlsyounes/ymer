@@ -658,10 +658,7 @@ TEST(OptimizePropertyTest, NaryProperty) {
                                        Identifier::New("a")),
                        {}, {}, identifiers_by_name, dd_manager).property,
       dd_manager);
-  const std::string expected3 =
-      "0: ICONST 1 0\n"
-      "1: ILOAD 0 1\n"
-      "2: IEQ 0 1";
+  const std::string expected3 = "0: IVEQ 0 1 0";
   EXPECT_EQ(expected3, StrCat(*property3));
   auto property4 = OptimizeProperty(
       CompiledNaryProperty(

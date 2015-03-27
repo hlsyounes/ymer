@@ -2597,11 +2597,10 @@ TEST(OptimizeIntExpressionTest, ChainedIfFalse) {
        Operation::MakeIEQ(0, 1)},
       {});
   const std::vector<Operation> expected = {
-      Operation::MakeILOAD(0, 0), Operation::MakeICONST(17, 1),
-      Operation::MakeIEQ(0, 1),   Operation::MakeIFFALSE(0, 9),
-      Operation::MakeILOAD(1, 0), Operation::MakeIFFALSE(0, 9),
-      Operation::MakeILOAD(3, 0), Operation::MakeICONST(42, 1),
-      Operation::MakeIEQ(0, 1)};
+      Operation::MakeIVEQ(0, 17, 0), Operation::MakeIFFALSE(0, 5),
+      Operation::MakeILOAD(1, 0),    Operation::MakeIFFALSE(0, 5),
+      Operation::MakeIVEQ(3, 42, 0),
+  };
   EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
 }
 
@@ -2682,12 +2681,10 @@ TEST(OptimizeIntExpressionTest, ConstantFolding) {
        Operation::MakeIEQ(0, 1), Operation::MakeNOT(0)},
       {});
   const std::vector<Operation> expected = {
-      Operation::MakeILOAD(2, 0),  Operation::MakeICONST(0, 1),
-      Operation::MakeIEQ(0, 1),    Operation::MakeIFFALSE(0, 12),
-      Operation::MakeICONST(2, 0), Operation::MakeILOAD(3, 1),
-      Operation::MakeIEQ(0, 1),    Operation::MakeIFFALSE(0, 11),
-      Operation::MakeILOAD(1, 0),  Operation::MakeILOAD(4, 1),
-      Operation::MakeIEQ(0, 1),    Operation::MakeNOT(0)};
+      Operation::MakeIVEQ(2, 0, 0), Operation::MakeIFFALSE(0, 8),
+      Operation::MakeIVEQ(3, 2, 0), Operation::MakeIFFALSE(0, 7),
+      Operation::MakeILOAD(1, 0),   Operation::MakeILOAD(4, 1),
+      Operation::MakeIEQ(0, 1),     Operation::MakeNOT(0)};
   EXPECT_EQ(expected, OptimizeIntExpression(expr).operations());
 }
 

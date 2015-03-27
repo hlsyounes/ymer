@@ -112,6 +112,18 @@ std::ostream& operator<<(std::ostream& os, Opcode opcode) {
       return os << "LOG";
     case Opcode::MOD:
       return os << "MOD";
+    case Opcode::IVEQ:
+      return os << "IVEQ";
+    case Opcode::IVNE:
+      return os << "IVNE";
+    case Opcode::IVLT:
+      return os << "IVLT";
+    case Opcode::IVLE:
+      return os << "IVLE";
+    case Opcode::IVGE:
+      return os << "IVGE";
+    case Opcode::IVGT:
+      return os << "IVGT";
   }
   LOG(FATAL) << "bad opcode";
 }
@@ -272,6 +284,30 @@ Operation Operation::MakeMOD(int src1_dst, int src2) {
   return Operation(Opcode::MOD, src1_dst, src2);
 }
 
+Operation Operation::MakeIVEQ(int variable, int value, int dst) {
+  return Operation(Opcode::IVEQ, variable, value, dst);
+}
+
+Operation Operation::MakeIVNE(int variable, int value, int dst) {
+  return Operation(Opcode::IVNE, variable, value, dst);
+}
+
+Operation Operation::MakeIVLT(int variable, int value, int dst) {
+  return Operation(Opcode::IVLT, variable, value, dst);
+}
+
+Operation Operation::MakeIVLE(int variable, int value, int dst) {
+  return Operation(Opcode::IVLE, variable, value, dst);
+}
+
+Operation Operation::MakeIVGE(int variable, int value, int dst) {
+  return Operation(Opcode::IVGE, variable, value, dst);
+}
+
+Operation Operation::MakeIVGT(int variable, int value, int dst) {
+  return Operation(Opcode::IVGT, variable, value, dst);
+}
+
 Operation::Operation(Opcode opcode, int operand1, int operand2)
     : opcode_(opcode), operand2_(operand2) {
   operand1_.i = operand1;
@@ -280,6 +316,11 @@ Operation::Operation(Opcode opcode, int operand1, int operand2)
 Operation::Operation(Opcode opcode, double operand1, int operand2)
     : opcode_(opcode), operand2_(operand2) {
   operand1_.d = operand1;
+}
+
+Operation::Operation(Opcode opcode, int operand1, int operand2, int operand3)
+    : opcode_(opcode), operand2_(operand2), operand3_(operand3) {
+  operand1_.i = operand1;
 }
 
 Operation::Operation(Opcode opcode, int operand) : opcode_(opcode) {
@@ -338,6 +379,14 @@ Operation Operation::Shift(int pc_shift, int reg_shift) const {
                        operand2() + pc_shift);
     case Opcode::GOTO:
       return Operation(opcode(), ioperand1() + pc_shift);
+    case Opcode::IVEQ:
+    case Opcode::IVNE:
+    case Opcode::IVLT:
+    case Opcode::IVLE:
+    case Opcode::IVGE:
+    case Opcode::IVGT:
+      return Operation(opcode(), ioperand1(), operand2(),
+                       operand3() + reg_shift);
   }
   LOG(FATAL) << "bad opcode";
 }
@@ -392,6 +441,15 @@ bool operator==(const Operation& left, const Operation& right) {
       return left.ioperand1() == right.ioperand1();
     case Opcode::NOP:
       return true;
+    case Opcode::IVEQ:
+    case Opcode::IVNE:
+    case Opcode::IVLT:
+    case Opcode::IVLE:
+    case Opcode::IVGE:
+    case Opcode::IVGT:
+      return left.ioperand1() == right.ioperand1() &&
+             left.operand2() == right.operand2() &&
+             left.operand3() == right.operand3();
   }
   LOG(FATAL) << "bad opcode";
 }
@@ -442,6 +500,14 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
       return os << ' ' << operation.ioperand1();
     case Opcode::NOP:
       return os;
+    case Opcode::IVEQ:
+    case Opcode::IVNE:
+    case Opcode::IVLT:
+    case Opcode::IVLE:
+    case Opcode::IVGE:
+    case Opcode::IVGT:
+      return os << ' ' << operation.ioperand1() << ' ' << operation.operand2()
+                << ' ' << operation.operand3();
   }
   LOG(FATAL) << "bad opcode";
 }
@@ -497,6 +563,12 @@ std::vector<Operation> MakeConjunction(
       case Opcode::DGE:
       case Opcode::DGT:
       case Opcode::NOP:
+      case Opcode::IVEQ:
+      case Opcode::IVNE:
+      case Opcode::IVLT:
+      case Opcode::IVLE:
+      case Opcode::IVGE:
+      case Opcode::IVGT:
         operations.push_back(o);
         continue;
       case Opcode::IFFALSE:
@@ -533,6 +605,30 @@ CompiledExpression CompiledExpression::WithAssignment(
     if (o.opcode() == Opcode::ILOAD &&
         o.ioperand1() == variable.variable_index()) {
       operations.push_back(Operation::MakeICONST(value, o.operand2()));
+    } else if (o.opcode() == Opcode::IVEQ &&
+               o.ioperand1() == variable.variable_index()) {
+      operations.push_back(
+          Operation::MakeICONST(value == o.operand2(), o.operand3()));
+    } else if (o.opcode() == Opcode::IVNE &&
+               o.ioperand1() == variable.variable_index()) {
+      operations.push_back(
+          Operation::MakeICONST(value != o.operand2(), o.operand3()));
+    } else if (o.opcode() == Opcode::IVLT &&
+               o.ioperand1() == variable.variable_index()) {
+      operations.push_back(
+          Operation::MakeICONST(value < o.operand2(), o.operand3()));
+    } else if (o.opcode() == Opcode::IVLE &&
+               o.ioperand1() == variable.variable_index()) {
+      operations.push_back(
+          Operation::MakeICONST(value <= o.operand2(), o.operand3()));
+    } else if (o.opcode() == Opcode::IVGE &&
+               o.ioperand1() == variable.variable_index()) {
+      operations.push_back(
+          Operation::MakeICONST(value >= o.operand2(), o.operand3()));
+    } else if (o.opcode() == Opcode::IVGT &&
+               o.ioperand1() == variable.variable_index()) {
+      operations.push_back(
+          Operation::MakeICONST(value > o.operand2(), o.operand3()));
     } else {
       operations.push_back(o);
     }
@@ -619,6 +715,14 @@ std::pair<int, int> GetExpressionRegisterCounts(
         continue;
       case Opcode::GOTO:
       case Opcode::NOP:
+        continue;
+      case Opcode::IVEQ:
+      case Opcode::IVNE:
+      case Opcode::IVLT:
+      case Opcode::IVLE:
+      case Opcode::IVGE:
+      case Opcode::IVGT:
+        max_ireg = std::max(max_ireg, o.operand3());
         continue;
     }
     LOG(FATAL) << "bad opcode";
@@ -769,6 +873,24 @@ void CompiledExpressionEvaluator::ExecuteOperations(
         continue;
       case Opcode::MOD:
         iregs_[o.ioperand1()] %= iregs_[o.operand2()];
+        continue;
+      case Opcode::IVEQ:
+        iregs_[o.operand3()] = state[o.ioperand1()] == o.operand2();
+        continue;
+      case Opcode::IVNE:
+        iregs_[o.operand3()] = state[o.ioperand1()] != o.operand2();
+        continue;
+      case Opcode::IVLT:
+        iregs_[o.operand3()] = state[o.ioperand1()] < o.operand2();
+        continue;
+      case Opcode::IVLE:
+        iregs_[o.operand3()] = state[o.ioperand1()] <= o.operand2();
+        continue;
+      case Opcode::IVGE:
+        iregs_[o.operand3()] = state[o.ioperand1()] >= o.operand2();
+        continue;
+      case Opcode::IVGT:
+        iregs_[o.operand3()] = state[o.ioperand1()] > o.operand2();
         continue;
     }
     LOG(FATAL) << "bad opcode";
@@ -1651,7 +1773,8 @@ class BasicBlock {
   void AddUnaryIntFromDoubleOperation(const Operation& o);
   void AddUnaryDoubleOperation(const Operation& o);
   void AddUnaryDoubleFromIntOperation(const Operation& o);
-  void AddBinaryIntOperation(const Operation& o);
+  void AddBinaryIntOperation(const Operation& o,
+                             const std::vector<BasicBlock>& blocks);
   void AddBinaryIntFromDoubleOperation(const Operation& o);
   void AddBinaryDoubleOperation(const Operation& o);
   void AddSuccessor(BasicBlock* successor);
@@ -1670,6 +1793,8 @@ class BasicBlock {
 
   const int* GetIntValue(size_t r) const;
   const double* GetDoubleValue(size_t r) const;
+  Optional<int> GetVariable(size_t r,
+                            const std::vector<BasicBlock>& blocks) const;
   std::set<OperationIndex> GetIntDependencies(size_t r) const;
   std::set<OperationIndex> GetDoubleDependencies(size_t r) const;
   bool IsFallthrough() const;
@@ -1790,10 +1915,82 @@ void BasicBlock::AddUnaryDoubleFromIntOperation(const Operation& o) {
   }
 }
 
-void BasicBlock::AddBinaryIntOperation(const Operation& o) {
+void BasicBlock::AddBinaryIntOperation(const Operation& o,
+                                       const std::vector<BasicBlock>& blocks) {
   const int* value1 = GetIntValue(o.ioperand1());
   const int* value2 = GetIntValue(o.operand2());
   if (value1 == nullptr || value2 == nullptr) {
+    if (value1 != nullptr) {
+      const Optional<int> variable = GetVariable(o.operand2(), blocks);
+      if (variable.has_value()) {
+        if (o.opcode() == Opcode::IEQ) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVEQ(variable.value(), *value1, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::INE) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVNE(variable.value(), *value1, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::ILT) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVGT(variable.value(), *value1, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::ILE) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVGE(variable.value(), *value1, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::IGE) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVLE(variable.value(), *value1, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::IGT) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVLT(variable.value(), *value1, o.ioperand1()));
+          return;
+        }
+      }
+    } else if (value2 != nullptr) {
+      const Optional<int> variable = GetVariable(o.ioperand1(), blocks);
+      if (variable.has_value()) {
+        if (o.opcode() == Opcode::IEQ) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVEQ(variable.value(), *value2, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::INE) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVNE(variable.value(), *value2, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::ILT) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVLT(variable.value(), *value2, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::ILE) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVLE(variable.value(), *value2, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::IGE) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVGE(variable.value(), *value2, o.ioperand1()));
+          return;
+        } else if (o.opcode() == Opcode::IGT) {
+          SetIntDependency(
+              o.ioperand1(),
+              Operation::MakeIVGT(variable.value(), *value2, o.ioperand1()));
+          return;
+        }
+      }
+    }
     AddIntDependency(o.ioperand1(), o);
     AddIntDependenciesFromIntDependencies(o.ioperand1(), o.operand2());
   } else {
@@ -1993,6 +2190,24 @@ const double* BasicBlock::GetDoubleValue(size_t r) const {
   return (i == double_states_.end()) ? nullptr : i->second.value();
 }
 
+Optional<int> BasicBlock::GetVariable(
+    size_t r, const std::vector<BasicBlock>& blocks) const {
+  const auto i = int_states_.find(r);
+  if (i == int_states_.end()) {
+    return {};
+  }
+  const RegisterState<int>& int_state = i->second;
+  if (int_state.dependencies().size() == 1) {
+    const OperationIndex& dependency = *int_state.dependencies().begin();
+    const Operation& o =
+        blocks[dependency.block].operations()[dependency.operation];
+    if (o.opcode() == Opcode::ILOAD) {
+      return o.ioperand1();
+    }
+  }
+  return {};
+}
+
 std::set<OperationIndex> BasicBlock::GetIntDependencies(size_t r) const {
   std::set<OperationIndex> int_dependencies;
   const auto i = int_states_.find(r);
@@ -2122,7 +2337,7 @@ std::vector<BasicBlock> MakeControlFlowGraph(
       case Opcode::IMIN:
       case Opcode::IMAX:
       case Opcode::MOD:
-        block.AddBinaryIntOperation(o);
+        block.AddBinaryIntOperation(o, blocks);
         continue;
       case Opcode::DADD:
       case Opcode::DSUB:
@@ -2151,6 +2366,14 @@ std::vector<BasicBlock> MakeControlFlowGraph(
         MaybeAddBlock(block_index, o.ioperand1(), &blocks, &block_starts);
         continue;
       case Opcode::NOP:
+        continue;
+      case Opcode::IVEQ:
+      case Opcode::IVNE:
+      case Opcode::IVLT:
+      case Opcode::IVLE:
+      case Opcode::IVGE:
+      case Opcode::IVGT:
+        block.SetIntDependency(o.operand3(), o);
         continue;
     }
     LOG(FATAL) << "bad opcode";
