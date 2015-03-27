@@ -75,7 +75,13 @@ enum class Opcode {
   CEIL,
   POW,
   LOG,
-  MOD
+  MOD,
+  IVEQ,
+  IVNE,
+  IVLT,
+  IVLE,
+  IVGE,
+  IVGT
 };
 
 // Output operator for opcodes.
@@ -177,8 +183,24 @@ class Operation {
   // Take the logarithm of double register src1_dst with base in double register
   // src2.
   static Operation MakeLOG(int src1_dst, int src2);
-  // Make integer register src1_dst modulo value in integer register src2.
+  // Take integer register src1_dst modulo value in integer register src2.
   static Operation MakeMOD(int src1_dst, int src2);
+  // Compare variable and value using ==, and put result in integer register
+  // dst.
+  static Operation MakeIVEQ(int variable, int value, int dst);
+  // Compare variable and value using !=, and put result in integer register
+  // dst.
+  static Operation MakeIVNE(int variable, int value, int dst);
+  // Compare variable and value using <, and put result in integer register dst.
+  static Operation MakeIVLT(int variable, int value, int dst);
+  // Compare variable and value using <=, and put result in integer register
+  // dst.
+  static Operation MakeIVLE(int variable, int value, int dst);
+  // Compare variable and value using >=, and put result in integer register
+  // dst.
+  static Operation MakeIVGE(int variable, int value, int dst);
+  // Compare variable and value using >, and put result in integer register dst.
+  static Operation MakeIVGT(int variable, int value, int dst);
 
   // Returns the opcode for this operation.
   Opcode opcode() const { return opcode_; }
@@ -191,6 +213,9 @@ class Operation {
 
   // Returns the second operand.
   int operand2() const { return operand2_; }
+
+  // Returns the third operand.
+  int operand3() const { return operand3_; }
 
   // Returns a copy of this operation with program counters and registers
   // shifted the given number of positions.
@@ -205,6 +230,8 @@ class Operation {
   Operation(Opcode opcode, int operand1, int operand2);
   // Constructs an operation with a double and an integer operand.
   Operation(Opcode opcode, double operand1, int operand2);
+  // Constructs an operation with three integer operands.
+  Operation(Opcode opcode, int operand1, int operand2, int operand3);
 
   Opcode opcode_;
   union {
@@ -212,6 +239,7 @@ class Operation {
     double d;
   } operand1_;
   int operand2_;
+  int operand3_;
 };
 
 // Equality operator for operations.
