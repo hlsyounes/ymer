@@ -421,7 +421,12 @@ void AddCommand(const YYLTYPE& location, const std::string* action,
   }
 }
 
-void SetInit(const Expression* expr) { delete expr; }
+void SetInit(const YYLTYPE& location, const Expression* expr,
+             ParserState* state) {
+  if (!state->mutable_model()->SetInit(WrapUnique(expr))) {
+    yyerror(location, "multiple init blocks", state);
+  }
+}
 
 void StartRewards(const std::string* label) { delete label; }
 
@@ -699,7 +704,7 @@ label : LABEL LABEL_NAME '=' expr ';'
       ;
 
 init : INIT expr ENDINIT
-         { SetInit($2); }
+          { SetInit(yylloc, $2, state); }
      ;
 
 rewards : REWARDS rewards_label reward_rules ENDREWARDS

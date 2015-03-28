@@ -589,4 +589,17 @@ TEST(ModelTest, RejectsDuplicateModules) {
   EXPECT_FALSE(model.StartModule("m"));
 }
 
+TEST(ModelTest, DefaultsToNullInit) {
+  Model model;
+  EXPECT_EQ(nullptr, model.init());
+}
+
+TEST(ModelTest, SetsInitOnce) {
+  Model model;
+  EXPECT_TRUE(model.SetInit(Literal::New(true)));
+  EXPECT_EQ("true", StrCat(*model.init()));
+  EXPECT_FALSE(model.SetInit(Literal::New(false)));
+  EXPECT_EQ("true", StrCat(*model.init()));
+}
+
 }  // namespace

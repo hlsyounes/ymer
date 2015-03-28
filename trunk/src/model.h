@@ -298,6 +298,10 @@ class Model {
   // open.
   void EndModule();
 
+  // Sets the init expression for this model.  Returns false if this model
+  // already has an init expression.
+  bool SetInit(std::unique_ptr<const Expression>&& init);
+
   // Returns the type of this model.
   ModelType type() const { return type_; }
 
@@ -327,6 +331,10 @@ class Model {
   // Returns the index for the given action label.
   size_t ActionIndex(const std::string& name) const;
 
+  // Returns the init expression for this model, or null if this model does not
+  // have an init expression.
+  const Expression* init() const { return init_.get(); }
+
 private:
   struct IdentifierIndex {
     enum Type { kConstant, kVariable, kFormula, kAction } type;
@@ -354,6 +362,7 @@ private:
   std::map<std::string, int> module_indices_;
   std::vector<ParsedModule> modules_;
   std::vector<std::string> actions_;
+  std::unique_ptr<const Expression> init_;
 };
 
 // Output operator for models.
