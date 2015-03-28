@@ -969,6 +969,14 @@ void Model::EndModule() {
   current_module_ = kNoModule;
 }
 
+bool Model::SetInit(std::unique_ptr<const Expression>&& init) {
+  if (init_ != nullptr) {
+    return false;
+  }
+  init_ = std::move(init);
+  return true;
+}
+
 size_t Model::ActionIndex(const std::string& name) const {
   auto i = identifier_indices_.find(name);
   CHECK(i != identifier_indices_.end());
@@ -1040,6 +1048,12 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
       os << std::endl
          << "label " << label.name() << " = " << label.expr() << ';';
     }
+  }
+  if (m.init() != nullptr) {
+    os << std::endl
+       << "init" << std::endl
+       << "  " << *m.init() << std::endl
+       << "endinit";
   }
   return os;
 }
