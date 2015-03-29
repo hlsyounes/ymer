@@ -55,11 +55,13 @@ CompiledGsmpCommand::CompiledGsmpCommand(
 CompiledModel::CompiledModel(CompiledModelType type,
                              const std::vector<StateVariableInfo>& variables,
                              const std::vector<std::set<int>>& module_variables,
-                             const std::vector<int>& init_values)
+                             const std::vector<int>& init_values,
+                             const Optional<CompiledExpression>& init_expr)
     : type_(type),
       variables_(variables),
       module_variables_(module_variables),
       init_values_(init_values),
+      init_expr_(init_expr),
       gsmp_event_count_(0) {}
 
 int CompiledModel::EventCount() const {
