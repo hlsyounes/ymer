@@ -398,6 +398,7 @@ int GetIntValue(
 struct CompileVariablesResult {
   std::vector<StateVariableInfo> variables;
   std::vector<int> init_values;
+  bool has_explicit_init;
   std::vector<int> max_values;
   int total_bit_count;
 };
@@ -410,6 +411,7 @@ CompileVariablesResult CompileVariables(
   CompileVariablesResult result;
   int index = 0;
   int low_bit = 0;
+  result.has_explicit_init = false;
   for (const auto& v : parsed_variables) {
     int min = GetIntValue(v.min(), v.type(), formulas_by_name,
                           *identifiers_by_name, errors);
@@ -417,6 +419,9 @@ CompileVariablesResult CompileVariables(
                           *identifiers_by_name, errors);
     int init = GetIntValue(v.init(), v.type(), formulas_by_name,
                            *identifiers_by_name, errors);
+    if (v.has_explicit_init()) {
+      result.has_explicit_init = true;
+    }
     if (min >= max) {
       errors->push_back(StrCat("empty domain [", min, "..", max,
                                "] for variable ", v.name()));
@@ -847,14 +852,16 @@ CompiledExpression OptimizeWithAssignment(
 
 CompiledModel CompileModel(
     const Model& model, const std::vector<StateVariableInfo>& variables,
-    const std::vector<int>& init_values, const std::vector<int>& max_values,
+    const std::vector<int>& init_values,
+    const Optional<CompiledExpression>& init_expr,
+    const std::vector<int>& max_values,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledModel compiled_model(CompileModelType(model.type(), errors),
                                variables, CompileModuleVariables(model),
-                               init_values);
+                               init_values, init_expr);
 
   const auto& compiled_commands = CompileCommands(
       model, formulas_by_name, identifiers_by_name, dd_manager, errors);
@@ -1372,9 +1379,23 @@ int main(int argc, char* argv[]) {
       dd_manager =
           DecisionDiagramManager(2 * compile_variables_result.total_bit_count);
     }
+    Optional<CompiledExpression> init_expr;
+    if (model.init() != nullptr) {
+      if (compile_variables_result.has_explicit_init) {
+        errors.push_back(
+            "global init not allowed in model with explicit variable inits");
+      }
+      init_expr = CompileAndOptimizeExpression(
+          *model.init(), Type::BOOL, formulas_by_name, identifiers_by_name,
+          dd_manager, &errors);
+      if (params.engine != ModelCheckingEngine::HYBRID) {
+        // TODO(hyounes): Set value from init expr.  Report error if init expr
+        // does not identify a single state.
+      }
+    }
     const CompiledModel compiled_model =
         CompileModel(model, compile_variables_result.variables,
-                     compile_variables_result.init_values,
+                     compile_variables_result.init_values, init_expr,
                      compile_variables_result.max_values, formulas_by_name,
                      identifiers_by_name, dd_manager, &errors);
     std::pair<int, int> reg_counts = compiled_model.GetRegisterCounts();

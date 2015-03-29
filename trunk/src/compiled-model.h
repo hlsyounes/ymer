@@ -152,7 +152,8 @@ class CompiledModel {
   explicit CompiledModel(CompiledModelType type,
                          const std::vector<StateVariableInfo>& variables,
                          const std::vector<std::set<int>>& module_variables,
-                         const std::vector<int>& init_values);
+                         const std::vector<int>& init_values,
+                         const Optional<CompiledExpression>& init_expr);
 
   // Sets the single (non-factored) Markov commands for this compiled model.
   void set_single_markov_commands(
@@ -215,6 +216,9 @@ class CompiledModel {
   // Returns the initial values for the variables of this compiled model.
   const std::vector<int>& init_values() const { return init_values_; }
 
+  // Returns the optional init expression for this compiled model.
+  const Optional<CompiledExpression>& init_expr() const { return init_expr_; }
+
   // Returns the single Markov commands for this compiled model.
   const std::vector<CompiledMarkovCommand>& single_markov_commands() const {
     return single_markov_commands_;
@@ -262,6 +266,7 @@ class CompiledModel {
   std::vector<StateVariableInfo> variables_;
   std::vector<std::set<int>> module_variables_;
   std::vector<int> init_values_;
+  Optional<CompiledExpression> init_expr_;
   // The single (non-factored) commands with memoryless distributions.
   std::vector<CompiledMarkovCommand> single_markov_commands_;
   // For every action, and every module where the action occurs, the factored
