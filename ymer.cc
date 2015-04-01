@@ -22,9 +22,9 @@
  */
 #include <config.h>
 #include "comm.h"
-#include "models.h"
 #include "formulas.h"
 #include "src/compiled-property.h"
+#include "src/ddmodel.h"
 #include "src/ddutil.h"
 #include "src/distribution.h"
 #include "src/model.h"

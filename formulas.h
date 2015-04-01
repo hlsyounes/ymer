@@ -24,10 +24,10 @@
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
-#include "models.h"
 #include "src/compiled-expression.h"
 #include "src/compiled-model.h"
 #include "src/compiled-property.h"
+#include "src/ddmodel.h"
 #include "src/ddutil.h"
 #include "src/model-checking-params.h"
 #include "src/rng.h"

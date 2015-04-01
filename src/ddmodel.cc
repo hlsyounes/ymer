@@ -18,14 +18,14 @@
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include "models.h"
+#include "ddmodel.h"
 
 #include <iostream>
 #include <set>
+#include <vector>
 
-#include "src/distribution.h"
+#include "distribution.h"
 
-#include "cudd.h"
 #include "glog/logging.h"
 
 namespace {
@@ -406,17 +406,15 @@ ECParameters MatchThreeMoments(const Distribution& dist) {
   if (fabs(rint(x) - x) < 1e-10) {
     // Adjust second moment so that 1/(m2G - 1) is not an integer.
     m2G *= (1.0 - 1e-5);
-    std::cerr << std::endl << PACKAGE ": second moment for " << dist
-              << " is changed from " << mu2G << " to " << m2G* mu1G* mu1G
-              << std::endl;
+    LOG(WARNING) << "second moment for " << dist << " is changed from " << mu2G
+                 << " to " << m2G * mu1G * mu1G;
   }
   if (m3G < 2.0 * m2G - 1.0) {
     // Adjust third moment so that the resulting EC distribution has no mass
     // probability at zero (p=1).
     m3G = 2.0 * m2G - 1.0;
-    std::cerr << std::endl << PACKAGE ": third moment for " << dist
-              << " is changed from " << mu3G << " to " << m3G* mu1G* mu2G
-              << std::endl;
+    LOG(WARNING) << "third moment for " << dist << " is changed from " << mu3G
+                 << " to " << m3G * mu1G * mu2G;
   }
   double n;
   if (m2G < 2.0 && fabs(m3G - (2.0 * m2G - 1.0)) < 1e-10) {

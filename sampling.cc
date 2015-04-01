@@ -35,14 +35,13 @@
 #include <vector>
 
 #include "comm.h"
-#include "models.h"
 #include "src/compiled-property.h"
+#include "src/ddmodel.h"
 #include "src/rng.h"
 #include "src/simulator.h"
 #include "src/statistics.h"
 #include "src/strutil.h"
 
-#include "cudd.h"
 #include "glog/logging.h"
 #include "gsl/gsl_cdf.h"
 
@@ -312,8 +311,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
       ServerMsg smsg = {ServerMsg::START, current_property};
       int nbytes = send(sockfd, &smsg, sizeof smsg, 0);
       if (nbytes == -1) {
-        perror(PACKAGE);
-        LOG(FATAL) << "server error";
+        PLOG(FATAL) << "server error";
       } else if (nbytes == 0) {
         closed_sockets.insert(sockfd);
         close(sockfd);
@@ -354,8 +352,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
       }
       fd_set read_fds = master_fds;
       if (-1 == select(fdmax + 1, &read_fds, NULL, NULL, NULL)) {
-        perror(PACKAGE);
-        exit(1);
+        PLOG(FATAL);
       }
       if (FD_ISSET(server_socket, &read_fds)) {
         /* register a client */
@@ -364,7 +361,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
         int sockfd = accept(server_socket, (sockaddr*)&client_addr,
                             (socklen_t*)&addrlen);
         if (sockfd == -1) {
-          perror(PACKAGE);
+          PLOG(ERROR);
         }
         FD_SET(sockfd, &master_fds);
         if (sockfd > fdmax) {
@@ -373,13 +370,13 @@ SamplingVerifier::VerifyProbabilisticProperty(
         int client_id = next_client_id_++;
         ServerMsg smsg = {ServerMsg::REGISTER, client_id};
         if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-          perror(PACKAGE);
+          PLOG(ERROR);
           close(sockfd);
         } else {
           smsg.id = ServerMsg::START;
           smsg.value = current_property;
           if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-            perror(PACKAGE);
+            PLOG(ERROR);
             close(sockfd);
           } else {
             registered_clients_[sockfd] = client_id;
@@ -405,7 +402,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
           int nbytes = recv(sockfd, &msg, sizeof msg, 0);
           if (nbytes <= 0) {
             if (nbytes == -1) {
-              perror(PACKAGE);
+              PLOG(ERROR);
             } else {
               std::cout << "Client " << client_id << " disconnected"
                         << std::endl;
@@ -480,8 +477,7 @@ SamplingVerifier::VerifyProbabilisticProperty(
       int sockfd = (*ci).first;
       ServerMsg smsg = {ServerMsg::STOP};
       if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-        perror(PACKAGE);
-        exit(1);
+        PLOG(FATAL);
       }
     }
   }
