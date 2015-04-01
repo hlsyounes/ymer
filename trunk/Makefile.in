@@ -87,7 +87,8 @@ check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
 	src/model_test$(EXEEXT) src/parser_test$(EXEEXT) \
 	src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
-	src/compiled-model_test$(EXEEXT) src/simulator_test$(EXEEXT) \
+	src/compiled-model_test$(EXEEXT) src/ddmodel_test$(EXEEXT) \
+	src/simulator_test$(EXEEXT) \
 	src/compiled-property_test$(EXEEXT)
 subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
@@ -238,6 +239,10 @@ src_libcompiled_property_la_DEPENDENCIES =  \
 am_src_libcompiled_property_la_OBJECTS = src/compiled-property.lo
 src_libcompiled_property_la_OBJECTS =  \
 	$(am_src_libcompiled_property_la_OBJECTS)
+src_libddmodel_la_DEPENDENCIES = src/libcompiled-model.la \
+	src/libddutil.la src/libdistribution.la glog/libglog.la
+am_src_libddmodel_la_OBJECTS = src/ddmodel.lo
+src_libddmodel_la_OBJECTS = $(am_src_libddmodel_la_OBJECTS)
 src_libddutil_la_DEPENDENCIES = cudd/cudd/libcudd.la glog/libglog.la
 am_src_libddutil_la_OBJECTS = src/ddutil.lo
 src_libddutil_la_OBJECTS = $(am_src_libddutil_la_OBJECTS)
@@ -297,6 +302,9 @@ src_compiled_property_test_OBJECTS =  \
 	$(am_src_compiled_property_test_OBJECTS)
 src_compiled_property_test_DEPENDENCIES = src/libcompiled-property.la \
 	src/libtest-main.la
+am_src_ddmodel_test_OBJECTS = src/ddmodel_test.$(OBJEXT)
+src_ddmodel_test_OBJECTS = $(am_src_ddmodel_test_OBJECTS)
+src_ddmodel_test_DEPENDENCIES = src/libddmodel.la src/libtest-main.la
 am_src_ddutil_test_OBJECTS = src/ddutil_test.$(OBJEXT)
 src_ddutil_test_OBJECTS = $(am_src_ddutil_test_OBJECTS)
 src_ddutil_test_DEPENDENCIES = src/libddutil.la src/libtest-main.la
@@ -337,14 +345,15 @@ src_typed_value_test_OBJECTS = $(am_src_typed_value_test_OBJECTS)
 src_typed_value_test_DEPENDENCIES = src/libtyped-value.la \
 	src/libtest-main.la
 am__objects_1 =
-am_ymer_OBJECTS = ymer.$(OBJEXT) models.$(OBJEXT) sampling.$(OBJEXT) \
-	hybrid.$(OBJEXT) symbolic.$(OBJEXT) $(am__objects_1)
+am_ymer_OBJECTS = ymer.$(OBJEXT) sampling.$(OBJEXT) hybrid.$(OBJEXT) \
+	symbolic.$(OBJEXT) $(am__objects_1)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
 	src/libtyped-value.la src/libexpression.la \
 	src/libdistribution.la src/libmodel.la src/libparser.la \
-	src/libcompiled-model.la src/libcompiled-property.la
+	src/libcompiled-model.la src/libddmodel.la \
+	src/libcompiled-property.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -421,7 +430,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
-	$(src_libddutil_la_SOURCES) $(src_libdistribution_la_SOURCES) \
+	$(src_libddmodel_la_SOURCES) $(src_libddutil_la_SOURCES) \
+	$(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
 	$(src_libparser_la_SOURCES) $(src_librng_la_SOURCES) \
 	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
@@ -430,7 +440,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
-	$(src_ddutil_test_SOURCES) $(src_distribution_test_SOURCES) \
+	$(src_ddmodel_test_SOURCES) $(src_ddutil_test_SOURCES) \
+	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
 	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
@@ -443,7 +454,8 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
 	$(src_libcompiled_property_la_SOURCES) \
-	$(src_libddutil_la_SOURCES) $(src_libdistribution_la_SOURCES) \
+	$(src_libddmodel_la_SOURCES) $(src_libddutil_la_SOURCES) \
+	$(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
 	$(src_libparser_la_SOURCES) $(src_librng_la_SOURCES) \
 	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
@@ -452,7 +464,8 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_compiled_expression_test_SOURCES) \
 	$(src_compiled_model_test_SOURCES) \
 	$(src_compiled_property_test_SOURCES) \
-	$(src_ddutil_test_SOURCES) $(src_distribution_test_SOURCES) \
+	$(src_ddmodel_test_SOURCES) $(src_ddutil_test_SOURCES) \
+	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
 	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
@@ -905,6 +918,8 @@ SUBDIRS = glog gsl gtest
 
 # Compiled model library.
 
+# Decision diagram model library.
+
 # Compiled property library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
@@ -912,7 +927,8 @@ noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	src/libtyped-value.la src/libexpression.la \
 	src/libdistribution.la src/libmodel.la src/libparser.la \
 	src/libcompiled-expression.la src/libcompiled-distribution.la \
-	src/libcompiled-model.la src/libcompiled-property.la
+	src/libcompiled-model.la src/libddmodel.la \
+	src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -1007,18 +1023,22 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
 
+src_libddmodel_la_SOURCES = src/ddmodel.h src/ddmodel.cc
+src_libddmodel_la_LIBADD = src/libcompiled-model.la src/libddutil.la \
+    src/libdistribution.la glog/libglog.la
+
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
     src/compiled-property.cc
 
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
     src/libddutil.la glog/libglog.la
 
-ymer_SOURCES = ymer.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
     src/libmodel.la src/libparser.la src/libcompiled-model.la \
-    src/libcompiled-property.la
+    src/libddmodel.la src/libcompiled-property.la
 
 
 #
@@ -1061,6 +1081,8 @@ src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
 
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
+src_ddmodel_test_SOURCES = src/ddmodel_test.cc
+src_ddmodel_test_LDADD = src/libddmodel.la src/libtest-main.la
 src_simulator_test_SOURCES = src/simulator_test.cc
 src_simulator_test_LDADD = src/libcompiled-distribution.la \
     src/libcompiled-expression.la src/libcompiled-model.la src/libtest-main.la
@@ -1397,6 +1419,10 @@ src/compiled-property.lo: src/$(am__dirstamp) \
 
 src/libcompiled-property.la: $(src_libcompiled_property_la_OBJECTS) $(src_libcompiled_property_la_DEPENDENCIES) $(EXTRA_src_libcompiled_property_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_libcompiled_property_la_OBJECTS) $(src_libcompiled_property_la_LIBADD) $(LIBS)
+src/ddmodel.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+
+src/libddmodel.la: $(src_libddmodel_la_OBJECTS) $(src_libddmodel_la_DEPENDENCIES) $(EXTRA_src_libddmodel_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(AM_V_CXXLD)$(CXXLINK)  $(src_libddmodel_la_OBJECTS) $(src_libddmodel_la_LIBADD) $(LIBS)
 src/ddutil.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libddutil.la: $(src_libddutil_la_OBJECTS) $(src_libddutil_la_DEPENDENCIES) $(EXTRA_src_libddutil_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1520,6 +1546,12 @@ src/compiled-property_test.$(OBJEXT): src/$(am__dirstamp) \
 src/compiled-property_test$(EXEEXT): $(src_compiled_property_test_OBJECTS) $(src_compiled_property_test_DEPENDENCIES) $(EXTRA_src_compiled_property_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/compiled-property_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_compiled_property_test_OBJECTS) $(src_compiled_property_test_LDADD) $(LIBS)
+src/ddmodel_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/ddmodel_test$(EXEEXT): $(src_ddmodel_test_OBJECTS) $(src_ddmodel_test_DEPENDENCIES) $(EXTRA_src_ddmodel_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/ddmodel_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_ddmodel_test_OBJECTS) $(src_ddmodel_test_LDADD) $(LIBS)
 src/ddutil_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1610,7 +1642,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hybrid.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/models.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampling.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/symbolic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ymer.Po@am__quote@
@@ -1706,6 +1737,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/compiled-model_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/compiled-property.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/compiled-property_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ddmodel.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ddmodel_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ddutil.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ddutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/distribution.Plo@am__quote@
@@ -2720,6 +2753,13 @@ src/compiled-distribution_test.log: src/compiled-distribution_test$(EXEEXT)
 src/compiled-model_test.log: src/compiled-model_test$(EXEEXT)
 	@p='src/compiled-model_test$(EXEEXT)'; \
 	b='src/compiled-model_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/ddmodel_test.log: src/ddmodel_test$(EXEEXT)
+	@p='src/ddmodel_test$(EXEEXT)'; \
+	b='src/ddmodel_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

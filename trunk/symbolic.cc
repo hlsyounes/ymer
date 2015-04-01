@@ -29,9 +29,9 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "models.h"
 #include "hybrid.h"
 #include "src/compiled-property.h"
+#include "src/ddmodel.h"
 
 #include "cudd.h"
 

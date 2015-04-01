@@ -153,6 +153,12 @@ src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
     glog/libglog.la
 
+# Decision diagram model library.
+noinst_LTLIBRARIES += src/libddmodel.la
+src_libddmodel_la_SOURCES = src/ddmodel.h src/ddmodel.cc
+src_libddmodel_la_LIBADD = src/libcompiled-model.la src/libddutil.la \
+    src/libdistribution.la glog/libglog.la
+
 # Compiled property library.
 noinst_LTLIBRARIES += src/libcompiled-property.la
 src_libcompiled_property_la_SOURCES = src/compiled-property.h \
@@ -165,12 +171,12 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc formulas.h models.cc models.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
     src/libstatistics.la src/libddutil.la src/librng.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
     src/libmodel.la src/libparser.la src/libcompiled-model.la \
-    src/libcompiled-property.la
+    src/libddmodel.la src/libcompiled-property.la
 
 #
 # Ymer tests.
@@ -252,6 +258,11 @@ src_compiled_distribution_test_LDADD = src/libcompiled-distribution.la \
 check_PROGRAMS += src/compiled-model_test
 src_compiled_model_test_SOURCES = src/compiled-model_test.cc
 src_compiled_model_test_LDADD = src/libcompiled-model.la src/libtest-main.la
+
+# Test for decision diagram model library.
+check_PROGRAMS += src/ddmodel_test
+src_ddmodel_test_SOURCES = src/ddmodel_test.cc
+src_ddmodel_test_LDADD = src/libddmodel.la src/libtest-main.la
 
 # Test for simulator library.
 check_PROGRAMS += src/simulator_test

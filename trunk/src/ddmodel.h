@@ -17,17 +17,16 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 //
-// A parsed model.
+// A model compiled into decision diagrams.
 
-#ifndef MODELS_H_
-#define MODELS_H_
+#ifndef DD_MODEL_H_
+#define DD_MODEL_H_
 
 #include <map>
 #include <string>
-#include <vector>
 
-#include "src/compiled-model.h"
-#include "src/ddutil.h"
+#include "compiled-model.h"
+#include "ddutil.h"
 
 // A model compiled into decision diagrams.
 class DecisionDiagramModel {
@@ -58,4 +57,4 @@ class DecisionDiagramModel {
   int initial_state_index_;
 };
 
-#endif  // MODELS_H_
+#endif  // DDMODEL_H_
