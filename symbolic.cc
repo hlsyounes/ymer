@@ -520,8 +520,11 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
    */
   double* soln = mtbdd_to_double_vector(dd_model_->manager(), ADD(dd2), odd);
   double* soln2 = new double[nstates];
-  int init = top_level_property_ ? dd_model_->initial_state_index() : -1;
-  std::vector<double> sum((init >= 0) ? 1 : nstates, 0);
+  Optional<int> init;
+  if (top_level_property_) {
+    init = dd_model_->initial_state_index();
+  }
+  std::vector<double> sum(init.has_value() ? 1 : nstates, 0);
 
   /*
    * Compute poisson probabilities.
@@ -581,8 +584,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       }
       if (done) {
         steady = true;
-        if (init >= 0) {
-          sum[0] = soln2[init];
+        if (init.has_value()) {
+          sum[0] = soln2[init.value()];
         } else {
           for (size_t i = 0; i < nstates; i++) {
             sum[i] = soln2[i];
@@ -639,8 +642,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
           for (int i = iters; i <= right; i++) {
             weight += weights[i - left] / weight_sum;
           }
-          if (init >= 0) {
-            sum[0] += weight * soln2[init];
+          if (init.has_value()) {
+            sum[0] += weight * soln2[init.value()];
           } else {
             for (size_t i = 0; i < nstates; i++) {
               sum[i] += weight * soln2[i];
@@ -661,14 +664,14 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
      */
     size_t num_pass = 0;
     for (size_t i = 0; i < nstates; i++) {
-      if (init >= 0) {
-        sum[0] += weights[iters - left] / weight_sum * soln[init];
+      if (init.has_value()) {
+        sum[0] += weights[iters - left] / weight_sum * soln[init.value()];
       } else {
         sum[i] += weights[iters - left] / weight_sum * soln[i];
       }
       double slack =
           tail_bound(iters, 1.01 * max_diag * time, left, right, epsilon_);
-      if (VLOG_IS_ON(2) && init >= 0) {
+      if (VLOG_IS_ON(2) && init.has_value()) {
         LOG(INFO) << iters << " p_init in [" << sum[0] << ','
                   << (sum[0] + slack) << "]"
                   << "; threshold = " << threshold_;
@@ -682,13 +685,13 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
         }
         if (pass) {
           num_pass++;
-          if (init >= 0 || num_pass == nstates) {
+          if (init.has_value() || num_pass == nstates) {
             done = true;
             break;
           }
         }
       }
-      if (init >= 0) {
+      if (init.has_value()) {
         break;
       }
     }
@@ -705,9 +708,20 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       std::cout << "Steady state detected." << std::endl;
     }
     if (estimate_) {
+      double min_value = sum[0];
+      double max_value = sum[0];
+      for (size_t i = 1; i < sum.size(); ++i) {
+        min_value = std::min(min_value, sum[i]);
+        max_value = std::max(max_value, sum[i]);
+      }
       std::cout.precision(10);
-      std::cout << "Pr[" << path_property.string() << "] = " << sum[0]
-                << std::endl;
+      std::cout << "Pr[" << path_property.string() << "] ";
+      if (min_value == max_value) {
+        std::cout << "= " << min_value;
+      } else {
+        std::cout << "in [" << min_value << "," << max_value << "]";
+      }
+      std::cout << std::endl;
       std::cout.precision(6);
     }
   }
@@ -720,10 +734,10 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   delete soln2;
   delete weights;
 
-  if (init >= 0) {
+  if (init.has_value()) {
     if ((strict_ && sum[0] > threshold_) ||
         (!strict_ && sum[0] >= threshold_)) {
-      result_ = dd_model_->initial_state();
+      result_ = dd_model_->initial_states();
     } else {
       result_ = dd_model_->manager().GetConstant(false);
     }
