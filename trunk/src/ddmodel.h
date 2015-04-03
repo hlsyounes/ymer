@@ -38,23 +38,23 @@ class DecisionDiagramModel {
 
   const DecisionDiagramManager& manager() const { return *manager_; }
 
-  const BDD& initial_state() const { return initial_state_; }
+  const BDD& initial_states() const { return initial_states_; }
   const ADD& rate_matrix() const { return rate_matrix_; }
   const BDD& reachable_states() const { return reachable_states_; }
   const ODD& odd() const { return odd_; }
-  int initial_state_index() const { return initial_state_index_; }
+  Optional<int> initial_state_index() const { return initial_state_index_; }
 
  private:
   DecisionDiagramModel(const DecisionDiagramManager* manager,
-                       const BDD& initial_state, const ADD& rate_matrix,
+                       const BDD& initial_states, const ADD& rate_matrix,
                        const BDD& reachable_states);
 
   const DecisionDiagramManager* manager_;
-  BDD initial_state_;
+  BDD initial_states_;
   ADD rate_matrix_;
   BDD reachable_states_;
   ODD odd_;
-  int initial_state_index_;
+  Optional<int> initial_state_index_;
 };
 
 #endif  // DDMODEL_H_

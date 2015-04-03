@@ -710,6 +710,20 @@ TEST(DecisionDiagramTest, BddValueInState) {
   EXPECT_FALSE(dd.ValueInState({4, 0, 3}, variables));
 }
 
+TEST(DecisionDiagramTest, AddMaxAndMinValue) {
+  const DecisionDiagramManager manager(12);
+  const ADD dd = Ite(manager.GetBddVariable(0), manager.GetConstant(2),
+                     manager.GetConstant(5)) +
+                 Ite(manager.GetBddVariable(2), manager.GetConstant(7),
+                     manager.GetConstant(3)) +
+                 Ite(manager.GetBddVariable(6), manager.GetConstant(9),
+                     manager.GetConstant(1)) +
+                 Ite(manager.GetBddVariable(10), manager.GetConstant(4),
+                     manager.GetConstant(8));
+  EXPECT_EQ(5 + 7 + 9 + 8, dd.MaxValue());
+  EXPECT_EQ(2 + 3 + 1 + 4, dd.MinValue());
+}
+
 TEST(DecisionDiagramTest, AddValueInState) {
   const DecisionDiagramManager manager(12);
   const std::vector<StateVariableInfo> variables = {
@@ -745,27 +759,36 @@ TEST(OddTest, StateIndex) {
                   manager.GetBddVariable(6))));
   ODD odd = ODD::Make(reachable_states);
   EXPECT_EQ(10, odd.node_count());
-  EXPECT_EQ(0, odd.StateIndex(
-                   !manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
-                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
-  EXPECT_EQ(1, odd.StateIndex(
-                   !manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
-                   manager.GetBddVariable(4) && !manager.GetBddVariable(6)));
-  EXPECT_EQ(2, odd.StateIndex(
-                   !manager.GetBddVariable(0) && manager.GetBddVariable(2) &&
-                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
-  EXPECT_EQ(3, odd.StateIndex(
-                   !manager.GetBddVariable(0) && manager.GetBddVariable(2) &&
-                   manager.GetBddVariable(4) && manager.GetBddVariable(6)));
-  EXPECT_EQ(4, odd.StateIndex(
-                   manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
-                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
-  EXPECT_EQ(5, odd.StateIndex(
-                   manager.GetBddVariable(0) && !manager.GetBddVariable(2) &&
-                   manager.GetBddVariable(4) && manager.GetBddVariable(6)));
-  EXPECT_EQ(6, odd.StateIndex(
-                   manager.GetBddVariable(0) && manager.GetBddVariable(2) &&
-                   !manager.GetBddVariable(4) && manager.GetBddVariable(6)));
+  EXPECT_EQ(0, odd.StateIndex(!manager.GetBddVariable(0) &&
+                              !manager.GetBddVariable(2) &&
+                              !manager.GetBddVariable(4) &&
+                              manager.GetBddVariable(6)).value());
+  EXPECT_EQ(1, odd.StateIndex(!manager.GetBddVariable(0) &&
+                              !manager.GetBddVariable(2) &&
+                              manager.GetBddVariable(4) &&
+                              !manager.GetBddVariable(6)).value());
+  EXPECT_EQ(2, odd.StateIndex(!manager.GetBddVariable(0) &&
+                              manager.GetBddVariable(2) &&
+                              !manager.GetBddVariable(4) &&
+                              manager.GetBddVariable(6)).value());
+  EXPECT_EQ(3, odd.StateIndex(!manager.GetBddVariable(0) &&
+                              manager.GetBddVariable(2) &&
+                              manager.GetBddVariable(4) &&
+                              manager.GetBddVariable(6)).value());
+  EXPECT_EQ(4, odd.StateIndex(manager.GetBddVariable(0) &&
+                              !manager.GetBddVariable(2) &&
+                              !manager.GetBddVariable(4) &&
+                              manager.GetBddVariable(6)).value());
+  EXPECT_EQ(5, odd.StateIndex(manager.GetBddVariable(0) &&
+                              !manager.GetBddVariable(2) &&
+                              manager.GetBddVariable(4) &&
+                              manager.GetBddVariable(6)).value());
+  EXPECT_EQ(6, odd.StateIndex(manager.GetBddVariable(0) &&
+                              manager.GetBddVariable(2) &&
+                              !manager.GetBddVariable(4) &&
+                              manager.GetBddVariable(6)).value());
+  EXPECT_FALSE(odd.StateIndex(manager.GetBddVariable(0) &&
+                              manager.GetBddVariable(2)).has_value());
 }
 
 TEST(Log2Test, All) {

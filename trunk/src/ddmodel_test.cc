@@ -72,14 +72,14 @@ TEST(DecisionDiagramModelTest, MakeSimple) {
   const auto dd_model = DecisionDiagramModel::Make(&manager.value(), model, 0,
                                                    identifiers_by_name);
   EXPECT_EQ(&manager.value(), &dd_model.manager());
-  EXPECT_TRUE(dd_model.initial_state().ValueInState({0}, variables));
-  EXPECT_FALSE(dd_model.initial_state().ValueInState({1}, variables));
+  EXPECT_TRUE(dd_model.initial_states().ValueInState({0}, variables));
+  EXPECT_FALSE(dd_model.initial_states().ValueInState({1}, variables));
   EXPECT_EQ(0, dd_model.rate_matrix().ValueInState({false, false}));
   EXPECT_EQ(2, dd_model.rate_matrix().ValueInState({false, true}));
   EXPECT_EQ(3, dd_model.rate_matrix().ValueInState({true, false}));
   EXPECT_EQ(0, dd_model.rate_matrix().ValueInState({true, true}));
   EXPECT_TRUE(dd_model.reachable_states().Value());
-  EXPECT_EQ(0, dd_model.initial_state_index());
+  EXPECT_EQ(0, dd_model.initial_state_index().value());
 }
 
 }  // namespace

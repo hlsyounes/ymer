@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 
+#include "optional.h"
+
 struct DdManager;
 struct DdNode;
 
@@ -164,6 +166,12 @@ class ADD : public DecisionDiagram {
 
   // Returns the value of this ADD.  Requires that this ADD is constant.
   double Value() const;
+
+  // Returns the maximum value of this ADD.
+  double MaxValue() const;
+
+  // Returns the minimum value of this ADD.
+  double MinValue() const;
 
   // Returns the value of this ADD for the given variable assignment.
   double ValueInState(const std::vector<bool>& state) const;
@@ -353,7 +361,7 @@ class ODD {
 
   int node_count() const { return node_count_; }
 
-  int StateIndex(const BDD& state) const;
+  Optional<int> StateIndex(const BDD& state) const;
 
  private:
   explicit ODD(const OddNode* root, int node_count);

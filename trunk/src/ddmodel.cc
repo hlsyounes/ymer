@@ -454,14 +454,14 @@ ECParameters MatchThreeMoments(const Distribution& dist) {
 }  // namespace
 
 DecisionDiagramModel::DecisionDiagramModel(
-    const DecisionDiagramManager* manager, const BDD& initial_state,
+    const DecisionDiagramManager* manager, const BDD& initial_states,
     const ADD& rate_matrix, const BDD& reachable_states)
     : manager_(manager),
-      initial_state_(initial_state),
+      initial_states_(initial_states),
       rate_matrix_(rate_matrix),
       reachable_states_(reachable_states),
       odd_(ODD::Make(reachable_states)),
-      initial_state_index_(odd_.StateIndex(initial_state)) {}
+      initial_state_index_(odd_.StateIndex(initial_states)) {}
 
 namespace {
 

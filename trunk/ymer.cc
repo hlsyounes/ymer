@@ -1719,6 +1719,7 @@ int main(int argc, char* argv[]) {
             compiled_properties[current_property];
         double total_time = 0.0;
         bool accepted = false;
+        double accept_count = 0;
         for (size_t i = 0; i < trials; ++i) {
           itimerval timer = {{0L, 0L}, {40000000L, 0L}};
           itimerval stimer;
@@ -1730,7 +1731,7 @@ int main(int argc, char* argv[]) {
           getitimer(ITIMER_PROF, &stimer);
 #endif
           BDD ddf = Verify(property, dd_model, true, params.epsilon);
-          BDD sol = ddf && dd_model.initial_state();
+          BDD sol = ddf && dd_model.initial_states();
 #ifdef PROFILING
           getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1741,6 +1742,8 @@ int main(int argc, char* argv[]) {
           double t = std::max(0.0, sec + usec * 1e-6);
           total_time += t;
           accepted = !sol.is_same(dd_manager.value().GetConstant(false));
+          accept_count =
+              sol.MintermCount(dd_manager.value().GetVariableCount() / 2);
           if (t > 1.0) {
             total_time *= trials;
             break;
@@ -1749,10 +1752,24 @@ int main(int argc, char* argv[]) {
         std::cout << "Model checking completed in " << total_time / trials
                   << " seconds." << std::endl;
         if (!is_estimation[current_property]) {
+          const auto init_count = dd_model.initial_states().MintermCount(
+              dd_manager.value().GetVariableCount() / 2);
           if (accepted) {
-            std::cout << "Property is true in the initial state." << std::endl;
-          } else {
+            if (init_count == 1) {
+              std::cout << "Property is true in the initial state."
+                        << std::endl;
+            } else if (init_count == accept_count) {
+              std::cout << "Property is true in all initial states."
+                        << std::endl;
+            } else {
+              std::cout << "Property is true in " << accept_count << " of "
+                        << init_count << " initial states." << std::endl;
+            }
+          } else if (init_count == 1) {
             std::cout << "Property is false in the initial state." << std::endl;
+          } else {
+            std::cout << "Property is false in all initial states."
+                      << std::endl;
           }
         }
       }

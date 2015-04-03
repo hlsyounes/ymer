@@ -258,6 +258,14 @@ double ADD::Value() const {
   return NodeValue<double>(node());
 }
 
+double ADD::MaxValue() const {
+  return NodeValue<double>(Cudd_addFindMax(manager(), node()));
+}
+
+double ADD::MinValue() const {
+  return NodeValue<double>(Cudd_addFindMin(manager(), node()));
+}
+
 double ADD::ValueInState(const std::vector<bool>& state) const {
   CHECK_EQ(Cudd_ReadSize(manager()), state.size());
   return ValueInStateImpl<double>(node(), state);
@@ -536,7 +544,10 @@ ODD ODD::Make(const BDD& reachable_states) {
   return ODD(root, builder.node_count());
 }
 
-int ODD::StateIndex(const BDD& state) const {
+Optional<int> ODD::StateIndex(const BDD& state) const {
+  if (state.MintermCount(Cudd_ReadSize(state.manager()) / 2) != 1) {
+    return {};
+  }
   int index = 0;
   const OddNode* node = root_;
   DdNode* dd = state.node();
