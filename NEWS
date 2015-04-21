@@ -1,3 +1,15 @@
+Version 4.2 (Apr 21, 2015):
+
+* Support multiple initial states for the hybrid engine.
+
+* New optimized instructions for comparing variable and constant value.
+
+* Added missing optimization of composed guards in compiled model.
+
+* Fixed bug in expression optimization that resulted in incorrect constant
+  folding in some cases.
+
+
 Version 4.1 (Mar 14, 2015):
 
 * Support for formulas and labels.
