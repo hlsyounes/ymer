@@ -1,0 +1,22 @@
+stochastic
+
+const n = 65535;
+
+rate lambda = 262140; // 4*n
+rate eta = 1;
+rate beta = 1/2;
+rate kappa = 4;
+
+module serverC
+  sc : [0..n];
+
+  [] (sc<n) -> lambda : sc'=sc+1;
+  [route] (sc>0) -> W(eta,beta) : sc'=sc-1;
+endmodule
+
+module serverM
+  sm : [0..n];
+
+  [route] (sm<n) -> 1 : sm'=sm+1;
+  [] (sm>0) -> kappa : sm'=sm-1;
+endmodule

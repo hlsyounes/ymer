@@ -1,0 +1,13 @@
+Mixed engine: alpha=0.01, beta=0.01, delta=0.01, epsilon=1e-06, seed=0
+Building model...34 variables.
+Computing reachable states 2 iterations.
+Variables: 17
+Events:    129140163
+States:      131072
+Transitions: 1.2914e+08
+Rate matrix: 1053 nodes 10 leaves 1.2914e+08 minterms
+ODD:         18 nodes
+
+Model checking P=?[ F "stable" ] ...
+Acceptance sampling..260 observations.
+Pr[F "stable"] = 1 (0.99,1)
