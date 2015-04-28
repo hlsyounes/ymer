@@ -1,0 +1,10 @@
+gsl-config
+gsl-histogram
+gsl-randist
+gsl.pc
+gsl.spec
+gsl_version.h
+gsl/*.h
+test
+test.dat
+test.txt
