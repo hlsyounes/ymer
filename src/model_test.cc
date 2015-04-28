@@ -218,6 +218,41 @@ TEST(ResolveConstantsTest, IdentifierUninitialized) {
 
 // TODO(hlsyounes): test conditional.
 
+TEST(ParsedStateRewardTest, Output) {
+  EXPECT_EQ("true : 1",
+            StrCat(ParsedStateReward(Literal::New(true), Literal::New(1))));
+}
+
+TEST(ParsedTransitionRewardTest, Output) {
+  EXPECT_EQ("[] true : 1", StrCat(ParsedTransitionReward("", Literal::New(true),
+                                                         Literal::New(1))));
+  EXPECT_EQ("[a] x : 2 * y",
+            StrCat(ParsedTransitionReward(
+                "a", Identifier::New("x"),
+                BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(2),
+                                     Identifier::New("y")))));
+}
+
+TEST(ParsedRewardsStructureTest, Output) {
+  ParsedRewardsStructure r1("");
+  r1.add_state_reward(ParsedStateReward(Literal::New(true), Literal::New(1)));
+  r1.add_transition_reward(ParsedTransitionReward(
+      "a", Identifier::New("x"),
+      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(2),
+                           Identifier::New("y"))));
+  EXPECT_EQ(
+      "rewards\n"
+      "  true : 1;\n"
+      "  [a] x : 2 * y;\n"
+      "endrewards",
+      StrCat(r1));
+  ParsedRewardsStructure r2("\"foo\"");
+  EXPECT_EQ(
+      "rewards \"foo\"\n"
+      "endrewards",
+      StrCat(r2));
+}
+
 TEST(ModelTest, InitializesModelType) {
   Model model;
   EXPECT_EQ(ModelType::DEFAULT, model.type());

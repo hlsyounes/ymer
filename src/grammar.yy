@@ -198,8 +198,8 @@ const BinaryOperation* NewEqual(const Expression* operand1,
 
 const BinaryOperation* NewNotEqual(const Expression* operand1,
                                    const Expression* operand2) {
-  return new BinaryOperation(BinaryOperator::NOT_EQUAL,
-                             WrapUnique(operand1), WrapUnique(operand2));
+  return new BinaryOperation(BinaryOperator::NOT_EQUAL, WrapUnique(operand1),
+                             WrapUnique(operand2));
 }
 
 const Conditional* NewConditional(const Expression* condition,
@@ -214,9 +214,7 @@ double Double(const TypedValue* typed_value) {
   return WrapUnique(typed_value)->value<double>();
 }
 
-double Infinity() {
-  return std::numeric_limits<double>::infinity();
-}
+double Infinity() { return std::numeric_limits<double>::infinity(); }
 
 const ProbabilityThresholdOperation* NewProbabilityLess(
     double threshold, const PathProperty* path_property) {
@@ -276,8 +274,7 @@ const Lognormal* NewLognormal(const Expression* scale,
   return new Lognormal(WrapUnique(scale), WrapUnique(shape));
 }
 
-const Uniform* NewUniform(const Expression* low,
-                          const Expression* high) {
+const Uniform* NewUniform(const Expression* low, const Expression* high) {
   return new Uniform(WrapUnique(low), WrapUnique(high));
 }
 
@@ -361,9 +358,7 @@ void AddFromModule(const YYLTYPE& location, const std::string* from_name,
   }
 }
 
-void EndModule(ParserState* state) {
-  state->mutable_model()->EndModule();
-}
+void EndModule(ParserState* state) { state->mutable_model()->EndModule(); }
 
 std::map<std::string, std::string>* AddSubstitution(
     const YYLTYPE& location, const std::string* from_name,
@@ -410,11 +405,11 @@ std::vector<Outcome>* AddOutcome(Outcome* outcome,
 void AddCommand(const YYLTYPE& location, const std::string* action,
                 const Expression* guard, std::vector<Outcome>* outcomes,
                 ParserState* state) {
-        std::vector<std::string> errors;
-        if (!state->mutable_model()->AddCommand(
-                Command(*WrapUnique(action), WrapUnique(guard),
-                        std::move(*WrapUnique(outcomes))),
-                &errors)) {
+  std::vector<std::string> errors;
+  if (!state->mutable_model()->AddCommand(
+          Command(*WrapUnique(action), WrapUnique(guard),
+                  std::move(*WrapUnique(outcomes))),
+          &errors)) {
     for (const auto& error : errors) {
       yyerror(location, error, state);
     }
@@ -428,21 +423,37 @@ void SetInit(const YYLTYPE& location, const Expression* expr,
   }
 }
 
-void StartRewards(const std::string* label) { delete label; }
-
-void AddStateReward(const Expression* guard, const Expression* reward) {
-  delete guard;
-  delete reward;
+void StartRewards(const YYLTYPE& location, const std::string* label,
+                  ParserState* state) {
+  auto label_ptr = WrapUnique(label);
+  if (!state->mutable_model()->StartRewardsStructure(*label_ptr)) {
+    yyerror(location, StrCat("duplicate rewards ", *label_ptr), state);
+  }
 }
 
-void AddTransitionReward(const std::string* action, const Expression* guard,
-                         const Expression* reward) {
-  delete action;
-  delete guard;
-  delete reward;
+void AddStateReward(const Expression* guard, const Expression* reward,
+                    ParserState* state) {
+  state->mutable_model()->AddStateReward(
+      ParsedStateReward(WrapUnique(guard), WrapUnique(reward)));
 }
 
-void EndRewards() {}
+void AddTransitionReward(const YYLTYPE& location, const std::string* action,
+                         const Expression* guard, const Expression* reward,
+                         ParserState* state) {
+  std::vector<std::string> errors;
+  if (!state->mutable_model()->AddTransitionReward(
+          ParsedTransitionReward(*WrapUnique(action), WrapUnique(guard),
+                                 WrapUnique(reward)),
+          &errors)) {
+    for (const auto& error : errors) {
+      yyerror(location, error, state);
+    }
+  }
+}
+
+void EndRewards(ParserState* state) {
+  state->mutable_model()->EndRewardsStructure();
+}
 
 void AddProperty(const Expression* property, ParserState* state) {
   state->add_property(WrapUnique(property));
@@ -708,13 +719,13 @@ init : INIT expr ENDINIT
      ;
 
 rewards : REWARDS rewards_label reward_rules ENDREWARDS
-            { EndRewards(); }
+            { EndRewards(state); }
         ;
 
 rewards_label : /* empty */
-                  { StartRewards(nullptr); }
+                  { StartRewards(yylloc, new std::string(), state); }
               | LABEL_NAME
-                  { StartRewards($1); }
+                  { StartRewards(yylloc, $1, state); }
               ;
 
 reward_rules : /* empty */
@@ -723,11 +734,11 @@ reward_rules : /* empty */
              ;
 
 state_reward : expr ':' expr ';'
-                 { AddStateReward($1, $3); }
+                 { AddStateReward($1, $3, state); }
              ;
 
 transition_reward : '[' action ']' expr ':' expr ';'
-                      { AddTransitionReward($2, $4, $6); }
+                      { AddTransitionReward(yylloc, $2, $4, $6, state); }
                   ;
 
 system : SYSTEM process_algebra ENDSYSTEM

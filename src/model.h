@@ -225,6 +225,97 @@ class ParsedModule {
   std::vector<Command> commands_;
 };
 
+// A parsed state reward.
+class ParsedStateReward {
+ public:
+  // Constructs a parsed state reward with the given guard and reward.
+  ParsedStateReward(std::unique_ptr<const Expression>&& guard,
+                    std::unique_ptr<const Expression>&& reward);
+
+  // Returns the guard for this state reward.
+  const Expression& guard() const { return *guard_; }
+
+  // Returns the reward for this state reward.
+  const Expression& reward() const { return *reward_; }
+
+ private:
+  std::unique_ptr<const Expression> guard_;
+  std::unique_ptr<const Expression> reward_;
+};
+
+// Output operator for state rewards.
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedStateReward& state_reward);
+
+// A parsed transition reward.
+class ParsedTransitionReward {
+ public:
+  // Constructs a parsed transition reward with the given action label, guard,
+  // and reward.
+  ParsedTransitionReward(const std::string& action,
+                         std::unique_ptr<const Expression>&& guard,
+                         std::unique_ptr<const Expression>&& reward);
+
+  // Returns the action label for this transition reward, or an empty string if
+  // the transition reward does not have an action label.
+  const std::string& action() const { return action_; }
+
+  // Returns the guard for this transition reward.
+  const Expression& guard() const { return *guard_; }
+
+  // Returns the reward for this transition reward.
+  const Expression& reward() const { return *reward_; }
+
+ private:
+  std::string action_;
+  std::unique_ptr<const Expression> guard_;
+  std::unique_ptr<const Expression> reward_;
+};
+
+// Output operator for transition rewards.
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedTransitionReward& transition_reward);
+
+// A parsed rewards structure.
+class ParsedRewardsStructure {
+ public:
+  // Constructs a parsed rewards structure with the given label.
+  explicit ParsedRewardsStructure(const std::string& label);
+
+  // Adds the given state reward to this parsed rewards structure.
+  void add_state_reward(ParsedStateReward&& state_reward) {
+    state_rewards_.push_back(std::move(state_reward));
+  }
+
+  // Adds the given transition reward to this parsed rewards structure.
+  void add_transition_reward(ParsedTransitionReward&& transition_reward) {
+    transition_rewards_.push_back(std::move(transition_reward));
+  }
+
+  // Returns the label for this parsed rewards structure, or an empty string if
+  // the rewards structure does not have a label.
+  const std::string& label() const { return label_; }
+
+  // Returns the state rewards for this parsed rewards structure.
+  const std::vector<ParsedStateReward>& state_rewards() const {
+    return state_rewards_;
+  }
+
+  // Returns the transition rewards for this parsed rewards structure.
+  const std::vector<ParsedTransitionReward>& transition_rewards() const {
+    return transition_rewards_;
+  }
+
+ private:
+  std::string label_;
+  std::vector<ParsedStateReward> state_rewards_;
+  std::vector<ParsedTransitionReward> transition_rewards_;
+};
+
+// Output operator for rewards structures.
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedRewardsStructure& rewards_structure);
+
 // A parsed model.
 class Model {
  public:
@@ -302,6 +393,25 @@ class Model {
   // already has an init expression.
   bool SetInit(std::unique_ptr<const Expression>&& init);
 
+  // Marks the start of a new rewards structure with the given label.  Returns
+  // false if a rewards structure with the given label already exists.  Requires
+  // that no rewards structure is currently open.
+  bool StartRewardsStructure(const std::string& label);
+
+  // Adds a state reward to the current rewards structure.  Requires that a
+  // rewards structure is currently open.
+  void AddStateReward(ParsedStateReward&& state_reward);
+
+  // Adds a transition reward to the current rewards structure.  Returns false
+  // if the transition reward could not be added and adds a reason for the
+  // failure to errors.  Requires that a rewards structure is currently open.
+  bool AddTransitionReward(ParsedTransitionReward&& transition_reward,
+                           std::vector<std::string>* errors);
+
+  // Marks the end of the current rewards structure.  Requires that a rewards
+  // structure is currently open.
+  void EndRewardsStructure();
+
   // Returns the type of this model.
   ModelType type() const { return type_; }
 
@@ -335,6 +445,11 @@ class Model {
   // have an init expression.
   const Expression* init() const { return init_.get(); }
 
+  // Returns the rewards structures for this model.
+  const std::vector<ParsedRewardsStructure>& rewards_structures() const {
+    return rewards_structures_;
+  }
+
 private:
   struct IdentifierIndex {
     enum Type { kConstant, kVariable, kFormula, kAction } type;
@@ -363,6 +478,9 @@ private:
   std::vector<ParsedModule> modules_;
   std::vector<std::string> actions_;
   std::unique_ptr<const Expression> init_;
+  int current_rewards_structure_;
+  std::set<std::string> rewards_structure_labels_;
+  std::vector<ParsedRewardsStructure> rewards_structures_;
 };
 
 // Output operator for models.

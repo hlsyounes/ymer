@@ -166,8 +166,7 @@ void ConstantExpressionEvaluator::DoVisitLabel(const Label& expr) {
   errors_->push_back("unexpected label in expression");
 }
 
-void ConstantExpressionEvaluator::DoVisitIdentifier(
-    const Identifier& expr) {
+void ConstantExpressionEvaluator::DoVisitIdentifier(const Identifier& expr) {
   auto f = formulas_by_name_->find(expr.name());
   if (f != formulas_by_name_->end()) {
     f->second->Accept(this);
@@ -269,35 +268,35 @@ void ConstantExpressionEvaluator::DoVisitFunctionCall(
         value_ = ceil(value_);
       }
       return;
-      case Function::POW:
-      case Function::LOG: {
-        if (n != 2) {
-          errors_->push_back(StrCat(expr.function(), " applied to ", n,
-                                    " argument", (n == 1) ? "" : "s",
-                                    "; expecting 2 arguments"));
-          return;
-        }
-        std::vector<TypedValue> values;
-        values.reserve(2);
-        for (size_t i = 0; i < 2; ++i) {
-          if (!CallAccept(expr.arguments()[i])) {
-            return;
-          }
-          if (value_.type() == Type::BOOL) {
-            errors_->push_back(
-                StrCat("type mismatch; expecting argument of type ",
-                       Type::DOUBLE, "; found ", value_.type()));
-            return;
-          }
-          values.push_back(value_);
-        }
-        if (expr.function() == Function::POW) {
-          value_ = pow(values[0], values[1]);
-        } else {
-          value_ = log(values[0]) / log(values[1]);
-        }
+    case Function::POW:
+    case Function::LOG: {
+      if (n != 2) {
+        errors_->push_back(StrCat(expr.function(), " applied to ", n,
+                                  " argument", (n == 1) ? "" : "s",
+                                  "; expecting 2 arguments"));
         return;
       }
+      std::vector<TypedValue> values;
+      values.reserve(2);
+      for (size_t i = 0; i < 2; ++i) {
+        if (!CallAccept(expr.arguments()[i])) {
+          return;
+        }
+        if (value_.type() == Type::BOOL) {
+          errors_->push_back(
+              StrCat("type mismatch; expecting argument of type ", Type::DOUBLE,
+                     "; found ", value_.type()));
+          return;
+        }
+        values.push_back(value_);
+      }
+      if (expr.function() == Function::POW) {
+        value_ = pow(values[0], values[1]);
+      } else {
+        value_ = log(values[0]) / log(values[1]);
+      }
+      return;
+    }
     case Function::MOD: {
       if (n != 2) {
         errors_->push_back(StrCat(expr.function(), " applied to ", n,
@@ -524,14 +523,57 @@ NamedExpression::NamedExpression(const std::string& name,
 
 ParsedModule::ParsedModule(const std::string& name) : name_(name) {}
 
+ParsedStateReward::ParsedStateReward(std::unique_ptr<const Expression>&& guard,
+                                     std::unique_ptr<const Expression>&& reward)
+    : guard_(std::move(guard)), reward_(std::move(reward)) {}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedStateReward& state_reward) {
+  return os << state_reward.guard() << " : " << state_reward.reward();
+}
+
+ParsedTransitionReward::ParsedTransitionReward(
+    const std::string& action, std::unique_ptr<const Expression>&& guard,
+    std::unique_ptr<const Expression>&& reward)
+    : action_(action), guard_(std::move(guard)), reward_(std::move(reward)) {}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedTransitionReward& transition_reward) {
+  return os << "[" << transition_reward.action() << "] "
+            << transition_reward.guard() << " : " << transition_reward.reward();
+}
+
+ParsedRewardsStructure::ParsedRewardsStructure(const std::string& label)
+    : label_(label) {}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedRewardsStructure& rewards_structure) {
+  os << "rewards";
+  if (!rewards_structure.label().empty()) {
+    os << " " << rewards_structure.label();
+  }
+  for (const auto& state_reward : rewards_structure.state_rewards()) {
+    os << std::endl << "  " << state_reward << ";";
+  }
+  for (const auto& transition_reward : rewards_structure.transition_rewards()) {
+    os << std::endl << "  " << transition_reward << ";";
+  }
+  return os << std::endl << "endrewards";
+}
+
 namespace {
 
 // Invalid module index.
 const int kNoModule = -1;
+// Invalid rewards structure index.
+const int kNoRewardsStructure = -1;
 
 }  // namespace
 
-Model::Model() : type_(ModelType::DEFAULT), current_module_(kNoModule) {}
+Model::Model()
+    : type_(ModelType::DEFAULT),
+      current_module_(kNoModule),
+      current_rewards_structure_(kNoRewardsStructure) {}
 
 bool Model::SetType(ModelType type) {
   if (type_ == ModelType::DEFAULT) {
@@ -977,6 +1019,38 @@ bool Model::SetInit(std::unique_ptr<const Expression>&& init) {
   return true;
 }
 
+bool Model::StartRewardsStructure(const std::string& label) {
+  CHECK_EQ(current_rewards_structure_, kNoRewardsStructure);
+  current_rewards_structure_ = rewards_structures_.size();
+  if (!label.empty() && !rewards_structure_labels_.insert(label).second) {
+    return false;
+  }
+  rewards_structures_.emplace_back(label);
+  return true;
+}
+
+void Model::AddStateReward(ParsedStateReward&& state_reward) {
+  CHECK_NE(current_rewards_structure_, kNoRewardsStructure);
+  rewards_structures_[current_rewards_structure_].add_state_reward(
+      std::move(state_reward));
+}
+
+bool Model::AddTransitionReward(ParsedTransitionReward&& transition_reward,
+                                std::vector<std::string>* errors) {
+  CHECK_NE(current_rewards_structure_, kNoRewardsStructure);
+  if (!AddAction(transition_reward.action(), errors)) {
+    return false;
+  }
+  rewards_structures_[current_rewards_structure_].add_transition_reward(
+      std::move(transition_reward));
+  return true;
+}
+
+void Model::EndRewardsStructure() {
+  CHECK_NE(current_rewards_structure_, kNoRewardsStructure);
+  current_rewards_structure_ = kNoRewardsStructure;
+}
+
 size_t Model::ActionIndex(const std::string& name) const {
   auto i = identifier_indices_.find(name);
   CHECK(i != identifier_indices_.end());
@@ -1054,6 +1128,9 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
        << "init" << std::endl
        << "  " << *m.init() << std::endl
        << "endinit";
+  }
+  for (const auto& rewards_structure : m.rewards_structures()) {
+    os << std::endl << std::endl << rewards_structure;
   }
   return os;
 }

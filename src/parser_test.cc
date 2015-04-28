@@ -97,7 +97,13 @@ TEST(ParseStringTest, ParsesValidModel) {
       "  b2 : bool;\n\n"
       "  [a2] i2 < c2 -> 1 / i : (i2' = i2 + 1);\n"
       "endmodule\n\n"
-      "label \"l\" = f1;",
+      "label \"l\" = f1;\n\n"
+      "rewards\n"
+      "  i1 = c1 : 1;\n"
+      "endrewards\n\n"
+      "rewards \"r\"\n"
+      "  [a2] true : 0.25;\n"
+      "endrewards",
       StrCat(result.model.value()));
 }
 
