@@ -171,7 +171,7 @@ start=$(timestamp)
 HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.05 --engine=mixed src/testdata/poll14.sm <(echo 'P=?[ !(s=2 & a=1) U (s=1 & a=1) ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/poll14_unbounded_mixed.golden -
 expect_ok ${start}
 
-# TODO(hlsyounes) Add poll14_unbounded_mixed regression test.  Requires support
+# TODO(hlsyounes) Add poll14_unbounded_hybrid regression test.  Requires support
 # for unbounded until in hybrid engine.
 
 echo -n herman17_unbounded_mixed...
@@ -181,6 +181,16 @@ expect_ok ${start}
 
 # TODO(hlsyounes) Add herman17_unbounded_hybrid regression test.  Requires
 # support for DTMCs and unbounded until in hybrid engine.
+
+echo -n nand10_3_unbounded_estimate...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.1 --const=N=10,K=3 src/testdata/nand.pm <(echo 'P=?[ F s = 4 & z / N < 0.1 ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/nand10_3_unbounded_estimate.golden -
+expect_ok ${start}
+
+echo -n nand10_3_unbounded_mixed...
+start=$(timestamp)
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.1 --engine=mixed --const=N=10,K=3 src/testdata/nand.pm <(echo 'P=?[ F s = 4 & z / N < 0.1 ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/nand10_3_unbounded_mixed.golden -
+expect_ok ${start}
 
 if (( ${pass} )); then
   echo PASS

@@ -135,6 +135,14 @@ std::pair<int, int> GetGsmpCommandRegisterCounts(
 
 std::pair<int, int> CompiledModel::GetRegisterCounts() const {
   std::pair<int, int> reg_counts = {0, 0};
+  if (pivot_variable_.has_value()) {
+    for (const auto& commands : pivoted_single_markov_commands_) {
+      for (const auto& command : commands) {
+        reg_counts =
+            ComponentMax(reg_counts, GetMarkovCommandRegisterCounts(command));
+      }
+    }
+  }
   for (const auto& command : single_markov_commands_) {
     reg_counts =
         ComponentMax(reg_counts, GetMarkovCommandRegisterCounts(command));

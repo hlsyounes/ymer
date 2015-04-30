@@ -1,0 +1,7 @@
+Sampling engine: alpha=0.01, beta=0.01, delta=0.1, seed=0
+Variables: 8
+Events:    16
+
+Model checking P=?[ F s = 4 & z / N < 0.1 ] ...
+Acceptance sampling.174 observations.
+Pr[F s = 4 & z / N < 0.1] = 0.477146 (0.377146,0.577146)
