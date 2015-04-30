@@ -596,8 +596,10 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     if (use_termination_probability &&
         sampler_->StandardUniform() < params_.termination_probability) {
       next_state.set_time(std::numeric_limits<double>::infinity());
+      next_state.set_values(curr_state.values());
+    } else {
+      simulator_.NextState(curr_state, &next_state);
     }
-    simulator_.NextState(curr_state, &next_state);
     double next_t = t + (next_state.time() - curr_state.time());
     const State* curr_state_ptr = &curr_state;
     std::swap(state_, curr_state_ptr);
@@ -630,7 +632,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     if (!done) {
       curr_state.swap(next_state);
       t = next_t;
-      if (t_max < t) {
+      if (t_max < t || t == std::numeric_limits<double>::infinity()) {
         result_ = false;
         done = true;
         output = true;
