@@ -1,3 +1,12 @@
+Version 4.2.1 (Apr 30, 2015):
+
+* Fixed bug in computation of required registers for evaluation compiled
+  expressions, which was ignoring pivoted compiled commands.
+
+* Fixed bug in sampling engine when verifying unbounded path properties, which
+  resulted in early termination of sample paths never to trigger properly.
+
+
 Version 4.2 (Apr 21, 2015):
 
 * Support multiple initial states for the hybrid engine.
