@@ -630,7 +630,8 @@ int MakeDoubleLiteral(YYSTYPE* lval, const char* s) {
 }
 
 }  // namespace
-#line 634 "src/tokens.cc"
+#define YY_NO_INPUT 1
+#line 635 "src/tokens.cc"
 
 #define INITIAL 0
 
@@ -912,7 +913,7 @@ YY_DECL
 #line 65 "tokens.ll"
 
 
-#line 916 "src/tokens.cc"
+#line 917 "src/tokens.cc"
 
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
@@ -1299,7 +1300,7 @@ YY_RULE_SETUP
 #line 133 "tokens.ll"
 ECHO;
 	YY_BREAK
-#line 1303 "src/tokens.cc"
+#line 1304 "src/tokens.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 

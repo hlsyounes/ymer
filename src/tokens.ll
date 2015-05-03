@@ -59,7 +59,7 @@ int MakeDoubleLiteral(YYSTYPE* lval, const char* s) {
 }  // namespace
 %}
 
-%option bison-bridge bison-locations never-interactive nounput noyywrap
+%option bison-bridge bison-locations never-interactive noinput nounput noyywrap
 %option reentrant
 
 %%
