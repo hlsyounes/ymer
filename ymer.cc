@@ -249,8 +249,7 @@ DistributionCompiler::DistributionCompiler(
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const Optional<DecisionDiagramManager>* dd_manager,
     std::vector<std::string>* errors)
-    : markov_weight_({}),
-      gsmp_delay_(CompiledGsmpDistribution::MakeWeibull(0, 0)),
+    : gsmp_delay_(CompiledGsmpDistribution::MakeWeibull(0, 0)),
       formulas_by_name_(formulas_by_name),
       identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager),

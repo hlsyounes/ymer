@@ -568,7 +568,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
         }
       }
       dd_cache_.insert({path_property.index(),
-                        {dd1.value(), dd2.value(), feasible}}).first;
+                        {dd1.value(), dd2.value(), feasible}});
     }
   }
   double t = 0.0;

@@ -24,7 +24,11 @@ pass=1
 readonly YMER=${YMER:-./ymer}
 
 function timestamp() {
-  expr 1000 '*' $(date +%s) + $(date +%N) / 1000000
+  if [[ "$(date +%N)" = N ]]; then
+    expr 1000 '*' $(date +%s)
+  else
+    expr 1000 '*' $(date +%s) + $(date +%N) / 1000000
+  fi
 }
 
 function expect_ok() {
