@@ -1482,23 +1482,23 @@ void ExpressionToAddConverter::DoVisitFunctionCall(const FunctionCall& expr) {
       }
       break;
     case Function::FLOOR:
-      CHECK_EQ(arguments.size(), 1);
+      CHECK_EQ(arguments.size(), 1U);
       add_ = floor(arguments[0]);
       break;
     case Function::CEIL:
-      CHECK_EQ(arguments.size(), 1);
+      CHECK_EQ(arguments.size(), 1U);
       add_ = ceil(arguments[0]);
       break;
     case Function::POW:
-      CHECK_EQ(arguments.size(), 2);
+      CHECK_EQ(arguments.size(), 2U);
       add_ = pow(arguments[0], arguments[1]);
       break;
     case Function::LOG:
-      CHECK_EQ(arguments.size(), 2);
+      CHECK_EQ(arguments.size(), 2U);
       add_ = log(arguments[0]) / log(arguments[1]);
       break;
     case Function::MOD:
-      CHECK_EQ(arguments.size(), 2);
+      CHECK_EQ(arguments.size(), 2U);
       add_ = arguments[0] % arguments[1];
       break;
   }

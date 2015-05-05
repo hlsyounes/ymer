@@ -191,7 +191,6 @@ bool BDD::Value() const {
 }
 
 bool BDD::ValueInState(const std::vector<bool>& state) const {
-  CHECK_EQ(Cudd_ReadSize(manager()), state.size());
   return ValueInStateImpl<bool>(node(), state);
 }
 
@@ -201,7 +200,6 @@ bool BDD::ValueInState(const std::vector<int>& values,
 }
 
 BDD BDD::Permutation(const std::vector<int>& permutation) const {
-  CHECK_EQ(Cudd_ReadSize(manager()), permutation.size());
   return BDD(manager(), Cudd_bddPermute(manager(), node(), permutation.data()));
 }
 
@@ -267,7 +265,6 @@ double ADD::MinValue() const {
 }
 
 double ADD::ValueInState(const std::vector<bool>& state) const {
-  CHECK_EQ(Cudd_ReadSize(manager()), state.size());
   return ValueInStateImpl<double>(node(), state);
 }
 
