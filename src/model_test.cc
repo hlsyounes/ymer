@@ -278,7 +278,7 @@ TEST(ModelTest, AddsConstants) {
   EXPECT_TRUE(model.AddConstant("c", Type::INT, Literal::New(17), &errors));
   EXPECT_TRUE(model.AddConstant("k", Type::BOOL, nullptr, &errors));
   EXPECT_TRUE(model.AddConstant("K", Type::DOUBLE, Literal::New(0.5), &errors));
-  ASSERT_EQ(3, model.constants().size());
+  ASSERT_EQ(3U, model.constants().size());
   EXPECT_EQ("c", model.constants()[0].name());
   EXPECT_EQ(Type::INT, model.constants()[0].type());
   EXPECT_EQ("17", StrCat(*model.constants()[0].init()));
@@ -296,7 +296,7 @@ TEST(ModelTest, AddsVariables) {
   EXPECT_TRUE(model.AddBoolVariable("b", Literal::New(true), &errors));
   EXPECT_TRUE(model.AddIntVariable("j", Literal::New(1), Literal::New(2),
                                    nullptr, &errors));
-  ASSERT_EQ(3, model.variables().size());
+  ASSERT_EQ(3U, model.variables().size());
   EXPECT_EQ("i", model.variables()[0].name());
   EXPECT_EQ(Type::INT, model.variables()[0].type());
   EXPECT_EQ("17", StrCat(model.variables()[0].min()));
@@ -323,7 +323,7 @@ TEST(ModelTest, AddsFormulas) {
   std::vector<std::string> errors;
   EXPECT_TRUE(model.AddFormula("f", Literal::New(17), &errors));
   EXPECT_TRUE(model.AddFormula("g", Identifier::New("x"), &errors));
-  ASSERT_EQ(2, model.formulas().size());
+  ASSERT_EQ(2U, model.formulas().size());
   EXPECT_EQ("f", model.formulas()[0].name());
   EXPECT_EQ("17", StrCat(model.formulas()[0].expr()));
   EXPECT_EQ("g", model.formulas()[1].name());
@@ -346,7 +346,7 @@ TEST(ModelTest, AddsModules) {
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M3"));
   model.EndModule();
-  ASSERT_EQ(3, model.modules().size());
+  ASSERT_EQ(3U, model.modules().size());
   EXPECT_EQ("M1", model.modules()[0].name());
   EXPECT_TRUE(model.modules()[0].variables().empty());
   EXPECT_TRUE(model.modules()[0].commands().empty());
@@ -375,7 +375,7 @@ TEST(ModelTest, AddsModuleVariables) {
   EXPECT_TRUE(model.AddBoolVariable("b3", nullptr, &errors));
   model.EndModule();
   EXPECT_TRUE(model.AddBoolVariable("b4", nullptr, &errors));
-  ASSERT_EQ(6, model.variables().size());
+  ASSERT_EQ(6U, model.variables().size());
   EXPECT_EQ("b1", model.variables()[0].name());
   EXPECT_EQ(Type::BOOL, model.variables()[0].type());
   EXPECT_EQ("b2", model.variables()[1].name());
@@ -388,7 +388,7 @@ TEST(ModelTest, AddsModuleVariables) {
   EXPECT_EQ(Type::BOOL, model.variables()[4].type());
   EXPECT_EQ("b4", model.variables()[5].name());
   EXPECT_EQ(Type::BOOL, model.variables()[5].type());
-  ASSERT_EQ(3, model.modules().size());
+  ASSERT_EQ(3U, model.modules().size());
   EXPECT_EQ(std::set<int>({1, 2}), model.modules()[0].variables());
   EXPECT_EQ(std::set<int>({}), model.modules()[1].variables());
   EXPECT_EQ(std::set<int>({4}), model.modules()[2].variables());
@@ -409,12 +409,12 @@ TEST(ModelTest, AddsModuleCommands) {
   model.AddCommand(Command("bar", Literal::New(true), NewSimpleOutcomes()),
                    &errors);
   model.EndModule();
-  ASSERT_EQ(3, model.modules().size());
-  ASSERT_EQ(2, model.modules()[0].commands().size());
+  ASSERT_EQ(3U, model.modules().size());
+  ASSERT_EQ(2U, model.modules()[0].commands().size());
   EXPECT_EQ("[foo] true -> 1 : true", StrCat(model.modules()[0].commands()[0]));
   EXPECT_EQ("[] false -> 1 : true", StrCat(model.modules()[0].commands()[1]));
-  EXPECT_EQ(0, model.modules()[1].commands().size());
-  ASSERT_EQ(1, model.modules()[2].commands().size());
+  EXPECT_EQ(0U, model.modules()[1].commands().size());
+  ASSERT_EQ(1U, model.modules()[2].commands().size());
   EXPECT_EQ("[bar] true -> 1 : true", StrCat(model.modules()[2].commands()[0]));
   EXPECT_TRUE(errors.empty());
 }
@@ -452,7 +452,7 @@ TEST(ModelTest, AddsFromModule) {
       "M1", {{"c", "k"}, {"f", "g"}, {"i", "j"}, {"b1", "b2"}, {"a", "b"}},
       &errors));
   model.EndModule();
-  ASSERT_EQ(4, model.variables().size());
+  ASSERT_EQ(4U, model.variables().size());
   EXPECT_EQ("j", model.variables()[2].name());
   EXPECT_EQ(Type::INT, model.variables()[2].type());
   EXPECT_EQ("0", StrCat(model.variables()[2].min()));
@@ -462,9 +462,9 @@ TEST(ModelTest, AddsFromModule) {
   EXPECT_EQ("b2", model.variables()[3].name());
   EXPECT_EQ(Type::BOOL, model.variables()[3].type());
   EXPECT_FALSE(model.variables()[3].has_explicit_init());
-  ASSERT_EQ(2, model.modules().size());
+  ASSERT_EQ(2U, model.modules().size());
   EXPECT_EQ(std::set<int>({2, 3}), model.modules()[1].variables());
-  ASSERT_EQ(1, model.modules()[1].commands().size());
+  ASSERT_EQ(1U, model.modules()[1].commands().size());
   EXPECT_EQ("[b] j < k -> 1 / j : (j' = j + 1)",
             StrCat(model.modules()[1].commands()[0]));
   EXPECT_TRUE(errors.empty());

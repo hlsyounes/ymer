@@ -775,7 +775,7 @@ CompiledCommands CompileCommands(
                                      markov_command.weight()));
             return result;
           }
-          CHECK_EQ(markov_command.outcomes().size(), 1);
+          CHECK_EQ(markov_command.outcomes().size(), 1U);
           const auto& outcome = markov_command.outcomes()[0];
           updates.clear();
           updates.insert(updates.end(), gsmp_command.updates().begin(),

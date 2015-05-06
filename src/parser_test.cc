@@ -115,7 +115,7 @@ TEST(ParseStringTest, ReportsErrorForInvalidModel) {
   ModelAndProperties result;
   std::vector<std::string> errors;
   EXPECT_FALSE(ParseString(kModelSource, &result, &errors));
-  ASSERT_EQ(1, errors.size());
+  ASSERT_EQ(1U, errors.size());
   EXPECT_PRED2(MatchesRegex, "2:syntax error.*", errors[0]);
 }
 
@@ -151,7 +151,7 @@ TEST(ParseFileTest, ReportsErrorForInvalidModel) {
   std::vector<std::string> errors;
   EXPECT_FALSE(
       ParseFile(GetTestPath("src/testdata/invalid.pm"), &result, &errors));
-  ASSERT_EQ(1, errors.size());
+  ASSERT_EQ(1U, errors.size());
   EXPECT_PRED2(MatchesRegex, StrCat(GetTestPath("src/testdata/invalid.pm"),
                                     ":4:syntax error.*"),
                errors[0]);
