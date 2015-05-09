@@ -35,10 +35,22 @@
 #include "src/statistics.h"
 
 struct ModelCheckingStats {
+  explicit ModelCheckingStats(bool populate_distribution)
+      : time(populate_distribution),
+        sample_size(populate_distribution),
+        sample_cache_size(populate_distribution),
+        path_length(populate_distribution),
+        path_length_accept(populate_distribution),
+        path_length_reject(populate_distribution),
+        path_length_terminate(populate_distribution) {}
+
   Sample<double> time;
   Sample<int> sample_size;
   Sample<int> sample_cache_size;
   Sample<int> path_length;
+  Sample<int> path_length_accept;
+  Sample<int> path_length_reject;
+  Sample<int> path_length_terminate;
 };
 
 bool Verify(const CompiledProperty& property, const CompiledModel& model,

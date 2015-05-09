@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <string>
 #include <type_traits>
 
@@ -66,12 +67,13 @@ class Sample {
   using SumType = typename std::decay<decltype(std::declval<const T&>() +
                                                std::declval<const T&>())>::type;
 
-  Sample();
+  explicit Sample(bool populate_distribution = false);
   template <typename U>
   Sample(const Sample<U>& sample);
 
   void AddObservation(T x);
 
+  bool populate_distribution() const { return populate_distribution_; }
   T min() const { return min_; }
   T max() const { return max_; }
   SumType sum() const { return sum_; }
@@ -82,14 +84,17 @@ class Sample {
     return (count_ > 1) ? m2_ / (count_ - 1) : 0.0;
   }
   double sample_stddev() const { return sqrt(sample_variance()); }
+  const std::map<int, int>& distribution() const { return distribution_; }
 
  private:
+  bool populate_distribution_;
   T min_;
   T max_;
   SumType sum_;
   int count_;
   double mean_;
   double m2_;
+  std::map<int, int> distribution_;
 };
 
 // An abstract sequential hypothesis tester.  Tests the hypothesis H0: mu >
@@ -237,18 +242,24 @@ class LaiBernoulliTester : public SequentialTester<bool> {
 };
 
 template <typename T>
-Sample<T>::Sample()
-    : sum_(0), count_(0), mean_(0.0), m2_(0.0) {}
+Sample<T>::Sample(bool populate_distribution)
+    : populate_distribution_(populate_distribution),
+      sum_(0),
+      count_(0),
+      mean_(0.0),
+      m2_(0.0) {}
 
 template <typename T>
 template <typename U>
 Sample<T>::Sample(const Sample<U>& sample)
-    : min_(sample.min()),
+    : populate_distribution_(sample.populate_distribution()),
+      min_(sample.min()),
       max_(sample.max()),
       sum_(sample.sum()),
       count_(sample.count()),
       mean_(sample.mean()),
-      m2_(sample.variance() * sample.count()) {}
+      m2_(sample.variance() * sample.count()),
+      distribution_(sample.distribution()) {}
 
 template <typename T>
 void Sample<T>::AddObservation(T x) {
@@ -259,6 +270,9 @@ void Sample<T>::AddObservation(T x) {
   const double delta = x - mean_;
   mean_ += delta / count_;
   m2_ += delta * (x - mean_);
+  if (populate_distribution_) {
+    ++distribution_[(x < 1) ? 0 : static_cast<int>(floor(log2(x))) + 1];
+  }
 }
 
 template <typename T>

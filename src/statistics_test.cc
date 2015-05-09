@@ -154,6 +154,28 @@ TEST(SampleTest, IntegerObservations) {
   EXPECT_EQ(2.0 / 3.0, s.variance());
   EXPECT_EQ(1, s.sample_variance());
   EXPECT_EQ(1, s.sample_stddev());
+  EXPECT_TRUE(s.distribution().empty());
+}
+
+TEST(SampleTest, IntegerObservationsWithDistribution) {
+  using Dist = std::map<int, int>;
+  Sample<int> s(true);
+  EXPECT_EQ(Dist(), s.distribution());
+
+  s.AddObservation(2);
+  EXPECT_EQ(Dist({{2, 1}}), s.distribution());
+
+  s.AddObservation(3);
+  EXPECT_EQ(Dist({{2, 2}}), s.distribution());
+
+  s.AddObservation(1);
+  EXPECT_EQ(Dist({{1, 1}, {2, 2}}), s.distribution());
+
+  s.AddObservation(4);
+  EXPECT_EQ(Dist({{1, 1}, {2, 2}, {3, 1}}), s.distribution());
+
+  s.AddObservation(0);
+  EXPECT_EQ(Dist({{0, 1}, {1, 1}, {2, 2}, {3, 1}}), s.distribution());
 }
 
 TEST(SampleTest, BoolObservations) {

@@ -81,6 +81,7 @@ static option long_options[] = {
     {"port", required_argument, 0, 'P'},
     {"termination-probability", required_argument, 0, 'p'},
     {"estimation-algorithm", required_argument, 0, 'q'},
+    {"report-statistics", no_argument, 0, 'R'},
     {"seed", required_argument, 0, 'S'},
     {"trials", required_argument, 0, 'T'},
     {"threshold-algorithm", required_argument, 0, 't'},
@@ -130,6 +131,9 @@ void display_help() {
       << std::endl
       << "  -q q,  --estimation-algorithm=q" << std::endl
       << "\t\t\tuse sampling algorithm q for estimation" << std::endl
+      << "  -R,    --report-statistics" << std::endl
+      << "\t\t\treport additional statistics for sampling and mixed engines"
+      << std::endl
       << "  -S s,  --seed=s\t"
       << "use seed s with random number generator" << std::endl
       << "\t\t\t  (sampling engine only)" << std::endl
@@ -1166,6 +1170,40 @@ EstimationAlgorithm ParseEstimationAlgorithm(const std::string& name) {
       StrCat("unsupported estimation algorithm `", name, "'"));
 }
 
+template <typename T>
+void PrintSample(const Sample<T>& sample, const std::string& label,
+                 const std::string& optional_unit = "") {
+  if (sample.sum() > 0) {
+    const std::string unit =
+        optional_unit.empty() ? "" : StrCat(" ", optional_unit);
+    std::cout << label << " mean: " << sample.mean() << unit << std::endl
+              << label << " std.dev.: " << sample.sample_stddev() << std::endl
+              << label << " min: " << sample.min() << std::endl
+              << label << " max: " << sample.max() << std::endl
+              << label << " count: " << sample.count() << std::endl;
+    if (sample.populate_distribution()) {
+      std::cout << label << " distribution:" << std::endl;
+      for (const auto& entry : sample.distribution()) {
+        const int p = entry.first;
+        const int low = (p > 0) ? (1 << (p - 1)) : 0;
+        const int high = 1 << p;
+        const int n = entry.second;
+        std::cout << "  [" << low << "," << high << "): " << n << std::endl;
+      }
+    }
+  }
+}
+
+void PrintModelCheckingStats(const ModelCheckingStats& stats) {
+  PrintSample(stats.time, "Model checking time", "seconds");
+  PrintSample(stats.sample_size, "Sample size");
+  PrintSample(stats.path_length, "Path length");
+  PrintSample(stats.path_length_accept, "Path length [accepted]");
+  PrintSample(stats.path_length_reject, "Path length [rejected]");
+  PrintSample(stats.path_length_terminate, "Path length [terminated]");
+  PrintSample(stats.sample_cache_size, "Sample cache size");
+}
+
 }  // namespace
 
 /* The main program. */
@@ -1197,6 +1235,7 @@ int main(int argc, char* argv[]) {
   int port = -1;
   /* Constant overrides. */
   std::map<std::string, TypedValue> const_overrides;
+  bool report_statistics = false;
 
   ModelAndProperties parse_result;
   std::vector<std::string> errors;
@@ -1302,11 +1341,15 @@ int main(int argc, char* argv[]) {
         case 'q':
           params.estimation_algorithm = ParseEstimationAlgorithm(optarg);
           break;
+        case 'R':
+          report_statistics = true;
+          break;
         case 'S':
           seed = atoi(optarg);
           break;
         case 'T':
           trials = atoi(optarg);
+          report_statistics = true;
           break;
         case 't':
           params.threshold_algorithm = ParseThresholdAlgorithm(optarg);
@@ -1482,7 +1525,7 @@ int main(int argc, char* argv[]) {
           } else if (result == 0) {
             if (path_property) {
               ClientMsg msg = {ClientMsg::SAMPLE};
-              ModelCheckingStats stats;
+              ModelCheckingStats stats(report_statistics);
               msg.value = GetObservation(*path_property, compiled_model,
                                          nullptr, nested_params, &evaluator,
                                          &sampler, init_state, &stats);
@@ -1560,6 +1603,7 @@ int main(int argc, char* argv[]) {
       dc_engine.seed(seed);
       std::cout << "Sampling engine: alpha=" << params.alpha
                 << ", beta=" << params.beta << ", delta=" << params.delta
+                << ", p_term=" << params.termination_probability
                 << ", seed=" << seed << std::endl;
       itimerval timer = {{0L, 0L}, {40000000L, 0L}};
       itimerval stimer;
@@ -1593,7 +1637,7 @@ int main(int argc, char* argv[]) {
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
-        ModelCheckingStats stats;
+        ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
           timeval start_time;
           itimerval timer = {{0, 0}, {40000000L, 0}};
@@ -1609,8 +1653,10 @@ int main(int argc, char* argv[]) {
             getitimer(ITIMER_PROF, &stimer);
 #endif
           }
-          bool sol = Verify(property, compiled_model, nullptr, params,
-                            &evaluator, &sampler, init_state, &stats);
+          if (Verify(property, compiled_model, nullptr, params, &evaluator,
+                     &sampler, init_state, &stats)) {
+            ++accepts;
+          }
           double t;
           if (server_socket != -1) {
             timeval end_time;
@@ -1632,47 +1678,23 @@ int main(int argc, char* argv[]) {
             long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
             t = std::max(0.0, sec + usec * 1e-6);
           }
-          if (trials == 1) {
-            std::cout << "Model checking completed in " << t << " seconds."
-                      << std::endl;
-            if (!is_estimation[current_property]) {
-              if (sol) {
-                std::cout << "Property is true in the initial state."
-                          << std::endl;
-              } else {
-                std::cout << "Property is false in the initial state."
-                          << std::endl;
-              }
-            }
-          } else {
-            if (sol) {
-              accepts++;
-            }
-            stats.time.AddObservation(t);
-          }
+          stats.time.AddObservation(t);
         }
-        if (trials > 1) {
-          std::cout
-              << "Model checking time mean: " << stats.time.mean() << " seconds"
-              << std::endl << "Model checking time min: " << stats.time.min()
-              << " seconds" << std::endl
-              << "Model checking time max: " << stats.time.max() << " seconds"
-              << std::endl
-              << "Model checking time std.dev.: " << stats.time.sample_stddev()
-              << std::endl << "Sample size mean: " << stats.sample_size.mean()
-              << std::endl << "Sample size min: " << stats.sample_size.min()
-              << std::endl << "Sample size max: " << stats.sample_size.max()
-              << std::endl
-              << "Sample size std.dev.: " << stats.sample_size.sample_stddev()
-              << std::endl << "Path length mean: " << stats.path_length.mean()
-              << std::endl << "Path length min: " << stats.path_length.min()
-              << std::endl << "Path length max: " << stats.path_length.max()
-              << std::endl
-              << "Path length std.dev.: " << stats.path_length.sample_stddev()
-              << std::endl << accepts << " accepted, " << (trials - accepts)
-              << " rejected" << std::endl
-              << "Average cached: " << stats.sample_cache_size.mean()
-              << std::endl;
+        if (report_statistics) {
+          PrintModelCheckingStats(stats);
+        } else {
+          std::cout << "Model checking completed in " << stats.time.mean()
+                    << " seconds." << std::endl;
+        }
+        if (!is_estimation[current_property]) {
+          if (trials > 1) {
+            std::cout << accepts << " accepted, " << (trials - accepts)
+                      << " rejected" << std::endl;
+          } else if (accepts > 0) {
+            std::cout << "Property is true in the initial state." << std::endl;
+          } else {
+            std::cout << "Property is false in the initial state." << std::endl;
+          }
         }
       }
     } else if (params.engine == ModelCheckingEngine::HYBRID) {
@@ -1825,7 +1847,7 @@ int main(int argc, char* argv[]) {
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
-        ModelCheckingStats stats;
+        ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
           itimerval timer = {{0L, 0L}, {40000000L, 0L}};
           itimerval stimer;
@@ -1836,8 +1858,10 @@ int main(int argc, char* argv[]) {
           setitimer(ITIMER_PROF, &timer, 0);
           getitimer(ITIMER_PROF, &stimer);
 #endif
-          bool sol = Verify(property, compiled_model, &dd_model, params,
-                            &evaluator, &sampler, init_state, &stats);
+          if (Verify(property, compiled_model, &dd_model, params, &evaluator,
+                     &sampler, init_state, &stats)) {
+            ++accepts;
+          }
 #ifdef PROFILING
           getitimer(ITIMER_VIRTUAL, &timer);
 #else
@@ -1846,45 +1870,23 @@ int main(int argc, char* argv[]) {
           long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
           long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
           double t = std::max(0.0, sec + usec * 1e-6);
-          if (trials == 1) {
-            std::cout << "Model checking completed in " << t << " seconds."
-                      << std::endl;
-            if (!is_estimation[current_property]) {
-              if (sol) {
-                std::cout << "Property is true in the initial state."
-                          << std::endl;
-              } else {
-                std::cout << "Property is false in the initial state."
-                          << std::endl;
-              }
-            }
-          } else {
-            if (sol) {
-              accepts++;
-            }
-            stats.time.AddObservation(t);
-          }
+          stats.time.AddObservation(t);
         }
-        if (trials > 1) {
-          std::cout
-              << "Model checking time mean: " << stats.time.mean() << " seconds"
-              << std::endl << "Model checking time min: " << stats.time.min()
-              << " seconds" << std::endl
-              << "Model checking time max: " << stats.time.max() << " seconds"
-              << std::endl
-              << "Model checking time std.dev.: " << stats.time.sample_stddev()
-              << std::endl << "Sample size mean: " << stats.sample_size.mean()
-              << std::endl << "Sample size min: " << stats.sample_size.min()
-              << std::endl << "Sample size max: " << stats.sample_size.max()
-              << std::endl
-              << "Sample size std.dev.: " << stats.sample_size.sample_stddev()
-              << std::endl << "Path length mean: " << stats.path_length.mean()
-              << std::endl << "Path length min: " << stats.path_length.min()
-              << std::endl << "Path length max: " << stats.path_length.max()
-              << std::endl
-              << "Path length std.dev.: " << stats.path_length.sample_stddev()
-              << std::endl << accepts << " accepted, " << (trials - accepts)
-              << " rejected" << std::endl;
+        if (report_statistics) {
+          PrintModelCheckingStats(stats);
+        } else {
+          std::cout << "Model checking completed in " << stats.time.mean()
+                    << " seconds." << std::endl;
+        }
+        if (!is_estimation[current_property]) {
+          if (trials > 1) {
+            std::cout << accepts << " accepted, " << (trials - accepts)
+                      << " rejected" << std::endl;
+          } else if (accepts > 0) {
+            std::cout << "Property is true in the initial state." << std::endl;
+          } else {
+            std::cout << "Property is false in the initial state." << std::endl;
+          }
         }
       }
     }

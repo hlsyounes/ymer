@@ -112,8 +112,7 @@ class SamplingVerifier : public CompiledPropertyVisitor,
   NewSequentialTester(Algorithm algorithm, double theta0, double theta1) const;
   template <typename OutputIterator>
   bool VerifyHelper(const CompiledProperty& property, const Optional<BDD>& ddf,
-                    const Optional<BDD>& feasible, bool default_result,
-                    OutputIterator* state_inserter);
+                    bool default_result, OutputIterator* state_inserter);
   std::string StateToString(const State& state) const;
 
   bool result_;
@@ -577,7 +576,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   const double t_min = path_property.min_time();
   const double t_max = path_property.max_time();
   int path_length = 1;
-  bool done = false, output = false;
+  bool done = false, output = false, early_termination = false;
   std::set<State, StateLess> unique_pre_states;
   auto pre_states_inserter =
       inserter(unique_pre_states, unique_pre_states.begin());
@@ -593,54 +592,60 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
       LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
     }
-    if (use_termination_probability &&
-        sampler_->StandardUniform() < params_.termination_probability) {
-      next_state.set_time(std::numeric_limits<double>::infinity());
-      next_state.set_values(curr_state.values());
+    if ((use_termination_probability &&
+         sampler_->StandardUniform() < params_.termination_probability) ||
+        (feasible.has_value() &&
+         !feasible.value().ValueInState(curr_state.values(),
+                                        model_->variables()))) {
+      t = std::numeric_limits<double>::infinity();
+      result_ = false;
+      done = true;
+      output = true;
+      early_termination = true;
     } else {
       simulator_.NextState(curr_state, &next_state);
-    }
-    double next_t = t + (next_state.time() - curr_state.time());
-    const State* curr_state_ptr = &curr_state;
-    std::swap(state_, curr_state_ptr);
-    if (t_min <= t) {
-      if (VerifyHelper(path_property.post_property(), dd2, feasible, false,
-                       post_states_inserter_ptr)) {
-        result_ = true;
-        done = true;
-      } else if (!VerifyHelper(path_property.pre_property(), dd1, feasible,
-                               true,
-                               false ? pre_states_inserter_ptr : nullptr)) {
-        result_ = false;
-        done = true;
+      double next_t = t + (next_state.time() - curr_state.time());
+      const State* curr_state_ptr = &curr_state;
+      std::swap(state_, curr_state_ptr);
+      if (t_min <= t) {
+        if (VerifyHelper(path_property.post_property(), dd2, false,
+                         post_states_inserter_ptr)) {
+          result_ = true;
+          done = true;
+        } else if (!VerifyHelper(path_property.pre_property(), dd1, true,
+                                 false ? pre_states_inserter_ptr : nullptr)) {
+          result_ = false;
+          done = true;
+        }
+      } else {
+        if (!VerifyHelper(path_property.pre_property(), dd1, true,
+                          t_min < next_t ? nullptr : pre_states_inserter_ptr)) {
+          result_ = false;
+          done = true;
+        } else if (t_min < next_t &&
+                   VerifyHelper(path_property.post_property(), dd2, false,
+                                post_states_inserter_ptr)) {
+          t = t_min;
+          result_ = true;
+          done = true;
+          output = true;
+        }
       }
-    } else {
-      if (!VerifyHelper(path_property.pre_property(), dd1, feasible, true,
-                        t_min < next_t ? nullptr : pre_states_inserter_ptr)) {
-        result_ = false;
-        done = true;
-      } else if (t_min < next_t &&
-                 VerifyHelper(path_property.post_property(), dd2, feasible,
-                              false, post_states_inserter_ptr)) {
-        t = t_min;
-        result_ = true;
-        done = true;
-        output = true;
+      std::swap(state_, curr_state_ptr);
+      if (!done) {
+        curr_state.swap(next_state);
+        t = next_t;
+        if (t_max < t || t == std::numeric_limits<double>::infinity()) {
+          result_ = false;
+          done = true;
+          output = true;
+        }
+        path_length++;
       }
-    }
-    std::swap(state_, curr_state_ptr);
-    if (!done) {
-      curr_state.swap(next_state);
-      t = next_t;
-      if (t_max < t || t == std::numeric_limits<double>::infinity()) {
-        result_ = false;
-        done = true;
-        output = true;
-      }
-      path_length++;
     }
   }
-  if (!unique_pre_states.empty() || !post_states.empty()) {
+  if (!early_termination &&
+      (!unique_pre_states.empty() || !post_states.empty())) {
     if (path_property.pre_property().is_probabilistic()) {
       if (path_property.post_property().is_probabilistic()) {
         // For each post state, verify post_property in that state, and verify
@@ -731,6 +736,13 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   }
   if (probabilistic_level_ == 1) {
     stats_->path_length.AddObservation(path_length);
+    if (result_) {
+      stats_->path_length_accept.AddObservation(path_length);
+    } else if (early_termination) {
+      stats_->path_length_terminate.AddObservation(path_length);
+    } else {
+      stats_->path_length_reject.AddObservation(path_length);
+    }
   }
   observation_weight_ =
       use_termination_probability
@@ -741,14 +753,9 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
 template <typename OutputIterator>
 bool SamplingVerifier::VerifyHelper(const CompiledProperty& property,
                                     const Optional<BDD>& ddf,
-                                    const Optional<BDD>& feasible,
                                     bool default_result,
                                     OutputIterator* state_inserter) {
   if (dd_model_ != nullptr) {
-    if (feasible.has_value() &&
-        !feasible.value().ValueInState(state_->values(), model_->variables())) {
-      return false;
-    }
     return ddf.value().ValueInState(state_->values(), model_->variables());
   } else if (!property.is_probabilistic()) {
     property.Accept(this);

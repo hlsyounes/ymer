@@ -188,7 +188,7 @@ expect_ok ${start}
 
 echo -n nand10_3_unbounded_estimate...
 start=$(timestamp)
-HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.1 --const=N=10,K=3 src/testdata/nand.pm <(echo 'P=?[ F s = 4 & z / N < 0.1 ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/nand10_3_unbounded_estimate.golden -
+HEAPCHECK=normal GLOG_logtostderr=1 ${YMER} --seed=0 --delta=0.1 --termination-probability=1e-5 --const=N=10,K=3 src/testdata/nand.pm <(echo 'P=?[ F s = 4 & z / N < 0.1 ]') 2>/dev/null | grep -v 'seconds.$' | diff src/testdata/nand10_3_unbounded_estimate.golden -
 expect_ok ${start}
 
 echo -n nand10_3_unbounded_mixed...

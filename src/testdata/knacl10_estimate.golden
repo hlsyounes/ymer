@@ -1,4 +1,4 @@
-Sampling engine: alpha=0.01, beta=0.01, delta=0.05, seed=0
+Sampling engine: alpha=0.01, beta=0.01, delta=0.05, p_term=1e-06, seed=0
 Variables: 4
 Events:    4
 
