@@ -83,29 +83,36 @@ extern int yydebug;
     DOUBLE_BAR = 293,
     TRIPLE_BAR = 294,
     BACK_ARROW = 295,
-    A = 296,
-    C = 297,
-    E = 298,
-    F = 299,
-    G = 300,
-    I = 301,
-    PMAX = 302,
-    PMIN = 303,
-    P = 304,
-    RMAX = 305,
-    RMIN = 306,
-    R = 307,
-    S = 308,
-    U = 309,
-    W = 310,
-    X = 311,
-    L = 312,
-    IFF_TOKEN = 313,
-    IMPLY_TOKEN = 314,
-    NEQ = 315,
-    LEQ = 316,
-    GEQ = 317,
-    UMINUS = 318
+    CLOCK = 296,
+    ENDINVARIANT = 297,
+    FILTER = 298,
+    INVARIANT = 299,
+    PTA = 300,
+    A = 301,
+    C = 302,
+    E = 303,
+    F = 304,
+    G = 305,
+    I = 306,
+    PMAX = 307,
+    PMIN = 308,
+    P = 309,
+    RMAX = 310,
+    RMIN = 311,
+    R = 312,
+    S = 313,
+    U = 314,
+    W = 315,
+    X = 316,
+    LOGNORMAL = 317,
+    UNIFORM = 318,
+    WEIBULL = 319,
+    IFF_TOKEN = 320,
+    IMPLY_TOKEN = 321,
+    NEQ = 322,
+    LEQ = 323,
+    GEQ = 324,
+    UMINUS = 325
   };
 #endif
 /* Tokens.  */
@@ -147,36 +154,43 @@ extern int yydebug;
 #define DOUBLE_BAR 293
 #define TRIPLE_BAR 294
 #define BACK_ARROW 295
-#define A 296
-#define C 297
-#define E 298
-#define F 299
-#define G 300
-#define I 301
-#define PMAX 302
-#define PMIN 303
-#define P 304
-#define RMAX 305
-#define RMIN 306
-#define R 307
-#define S 308
-#define U 309
-#define W 310
-#define X 311
-#define L 312
-#define IFF_TOKEN 313
-#define IMPLY_TOKEN 314
-#define NEQ 315
-#define LEQ 316
-#define GEQ 317
-#define UMINUS 318
+#define CLOCK 296
+#define ENDINVARIANT 297
+#define FILTER 298
+#define INVARIANT 299
+#define PTA 300
+#define A 301
+#define C 302
+#define E 303
+#define F 304
+#define G 305
+#define I 306
+#define PMAX 307
+#define PMIN 308
+#define P 309
+#define RMAX 310
+#define RMIN 311
+#define R 312
+#define S 313
+#define U 314
+#define W 315
+#define X 316
+#define LOGNORMAL 317
+#define UNIFORM 318
+#define WEIBULL 319
+#define IFF_TOKEN 320
+#define IMPLY_TOKEN 321
+#define NEQ 322
+#define LEQ 323
+#define GEQ 324
+#define UMINUS 325
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 506 "grammar.yy" /* yacc.c:1909  */
+#line 508 "grammar.yy" /* yacc.c:1909  */
 
   Type type;
   const std::string* str;
@@ -193,7 +207,7 @@ union YYSTYPE
   const PathProperty* path;
   const TimeRange* time_range;
 
-#line 197 "src/grammar.hh" /* yacc.c:1909  */
+#line 211 "src/grammar.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

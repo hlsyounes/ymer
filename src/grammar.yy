@@ -484,11 +484,13 @@ void AddProperty(const Expression* property, ParserState* state) {
 %token IDENTIFIER NUMBER LABEL_NAME
 %token SYSTEM ENDSYSTEM
 %token DOUBLE_BAR TRIPLE_BAR BACK_ARROW
+%token CLOCK ENDINVARIANT FILTER INVARIANT PTA
 
 %token A C
 %token E F G I
 %token PMAX PMIN P RMAX
-%token RMIN R S U W X L
+%token RMIN R S U W X
+%token LOGNORMAL UNIFORM WEIBULL
 
 %left DOUBLE_BAR TRIPLE_BAR
 %right '?' ':'
@@ -683,11 +685,11 @@ distribution_and_updates : distribution ':' true_or_updates
 
 distribution : expr
                  { $$ = NewMemoryless($1); }
-             | W '(' expr ',' expr ')'
+             | WEIBULL '(' expr ',' expr ')'
                  { $$ = NewWeibull($3, $5); }
-             | L '(' expr ',' expr ')'
+             | LOGNORMAL '(' expr ',' expr ')'
                  { $$ = NewLognormal($3, $5); }
-             | U '(' expr ',' expr ')'
+             | UNIFORM '(' expr ',' expr ')'
                  { $$ = NewUniform($3, $5); }
              ;
 

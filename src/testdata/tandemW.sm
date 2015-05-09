@@ -15,7 +15,7 @@ module serverC
 	sc : [0..c];
 	
 	[] (sc<c) -> lambda: (sc'=sc+1); 
-	[route] (sc>0) -> W(eta, beta): (sc'=sc-1);
+	[route] (sc>0) -> @W(eta, beta): (sc'=sc-1);
 	
 endmodule  
 
