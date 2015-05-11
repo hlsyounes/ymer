@@ -585,7 +585,10 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
 
 TEST(OptimizePropertyTest, NotProperty) {
   const Optional<DecisionDiagramManager> dd_manager(2);
-  std::map<std::string, IdentifierInfo> identifiers_by_name = {
+  const Identifier a("a");
+  const std::map<std::string, const Expression*> labels_by_name = {
+      {"\"b\"", &a}};
+  const std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
   auto property1 = OptimizeProperty(
       *CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(false)),
@@ -622,8 +625,8 @@ TEST(OptimizePropertyTest, NotProperty) {
                        UnaryOperation::New(
                            UnaryOperator::NOT,
                            UnaryOperation::New(UnaryOperator::NOT,
-                                               Identifier::New("a")))))),
-           {}, {}, identifiers_by_name, dd_manager).property,
+                                               Label::New("\"b\"")))))),
+           {}, labels_by_name, identifiers_by_name, dd_manager).property,
       dd_manager);
   const std::string expected4 =
       "P >= 0.25\n"

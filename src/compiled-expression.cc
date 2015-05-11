@@ -903,6 +903,7 @@ class ExpressionCompiler : public ExpressionVisitor {
  public:
   explicit ExpressionCompiler(
       const std::map<std::string, const Expression*>* formulas_by_name,
+      const std::map<std::string, const Expression*>* labels_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       std::vector<std::string>* errors);
 
@@ -927,16 +928,19 @@ class ExpressionCompiler : public ExpressionVisitor {
   int dst_;
   Type type_;
   const std::map<std::string, const Expression*>* formulas_by_name_;
+  const std::map<std::string, const Expression*>* labels_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   std::vector<std::string>* errors_;
 };
 
 ExpressionCompiler::ExpressionCompiler(
     const std::map<std::string, const Expression*>* formulas_by_name,
+    const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     std::vector<std::string>* errors)
     : dst_(0),
       formulas_by_name_(formulas_by_name),
+      labels_by_name_(labels_by_name),
       identifiers_by_name_(identifiers_by_name),
       errors_(errors) {}
 
@@ -1003,7 +1007,17 @@ void ExpressionCompiler::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionCompiler::DoVisitLabel(const Label& expr) {
-  errors_->push_back("unexpected label in expression");
+  if (labels_by_name_ == nullptr) {
+    errors_->push_back("unexpected label in expression");
+  } else {
+    auto i = labels_by_name_->find(expr.name());
+    if (i == labels_by_name_->end()) {
+      errors_->push_back(
+          StrCat("undefined label ", expr.name(), " in property"));
+      return;
+    }
+    i->second->Accept(this);
+  }
 }
 
 void ExpressionCompiler::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -1400,6 +1414,7 @@ class ExpressionToAddConverter : public ExpressionVisitor {
  public:
   explicit ExpressionToAddConverter(
       const std::map<std::string, const Expression*>* formulas_by_name,
+      const std::map<std::string, const Expression*>* labels_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
       const DecisionDiagramManager* dd_manager);
 
@@ -1420,16 +1435,19 @@ class ExpressionToAddConverter : public ExpressionVisitor {
 
   ADD add_;
   const std::map<std::string, const Expression*>* formulas_by_name_;
+  const std::map<std::string, const Expression*>* labels_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
   const DecisionDiagramManager* dd_manager_;
 };
 
 ExpressionToAddConverter::ExpressionToAddConverter(
     const std::map<std::string, const Expression*>* formulas_by_name,
+    const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
     const DecisionDiagramManager* dd_manager)
     : add_(dd_manager->GetConstant(0)),
       formulas_by_name_(formulas_by_name),
+      labels_by_name_(labels_by_name),
       identifiers_by_name_(identifiers_by_name),
       dd_manager_(dd_manager) {}
 
@@ -1454,7 +1472,13 @@ void ExpressionToAddConverter::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void ExpressionToAddConverter::DoVisitLabel(const Label& expr) {
-  LOG(FATAL) << "not an expression";
+  if (labels_by_name_ == nullptr) {
+    LOG(FATAL) << "unexpected label in expression";
+  } else {
+    auto i = labels_by_name_->find(expr.name());
+    CHECK(i != labels_by_name_->end());
+    i->second->Accept(this);
+  }
 }
 
 void ExpressionToAddConverter::DoVisitFunctionCall(const FunctionCall& expr) {
@@ -1588,10 +1612,12 @@ void ExpressionToAddConverter::DoVisitProbabilityEstimationOperation(
 Optional<ADD> ExpressionToAdd(
     const Expression& expr,
     const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   if (dd_manager.has_value()) {
-    ExpressionToAddConverter converter(&formulas_by_name, &identifiers_by_name,
+    ExpressionToAddConverter converter(&formulas_by_name, labels_by_name,
+                                       &identifiers_by_name,
                                        &dd_manager.value());
     expr.Accept(&converter);
     return converter.add();
@@ -1621,14 +1647,17 @@ IdentifierInfo IdentifierInfo::Constant(const TypedValue& value) {
   return IdentifierInfo(value.type(), -1, -1, -1, value);
 }
 
-CompileExpressionResult CompileExpression(
+namespace {
+
+CompileExpressionResult CompileExpressionImpl(
     const Expression& expr, Type expected_type,
     const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   CompileExpressionResult result;
-  ExpressionCompiler compiler(&formulas_by_name, &identifiers_by_name,
-                              &result.errors);
+  ExpressionCompiler compiler(&formulas_by_name, labels_by_name,
+                              &identifiers_by_name, &result.errors);
   expr.Accept(&compiler);
   if (!result.errors.empty()) {
     return result;
@@ -1644,9 +1673,31 @@ CompileExpressionResult CompileExpression(
     return result;
   }
   result.expr = CompiledExpression(
-      operations,
-      ExpressionToAdd(expr, formulas_by_name, identifiers_by_name, dd_manager));
+      operations, ExpressionToAdd(expr, formulas_by_name, labels_by_name,
+                                  identifiers_by_name, dd_manager));
   return result;
+}
+
+}  // namespace
+
+CompileExpressionResult CompileExpression(
+    const Expression& expr, Type expected_type,
+    const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager) {
+  return CompileExpressionImpl(expr, expected_type, formulas_by_name, nullptr,
+                               identifiers_by_name, dd_manager);
+}
+
+CompileExpressionResult CompilePropertyExpression(
+    const Expression& expr, Type expected_type,
+    const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>& labels_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager) {
+  return CompileExpressionImpl(expr, expected_type, formulas_by_name,
+                               &labels_by_name, identifiers_by_name,
+                               dd_manager);
 }
 
 namespace {

@@ -348,6 +348,7 @@ class CompilerState {
 
   std::unique_ptr<const CompiledProperty> ReleaseProperty(
       const std::map<std::string, const Expression*>& formulas_by_name,
+      const std::map<std::string, const Expression*>& labels_by_name,
       const std::map<std::string, IdentifierInfo>& identifiers_by_name,
       const Optional<DecisionDiagramManager>& dd_manager,
       std::vector<std::string>* errors);
@@ -372,13 +373,15 @@ CompilerState::CompilerState(const Expression* expr)
 
 std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
     const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   if (has_expr()) {
     CHECK(expr_);
-    CompileExpressionResult result = CompileExpression(
-        *expr_, Type::BOOL, formulas_by_name, identifiers_by_name, dd_manager);
+    CompileExpressionResult result = CompilePropertyExpression(
+        *expr_, Type::BOOL, formulas_by_name, labels_by_name,
+        identifiers_by_name, dd_manager);
     property_ = CompiledExpressionProperty::New(result.expr);
     errors->insert(errors->end(), result.errors.begin(), result.errors.end());
   }
@@ -396,8 +399,8 @@ class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
 
   std::unique_ptr<const CompiledProperty> release_property(
       CompilerState* state) {
-    return state->ReleaseProperty(*formulas_by_name_, *identifiers_by_name_,
-                                  *dd_manager_, errors_);
+    return state->ReleaseProperty(*formulas_by_name_, *labels_by_name_,
+                                  *identifiers_by_name_, *dd_manager_, errors_);
   }
 
   std::unique_ptr<const CompiledProperty> release_property() {
@@ -452,12 +455,7 @@ void PropertyCompiler::DoVisitIdentifier(const Identifier& expr) {
 }
 
 void PropertyCompiler::DoVisitLabel(const Label& expr) {
-  auto i = labels_by_name_->find(expr.name());
-  if (i == labels_by_name_->end()) {
-    errors_->push_back(StrCat("undefined label ", expr.name(), " in property"));
-    return;
-  }
-  i->second->Accept(this);
+  state_ = CompilerState(&expr);
 }
 
 void PropertyCompiler::DoVisitFunctionCall(const FunctionCall& expr) {

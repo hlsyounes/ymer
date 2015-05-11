@@ -355,6 +355,15 @@ CompileExpressionResult CompileExpression(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager);
 
+// Same as CompileExpression, except it handles labels.  Intended for use with
+// expressions that are part of properties.
+CompileExpressionResult CompilePropertyExpression(
+    const Expression& expr, Type expected_type,
+    const std::map<std::string, const Expression*>& formulas_by_name,
+    const std::map<std::string, const Expression*>& labels_by_name,
+    const std::map<std::string, IdentifierInfo>& identifiers_by_name,
+    const Optional<DecisionDiagramManager>& dd_manager);
+
 // Returns an ADD representing the given identifier info.
 ADD IdentifierToAdd(const DecisionDiagramManager& dd_manager,
                     const IdentifierInfo& info);
