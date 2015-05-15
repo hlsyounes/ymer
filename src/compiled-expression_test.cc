@@ -2740,6 +2740,18 @@ TEST(OptimizeDoubleExpressionTest, MultiNegation) {
   EXPECT_EQ(expected2, OptimizeIntExpression(expr2).operations());
 }
 
+TEST(OptimizeIntExpressionTest, AndOfOr) {
+  const CompiledExpression expr(
+      {Operation::MakeILOAD(2, 0), Operation::MakeIFTRUE(0, 7),
+       Operation::MakeILOAD(6, 0), Operation::MakeIFTRUE(0, 7),
+       Operation::MakeILOAD(10, 0), Operation::MakeIFTRUE(0, 7),
+       Operation::MakeILOAD(14, 0), Operation::MakeIFFALSE(0, 9),
+       Operation::MakeIVEQ(1, 2, 0)},
+      {});
+  // No optimization possible.
+  EXPECT_EQ(expr.operations(), OptimizeIntExpression(expr).operations());
+}
+
 TEST(OptimizeDoubleExpressionTest, ConstantAddition) {
   const CompiledExpression expr(
       {Operation::MakeDCONST(0.5, 0), Operation::MakeDCONST(0.25, 1),

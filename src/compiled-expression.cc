@@ -1813,7 +1813,7 @@ void RegisterState<T>::MergeWith(const RegisterState<T>& other_state) {
 // A basic block of a control flow graph.
 class BasicBlock {
  public:
-  BasicBlock(size_t index, bool is_dead);
+  BasicBlock(size_t index, size_t rank, bool is_dead);
 
   void SetDead(bool is_dead);
   void SetIntValue(size_t r, int value);
@@ -1831,6 +1831,7 @@ class BasicBlock {
   void AddSuccessor(BasicBlock* successor);
 
   size_t index() const { return index_; }
+  size_t rank() const { return rank_; }
   bool is_dead() const { return is_dead_; }
   const std::vector<Operation>& operations() const { return operations_; }
   const std::set<OperationIndex>& dependencies() const { return dependencies_; }
@@ -1860,6 +1861,7 @@ class BasicBlock {
   void AddDoubleDependenciesFromDoubleDependencies(size_t r, size_t src_r);
 
   size_t index_;
+  size_t rank_;
   bool is_dead_;
   std::vector<Operation> operations_;
   std::set<OperationIndex> dependencies_;
@@ -1868,8 +1870,8 @@ class BasicBlock {
   std::map<size_t, RegisterState<double>> double_states_;
 };
 
-BasicBlock::BasicBlock(size_t index, bool is_dead)
-    : index_(index), is_dead_(is_dead) {}
+BasicBlock::BasicBlock(size_t index, size_t rank, bool is_dead)
+    : index_(index), rank_(rank), is_dead_(is_dead) {}
 
 void BasicBlock::SetDead(bool is_dead) { is_dead_ = is_dead; }
 
@@ -2299,7 +2301,7 @@ void MaybeAddBlock(size_t predecessor, size_t start,
                    std::map<size_t, size_t>* block_starts) {
   const auto result = block_starts->insert({start, blocks->size()});
   if (result.second) {
-    blocks->emplace_back(blocks->size(), false);
+    blocks->emplace_back(blocks->size(), start, false);
   }
   (*blocks)[predecessor].AddSuccessor(&(*blocks)[result.first->second]);
 }
@@ -2309,7 +2311,7 @@ void MaybeAddDeadBlock(size_t predecessor, size_t start,
                        std::map<size_t, size_t>* block_starts) {
   const auto result = block_starts->insert({start, blocks->size()});
   if (result.second) {
-    blocks->emplace_back(blocks->size(), true);
+    blocks->emplace_back(blocks->size(), start, true);
   }
 }
 
@@ -2338,7 +2340,7 @@ std::vector<BasicBlock> MakeControlFlowGraph(
   std::vector<BasicBlock> blocks;
   std::map<size_t, size_t> block_starts;
   size_t block_index = 0;
-  blocks.emplace_back(block_index, false);
+  blocks.emplace_back(block_index, 0, false);
   for (size_t pc = 0; pc < operations.size(); ++pc) {
     const auto i = block_starts.find(pc);
     if (i != block_starts.end()) {
@@ -2464,12 +2466,42 @@ Operation SetJumpDestination(const Operation& jump_operation, int destination) {
   }
 }
 
+class OperationIndexRankCompare {
+ public:
+  OperationIndexRankCompare(const std::vector<BasicBlock>& blocks) {
+    ranks_.reserve(blocks.size());
+    for (const auto& block : blocks) {
+      ranks_.push_back(block.rank());
+    }
+  }
+
+  bool operator()(const OperationIndex& left, const OperationIndex& right) {
+    return ranks_[left.block] < ranks_[right.block] ||
+           (ranks_[left.block] == ranks_[right.block] &&
+            left.operation < right.operation);
+  }
+
+ private:
+  std::vector<size_t> ranks_;
+};
+
+std::vector<OperationIndex> OrderByRank(
+    const std::set<OperationIndex>& live_operations,
+    const std::vector<BasicBlock>& blocks) {
+  std::vector<OperationIndex> ordered_live_operations(live_operations.begin(),
+                                                      live_operations.end());
+  std::sort(ordered_live_operations.begin(), ordered_live_operations.end(),
+            OperationIndexRankCompare(blocks));
+  return ordered_live_operations;
+}
+
 CompiledExpression OptimizeExpressionImpl(
     const std::vector<BasicBlock>& blocks, size_t end_block_index,
     const std::set<OperationIndex>& live_operations, const Optional<ADD>& dd) {
   std::vector<Operation> optimized_operations;
   std::multimap<size_t, size_t> jump_targets;
-  for (const OperationIndex& live_operation : live_operations) {
+  const auto ordered_live_operations = OrderByRank(live_operations, blocks);
+  for (const OperationIndex& live_operation : ordered_live_operations) {
     const BasicBlock& block = blocks[live_operation.block];
     const Operation& operation = block.operations()[live_operation.operation];
     bool overwrite_jump_operation = false;
