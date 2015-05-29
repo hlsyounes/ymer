@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 
+#include "ptrutil.h"
 #include "strutil.h"
 
 #include "glog/logging.h"
@@ -628,8 +629,8 @@ bool Model::AddIntVariable(const std::string& name,
 bool Model::AddBoolVariable(const std::string& name,
                             std::unique_ptr<const Expression>&& init,
                             std::vector<std::string>* errors) {
-  return AddVariable(name, Type::BOOL, Literal::New(false), Literal::New(true),
-                     std::move(init), errors);
+  return AddVariable(name, Type::BOOL, MakeUnique<Literal>(false),
+                     MakeUnique<Literal>(true), std::move(init), errors);
 }
 
 bool Model::AddVariable(const std::string& name, Type type,
@@ -799,7 +800,7 @@ ExpressionRewriter::ExpressionRewriter(
     : formulas_(formulas), substitutions_(substitutions) {}
 
 void ExpressionRewriter::DoVisitLiteral(const Literal& expr) {
-  expr_ = Literal::New(expr.value());
+  expr_ = MakeUnique<Literal>(expr.value());
 }
 
 void ExpressionRewriter::DoVisitIdentifier(const Identifier& expr) {
@@ -811,8 +812,8 @@ void ExpressionRewriter::DoVisitIdentifier(const Identifier& expr) {
       return;
     }
   }
-  expr_ =
-      Identifier::New(RewriteSimpleIdentifier(expr.name(), *substitutions_));
+  expr_ = MakeUnique<Identifier>(
+      RewriteSimpleIdentifier(expr.name(), *substitutions_));
 }
 
 void ExpressionRewriter::DoVisitLabel(const Label& expr) {
@@ -825,19 +826,20 @@ void ExpressionRewriter::DoVisitFunctionCall(const FunctionCall& expr) {
     argument.Accept(this);
     arguments.push_back(release_expr());
   }
-  expr_ = FunctionCall::New(expr.function(), std::move(arguments));
+  expr_ = MakeUnique<FunctionCall>(expr.function(), std::move(arguments));
 }
 
 void ExpressionRewriter::DoVisitUnaryOperation(const UnaryOperation& expr) {
   expr.operand().Accept(this);
-  expr_ = UnaryOperation::New(expr.op(), release_expr());
+  expr_ = MakeUnique<UnaryOperation>(expr.op(), release_expr());
 }
 
 void ExpressionRewriter::DoVisitBinaryOperation(const BinaryOperation& expr) {
   expr.operand1().Accept(this);
   auto operand1 = release_expr();
   expr.operand2().Accept(this);
-  expr_ = BinaryOperation::New(expr.op(), std::move(operand1), release_expr());
+  expr_ = MakeUnique<BinaryOperation>(expr.op(), std::move(operand1),
+                                      release_expr());
 }
 
 void ExpressionRewriter::DoVisitConditional(const Conditional& expr) {
@@ -846,8 +848,8 @@ void ExpressionRewriter::DoVisitConditional(const Conditional& expr) {
   expr.if_branch().Accept(this);
   auto if_branch = release_expr();
   expr.else_branch().Accept(this);
-  expr_ = Conditional::New(std::move(condition), std::move(if_branch),
-                           release_expr());
+  expr_ = MakeUnique<Conditional>(std::move(condition), std::move(if_branch),
+                                  release_expr());
 }
 
 void ExpressionRewriter::DoVisitProbabilityThresholdOperation(
@@ -895,26 +897,26 @@ DistributionRewriter::DistributionRewriter(
     : formulas_(formulas), substitutions_(substitutions) {}
 
 void DistributionRewriter::DoVisitMemoryless(const Memoryless& dist) {
-  dist_ = Memoryless::New(
+  dist_ = MakeUnique<Memoryless>(
       RewriteExpression(dist.weight(), *formulas_, *substitutions_));
 }
 
 void DistributionRewriter::DoVisitWeibull(const Weibull& dist) {
-  dist_ = Weibull::New(
+  dist_ = MakeUnique<Weibull>(
       RewriteExpression(dist.scale(), *formulas_, *substitutions_),
       RewriteExpression(dist.shape(), *formulas_, *substitutions_));
 }
 
 void DistributionRewriter::DoVisitLognormal(const Lognormal& dist) {
-  dist_ = Lognormal::New(
+  dist_ = MakeUnique<Lognormal>(
       RewriteExpression(dist.scale(), *formulas_, *substitutions_),
       RewriteExpression(dist.shape(), *formulas_, *substitutions_));
 }
 
 void DistributionRewriter::DoVisitUniform(const Uniform& dist) {
-  dist_ =
-      Uniform::New(RewriteExpression(dist.low(), *formulas_, *substitutions_),
-                   RewriteExpression(dist.high(), *formulas_, *substitutions_));
+  dist_ = MakeUnique<Uniform>(
+      RewriteExpression(dist.low(), *formulas_, *substitutions_),
+      RewriteExpression(dist.high(), *formulas_, *substitutions_));
 }
 
 std::unique_ptr<const Distribution> RewriteDistribution(

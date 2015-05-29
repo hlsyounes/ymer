@@ -90,9 +90,6 @@ class Literal : public Expression {
   // Constructs a literal that represents the given value.
   explicit Literal(const TypedValue& value);
 
-  // Factory method for literals.
-  static std::unique_ptr<const Literal> New(const TypedValue& value);
-
   // Returns the value of this literal.
   const TypedValue& value() const { return value_; }
 
@@ -108,9 +105,6 @@ class Identifier : public Expression {
   // Constructs an identifier with the given name.
   explicit Identifier(const std::string& name);
 
-  // Factory method for identifiers.
-  static std::unique_ptr<const Identifier> New(const std::string& name);
-
   // Returns the name of this identifier.
   const std::string& name() const { return name_; }
 
@@ -125,9 +119,6 @@ class Label : public Expression {
  public:
   // Constructs a label with the given name.
   explicit Label(const std::string& name);
-
-  // Factory method for labels.
-  static std::unique_ptr<const Label> New(const std::string& name);
 
   // Returns the name of this label.
   const std::string& name() const { return name_; }
@@ -151,10 +142,6 @@ class FunctionCall : public Expression {
   explicit FunctionCall(Function function,
                         UniquePtrVector<const Expression>&& arguments);
 
-  // Factory method for function calls.
-  static std::unique_ptr<const FunctionCall> New(
-      Function function, UniquePtrVector<const Expression>&& arguments);
-
   // Returns the function of this function call.
   Function function() const { return function_; }
 
@@ -170,7 +157,7 @@ class FunctionCall : public Expression {
   UniquePtrVector<const Expression> arguments_;
 };
 
-// Supported uniary operators.
+// Supported unary operators.
 enum class UnaryOperator { NEGATE, NOT };
 
 // Output operator for unary operators.
@@ -182,10 +169,6 @@ class UnaryOperation : public Expression {
   // Constructs a unary operation with the given operator and operand.
   explicit UnaryOperation(UnaryOperator op,
                           std::unique_ptr<const Expression>&& operand);
-
-  // Factory method for unary operations.
-  static std::unique_ptr<const UnaryOperation> New(
-      UnaryOperator op, std::unique_ptr<const Expression>&& operand);
 
   // Returns the operator of this unary operation.
   UnaryOperator op() const { return op_; }
@@ -229,11 +212,6 @@ class BinaryOperation : public Expression {
                            std::unique_ptr<const Expression>&& operand1,
                            std::unique_ptr<const Expression>&& operand2);
 
-  // Factory method for binary operations.
-  static std::unique_ptr<const BinaryOperation> New(
-      BinaryOperator op, std::unique_ptr<const Expression>&& operand1,
-      std::unique_ptr<const Expression>&& operand2);
-
   // Returns the operator for this binary operation.
   const BinaryOperator op() const { return op_; }
 
@@ -258,12 +236,6 @@ class Conditional : public Expression {
   explicit Conditional(std::unique_ptr<const Expression>&& condition,
                        std::unique_ptr<const Expression>&& if_branch,
                        std::unique_ptr<const Expression>&& else_branch);
-
-  // Factory method for conditional expressions.
-  static std::unique_ptr<const Conditional> New(
-      std::unique_ptr<const Expression>&& condition,
-      std::unique_ptr<const Expression>&& if_branch,
-      std::unique_ptr<const Expression>&& else_branch);
 
   // Returns the condition for this conditional expression.
   const Expression& condition() const { return *condition_; }
@@ -302,11 +274,6 @@ class ProbabilityThresholdOperation : public Expression {
       ProbabilityThresholdOperator op, double threshold,
       std::unique_ptr<const PathProperty>&& path_property);
 
-  // Factory method for probability threshold operations.
-  static std::unique_ptr<const ProbabilityThresholdOperation> New(
-      ProbabilityThresholdOperator op, double threshold,
-      std::unique_ptr<const PathProperty>&& path_property);
-
   // Returns the operator for this probability threshold operation.
   ProbabilityThresholdOperator op() const { return op_; }
 
@@ -330,10 +297,6 @@ class ProbabilityEstimationOperation : public Expression {
   // Constructs a probability estimation expression with the given path
   // property.
   explicit ProbabilityEstimationOperation(
-      std::unique_ptr<const PathProperty>&& path_property);
-
-  // Factory method for probability estimation operations.
-  static std::unique_ptr<const ProbabilityEstimationOperation> New(
       std::unique_ptr<const PathProperty>&& path_property);
 
   // Returns the path property for this probability estimation operation.
@@ -376,11 +339,6 @@ class UntilProperty : public PathProperty {
                          std::unique_ptr<const Expression>&& pre_expr,
                          std::unique_ptr<const Expression>&& post_expr);
 
-  // Factory method for until path properties.
-  static std::unique_ptr<const UntilProperty> New(
-      TimeRange time_range, std::unique_ptr<const Expression>&& pre_expr,
-      std::unique_ptr<const Expression>&& post_expr);
-
   // Returns the time range for this until path property.
   TimeRange time_range() const { return time_range_; }
 
@@ -405,10 +363,6 @@ class EventuallyProperty : public PathProperty {
   // condition expression.
   explicit EventuallyProperty(TimeRange time_range,
                               std::unique_ptr<const Expression>&& expr);
-
-  // Factory method for eventually path properties.
-  static std::unique_ptr<const EventuallyProperty> New(
-      TimeRange time_range, std::unique_ptr<const Expression>&& expr);
 
   // Returns the time range for this eventually path property.
   TimeRange time_range() const { return time_range_; }

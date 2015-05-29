@@ -87,7 +87,7 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 #
 
 HEADER_FILES = src/fake_rng.h src/model-checking-params.h src/optional.h \
-    src/simulator.h src/strutil.h src/unique-ptr-vector.h
+    src/ptrutil.h src/simulator.h src/strutil.h src/unique-ptr-vector.h
 
 # Statistics library.
 noinst_LTLIBRARIES += src/libstatistics.la
@@ -200,6 +200,11 @@ src_optional_test_LDADD = src/libtest-main.la
 check_PROGRAMS += src/strutil_test
 src_strutil_test_SOURCES = src/strutil_test.cc
 src_strutil_test_LDADD = src/libtest-main.la
+
+# Test for pointer utility library.
+check_PROGRAMS += src/ptrutil_test
+src_ptrutil_test_SOURCES = src/ptrutil_test.cc
+src_ptrutil_test_LDADD = src/libtest-main.la
 
 # Test for statistics library.
 check_PROGRAMS += src/statistics_test

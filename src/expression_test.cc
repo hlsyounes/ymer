@@ -21,6 +21,7 @@
 
 #include <limits>
 
+#include "ptrutil.h"
 #include "strutil.h"
 #include "unique-ptr-vector.h"
 
@@ -87,76 +88,94 @@ TEST(FunctionCallTest, OutputUnknownFunction) {
 }
 
 TEST(FunctionCallTest, OutputMin) {
-  const FunctionCall expr1(Function::MIN, MakeArguments(Literal::New(17)));
-  const FunctionCall expr2(Function::MIN,
-                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  const FunctionCall expr1(Function::MIN,
+                           MakeArguments(MakeUnique<Literal>(17)));
+  const FunctionCall expr2(
+      Function::MIN,
+      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
   EXPECT_EQ("min(17);min(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputMax) {
-  const FunctionCall expr1(Function::MAX, MakeArguments(Literal::New(17)));
-  const FunctionCall expr2(Function::MAX,
-                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  const FunctionCall expr1(Function::MAX,
+                           MakeArguments(MakeUnique<Literal>(17)));
+  const FunctionCall expr2(
+      Function::MAX,
+      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
   EXPECT_EQ("max(17);max(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputFloor) {
-  const FunctionCall expr1(Function::FLOOR, MakeArguments(Literal::New(17)));
-  const FunctionCall expr2(Function::FLOOR, MakeArguments(Literal::New(0.5)));
+  const FunctionCall expr1(Function::FLOOR,
+                           MakeArguments(MakeUnique<Literal>(17)));
+  const FunctionCall expr2(Function::FLOOR,
+                           MakeArguments(MakeUnique<Literal>(0.5)));
   EXPECT_EQ("floor(17);floor(0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputCeil) {
-  const FunctionCall expr1(Function::CEIL, MakeArguments(Literal::New(17)));
-  const FunctionCall expr2(Function::CEIL, MakeArguments(Literal::New(0.5)));
+  const FunctionCall expr1(Function::CEIL,
+                           MakeArguments(MakeUnique<Literal>(17)));
+  const FunctionCall expr2(Function::CEIL,
+                           MakeArguments(MakeUnique<Literal>(0.5)));
   EXPECT_EQ("ceil(17);ceil(0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputPow) {
-  const FunctionCall expr1(Function::POW,
-                           MakeArguments(Literal::New(17), Literal::New(-0.5)));
-  const FunctionCall expr2(Function::POW,
-                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  const FunctionCall expr1(
+      Function::POW,
+      MakeArguments(MakeUnique<Literal>(17), MakeUnique<Literal>(-0.5)));
+  const FunctionCall expr2(
+      Function::POW,
+      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
   EXPECT_EQ("pow(17, -0.5);pow(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputLog) {
-  const FunctionCall expr1(Function::LOG,
-                           MakeArguments(Literal::New(17), Literal::New(2.5)));
-  const FunctionCall expr2(Function::LOG,
-                           MakeArguments(Literal::New(42), Literal::New(0.5)));
+  const FunctionCall expr1(
+      Function::LOG,
+      MakeArguments(MakeUnique<Literal>(17), MakeUnique<Literal>(2.5)));
+  const FunctionCall expr2(
+      Function::LOG,
+      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
   EXPECT_EQ("log(17, 2.5);log(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputMod) {
-  const FunctionCall expr1(Function::MOD,
-                           MakeArguments(Literal::New(17), Literal::New(42)));
-  const FunctionCall expr2(Function::MOD,
-                           MakeArguments(Literal::New(42), Literal::New(-17)));
+  const FunctionCall expr1(
+      Function::MOD,
+      MakeArguments(MakeUnique<Literal>(17), MakeUnique<Literal>(42)));
+  const FunctionCall expr2(
+      Function::MOD,
+      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(-17)));
   EXPECT_EQ("mod(17, 42);mod(42, -17)", StrCat(expr1, ';', expr2));
 }
 
 TEST(UnaryOperationTest, OutputNegation) {
   const UnaryOperation expr1(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(
-          BinaryOperator::PLUS, Literal::New(17),
-          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::PLUS, MakeUnique<Literal>(17),
+          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
+                                     MakeUnique<Identifier>("b"))));
   const UnaryOperation expr2(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(
-          BinaryOperator::MINUS, Literal::New(17),
-          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::MINUS, MakeUnique<Literal>(17),
+          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
+                                     MakeUnique<Identifier>("b"))));
   const UnaryOperation expr3(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(
-          BinaryOperator::MULTIPLY, Literal::New(17),
-          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::MULTIPLY, MakeUnique<Literal>(17),
+          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
+                                     MakeUnique<Identifier>("b"))));
   const UnaryOperation expr4(
       UnaryOperator::NEGATE,
-      BinaryOperation::New(
-          BinaryOperator::DIVIDE, Literal::New(17),
-          UnaryOperation::New(UnaryOperator::NEGATE, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::DIVIDE, MakeUnique<Literal>(17),
+          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
+                                     MakeUnique<Identifier>("b"))));
   EXPECT_EQ("-(17 + -b);-(17 - -b);-(17 * -b);-(17 / -b)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -164,24 +183,28 @@ TEST(UnaryOperationTest, OutputNegation) {
 TEST(UnaryOperationTest, OutputLogicalNot) {
   const UnaryOperation expr1(
       UnaryOperator::NOT,
-      BinaryOperation::New(
-          BinaryOperator::AND, Literal::New(true),
-          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::AND, MakeUnique<Literal>(true),
+          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                     MakeUnique<Identifier>("b"))));
   const UnaryOperation expr2(
       UnaryOperator::NOT,
-      BinaryOperation::New(
-          BinaryOperator::OR, Literal::New(true),
-          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::OR, MakeUnique<Literal>(true),
+          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                     MakeUnique<Identifier>("b"))));
   const UnaryOperation expr3(
       UnaryOperator::NOT,
-      BinaryOperation::New(
-          BinaryOperator::IMPLY, Literal::New(true),
-          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::IMPLY, MakeUnique<Literal>(true),
+          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                     MakeUnique<Identifier>("b"))));
   const UnaryOperation expr4(
       UnaryOperator::NOT,
-      BinaryOperation::New(
-          BinaryOperator::IFF, Literal::New(true),
-          UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b"))));
+      MakeUnique<BinaryOperation>(
+          BinaryOperator::IFF, MakeUnique<Literal>(true),
+          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                     MakeUnique<Identifier>("b"))));
   EXPECT_EQ("!(true & !b);!(true | !b);!(true => !b);!(true <=> !b)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -189,28 +212,33 @@ TEST(UnaryOperationTest, OutputLogicalNot) {
 TEST(BinaryOperationTest, OutputAddition) {
   const BinaryOperation expr1(
       BinaryOperator::PLUS,
-      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
-      BinaryOperator::PLUS,
-      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::PLUS, MakeUnique<BinaryOperation>(
+                                BinaryOperator::MINUS, MakeUnique<Literal>(17),
+                                MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::PLUS,
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::PLUS,
-      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::PLUS, MakeUnique<BinaryOperation>(
+                                BinaryOperator::DIVIDE, MakeUnique<Literal>(17),
+                                MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("17 + b + c - d;17 - b + c * d;17 * b + c / d;17 / b + c + d",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -218,28 +246,34 @@ TEST(BinaryOperationTest, OutputAddition) {
 TEST(BinaryOperationTest, OutputSubtraction) {
   const BinaryOperation expr1(
       BinaryOperator::MINUS,
-      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
-      BinaryOperator::MINUS,
-      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::MINUS, MakeUnique<BinaryOperation>(
+                                 BinaryOperator::MINUS, MakeUnique<Literal>(17),
+                                 MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::MINUS,
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::MINUS,
-      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("17 + b - (c - d);17 - b - c * d;17 * b - c / d;17 / b - (c + d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -247,28 +281,35 @@ TEST(BinaryOperationTest, OutputSubtraction) {
 TEST(BinaryOperationTest, OutputMultiplication) {
   const BinaryOperation expr1(
       BinaryOperator::MULTIPLY,
-      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::MULTIPLY,
-      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::MULTIPLY,
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::MULTIPLY,
-      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ(
       "(17 + b) * (c - d);(17 - b) * c * d;17 * b * c / d;17 / b * (c + d)",
       StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
@@ -277,28 +318,35 @@ TEST(BinaryOperationTest, OutputMultiplication) {
 TEST(BinaryOperationTest, OutputDivision) {
   const BinaryOperation expr1(
       BinaryOperator::DIVIDE,
-      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::DIVIDE,
-      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::DIVIDE,
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::DIVIDE,
-      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ(
       "(17 + b) / (c - d);(17 - b) / (c * d);17 * b / (c / d);17 / b / (c + d)",
       StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
@@ -306,29 +354,33 @@ TEST(BinaryOperationTest, OutputDivision) {
 
 TEST(BinaryOperationTest, OutputAnd) {
   const BinaryOperation expr1(
-      BinaryOperator::AND,
-      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::AND, MakeUnique<BinaryOperation>(
+                               BinaryOperator::AND, MakeUnique<Literal>(true),
+                               MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::OR,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::AND,
-      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::AND,
-      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::AND, MakeUnique<BinaryOperation>(
+                               BinaryOperator::IMPLY, MakeUnique<Literal>(true),
+                               MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::AND,
-      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::AND, MakeUnique<BinaryOperation>(
+                               BinaryOperator::IFF, MakeUnique<Literal>(true),
+                               MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::AND,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("true & b & (c | d);(true | b) & (c => d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("(true => b) & (c <=> d);(true <=> b) & c & d",
@@ -337,29 +389,33 @@ TEST(BinaryOperationTest, OutputAnd) {
 
 TEST(BinaryOperationTest, OutputOr) {
   const BinaryOperation expr1(
-      BinaryOperator::OR,
-      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::OR, MakeUnique<BinaryOperation>(
+                              BinaryOperator::AND, MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::OR,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::OR,
-      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::OR,
-      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::OR, MakeUnique<BinaryOperation>(
+                              BinaryOperator::IMPLY, MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::OR,
-      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::OR, MakeUnique<BinaryOperation>(
+                              BinaryOperator::IFF, MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::AND,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("true & b | c | d;true | b | (c => d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("(true => b) | (c <=> d);(true <=> b) | c & d",
             StrCat(expr3, ';', expr4));
@@ -367,29 +423,34 @@ TEST(BinaryOperationTest, OutputOr) {
 
 TEST(BinaryOperationTest, OutputImply) {
   const BinaryOperation expr1(
-      BinaryOperator::IMPLY,
-      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::IMPLY, MakeUnique<BinaryOperation>(
+                                 BinaryOperator::AND, MakeUnique<Literal>(true),
+                                 MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::OR,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::IMPLY,
-      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::IMPLY,
-      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Literal>(true),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::IMPLY,
-      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::IMPLY, MakeUnique<BinaryOperation>(
+                                 BinaryOperator::IFF, MakeUnique<Literal>(true),
+                                 MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::AND,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("true & b => c | d;true | b => (c => d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("true => b => (c <=> d);(true <=> b) => c & d",
@@ -398,29 +459,33 @@ TEST(BinaryOperationTest, OutputImply) {
 
 TEST(BinaryOperationTest, OutputIff) {
   const BinaryOperation expr1(
-      BinaryOperator::IFF,
-      BinaryOperation::New(BinaryOperator::AND, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::IFF, MakeUnique<BinaryOperation>(
+                               BinaryOperator::AND, MakeUnique<Literal>(true),
+                               MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::OR,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::IFF,
-      BinaryOperation::New(BinaryOperator::OR, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IMPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::IFF,
-      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::IFF, MakeUnique<BinaryOperation>(
+                               BinaryOperator::IMPLY, MakeUnique<Literal>(true),
+                               MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::IFF,
-      BinaryOperation::New(BinaryOperator::IFF, Literal::New(true),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::AND, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::IFF, MakeUnique<BinaryOperation>(
+                               BinaryOperator::IFF, MakeUnique<Literal>(true),
+                               MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::AND,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("true & b <=> c | d;true | b <=> c => d",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("true => b <=> (c <=> d);true <=> b <=> c & d",
@@ -430,28 +495,34 @@ TEST(BinaryOperationTest, OutputIff) {
 TEST(BinaryOperationTest, OutputLess) {
   const BinaryOperation expr1(
       BinaryOperator::LESS,
-      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::LESS,
-      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::LESS,
-      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
-                           Identifier::New("d")));
+      BinaryOperator::LESS, MakeUnique<BinaryOperation>(
+                                BinaryOperator::MINUS, MakeUnique<Literal>(17),
+                                MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::LESS,
-      BinaryOperation::New(BinaryOperator::GREATER, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("17 + b < c * d;17 >= b < (c = d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 - b < c / d;17 > b < (c != d)", StrCat(expr3, ';', expr4));
 }
@@ -459,28 +530,36 @@ TEST(BinaryOperationTest, OutputLess) {
 TEST(BinaryOperationTest, OutputLessEqual) {
   const BinaryOperation expr1(
       BinaryOperator::LESS_EQUAL,
-      BinaryOperation::New(BinaryOperator::MINUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::DIVIDE, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::LESS_EQUAL,
-      BinaryOperation::New(BinaryOperator::GREATER, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::LESS_EQUAL,
-      BinaryOperation::New(BinaryOperator::AND, Literal::New(false),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::AND,
+                                  MakeUnique<Literal>(false),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::OR,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::LESS_EQUAL,
-      BinaryOperation::New(BinaryOperator::EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::LESS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("17 - b <= c / d;17 > b <= (c != d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("(false & b) <= (c | d);(17 = b) <= (c < d)",
             StrCat(expr3, ';', expr4));
@@ -489,28 +568,36 @@ TEST(BinaryOperationTest, OutputLessEqual) {
 TEST(BinaryOperationTest, OutputGreaterEqual) {
   const BinaryOperation expr1(
       BinaryOperator::GREATER_EQUAL,
-      BinaryOperation::New(BinaryOperator::AND, Literal::New(false),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::OR, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::AND,
+                                  MakeUnique<Literal>(false),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::OR,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::GREATER_EQUAL,
-      BinaryOperation::New(BinaryOperator::EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::LESS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::GREATER_EQUAL,
-      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(false),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Literal>(false),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::GREATER_EQUAL,
-      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("(false & b) >= (c | d);(17 = b) >= (c < d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("(false => b) >= (c <=> d);(17 != b) >= (c <= d)",
@@ -520,28 +607,35 @@ TEST(BinaryOperationTest, OutputGreaterEqual) {
 TEST(BinaryOperationTest, OutputGreater) {
   const BinaryOperation expr1(
       BinaryOperator::GREATER,
-      BinaryOperation::New(BinaryOperator::IMPLY, Literal::New(false),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::IFF, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
+                                  MakeUnique<Literal>(false),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::GREATER,
-      BinaryOperation::New(BinaryOperator::NOT_EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::GREATER,
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::GREATER,
-      BinaryOperation::New(BinaryOperator::LESS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("(false => b) > (c <=> d);(17 != b) > (c <= d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 * b > c + d;17 < b > (c >= d)", StrCat(expr3, ';', expr4));
@@ -550,28 +644,35 @@ TEST(BinaryOperationTest, OutputGreater) {
 TEST(BinaryOperationTest, OutputEqual) {
   const BinaryOperation expr1(
       BinaryOperator::EQUAL,
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::EQUAL,
-      BinaryOperation::New(BinaryOperator::LESS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::EQUAL,
-      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::EQUAL,
-      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::GREATER, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("17 * b = c + d;17 < b = c >= d", StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 / b = c - d;17 <= b = c > d", StrCat(expr3, ';', expr4));
 }
@@ -579,48 +680,57 @@ TEST(BinaryOperationTest, OutputEqual) {
 TEST(BinaryOperationTest, OutputNotEqual) {
   const BinaryOperation expr1(
       BinaryOperator::NOT_EQUAL,
-      BinaryOperation::New(BinaryOperator::DIVIDE, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MINUS, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::NOT_EQUAL,
-      BinaryOperation::New(BinaryOperator::LESS_EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::GREATER, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::NOT_EQUAL,
-      BinaryOperation::New(BinaryOperator::PLUS, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::NOT_EQUAL,
-      BinaryOperation::New(BinaryOperator::GREATER_EQUAL, Literal::New(17),
-                           Identifier::New("b")),
-      BinaryOperation::New(BinaryOperator::EQUAL, Identifier::New("c"),
-                           Identifier::New("d")));
+      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                  MakeUnique<Literal>(17),
+                                  MakeUnique<Identifier>("b")),
+      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
+                                  MakeUnique<Identifier>("c"),
+                                  MakeUnique<Identifier>("d")));
   EXPECT_EQ("17 / b != c - d;17 <= b != c > d", StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 + b != c * d;17 >= b != (c = d)", StrCat(expr3, ';', expr4));
 }
 
 TEST(ConditionalTest, OutputConditional) {
   const Conditional expr1(
-      Literal::New(true),
-      Conditional::New(
-          BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("a"),
-                               Identifier::New("b")),
-          UnaryOperation::New(
+      MakeUnique<Literal>(true),
+      MakeUnique<Conditional>(
+          MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                      MakeUnique<Identifier>("a"),
+                                      MakeUnique<Identifier>("b")),
+          MakeUnique<UnaryOperation>(
               UnaryOperator::NEGATE,
-              FunctionCall::New(Function::CEIL,
-                                MakeArguments(Identifier::New("c")))),
-          Identifier::New("d")),
-      BinaryOperation::New(
+              MakeUnique<FunctionCall>(
+                  Function::CEIL, MakeArguments(MakeUnique<Identifier>("c")))),
+          MakeUnique<Identifier>("d")),
+      MakeUnique<BinaryOperation>(
           BinaryOperator::PLUS,
-          Conditional::New(Literal::New(false), Identifier::New("e"),
-                           Identifier::New("f")),
-          Literal::New(42)));
+          MakeUnique<Conditional>(MakeUnique<Literal>(false),
+                                  MakeUnique<Identifier>("e"),
+                                  MakeUnique<Identifier>("f")),
+          MakeUnique<Literal>(42)));
   EXPECT_EQ("true ? a + b ? -ceil(c) : d : (false ? e : f) + 42",
             StrCat(expr1));
 }
@@ -628,18 +738,22 @@ TEST(ConditionalTest, OutputConditional) {
 TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
   const ProbabilityThresholdOperation expr1(
       ProbabilityThresholdOperator::LESS, 0.25,
-      UntilProperty::New({0, std::numeric_limits<double>::infinity()},
-                         Literal::New(true), Identifier::New("a")));
+      MakeUnique<UntilProperty>(
+          TimeRange(0, std::numeric_limits<double>::infinity()),
+          MakeUnique<Literal>(true), MakeUnique<Identifier>("a")));
   const ProbabilityThresholdOperation expr2(
       ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
-      UntilProperty::New({0.5, 17}, Literal::New(true), Identifier::New("b")));
+      MakeUnique<UntilProperty>(TimeRange(0.5, 17), MakeUnique<Literal>(true),
+                                MakeUnique<Identifier>("b")));
   const ProbabilityThresholdOperation expr3(
       ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
-      UntilProperty::New({0, 42}, Identifier::New("c"), Identifier::New("d")));
+      MakeUnique<UntilProperty>(TimeRange(0, 42), MakeUnique<Identifier>("c"),
+                                MakeUnique<Identifier>("d")));
   const ProbabilityThresholdOperation expr4(
       ProbabilityThresholdOperator::GREATER, 1,
-      UntilProperty::New({4711, std::numeric_limits<double>::infinity()},
-                         Literal::New(false), Literal::New(true)));
+      MakeUnique<UntilProperty>(
+          TimeRange(4711, std::numeric_limits<double>::infinity()),
+          MakeUnique<Literal>(false), MakeUnique<Literal>(true)));
   EXPECT_EQ("P<0.25[ true U a ];P<=0.5[ true U[0.5,17] b ]",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("P>=0.75[ c U<=42 d ];P>1[ false U>=4711 true ]",
@@ -647,8 +761,9 @@ TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
 }
 
 TEST(ProbabilityEstimationOperationTest, OutputProbabilityEstimationOperation) {
-  const ProbabilityEstimationOperation expr(EventuallyProperty::New(
-      {0, std::numeric_limits<double>::infinity()}, Identifier::New("a")));
+  const ProbabilityEstimationOperation expr(MakeUnique<EventuallyProperty>(
+      TimeRange(0, std::numeric_limits<double>::infinity()),
+      MakeUnique<Identifier>("a")));
   EXPECT_EQ("P=?[ F a ]", StrCat(expr));
 }
 
@@ -663,14 +778,14 @@ TEST(TimeRangeTest, Output) {
 TEST(EventuallyPropertyTest, Output) {
   EXPECT_EQ("F a", StrCat(EventuallyProperty(
                        {0, std::numeric_limits<double>::infinity()},
-                       Identifier::New("a"))));
+                       MakeUnique<Identifier>("a"))));
   EXPECT_EQ("F[0.5,17] b",
-            StrCat(EventuallyProperty({0.5, 17}, Identifier::New("b"))));
+            StrCat(EventuallyProperty({0.5, 17}, MakeUnique<Identifier>("b"))));
   EXPECT_EQ("F<=42 d",
-            StrCat(EventuallyProperty({0, 42}, Identifier::New("d"))));
+            StrCat(EventuallyProperty({0, 42}, MakeUnique<Identifier>("d"))));
   EXPECT_EQ("F>=4711 true", StrCat(EventuallyProperty(
                                 {4711, std::numeric_limits<double>::infinity()},
-                                Literal::New(true))));
+                                MakeUnique<Literal>(true))));
 }
 
 }  // namespace

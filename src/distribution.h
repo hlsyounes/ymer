@@ -62,10 +62,6 @@ class Memoryless : public Distribution {
   // discrete-time model; rate for continuous-time model).
   explicit Memoryless(std::unique_ptr<const Expression>&& weight);
 
-  // Factory method for memoryless distributions.
-  static std::unique_ptr<const Memoryless> New(
-      std::unique_ptr<const Expression>&& weight);
-
   // Returns the weight of this memoryless distribution.
   const Expression& weight() const { return *weight_; }
 
@@ -81,11 +77,6 @@ class Weibull : public Distribution {
   // Constructs a Weibull distribution with the given scale and shape.
   explicit Weibull(std::unique_ptr<const Expression>&& scale,
                    std::unique_ptr<const Expression>&& shape);
-
-  // Factory method for Weibull distributions.
-  static std::unique_ptr<const Weibull> New(
-      std::unique_ptr<const Expression>&& scale,
-      std::unique_ptr<const Expression>&& shape);
 
   // Returns the scale of this Weibull distribution.
   const Expression& scale() const { return *scale_; }
@@ -107,11 +98,6 @@ class Lognormal : public Distribution {
   explicit Lognormal(std::unique_ptr<const Expression>&& scale,
                      std::unique_ptr<const Expression>&& shape);
 
-  // Factory method for lognormal distributions.
-  static std::unique_ptr<const Lognormal> New(
-      std::unique_ptr<const Expression>&& scale,
-      std::unique_ptr<const Expression>&& shape);
-
   // Returns the scale of this lognormal distribution.
   const Expression& scale() const { return *scale_; }
 
@@ -131,11 +117,6 @@ class Uniform : public Distribution {
   // Constructs a uniform distribution with the given bounds.
   explicit Uniform(std::unique_ptr<const Expression>&& low,
                    std::unique_ptr<const Expression>&& high);
-
-  // Factory method for uniform distributions.
-  static std::unique_ptr<const Uniform> New(
-      std::unique_ptr<const Expression>&& low,
-      std::unique_ptr<const Expression>&& high);
 
   // Returns the lower bound of this uniform distribution.
   const Expression& low() const { return *low_; }

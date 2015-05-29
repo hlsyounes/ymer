@@ -81,11 +81,11 @@ build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
 check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
-	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
-	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
-	src/expression_test$(EXEEXT) src/distribution_test$(EXEEXT) \
-	src/model_test$(EXEEXT) src/parser_test$(EXEEXT) \
-	src/compiled-expression_test$(EXEEXT) \
+	src/ptrutil_test$(EXEEXT) src/statistics_test$(EXEEXT) \
+	src/ddutil_test$(EXEEXT) src/rng_test$(EXEEXT) \
+	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT) \
+	src/distribution_test$(EXEEXT) src/model_test$(EXEEXT) \
+	src/parser_test$(EXEEXT) src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
 	src/compiled-model_test$(EXEEXT) src/ddmodel_test$(EXEEXT) \
 	src/simulator_test$(EXEEXT) \
@@ -325,6 +325,9 @@ src_optional_test_DEPENDENCIES = src/libtest-main.la
 am_src_parser_test_OBJECTS = src/parser_test.$(OBJEXT)
 src_parser_test_OBJECTS = $(am_src_parser_test_OBJECTS)
 src_parser_test_DEPENDENCIES = src/libparser.la src/libtest-main.la
+am_src_ptrutil_test_OBJECTS = src/ptrutil_test.$(OBJEXT)
+src_ptrutil_test_OBJECTS = $(am_src_ptrutil_test_OBJECTS)
+src_ptrutil_test_DEPENDENCIES = src/libtest-main.la
 am_src_rng_test_OBJECTS = src/rng_test.$(OBJEXT)
 src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
 src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
@@ -444,9 +447,10 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_ptrutil_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
@@ -468,9 +472,10 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
-	$(src_rng_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_ptrutil_test_SOURCES) $(src_rng_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -983,7 +988,7 @@ dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 # Ymer libraries.
 #
 HEADER_FILES = src/fake_rng.h src/model-checking-params.h src/optional.h \
-    src/simulator.h src/strutil.h src/unique-ptr-vector.h
+    src/ptrutil.h src/simulator.h src/strutil.h src/unique-ptr-vector.h
 
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
 src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
@@ -1053,6 +1058,8 @@ src_optional_test_SOURCES = src/optional_test.cc
 src_optional_test_LDADD = src/libtest-main.la
 src_strutil_test_SOURCES = src/strutil_test.cc
 src_strutil_test_LDADD = src/libtest-main.la
+src_ptrutil_test_SOURCES = src/ptrutil_test.cc
+src_ptrutil_test_LDADD = src/libtest-main.la
 src_statistics_test_SOURCES = src/statistics_test.cc
 src_statistics_test_LDADD = src/libstatistics.la src/libtest-main.la
 src_ddutil_test_SOURCES = src/ddutil_test.cc
@@ -1588,6 +1595,12 @@ src/parser_test.$(OBJEXT): src/$(am__dirstamp) \
 src/parser_test$(EXEEXT): $(src_parser_test_OBJECTS) $(src_parser_test_DEPENDENCIES) $(EXTRA_src_parser_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/parser_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_parser_test_OBJECTS) $(src_parser_test_LDADD) $(LIBS)
+src/ptrutil_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/ptrutil_test$(EXEEXT): $(src_ptrutil_test_OBJECTS) $(src_ptrutil_test_DEPENDENCIES) $(EXTRA_src_ptrutil_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/ptrutil_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_ptrutil_test_OBJECTS) $(src_ptrutil_test_LDADD) $(LIBS)
 src/rng_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1751,6 +1764,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/optional_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ptrutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
@@ -2676,6 +2690,13 @@ src/optional_test.log: src/optional_test$(EXEEXT)
 src/strutil_test.log: src/strutil_test$(EXEEXT)
 	@p='src/strutil_test$(EXEEXT)'; \
 	b='src/strutil_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/ptrutil_test.log: src/ptrutil_test$(EXEEXT)
+	@p='src/ptrutil_test$(EXEEXT)'; \
+	b='src/ptrutil_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

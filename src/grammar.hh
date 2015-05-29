@@ -190,7 +190,7 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 508 "grammar.yy" /* yacc.c:1909  */
+#line 505 "grammar.yy" /* yacc.c:1909  */
 
   Type type;
   const std::string* str;

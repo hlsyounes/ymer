@@ -70,11 +70,6 @@ std::ostream& operator<<(std::ostream& os, const Distribution& d) {
 Memoryless::Memoryless(std::unique_ptr<const Expression>&& weight)
     : weight_(std::move(weight)) {}
 
-std::unique_ptr<const Memoryless> Memoryless::New(
-    std::unique_ptr<const Expression>&& weight) {
-  return std::unique_ptr<const Memoryless>(new Memoryless(std::move(weight)));
-}
-
 void Memoryless::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitMemoryless(*this);
 }
@@ -82,13 +77,6 @@ void Memoryless::DoAccept(DistributionVisitor* visitor) const {
 Weibull::Weibull(std::unique_ptr<const Expression>&& scale,
                  std::unique_ptr<const Expression>&& shape)
     : scale_(std::move(scale)), shape_(std::move(shape)) {}
-
-std::unique_ptr<const Weibull> Weibull::New(
-    std::unique_ptr<const Expression>&& scale,
-    std::unique_ptr<const Expression>&& shape) {
-  return std::unique_ptr<const Weibull>(
-      new Weibull(std::move(scale), std::move(shape)));
-}
 
 void Weibull::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitWeibull(*this);
@@ -98,13 +86,6 @@ Lognormal::Lognormal(std::unique_ptr<const Expression>&& scale,
                      std::unique_ptr<const Expression>&& shape)
     : scale_(std::move(scale)), shape_(std::move(shape)) {}
 
-std::unique_ptr<const Lognormal> Lognormal::New(
-    std::unique_ptr<const Expression>&& scale,
-    std::unique_ptr<const Expression>&& shape) {
-  return std::unique_ptr<const Lognormal>(
-      new Lognormal(std::move(scale), std::move(shape)));
-}
-
 void Lognormal::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitLognormal(*this);
 }
@@ -112,13 +93,6 @@ void Lognormal::DoAccept(DistributionVisitor* visitor) const {
 Uniform::Uniform(std::unique_ptr<const Expression>&& low,
                  std::unique_ptr<const Expression>&& high)
     : low_(std::move(low)), high_(std::move(high)) {}
-
-std::unique_ptr<const Uniform> Uniform::New(
-    std::unique_ptr<const Expression>&& low,
-    std::unique_ptr<const Expression>&& high) {
-  return std::unique_ptr<const Uniform>(
-      new Uniform(std::move(low), std::move(high)));
-}
 
 void Uniform::DoAccept(DistributionVisitor* visitor) const {
   visitor->VisitUniform(*this);

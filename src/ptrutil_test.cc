@@ -1,5 +1,5 @@
 // Copyright (C) 2003--2005 Carnegie Mellon University
-// Copyright (C) 2011--2014 Google Inc
+// Copyright (C) 2011--2015 Google Inc
 //
 // This file is part of Ymer.
 //
@@ -17,34 +17,24 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-#include "distribution.h"
-
-#include "expression.h"
 #include "ptrutil.h"
-#include "strutil.h"
+
+#include <string>
+#include <utility>
 
 #include "gtest/gtest.h"
 
 namespace {
 
-TEST(MemorylessTest, Output) {
-  EXPECT_EQ("0.5", StrCat(Memoryless(MakeUnique<Literal>(0.5))));
-  EXPECT_EQ("lambda", StrCat(Memoryless(MakeUnique<Identifier>("lambda"))));
+TEST(MakeUniqueTest, Int) {
+  const auto i = MakeUnique<int>(17);
+  EXPECT_EQ(17, *i);
 }
 
-TEST(WeibullTest, Output) {
-  EXPECT_EQ("W(2.5, 0.5)", StrCat(Weibull(MakeUnique<Literal>(2.5),
-                                          MakeUnique<Literal>(0.5))));
-}
-
-TEST(LognormalTest, Output) {
-  EXPECT_EQ("L(2.5, 0.5)", StrCat(Lognormal(MakeUnique<Literal>(2.5),
-                                            MakeUnique<Literal>(0.5))));
-}
-
-TEST(UniformTest, Output) {
-  EXPECT_EQ("U(0.5, 17)",
-            StrCat(Uniform(MakeUnique<Literal>(0.5), MakeUnique<Literal>(17))));
+TEST(MakeUniqueTest, Pair) {
+  const auto p = MakeUnique<std::pair<int, std::string>>(17, "foo");
+  EXPECT_EQ(17, p->first);
+  EXPECT_EQ("foo", p->second);
 }
 
 }  // namespace

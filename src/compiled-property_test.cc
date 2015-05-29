@@ -19,6 +19,7 @@
 
 #include "compiled-property.h"
 
+#include "ptrutil.h"
 #include "strutil.h"
 
 #include "gtest/gtest.h"
@@ -130,14 +131,14 @@ TEST(CompilePropertyTest, Label) {
 TEST(CompilePropertyTest, FunctionCall) {
   const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 = CompileProperty(
-      FunctionCall(Function::MAX,
-                   UniquePtrVector<const Expression>(Literal::New(false))),
+      FunctionCall(Function::MAX, UniquePtrVector<const Expression>(
+                                      MakeUnique<Literal>(false))),
       {}, {}, {}, dd_manager);
   const std::string expected1 = "0: ICONST 0 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
       FunctionCall(Function::FLOOR,
-                   UniquePtrVector<const Expression>(Literal::New(0.5))),
+                   UniquePtrVector<const Expression>(MakeUnique<Literal>(0.5))),
       {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type bool; found int: "
@@ -145,7 +146,7 @@ TEST(CompilePropertyTest, FunctionCall) {
             result2.errors);
   const CompilePropertyResult result3 = CompileProperty(
       FunctionCall(Function::MIN,
-                   UniquePtrVector<const Expression>(Literal::New(0.5))),
+                   UniquePtrVector<const Expression>(MakeUnique<Literal>(0.5))),
       {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type bool; found "
@@ -155,19 +156,20 @@ TEST(CompilePropertyTest, FunctionCall) {
 
 TEST(CompilePropertyTest, UnaryOperation) {
   const Optional<DecisionDiagramManager> dd_manager(2);
-  const CompilePropertyResult result1 =
-      CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(false)),
-                      {}, {}, {}, dd_manager);
+  const CompilePropertyResult result1 = CompileProperty(
+      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(false)), {}, {},
+      {}, dd_manager);
   const std::string expected1 =
       "0: ICONST 0 0\n"
       "1: NOT 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
       UnaryOperation(UnaryOperator::NOT,
-                     ProbabilityThresholdOperation::New(
+                     MakeUnique<ProbabilityThresholdOperation>(
                          ProbabilityThresholdOperator::GREATER, 0.25,
-                         UntilProperty::New({17, 42}, Literal::New(true),
-                                            Identifier::New("a")))),
+                         MakeUnique<UntilProperty>(
+                             TimeRange(17, 42), MakeUnique<Literal>(true),
+                             MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
@@ -179,16 +181,16 @@ TEST(CompilePropertyTest, UnaryOperation) {
       "post:\n"
       "0: ILOAD 0 0";
   EXPECT_EQ(expected2, StrCat(*result2.property));
-  const CompilePropertyResult result3 =
-      CompileProperty(UnaryOperation(UnaryOperator::NEGATE, Literal::New(17)),
-                      {}, {}, {}, dd_manager);
+  const CompilePropertyResult result3 = CompileProperty(
+      UnaryOperation(UnaryOperator::NEGATE, MakeUnique<Literal>(17)), {}, {},
+      {}, dd_manager);
   EXPECT_EQ(
       std::vector<std::string>(
           {"type mismatch; expecting expression of type bool; found int: -17"}),
       result3.errors);
-  const CompilePropertyResult result4 =
-      CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(0.5)), {},
-                      {}, {}, dd_manager);
+  const CompilePropertyResult result4 = CompileProperty(
+      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(0.5)), {}, {}, {},
+      dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator ! applied to double"}),
             result4.errors);
@@ -197,8 +199,8 @@ TEST(CompilePropertyTest, UnaryOperation) {
 TEST(CompilePropertyTest, BinaryOperation) {
   const Optional<DecisionDiagramManager> dd_manager(2);
   const CompilePropertyResult result1 = CompileProperty(
-      BinaryOperation(BinaryOperator::AND, Literal::New(false),
-                      Identifier::New("a")),
+      BinaryOperation(BinaryOperator::AND, MakeUnique<Literal>(false),
+                      MakeUnique<Identifier>("a")),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected1 =
@@ -207,11 +209,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "2: ILOAD 0 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
-      BinaryOperation(
-          BinaryOperator::AND, Literal::New(false),
-          ProbabilityThresholdOperation::New(
-              ProbabilityThresholdOperator::GREATER, 0.25,
-              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
+      BinaryOperation(BinaryOperator::AND, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          MakeUnique<EventuallyProperty>(
+                              TimeRange(17, 42), MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
@@ -227,11 +229,12 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected2, StrCat(*result2.property));
   const CompilePropertyResult result3 = CompileProperty(
-      BinaryOperation(BinaryOperator::OR, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
+      BinaryOperation(BinaryOperator::OR, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New({17, 42}, Literal::New(true),
-                                             Identifier::New("a")))),
+                          MakeUnique<UntilProperty>(
+                              TimeRange(17, 42), MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected3 =
@@ -247,11 +250,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected3, StrCat(*result3.property));
   const CompilePropertyResult result4 = CompileProperty(
-      BinaryOperation(
-          BinaryOperator::IMPLY, Literal::New(false),
-          ProbabilityThresholdOperation::New(
-              ProbabilityThresholdOperator::GREATER, 0.25,
-              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
+      BinaryOperation(BinaryOperator::IMPLY, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          MakeUnique<EventuallyProperty>(
+                              TimeRange(17, 42), MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected4 =
@@ -268,11 +271,12 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected4, StrCat(*result4.property));
   const CompilePropertyResult result5 = CompileProperty(
-      BinaryOperation(BinaryOperator::IFF, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
+      BinaryOperation(BinaryOperator::IFF, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New({17, 42}, Literal::New(true),
-                                             Identifier::New("a")))),
+                          MakeUnique<UntilProperty>(
+                              TimeRange(17, 42), MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected5 =
@@ -288,11 +292,11 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected5, StrCat(*result5.property));
   const CompilePropertyResult result6 = CompileProperty(
-      BinaryOperation(
-          BinaryOperator::LESS, Literal::New(false),
-          ProbabilityThresholdOperation::New(
-              ProbabilityThresholdOperator::GREATER, 0.25,
-              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
+      BinaryOperation(BinaryOperator::LESS, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          MakeUnique<EventuallyProperty>(
+                              TimeRange(17, 42), MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected6 =
@@ -309,20 +313,21 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected6, StrCat(*result6.property));
   const CompilePropertyResult result7 = CompileProperty(
-      BinaryOperation(BinaryOperator::LESS_EQUAL, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
+      BinaryOperation(BinaryOperator::LESS_EQUAL, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New({17, 42}, Literal::New(true),
-                                             Identifier::New("a")))),
+                          MakeUnique<UntilProperty>(
+                              TimeRange(17, 42), MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(expected4, StrCat(*result7.property));
   const CompilePropertyResult result8 = CompileProperty(
-      BinaryOperation(
-          BinaryOperator::GREATER_EQUAL, Literal::New(false),
-          ProbabilityThresholdOperation::New(
-              ProbabilityThresholdOperator::GREATER, 0.25,
-              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
+      BinaryOperation(BinaryOperator::GREATER_EQUAL, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          MakeUnique<EventuallyProperty>(
+                              TimeRange(17, 42), MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected8 =
@@ -339,11 +344,12 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected8, StrCat(*result8.property));
   const CompilePropertyResult result9 = CompileProperty(
-      BinaryOperation(BinaryOperator::GREATER, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
+      BinaryOperation(BinaryOperator::GREATER, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New({17, 42}, Literal::New(true),
-                                             Identifier::New("a")))),
+                          MakeUnique<UntilProperty>(
+                              TimeRange(17, 42), MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected9 =
@@ -360,20 +366,21 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected9, StrCat(*result9.property));
   const CompilePropertyResult result10 = CompileProperty(
-      BinaryOperation(
-          BinaryOperator::EQUAL, Literal::New(false),
-          ProbabilityThresholdOperation::New(
-              ProbabilityThresholdOperator::GREATER, 0.25,
-              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
+      BinaryOperation(BinaryOperator::EQUAL, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          MakeUnique<EventuallyProperty>(
+                              TimeRange(17, 42), MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(expected5, StrCat(*result10.property));
   const CompilePropertyResult result11 = CompileProperty(
-      BinaryOperation(BinaryOperator::NOT_EQUAL, Literal::New(false),
-                      ProbabilityThresholdOperation::New(
+      BinaryOperation(BinaryOperator::NOT_EQUAL, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New({17, 42}, Literal::New(true),
-                                             Identifier::New("a")))),
+                          MakeUnique<UntilProperty>(
+                              TimeRange(17, 42), MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected11 =
@@ -390,29 +397,31 @@ TEST(CompilePropertyTest, BinaryOperation) {
       "0: ILOAD 0 0";
   EXPECT_EQ(expected11, StrCat(*result11.property));
   const CompilePropertyResult result12 = CompileProperty(
-      BinaryOperation(BinaryOperator::PLUS, Literal::New(17), Literal::New(42)),
+      BinaryOperation(BinaryOperator::PLUS, MakeUnique<Literal>(17),
+                      MakeUnique<Literal>(42)),
       {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type bool; found int: "
                  "17 + 42"}),
             result12.errors);
   const CompilePropertyResult result13 = CompileProperty(
-      BinaryOperation(
-          BinaryOperator::PLUS, Literal::New(false),
-          ProbabilityThresholdOperation::New(
-              ProbabilityThresholdOperator::GREATER, 0.25,
-              EventuallyProperty::New({17, 42}, Identifier::New("a")))),
+      BinaryOperation(BinaryOperator::PLUS, MakeUnique<Literal>(false),
+                      MakeUnique<ProbabilityThresholdOperation>(
+                          ProbabilityThresholdOperator::GREATER, 0.25,
+                          MakeUnique<EventuallyProperty>(
+                              TimeRange(17, 42), MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; binary operator + applied to bool"}),
             result13.errors);
   const CompilePropertyResult result14 = CompileProperty(
-      BinaryOperation(BinaryOperator::AND, Literal::New(17),
-                      ProbabilityThresholdOperation::New(
+      BinaryOperation(BinaryOperator::AND, MakeUnique<Literal>(17),
+                      MakeUnique<ProbabilityThresholdOperation>(
                           ProbabilityThresholdOperator::GREATER, 0.25,
-                          UntilProperty::New({17, 42}, Literal::New(true),
-                                             Identifier::New("a")))),
+                          MakeUnique<UntilProperty>(
+                              TimeRange(17, 42), MakeUnique<Literal>(true),
+                              MakeUnique<Identifier>("a")))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(
@@ -424,7 +433,8 @@ TEST(CompilePropertyTest, BinaryOperation) {
 TEST(CompilePropertyTest, Conditional) {
   const Optional<DecisionDiagramManager> dd_manager(0);
   const CompilePropertyResult result1 = CompileProperty(
-      Conditional(Literal::New(true), Literal::New(false), Literal::New(true)),
+      Conditional(MakeUnique<Literal>(true), MakeUnique<Literal>(false),
+                  MakeUnique<Literal>(true)),
       {}, {}, {}, dd_manager);
   const std::string expected1 =
       "0: ICONST 1 0\n"
@@ -434,17 +444,19 @@ TEST(CompilePropertyTest, Conditional) {
       "4: ICONST 1 0";
   EXPECT_EQ(expected1, StrCat(*result1.property));
   const CompilePropertyResult result2 = CompileProperty(
-      Conditional(Literal::New(true), Literal::New(17), Literal::New(42)), {},
-      {}, {}, dd_manager);
+      Conditional(MakeUnique<Literal>(true), MakeUnique<Literal>(17),
+                  MakeUnique<Literal>(42)),
+      {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type bool; found int: "
                  "true ? 17 : 42"}),
             result2.errors);
   const CompilePropertyResult result3 = CompileProperty(
-      Conditional(ProbabilityThresholdOperation::New(
+      Conditional(MakeUnique<ProbabilityThresholdOperation>(
                       ProbabilityThresholdOperator::GREATER, 0.25,
-                      EventuallyProperty::New({17, 42}, Identifier::New("a"))),
-                  Literal::New(false), Literal::New(true)),
+                      MakeUnique<EventuallyProperty>(
+                          TimeRange(17, 42), MakeUnique<Identifier>("a"))),
+                  MakeUnique<Literal>(false), MakeUnique<Literal>(true)),
       {}, {}, {}, dd_manager);
   EXPECT_EQ(std::vector<std::string>(
                 {"unexpected probability threshold operation in expression"}),
@@ -456,8 +468,9 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result1 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS, 0.25,
-          UntilProperty::New({17, 42}, Literal::New(true),
-                             Identifier::New("a"))),
+          MakeUnique<UntilProperty>(TimeRange(17, 42),
+                                    MakeUnique<Literal>(true),
+                                    MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected1 =
@@ -472,7 +485,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result2 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
-          EventuallyProperty::New({17, 42}, Identifier::New("a"))),
+          MakeUnique<EventuallyProperty>(TimeRange(17, 42),
+                                         MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected2 =
@@ -487,8 +501,9 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result3 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
-          UntilProperty::New({17, 42}, Literal::New(true),
-                             Identifier::New("a"))),
+          MakeUnique<UntilProperty>(TimeRange(17, 42),
+                                    MakeUnique<Literal>(true),
+                                    MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected3 =
@@ -502,7 +517,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result4 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          EventuallyProperty::New({17, 42}, Identifier::New("a"))),
+          MakeUnique<EventuallyProperty>(TimeRange(17, 42),
+                                         MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected4 =
@@ -516,15 +532,17 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result5 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          UntilProperty::New(
-              {17, 42},
-              ProbabilityThresholdOperation::New(
+          MakeUnique<UntilProperty>(
+              TimeRange(17, 42),
+              MakeUnique<ProbabilityThresholdOperation>(
                   ProbabilityThresholdOperator::GREATER_EQUAL, 0.25,
-                  EventuallyProperty::New({0, 1}, Identifier::New("a"))),
-              ProbabilityThresholdOperation::New(
+                  MakeUnique<EventuallyProperty>(TimeRange(0, 1),
+                                                 MakeUnique<Identifier>("a"))),
+              MakeUnique<ProbabilityThresholdOperation>(
                   ProbabilityThresholdOperator::GREATER, 0.5,
-                  UntilProperty::New({0.5, 17}, Literal::New(false),
-                                     Identifier::New("a"))))),
+                  MakeUnique<UntilProperty>(TimeRange(0.5, 17),
+                                            MakeUnique<Literal>(false),
+                                            MakeUnique<Identifier>("a"))))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   const std::string expected5 =
@@ -548,8 +566,9 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result6 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, -2,
-          UntilProperty::New({17, 42}, Literal::New(true),
-                             Identifier::New("a"))),
+          MakeUnique<UntilProperty>(TimeRange(17, 42),
+                                    MakeUnique<Literal>(true),
+                                    MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"threshold -2 is not a probability"}),
@@ -557,7 +576,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result7 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 1.5,
-          EventuallyProperty::New({17, 42}, Identifier::New("a"))),
+          MakeUnique<EventuallyProperty>(TimeRange(17, 42),
+                                         MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"threshold 1.5 is not a probability"}),
@@ -565,8 +585,9 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result8 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          UntilProperty::New({42, 17}, Literal::New(true),
-                             Identifier::New("a"))),
+          MakeUnique<UntilProperty>(TimeRange(42, 17),
+                                    MakeUnique<Literal>(true),
+                                    MakeUnique<Identifier>("a"))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>({"bad time range; 42 > 17"}),
@@ -574,7 +595,8 @@ TEST(CompilePropertyTest, ProbabilityThresholdOperation) {
   const CompilePropertyResult result9 = CompileProperty(
       ProbabilityThresholdOperation(
           ProbabilityThresholdOperator::GREATER, 0.125,
-          EventuallyProperty::New({17, 42}, Literal::New(0.5))),
+          MakeUnique<EventuallyProperty>(TimeRange(17, 42),
+                                         MakeUnique<Literal>(0.5))),
       {}, {}, {{"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}},
       dd_manager);
   EXPECT_EQ(std::vector<std::string>(
@@ -591,15 +613,17 @@ TEST(OptimizePropertyTest, NotProperty) {
   const std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
   auto property1 = OptimizeProperty(
-      *CompileProperty(UnaryOperation(UnaryOperator::NOT, Literal::New(false)),
-                       {}, {}, {}, dd_manager).property,
+      *CompileProperty(
+           UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(false)), {},
+           {}, {}, dd_manager)
+           .property,
       dd_manager);
   const std::string expected1 = "0: ICONST 1 0";
   EXPECT_EQ(expected1, StrCat(*property1));
   auto property2 = OptimizeProperty(
       CompiledNotProperty(CompileProperty(Identifier("a"), {}, {},
-                                          identifiers_by_name,
-                                          dd_manager).property),
+                                          identifiers_by_name, dd_manager)
+                              .property),
       dd_manager);
   const std::string expected2 =
       "0: ILOAD 0 0\n"
@@ -608,8 +632,9 @@ TEST(OptimizePropertyTest, NotProperty) {
   auto property3 = OptimizeProperty(
       CompiledNotProperty(
           CompileProperty(
-              UnaryOperation(UnaryOperator::NOT, Identifier::New("a")), {}, {},
-              identifiers_by_name, dd_manager).property),
+              UnaryOperation(UnaryOperator::NOT, MakeUnique<Identifier>("a")),
+              {}, {}, identifiers_by_name, dd_manager)
+              .property),
       dd_manager);
   const std::string expected3 = "0: ILOAD 0 0";
   EXPECT_EQ(expected3, StrCat(*property3));
@@ -617,16 +642,19 @@ TEST(OptimizePropertyTest, NotProperty) {
       *CompileProperty(
            UnaryOperation(
                UnaryOperator::NOT,
-               ProbabilityThresholdOperation::New(
+               MakeUnique<ProbabilityThresholdOperation>(
                    ProbabilityThresholdOperator::LESS, 0.25,
-                   UntilProperty::New(
-                       {17, 42}, UnaryOperation::New(UnaryOperator::NOT,
-                                                     Literal::New(false)),
-                       UnaryOperation::New(
+                   MakeUnique<UntilProperty>(
+                       TimeRange(17, 42),
+                       MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                                  MakeUnique<Literal>(false)),
+                       MakeUnique<UnaryOperation>(
                            UnaryOperator::NOT,
-                           UnaryOperation::New(UnaryOperator::NOT,
-                                               Label::New("\"b\"")))))),
-           {}, labels_by_name, identifiers_by_name, dd_manager).property,
+                           MakeUnique<UnaryOperation>(
+                               UnaryOperator::NOT,
+                               MakeUnique<Label>("\"b\"")))))),
+           {}, labels_by_name, identifiers_by_name, dd_manager)
+           .property,
       dd_manager);
   const std::string expected4 =
       "P >= 0.25\n"
@@ -643,34 +671,41 @@ TEST(OptimizePropertyTest, NaryProperty) {
   std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, false)}};
   auto property1 = OptimizeProperty(
-      *CompileProperty(BinaryOperation(BinaryOperator::AND, Literal::New(false),
-                                       Identifier::New("a")),
-                       {}, {}, identifiers_by_name, dd_manager).property,
+      *CompileProperty(
+           BinaryOperation(BinaryOperator::AND, MakeUnique<Literal>(false),
+                           MakeUnique<Identifier>("a")),
+           {}, {}, identifiers_by_name, dd_manager)
+           .property,
       dd_manager);
   const std::string expected1 = "0: ICONST 0 0";
   EXPECT_EQ(expected1, StrCat(*property1));
   auto property2 = OptimizeProperty(
-      *CompileProperty(BinaryOperation(BinaryOperator::OR, Literal::New(true),
-                                       Identifier::New("a")),
-                       {}, {}, identifiers_by_name, dd_manager).property,
+      *CompileProperty(
+           BinaryOperation(BinaryOperator::OR, MakeUnique<Literal>(true),
+                           MakeUnique<Identifier>("a")),
+           {}, {}, identifiers_by_name, dd_manager)
+           .property,
       dd_manager);
   const std::string expected2 = "0: ICONST 1 0";
   EXPECT_EQ(expected2, StrCat(*property2));
   auto property3 = OptimizeProperty(
-      *CompileProperty(BinaryOperation(BinaryOperator::IFF, Literal::New(true),
-                                       Identifier::New("a")),
-                       {}, {}, identifiers_by_name, dd_manager).property,
+      *CompileProperty(
+           BinaryOperation(BinaryOperator::IFF, MakeUnique<Literal>(true),
+                           MakeUnique<Identifier>("a")),
+           {}, {}, identifiers_by_name, dd_manager)
+           .property,
       dd_manager);
   const std::string expected3 = "0: IVEQ 0 1 0";
   EXPECT_EQ(expected3, StrCat(*property3));
   auto property4 = OptimizeProperty(
-      CompiledNaryProperty(
-          CompiledNaryOperator::AND, nullptr,
-          UniquePtrVector<const CompiledProperty>(
-              CompileProperty(Identifier("a"), {}, {}, identifiers_by_name,
-                              dd_manager).property,
-              CompileProperty(Identifier("a"), {}, {}, identifiers_by_name,
-                              dd_manager).property)),
+      CompiledNaryProperty(CompiledNaryOperator::AND, nullptr,
+                           UniquePtrVector<const CompiledProperty>(
+                               CompileProperty(Identifier("a"), {}, {},
+                                               identifiers_by_name, dd_manager)
+                                   .property,
+                               CompileProperty(Identifier("a"), {}, {},
+                                               identifiers_by_name, dd_manager)
+                                   .property)),
       dd_manager);
   const std::string expected4 =
       "0: ILOAD 0 0\n"

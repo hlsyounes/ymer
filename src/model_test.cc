@@ -19,6 +19,7 @@
 
 #include "model.h"
 
+#include "ptrutil.h"
 #include "strutil.h"
 
 #include "gtest/gtest.h"
@@ -27,56 +28,63 @@ namespace {
 
 std::vector<Outcome> NewSimpleOutcomes() {
   std::vector<Outcome> outcomes;
-  outcomes.emplace_back(Memoryless::New(Literal::New(1)),
+  outcomes.emplace_back(MakeUnique<Memoryless>(MakeUnique<Literal>(1)),
                         std::vector<Update>());
   return std::move(outcomes);
 }
 
 TEST(UpdateTest, Output) {
-  EXPECT_EQ("(a' = 17)", StrCat(Update("a", Literal::New(17))));
+  EXPECT_EQ("(a' = 17)", StrCat(Update("a", MakeUnique<Literal>(17))));
 }
 
 TEST(OutcomeTest, Output) {
-  EXPECT_EQ("1 : true",
-            StrCat(Outcome(Memoryless::New(Literal::New(1)), {})));
+  EXPECT_EQ(
+      "1 : true",
+      StrCat(Outcome(MakeUnique<Memoryless>(MakeUnique<Literal>(1)), {})));
   std::vector<Update> updates1;
-  updates1.emplace_back("a", Literal::New(17));
+  updates1.emplace_back("a", MakeUnique<Literal>(17));
   updates1.emplace_back(
-      "b", UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b")));
+      "b", MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                      MakeUnique<Identifier>("b")));
   EXPECT_EQ("0.75 : (a' = 17) & (b' = !b)",
-            StrCat(Outcome(Memoryless::New(Literal::New(0.75)),
+            StrCat(Outcome(MakeUnique<Memoryless>(MakeUnique<Literal>(0.75)),
                            std::move(updates1))));
   std::vector<Update> updates2;
-  updates2.emplace_back("a", Literal::New(17));
+  updates2.emplace_back("a", MakeUnique<Literal>(17));
   EXPECT_EQ("W(2.5, 0.5) : (a' = 17)",
-            StrCat(Outcome(Weibull::New(Literal::New(2.5), Literal::New(0.5)),
+            StrCat(Outcome(MakeUnique<Weibull>(MakeUnique<Literal>(2.5),
+                                               MakeUnique<Literal>(0.5)),
                            std::move(updates2))));
 }
 
 TEST(CommandTest, Output) {
   std::vector<Outcome> outcomes1;
   std::vector<Update> updates1;
-  updates1.emplace_back("a", Literal::New(42));
-  outcomes1.emplace_back(Weibull::New(Literal::New(2.5), Literal::New(0.5)),
-                         std::move(updates1));
+  updates1.emplace_back("a", MakeUnique<Literal>(42));
+  outcomes1.emplace_back(
+      MakeUnique<Weibull>(MakeUnique<Literal>(2.5), MakeUnique<Literal>(0.5)),
+      std::move(updates1));
   EXPECT_EQ("[act] b -> W(2.5, 0.5) : (a' = 42)",
-            StrCat(Command("act", Identifier::New("b"), std::move(outcomes1))));
+            StrCat(Command("act", MakeUnique<Identifier>("b"),
+                           std::move(outcomes1))));
   std::vector<Outcome> outcomes2;
   std::vector<Update> updates2;
-  updates2.emplace_back("a", Literal::New(17));
+  updates2.emplace_back("a", MakeUnique<Literal>(17));
   updates2.emplace_back(
-      "b", UnaryOperation::New(UnaryOperator::NOT, Identifier::New("b")));
-  outcomes2.emplace_back(Memoryless::New(Literal::New(0.75)),
+      "b", MakeUnique<UnaryOperation>(UnaryOperator::NOT,
+                                      MakeUnique<Identifier>("b")));
+  outcomes2.emplace_back(MakeUnique<Memoryless>(MakeUnique<Literal>(0.75)),
                          std::move(updates2));
   std::vector<Update> updates3;
-  updates3.emplace_back("a", Literal::New(17));
-  outcomes2.emplace_back(Memoryless::New(Literal::New(0.25)),
+  updates3.emplace_back("a", MakeUnique<Literal>(17));
+  outcomes2.emplace_back(MakeUnique<Memoryless>(MakeUnique<Literal>(0.25)),
                          std::move(updates3));
-  EXPECT_EQ("[] a = 42 -> 0.75 : (a' = 17) & (b' = !b) + 0.25 : (a' = 17)",
-            StrCat(Command("", BinaryOperation::New(BinaryOperator::EQUAL,
-                                                    Identifier::New("a"),
-                                                    Literal::New(42)),
-                           std::move(outcomes2))));
+  EXPECT_EQ(
+      "[] a = 42 -> 0.75 : (a' = 17) & (b' = !b) + 0.25 : (a' = 17)",
+      StrCat(Command("", MakeUnique<BinaryOperation>(
+                             BinaryOperator::EQUAL, MakeUnique<Identifier>("a"),
+                             MakeUnique<Literal>(42)),
+                     std::move(outcomes2))));
 }
 
 TEST(ModelTypeTest, Output) {
@@ -89,9 +97,9 @@ TEST(ModelTypeTest, Output) {
 
 TEST(ResolveConstantsTest, Literal) {
   std::vector<ParsedConstant> constants;
-  constants.emplace_back("a", Type::INT, Literal::New(17));
-  constants.emplace_back("b", Type::BOOL, Literal::New(true));
-  constants.emplace_back("c", Type::DOUBLE, Literal::New(0.5));
+  constants.emplace_back("a", Type::INT, MakeUnique<Literal>(17));
+  constants.emplace_back("b", Type::BOOL, MakeUnique<Literal>(true));
+  constants.emplace_back("c", Type::DOUBLE, MakeUnique<Literal>(0.5));
   std::map<std::string, TypedValue> expected_constant_values = {
       {"a", 17}, {"b", true}, {"c", 0.5}};
   std::map<std::string, TypedValue> constant_values;
@@ -103,9 +111,9 @@ TEST(ResolveConstantsTest, Literal) {
 
 TEST(ResolveConstantsTest, LiteralTypeMismatch) {
   std::vector<ParsedConstant> constants;
-  constants.emplace_back("a", Type::INT, Literal::New(0.5));
-  constants.emplace_back("b", Type::BOOL, Literal::New(17));
-  constants.emplace_back("c", Type::DOUBLE, Literal::New(true));
+  constants.emplace_back("a", Type::INT, MakeUnique<Literal>(0.5));
+  constants.emplace_back("b", Type::BOOL, MakeUnique<Literal>(17));
+  constants.emplace_back("c", Type::DOUBLE, MakeUnique<Literal>(true));
   std::vector<std::string> expected_errors = {
       "type mismatch for constant a; expecting value of type int; found double",
       "type mismatch for constant b; expecting value of type bool; found int",
@@ -120,8 +128,8 @@ TEST(ResolveConstantsTest, LiteralTypeMismatch) {
 TEST(ResolveConstantsTest, Overrides) {
   std::vector<ParsedConstant> constants;
   constants.emplace_back("a", Type::INT, nullptr);
-  constants.emplace_back("b", Type::BOOL, Literal::New(false));
-  constants.emplace_back("c", Type::DOUBLE, Literal::New(2.5));
+  constants.emplace_back("b", Type::BOOL, MakeUnique<Literal>(false));
+  constants.emplace_back("c", Type::DOUBLE, MakeUnique<Literal>(2.5));
   std::map<std::string, TypedValue> expected_constant_values = {
       {"a", 17}, {"b", true}, {"c", 0.5}};
   std::map<std::string, TypedValue> constant_values = {
@@ -135,8 +143,8 @@ TEST(ResolveConstantsTest, Overrides) {
 TEST(ResolveConstantsTest, OverridesTypeMismatch) {
   std::vector<ParsedConstant> constants;
   constants.emplace_back("a", Type::INT, nullptr);
-  constants.emplace_back("b", Type::BOOL, Literal::New(false));
-  constants.emplace_back("c", Type::DOUBLE, Literal::New(2.5));
+  constants.emplace_back("b", Type::BOOL, MakeUnique<Literal>(false));
+  constants.emplace_back("c", Type::DOUBLE, MakeUnique<Literal>(2.5));
   std::vector<std::string> expected_errors = {
       "type mismatch for constant a; expecting value of type int; found double",
       "type mismatch for constant b; expecting value of type bool; found int",
@@ -152,10 +160,10 @@ TEST(ResolveConstantsTest, OverridesTypeMismatch) {
 TEST(ResolveConstantsTest, Identifier) {
   std::vector<ParsedConstant> constants;
   constants.emplace_back("c", Type::DOUBLE, nullptr);
-  constants.emplace_back("C", Type::DOUBLE, Identifier::New("a"));
-  constants.emplace_back("a", Type::INT, Identifier::New("f"));
+  constants.emplace_back("C", Type::DOUBLE, MakeUnique<Identifier>("a"));
+  constants.emplace_back("a", Type::INT, MakeUnique<Identifier>("f"));
   constants.emplace_back("A", Type::INT, nullptr);
-  constants.emplace_back("b", Type::BOOL, Identifier::New("B"));
+  constants.emplace_back("b", Type::BOOL, MakeUnique<Identifier>("B"));
   constants.emplace_back("B", Type::BOOL, nullptr);
   const Identifier formula("A");
   std::map<std::string, TypedValue> expected_constant_values = {
@@ -173,9 +181,9 @@ TEST(ResolveConstantsTest, IdentifierTypeMismatch) {
   constants.emplace_back("a", Type::INT, nullptr);
   constants.emplace_back("b", Type::BOOL, nullptr);
   constants.emplace_back("c", Type::DOUBLE, nullptr);
-  constants.emplace_back("A", Type::INT, Identifier::New("c"));
-  constants.emplace_back("B", Type::BOOL, Identifier::New("a"));
-  constants.emplace_back("C", Type::DOUBLE, Identifier::New("b"));
+  constants.emplace_back("A", Type::INT, MakeUnique<Identifier>("c"));
+  constants.emplace_back("B", Type::BOOL, MakeUnique<Identifier>("a"));
+  constants.emplace_back("C", Type::DOUBLE, MakeUnique<Identifier>("b"));
   std::vector<std::string> expected_errors = {
       "type mismatch for constant A; expecting value of type int; found double",
       "type mismatch for constant B; expecting value of type bool; found int",
@@ -190,8 +198,8 @@ TEST(ResolveConstantsTest, IdentifierTypeMismatch) {
 
 TEST(ResolveConstantsTest, IdentifierCyclic) {
   std::vector<ParsedConstant> constants;
-  constants.emplace_back("a", Type::INT, Identifier::New("A"));
-  constants.emplace_back("A", Type::INT, Identifier::New("a"));
+  constants.emplace_back("a", Type::INT, MakeUnique<Identifier>("A"));
+  constants.emplace_back("A", Type::INT, MakeUnique<Identifier>("a"));
   std::vector<std::string> expected_errors = {
       "cyclic evaluation for constant a"};
   std::map<std::string, TypedValue> constant_values;
@@ -219,27 +227,31 @@ TEST(ResolveConstantsTest, IdentifierUninitialized) {
 // TODO(hlsyounes): test conditional.
 
 TEST(ParsedStateRewardTest, Output) {
-  EXPECT_EQ("true : 1",
-            StrCat(ParsedStateReward(Literal::New(true), Literal::New(1))));
+  EXPECT_EQ("true : 1", StrCat(ParsedStateReward(MakeUnique<Literal>(true),
+                                                 MakeUnique<Literal>(1))));
 }
 
 TEST(ParsedTransitionRewardTest, Output) {
-  EXPECT_EQ("[] true : 1", StrCat(ParsedTransitionReward("", Literal::New(true),
-                                                         Literal::New(1))));
+  EXPECT_EQ("[] true : 1",
+            StrCat(ParsedTransitionReward("", MakeUnique<Literal>(true),
+                                          MakeUnique<Literal>(1))));
   EXPECT_EQ("[a] x : 2 * y",
             StrCat(ParsedTransitionReward(
-                "a", Identifier::New("x"),
-                BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(2),
-                                     Identifier::New("y")))));
+                "a", MakeUnique<Identifier>("x"),
+                MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                            MakeUnique<Literal>(2),
+                                            MakeUnique<Identifier>("y")))));
 }
 
 TEST(ParsedRewardsStructureTest, Output) {
   ParsedRewardsStructure r1("");
-  r1.add_state_reward(ParsedStateReward(Literal::New(true), Literal::New(1)));
+  r1.add_state_reward(
+      ParsedStateReward(MakeUnique<Literal>(true), MakeUnique<Literal>(1)));
   r1.add_transition_reward(ParsedTransitionReward(
-      "a", Identifier::New("x"),
-      BinaryOperation::New(BinaryOperator::MULTIPLY, Literal::New(2),
-                           Identifier::New("y"))));
+      "a", MakeUnique<Identifier>("x"),
+      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                  MakeUnique<Literal>(2),
+                                  MakeUnique<Identifier>("y"))));
   EXPECT_EQ(
       "rewards\n"
       "  true : 1;\n"
@@ -275,9 +287,11 @@ TEST(ModelTest, SetsModelTypeOnce) {
 TEST(ModelTest, AddsConstants) {
   Model model;
   std::vector<std::string> errors;
-  EXPECT_TRUE(model.AddConstant("c", Type::INT, Literal::New(17), &errors));
+  EXPECT_TRUE(
+      model.AddConstant("c", Type::INT, MakeUnique<Literal>(17), &errors));
   EXPECT_TRUE(model.AddConstant("k", Type::BOOL, nullptr, &errors));
-  EXPECT_TRUE(model.AddConstant("K", Type::DOUBLE, Literal::New(0.5), &errors));
+  EXPECT_TRUE(
+      model.AddConstant("K", Type::DOUBLE, MakeUnique<Literal>(0.5), &errors));
   ASSERT_EQ(3U, model.constants().size());
   EXPECT_EQ("c", model.constants()[0].name());
   EXPECT_EQ(Type::INT, model.constants()[0].type());
@@ -291,11 +305,12 @@ TEST(ModelTest, AddsConstants) {
 TEST(ModelTest, AddsVariables) {
   Model model;
   std::vector<std::string> errors;
-  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
-                                   Literal::New(18), &errors));
-  EXPECT_TRUE(model.AddBoolVariable("b", Literal::New(true), &errors));
-  EXPECT_TRUE(model.AddIntVariable("j", Literal::New(1), Literal::New(2),
-                                   nullptr, &errors));
+  EXPECT_TRUE(model.AddIntVariable("i", MakeUnique<Literal>(17),
+                                   MakeUnique<Literal>(42),
+                                   MakeUnique<Literal>(18), &errors));
+  EXPECT_TRUE(model.AddBoolVariable("b", MakeUnique<Literal>(true), &errors));
+  EXPECT_TRUE(model.AddIntVariable("j", MakeUnique<Literal>(1),
+                                   MakeUnique<Literal>(2), nullptr, &errors));
   ASSERT_EQ(3U, model.variables().size());
   EXPECT_EQ("i", model.variables()[0].name());
   EXPECT_EQ(Type::INT, model.variables()[0].type());
@@ -321,8 +336,8 @@ TEST(ModelTest, AddsVariables) {
 TEST(ModelTest, AddsFormulas) {
   Model model;
   std::vector<std::string> errors;
-  EXPECT_TRUE(model.AddFormula("f", Literal::New(17), &errors));
-  EXPECT_TRUE(model.AddFormula("g", Identifier::New("x"), &errors));
+  EXPECT_TRUE(model.AddFormula("f", MakeUnique<Literal>(17), &errors));
+  EXPECT_TRUE(model.AddFormula("g", MakeUnique<Identifier>("x"), &errors));
   ASSERT_EQ(2U, model.formulas().size());
   EXPECT_EQ("f", model.formulas()[0].name());
   EXPECT_EQ("17", StrCat(model.formulas()[0].expr()));
@@ -332,10 +347,10 @@ TEST(ModelTest, AddsFormulas) {
 
 TEST(ModelTest, AddsLabels) {
   Model model;
-  EXPECT_TRUE(model.AddLabel("a", Literal::New(true)));
-  EXPECT_TRUE(model.AddLabel("b", Identifier::New("x")));
-  EXPECT_TRUE(model.AddLabel("c", Literal::New(false)));
-  EXPECT_FALSE(model.AddLabel("b", Identifier::New("y")));
+  EXPECT_TRUE(model.AddLabel("a", MakeUnique<Literal>(true)));
+  EXPECT_TRUE(model.AddLabel("b", MakeUnique<Identifier>("x")));
+  EXPECT_TRUE(model.AddLabel("c", MakeUnique<Literal>(false)));
+  EXPECT_FALSE(model.AddLabel("b", MakeUnique<Identifier>("y")));
 }
 
 TEST(ModelTest, AddsModules) {
@@ -364,11 +379,11 @@ TEST(ModelTest, AddsModuleVariables) {
   EXPECT_TRUE(model.AddBoolVariable("b1", nullptr, &errors));
   EXPECT_TRUE(model.StartModule("M1"));
   EXPECT_TRUE(model.AddBoolVariable("b2", nullptr, &errors));
-  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
-                                   nullptr, &errors));
+  EXPECT_TRUE(model.AddIntVariable("i", MakeUnique<Literal>(17),
+                                   MakeUnique<Literal>(42), nullptr, &errors));
   model.EndModule();
-  EXPECT_TRUE(model.AddIntVariable("j", Literal::New(0), Literal::New(1),
-                                   nullptr, &errors));
+  EXPECT_TRUE(model.AddIntVariable("j", MakeUnique<Literal>(0),
+                                   MakeUnique<Literal>(1), nullptr, &errors));
   EXPECT_TRUE(model.StartModule("M3"));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M2"));
@@ -398,16 +413,16 @@ TEST(ModelTest, AddsModuleCommands) {
   Model model;
   std::vector<std::string> errors;
   EXPECT_TRUE(model.StartModule("M1"));
-  model.AddCommand(Command("foo", Literal::New(true), NewSimpleOutcomes()),
-                   &errors);
-  model.AddCommand(Command("", Literal::New(false), NewSimpleOutcomes()),
+  model.AddCommand(
+      Command("foo", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors);
+  model.AddCommand(Command("", MakeUnique<Literal>(false), NewSimpleOutcomes()),
                    &errors);
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M2"));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M3"));
-  model.AddCommand(Command("bar", Literal::New(true), NewSimpleOutcomes()),
-                   &errors);
+  model.AddCommand(
+      Command("bar", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors);
   model.EndModule();
   ASSERT_EQ(3U, model.modules().size());
   ASSERT_EQ(2U, model.modules()[0].commands().size());
@@ -422,30 +437,38 @@ TEST(ModelTest, AddsModuleCommands) {
 TEST(ModelTest, AddsFromModule) {
   Model model;
   std::vector<std::string> errors;
-  EXPECT_TRUE(model.AddConstant("c", Type::INT, Identifier::New("f"), &errors));
-  EXPECT_TRUE(model.AddConstant("k", Type::INT, Identifier::New("g"), &errors));
-  EXPECT_TRUE(model.AddConstant("f", Type::INT, Literal::New(17), &errors));
-  EXPECT_TRUE(model.AddConstant("g", Type::INT, Literal::New(42), &errors));
+  EXPECT_TRUE(
+      model.AddConstant("c", Type::INT, MakeUnique<Identifier>("f"), &errors));
+  EXPECT_TRUE(
+      model.AddConstant("k", Type::INT, MakeUnique<Identifier>("g"), &errors));
+  EXPECT_TRUE(
+      model.AddConstant("f", Type::INT, MakeUnique<Literal>(17), &errors));
+  EXPECT_TRUE(
+      model.AddConstant("g", Type::INT, MakeUnique<Literal>(42), &errors));
   EXPECT_TRUE(model.AddFormula(
-      "guard", BinaryOperation::New(BinaryOperator::LESS, Identifier::New("i"),
-                                    Identifier::New("c")),
+      "guard", MakeUnique<BinaryOperation>(BinaryOperator::LESS,
+                                           MakeUnique<Identifier>("i"),
+                                           MakeUnique<Identifier>("c")),
       &errors));
 
   EXPECT_TRUE(model.StartModule("M1"));
-  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(0), Identifier::New("c"),
-                                   Identifier::New("f"), &errors));
+  EXPECT_TRUE(model.AddIntVariable("i", MakeUnique<Literal>(0),
+                                   MakeUnique<Identifier>("c"),
+                                   MakeUnique<Identifier>("f"), &errors));
   EXPECT_TRUE(model.AddBoolVariable("b1", nullptr, &errors));
   std::vector<Update> updates;
-  updates.emplace_back(
-      "i", BinaryOperation::New(BinaryOperator::PLUS, Identifier::New("i"),
-                                Literal::New(1)));
+  updates.emplace_back("i",
+                       MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
+                                                   MakeUnique<Identifier>("i"),
+                                                   MakeUnique<Literal>(1)));
   std::vector<Outcome> outcomes;
-  outcomes.emplace_back(
-      Memoryless::New(BinaryOperation::New(
-          BinaryOperator::DIVIDE, Literal::New(1), Identifier::New("i"))),
-      std::move(updates));
+  outcomes.emplace_back(MakeUnique<Memoryless>(MakeUnique<BinaryOperation>(
+                            BinaryOperator::DIVIDE, MakeUnique<Literal>(1),
+                            MakeUnique<Identifier>("i"))),
+                        std::move(updates));
   EXPECT_TRUE(model.AddCommand(
-      Command("a", Identifier::New("guard"), std::move(outcomes)), &errors));
+      Command("a", MakeUnique<Identifier>("guard"), std::move(outcomes)),
+      &errors));
   model.EndModule();
   EXPECT_TRUE(model.StartModule("M2"));
   EXPECT_TRUE(model.AddFromModule(
@@ -509,24 +532,24 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   std::vector<std::string> errors;
 
   EXPECT_TRUE(model.AddConstant("c", Type::INT, nullptr, &errors));
-  EXPECT_TRUE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
-                                   nullptr, &errors));
+  EXPECT_TRUE(model.AddIntVariable("i", MakeUnique<Literal>(17),
+                                   MakeUnique<Literal>(42), nullptr, &errors));
   EXPECT_TRUE(model.AddBoolVariable("b", nullptr, &errors));
-  EXPECT_TRUE(model.AddFormula("f", Literal::New(0.5), &errors));
+  EXPECT_TRUE(model.AddFormula("f", MakeUnique<Literal>(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M1"));
   EXPECT_TRUE(model.AddCommand(
-      Command("a", Literal::New(true), NewSimpleOutcomes()), &errors));
+      Command("a", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
   ASSERT_TRUE(errors.empty());
 
   EXPECT_FALSE(model.AddConstant("c", Type::INT, nullptr, &errors));
-  EXPECT_FALSE(model.AddIntVariable("c", Literal::New(17), Literal::New(42),
-                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("c", MakeUnique<Literal>(17),
+                                    MakeUnique<Literal>(42), nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("c", nullptr, &errors));
-  EXPECT_FALSE(model.AddFormula("c", Literal::New(0.5), &errors));
+  EXPECT_FALSE(model.AddFormula("c", MakeUnique<Literal>(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M2"));
   EXPECT_FALSE(model.AddCommand(
-      Command("c", Literal::New(true), NewSimpleOutcomes()), &errors));
+      Command("c", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
   EXPECT_EQ(
       std::vector<std::string>({"duplicate constant c",
@@ -538,13 +561,13 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   errors.clear();
 
   EXPECT_FALSE(model.AddConstant("i", Type::INT, nullptr, &errors));
-  EXPECT_FALSE(model.AddIntVariable("i", Literal::New(17), Literal::New(42),
-                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("i", MakeUnique<Literal>(17),
+                                    MakeUnique<Literal>(42), nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("i", nullptr, &errors));
-  EXPECT_FALSE(model.AddFormula("i", Literal::New(0.5), &errors));
+  EXPECT_FALSE(model.AddFormula("i", MakeUnique<Literal>(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M3"));
   EXPECT_FALSE(model.AddCommand(
-      Command("i", Literal::New(true), NewSimpleOutcomes()), &errors));
+      Command("i", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
   EXPECT_EQ(
       std::vector<std::string>({"constant i previously defined as variable",
@@ -555,13 +578,13 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   errors.clear();
 
   EXPECT_FALSE(model.AddConstant("b", Type::INT, nullptr, &errors));
-  EXPECT_FALSE(model.AddIntVariable("b", Literal::New(17), Literal::New(42),
-                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("b", MakeUnique<Literal>(17),
+                                    MakeUnique<Literal>(42), nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("b", nullptr, &errors));
-  EXPECT_FALSE(model.AddFormula("b", Literal::New(0.5), &errors));
+  EXPECT_FALSE(model.AddFormula("b", MakeUnique<Literal>(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M4"));
   EXPECT_FALSE(model.AddCommand(
-      Command("b", Literal::New(true), NewSimpleOutcomes()), &errors));
+      Command("b", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
   EXPECT_EQ(
       std::vector<std::string>({"constant b previously defined as variable",
@@ -572,13 +595,13 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   errors.clear();
 
   EXPECT_FALSE(model.AddConstant("f", Type::INT, nullptr, &errors));
-  EXPECT_FALSE(model.AddIntVariable("f", Literal::New(17), Literal::New(42),
-                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("f", MakeUnique<Literal>(17),
+                                    MakeUnique<Literal>(42), nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("f", nullptr, &errors));
-  EXPECT_FALSE(model.AddFormula("f", Literal::New(0.5), &errors));
+  EXPECT_FALSE(model.AddFormula("f", MakeUnique<Literal>(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M5"));
   EXPECT_FALSE(model.AddCommand(
-      Command("f", Literal::New(true), NewSimpleOutcomes()), &errors));
+      Command("f", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
   EXPECT_EQ(
       std::vector<std::string>({"constant f previously defined as formula",
@@ -590,14 +613,14 @@ TEST(ModelTest, RejectsDuplicateIdentifiers) {
   errors.clear();
 
   EXPECT_FALSE(model.AddConstant("a", Type::INT, nullptr, &errors));
-  EXPECT_FALSE(model.AddIntVariable("a", Literal::New(17), Literal::New(42),
-                                    nullptr, &errors));
+  EXPECT_FALSE(model.AddIntVariable("a", MakeUnique<Literal>(17),
+                                    MakeUnique<Literal>(42), nullptr, &errors));
   EXPECT_FALSE(model.AddBoolVariable("a", nullptr, &errors));
-  EXPECT_FALSE(model.AddFormula("a", Literal::New(0.5), &errors));
+  EXPECT_FALSE(model.AddFormula("a", MakeUnique<Literal>(0.5), &errors));
   EXPECT_TRUE(model.StartModule("M6"));
   // NOTE: It is fine to use the same action label multiple times.
   EXPECT_TRUE(model.AddCommand(
-      Command("a", Literal::New(true), NewSimpleOutcomes()), &errors));
+      Command("a", MakeUnique<Literal>(true), NewSimpleOutcomes()), &errors));
   model.EndModule();
   EXPECT_EQ(
       std::vector<std::string>({"constant a previously defined as action",
@@ -631,9 +654,9 @@ TEST(ModelTest, DefaultsToNullInit) {
 
 TEST(ModelTest, SetsInitOnce) {
   Model model;
-  EXPECT_TRUE(model.SetInit(Literal::New(true)));
+  EXPECT_TRUE(model.SetInit(MakeUnique<Literal>(true)));
   EXPECT_EQ("true", StrCat(*model.init()));
-  EXPECT_FALSE(model.SetInit(Literal::New(false)));
+  EXPECT_FALSE(model.SetInit(MakeUnique<Literal>(false)));
   EXPECT_EQ("true", StrCat(*model.init()));
 }
 

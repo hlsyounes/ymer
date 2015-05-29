@@ -96,9 +96,6 @@ class CompiledExpressionProperty : public CompiledProperty {
  public:
   explicit CompiledExpressionProperty(const CompiledExpression& expr);
 
-  static std::unique_ptr<const CompiledExpressionProperty> New(
-      const CompiledExpression& expr);
-
   const CompiledExpression& expr() const { return expr_; }
 
  private:
@@ -117,11 +114,6 @@ std::ostream& operator<<(std::ostream& os, CompiledNaryOperator op);
 class CompiledNaryProperty : public CompiledProperty {
  public:
   explicit CompiledNaryProperty(
-      CompiledNaryOperator op,
-      std::unique_ptr<const CompiledExpressionProperty>&& optional_expr_operand,
-      UniquePtrVector<const CompiledProperty>&& other_operands);
-
-  static std::unique_ptr<const CompiledNaryProperty> New(
       CompiledNaryOperator op,
       std::unique_ptr<const CompiledExpressionProperty>&& optional_expr_operand,
       UniquePtrVector<const CompiledProperty>&& other_operands);
@@ -152,9 +144,6 @@ class CompiledNotProperty : public CompiledProperty {
   explicit CompiledNotProperty(
       std::unique_ptr<const CompiledProperty>&& operand);
 
-  static std::unique_ptr<const CompiledNotProperty> New(
-      std::unique_ptr<const CompiledProperty>&& operand);
-
   const CompiledProperty& operand() const { return *operand_; }
 
  private:
@@ -174,10 +163,6 @@ std::ostream& operator<<(std::ostream& os,
 class CompiledProbabilityThresholdProperty : public CompiledProperty {
  public:
   explicit CompiledProbabilityThresholdProperty(
-      CompiledProbabilityThresholdOperator op, double threshold,
-      std::unique_ptr<const CompiledPathProperty>&& path_property);
-
-  static std::unique_ptr<const CompiledProbabilityThresholdProperty> New(
       CompiledProbabilityThresholdOperator op, double threshold,
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
@@ -201,9 +186,6 @@ class CompiledProbabilityEstimationProperty : public CompiledProperty {
   explicit CompiledProbabilityEstimationProperty(
       std::unique_ptr<const CompiledPathProperty>&& path_property);
 
-  static std::unique_ptr<const CompiledProbabilityEstimationProperty> New(
-      std::unique_ptr<const CompiledPathProperty>&& path_property);
-
   const CompiledPathProperty& path_property() const { return *path_property_; }
 
  private:
@@ -219,12 +201,6 @@ class CompiledUntilProperty : public CompiledPathProperty {
                                  std::unique_ptr<const CompiledProperty>&& pre,
                                  std::unique_ptr<const CompiledProperty>&& post,
                                  int index, const std::string& string);
-
-  static std::unique_ptr<const CompiledUntilProperty> New(
-      double min_time, double max_time,
-      std::unique_ptr<const CompiledProperty>&& pre_property,
-      std::unique_ptr<const CompiledProperty>&& post_property, int index,
-      const std::string& string);
 
   double min_time() const { return min_time_; }
 

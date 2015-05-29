@@ -252,29 +252,17 @@ std::ostream& operator<<(std::ostream& os, const PathProperty& e) {
 
 Literal::Literal(const TypedValue& value) : value_(value) {}
 
-std::unique_ptr<const Literal> Literal::New(const TypedValue& value) {
-  return std::unique_ptr<const Literal>(new Literal(value));
-}
-
 void Literal::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLiteral(*this);
 }
 
 Identifier::Identifier(const std::string& name) : name_(name) {}
 
-std::unique_ptr<const Identifier> Identifier::New(const std::string& name) {
-  return std::unique_ptr<const Identifier>(new Identifier(name));
-}
-
 void Identifier::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitIdentifier(*this);
 }
 
 Label::Label(const std::string& name) : name_(name) {}
-
-std::unique_ptr<const Label> Label::New(const std::string& name) {
-  return std::unique_ptr<const Label>(new Label(name));
-}
 
 void Label::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitLabel(*this);
@@ -306,12 +294,6 @@ FunctionCall::FunctionCall(Function function,
                            UniquePtrVector<const Expression>&& arguments)
     : function_(function), arguments_(std::move(arguments)) {}
 
-std::unique_ptr<const FunctionCall> FunctionCall::New(
-    Function function, UniquePtrVector<const Expression>&& arguments) {
-  return std::unique_ptr<const FunctionCall>(
-      new FunctionCall(function, std::move(arguments)));
-}
-
 void FunctionCall::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitFunctionCall(*this);
 }
@@ -329,12 +311,6 @@ std::ostream& operator<<(std::ostream& os, UnaryOperator op) {
 UnaryOperation::UnaryOperation(UnaryOperator op,
                                std::unique_ptr<const Expression>&& operand)
     : op_(op), operand_(std::move(operand)) {}
-
-std::unique_ptr<const UnaryOperation> UnaryOperation::New(
-    UnaryOperator op, std::unique_ptr<const Expression>&& operand) {
-  return std::unique_ptr<const UnaryOperation>(
-      new UnaryOperation(op, std::move(operand)));
-}
 
 void UnaryOperation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitUnaryOperation(*this);
@@ -379,13 +355,6 @@ BinaryOperation::BinaryOperation(BinaryOperator op,
                                  std::unique_ptr<const Expression>&& operand2)
     : op_(op), operand1_(std::move(operand1)), operand2_(std::move(operand2)) {}
 
-std::unique_ptr<const BinaryOperation> BinaryOperation::New(
-    BinaryOperator op, std::unique_ptr<const Expression>&& operand1,
-    std::unique_ptr<const Expression>&& operand2) {
-  return std::unique_ptr<const BinaryOperation>(
-      new BinaryOperation(op, std::move(operand1), std::move(operand2)));
-}
-
 void BinaryOperation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitBinaryOperation(*this);
 }
@@ -396,14 +365,6 @@ Conditional::Conditional(std::unique_ptr<const Expression>&& condition,
     : condition_(std::move(condition)),
       if_branch_(std::move(if_branch)),
       else_branch_(std::move(else_branch)) {}
-
-std::unique_ptr<const Conditional> Conditional::New(
-    std::unique_ptr<const Expression>&& condition,
-    std::unique_ptr<const Expression>&& if_branch,
-    std::unique_ptr<const Expression>&& else_branch) {
-  return std::unique_ptr<const Conditional>(new Conditional(
-      std::move(condition), std::move(if_branch), std::move(else_branch)));
-}
 
 void Conditional::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitConditional(*this);
@@ -430,15 +391,6 @@ ProbabilityThresholdOperation::ProbabilityThresholdOperation(
       threshold_(threshold),
       path_property_(std::move(path_property)) {}
 
-std::unique_ptr<const ProbabilityThresholdOperation>
-ProbabilityThresholdOperation::New(
-    ProbabilityThresholdOperator op, double threshold,
-    std::unique_ptr<const PathProperty>&& path_property) {
-  return std::unique_ptr<const ProbabilityThresholdOperation>(
-      new ProbabilityThresholdOperation(op, threshold,
-                                        std::move(path_property)));
-}
-
 void ProbabilityThresholdOperation::DoAccept(ExpressionVisitor* visitor) const {
   visitor->VisitProbabilityThresholdOperation(*this);
 }
@@ -446,13 +398,6 @@ void ProbabilityThresholdOperation::DoAccept(ExpressionVisitor* visitor) const {
 ProbabilityEstimationOperation::ProbabilityEstimationOperation(
     std::unique_ptr<const PathProperty>&& path_property)
     : path_property_(std::move(path_property)) {}
-
-std::unique_ptr<const ProbabilityEstimationOperation>
-ProbabilityEstimationOperation::New(
-    std::unique_ptr<const PathProperty>&& path_property) {
-  return std::unique_ptr<const ProbabilityEstimationOperation>(
-      new ProbabilityEstimationOperation(std::move(path_property)));
-}
 
 void ProbabilityEstimationOperation::DoAccept(
     ExpressionVisitor* visitor) const {
@@ -482,13 +427,6 @@ UntilProperty::UntilProperty(TimeRange time_range,
       pre_expr_(std::move(pre_expr)),
       post_expr_(std::move(post_expr)) {}
 
-std::unique_ptr<const UntilProperty> UntilProperty::New(
-    TimeRange time_range, std::unique_ptr<const Expression>&& pre_expr,
-    std::unique_ptr<const Expression>&& post_expr) {
-  return std::unique_ptr<const UntilProperty>(
-      new UntilProperty(time_range, std::move(pre_expr), std::move(post_expr)));
-}
-
 void UntilProperty::DoAccept(PathPropertyVisitor* visitor) const {
   visitor->VisitUntilProperty(*this);
 }
@@ -496,12 +434,6 @@ void UntilProperty::DoAccept(PathPropertyVisitor* visitor) const {
 EventuallyProperty::EventuallyProperty(TimeRange time_range,
                                        std::unique_ptr<const Expression>&& expr)
     : time_range_(time_range), expr_(std::move(expr)) {}
-
-std::unique_ptr<const EventuallyProperty> EventuallyProperty::New(
-    TimeRange time_range, std::unique_ptr<const Expression>&& expr) {
-  return std::unique_ptr<const EventuallyProperty>(
-      new EventuallyProperty(time_range, std::move(expr)));
-}
 
 void EventuallyProperty::DoAccept(PathPropertyVisitor* visitor) const {
   visitor->VisitEventuallyProperty(*this);

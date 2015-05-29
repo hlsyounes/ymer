@@ -19,6 +19,8 @@
 
 #include "ddmodel.h"
 
+#include "ptrutil.h"
+
 #include "gtest/gtest.h"
 
 namespace {
@@ -29,8 +31,8 @@ CompiledExpression MakeGuard(
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
     const Optional<DecisionDiagramManager>& dd_manager) {
   const auto result = CompileExpression(
-      BinaryOperation(BinaryOperator::EQUAL, Identifier::New("b"),
-                      Literal::New(value)),
+      BinaryOperation(BinaryOperator::EQUAL, MakeUnique<Identifier>("b"),
+                      MakeUnique<Literal>(value)),
       Type::BOOL, {}, identifiers_by_name, dd_manager);
   CHECK(result.errors.empty());
   return result.expr;
