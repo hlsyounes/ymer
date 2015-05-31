@@ -84,7 +84,8 @@ check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
 	src/ptrutil_test$(EXEEXT) src/statistics_test$(EXEEXT) \
 	src/ddutil_test$(EXEEXT) src/rng_test$(EXEEXT) \
 	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT) \
-	src/distribution_test$(EXEEXT) src/model_test$(EXEEXT) \
+	src/distribution_test$(EXEEXT) \
+	src/process-algebra_test$(EXEEXT) src/model_test$(EXEEXT) \
 	src/parser_test$(EXEEXT) src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
 	src/compiled-model_test$(EXEEXT) src/ddmodel_test$(EXEEXT) \
@@ -263,6 +264,10 @@ src_libparser_la_DEPENDENCIES = src/libdistribution.la \
 am_src_libparser_la_OBJECTS = src/parser.lo src/grammar.lo \
 	src/tokens.lo
 src_libparser_la_OBJECTS = $(am_src_libparser_la_OBJECTS)
+src_libprocess_algebra_la_DEPENDENCIES = glog/libglog.la
+am_src_libprocess_algebra_la_OBJECTS = src/process-algebra.lo
+src_libprocess_algebra_la_OBJECTS =  \
+	$(am_src_libprocess_algebra_la_OBJECTS)
 src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
 am_src_librng_la_OBJECTS = src/rng.lo
 src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
@@ -325,6 +330,12 @@ src_optional_test_DEPENDENCIES = src/libtest-main.la
 am_src_parser_test_OBJECTS = src/parser_test.$(OBJEXT)
 src_parser_test_OBJECTS = $(am_src_parser_test_OBJECTS)
 src_parser_test_DEPENDENCIES = src/libparser.la src/libtest-main.la
+am_src_process_algebra_test_OBJECTS =  \
+	src/process-algebra_test.$(OBJEXT)
+src_process_algebra_test_OBJECTS =  \
+	$(am_src_process_algebra_test_OBJECTS)
+src_process_algebra_test_DEPENDENCIES = src/libprocess-algebra.la \
+	src/libtest-main.la
 am_src_ptrutil_test_OBJECTS = src/ptrutil_test.$(OBJEXT)
 src_ptrutil_test_OBJECTS = $(am_src_ptrutil_test_OBJECTS)
 src_ptrutil_test_DEPENDENCIES = src/libtest-main.la
@@ -436,7 +447,8 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libddmodel_la_SOURCES) $(src_libddutil_la_SOURCES) \
 	$(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_libparser_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libparser_la_SOURCES) \
+	$(src_libprocess_algebra_la_SOURCES) $(src_librng_la_SOURCES) \
 	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
@@ -447,6 +459,7 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
+	$(src_process_algebra_test_SOURCES) \
 	$(src_ptrutil_test_SOURCES) $(src_rng_test_SOURCES) \
 	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
 	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
@@ -461,7 +474,8 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libddmodel_la_SOURCES) $(src_libddutil_la_SOURCES) \
 	$(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
-	$(src_libparser_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libparser_la_SOURCES) \
+	$(src_libprocess_algebra_la_SOURCES) $(src_librng_la_SOURCES) \
 	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
@@ -472,6 +486,7 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
+	$(src_process_algebra_test_SOURCES) \
 	$(src_ptrutil_test_SOURCES) $(src_rng_test_SOURCES) \
 	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
 	$(src_strutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
@@ -913,6 +928,8 @@ SUBDIRS = glog gsl gtest
 
 # Distribution library.
 
+# Process algebra library.
+
 # Model library.
 
 # Parser library.
@@ -930,10 +947,10 @@ noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
 	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
 	src/libstatistics.la src/libddutil.la src/librng.la \
 	src/libtyped-value.la src/libexpression.la \
-	src/libdistribution.la src/libmodel.la src/libparser.la \
-	src/libcompiled-expression.la src/libcompiled-distribution.la \
-	src/libcompiled-model.la src/libddmodel.la \
-	src/libcompiled-property.la
+	src/libdistribution.la src/libprocess-algebra.la \
+	src/libmodel.la src/libparser.la src/libcompiled-expression.la \
+	src/libcompiled-distribution.la src/libcompiled-model.la \
+	src/libddmodel.la src/libcompiled-property.la
 CUDD_DEFINES = -DBSD -DHAVE_IEEE_754
 cudd_cudd_libcudd_la_SOURCES = cudd/cudd/cuddAPI.c cudd/cudd/cuddAddAbs.c \
     cudd/cudd/cuddAddApply.c cudd/cudd/cuddAddFind.c cudd/cudd/cuddAddIte.c \
@@ -1002,6 +1019,8 @@ src_libexpression_la_SOURCES = src/expression.h src/expression.cc
 src_libexpression_la_LIBADD = src/libtyped-value.la glog/libglog.la
 src_libdistribution_la_SOURCES = src/distribution.h src/distribution.cc
 src_libdistribution_la_LIBADD = src/libexpression.la
+src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
+src_libprocess_algebra_la_LIBADD = glog/libglog.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
     src/libtyped-value.la glog/libglog.la
@@ -1074,6 +1093,8 @@ src_distribution_test_SOURCES = src/distribution_test.cc
 src_distribution_test_LDADD = src/libdistribution.la src/libexpression.la \
     src/libtest-main.la
 
+src_process_algebra_test_SOURCES = src/process-algebra_test.cc
+src_process_algebra_test_LDADD = src/libprocess-algebra.la src/libtest-main.la
 src_model_test_SOURCES = src/model_test.cc
 src_model_test_LDADD = src/libmodel.la src/libtest-main.la
 src_parser_test_SOURCES = src/parser_test.cc
@@ -1455,6 +1476,11 @@ src/tokens.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libparser.la: $(src_libparser_la_OBJECTS) $(src_libparser_la_DEPENDENCIES) $(EXTRA_src_libparser_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_libparser_la_OBJECTS) $(src_libparser_la_LIBADD) $(LIBS)
+src/process-algebra.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/libprocess-algebra.la: $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_DEPENDENCIES) $(EXTRA_src_libprocess_algebra_la_DEPENDENCIES) src/$(am__dirstamp)
+	$(AM_V_CXXLD)$(CXXLINK)  $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_LIBADD) $(LIBS)
 src/rng.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1595,6 +1621,12 @@ src/parser_test.$(OBJEXT): src/$(am__dirstamp) \
 src/parser_test$(EXEEXT): $(src_parser_test_OBJECTS) $(src_parser_test_DEPENDENCIES) $(EXTRA_src_parser_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/parser_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_parser_test_OBJECTS) $(src_parser_test_LDADD) $(LIBS)
+src/process-algebra_test.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/process-algebra_test$(EXEEXT): $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_DEPENDENCIES) $(EXTRA_src_process_algebra_test_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/process-algebra_test$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_LDADD) $(LIBS)
 src/ptrutil_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1764,6 +1796,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/optional_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/process-algebra.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/process-algebra_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ptrutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
@@ -2739,6 +2773,13 @@ src/expression_test.log: src/expression_test$(EXEEXT)
 src/distribution_test.log: src/distribution_test$(EXEEXT)
 	@p='src/distribution_test$(EXEEXT)'; \
 	b='src/distribution_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/process-algebra_test.log: src/process-algebra_test$(EXEEXT)
+	@p='src/process-algebra_test$(EXEEXT)'; \
+	b='src/process-algebra_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
