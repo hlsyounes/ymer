@@ -25,6 +25,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@
 #include "expression.h"
 #include "model.h"
 #include "parser-state.h"
+#include "process-algebra.h"
 #include "ptrutil.h"
 #include "strutil.h"
 #include "typed-value.h"
@@ -452,6 +454,56 @@ void EndRewards(ParserState* state) {
   state->mutable_model()->EndRewardsStructure();
 }
 
+void SetSystem(const YYLTYPE& location, const ProcessAlgebra* system,
+               ParserState* state) {
+  if (!state->mutable_model()->SetSystem(WrapUnique(system))) {
+    yyerror(location, "multiple system blocks", state);
+  }
+}
+
+std::set<std::string>* AddAction(const std::string* action,
+                                std::set<std::string>* actions) {
+  if (actions == nullptr) {
+    actions = new std::set<std::string>();
+  }
+  actions->insert(*WrapUnique(action));
+  return actions;
+}
+
+const ProcessAlgebra* NewModuleIdentifier(const std::string* name) {
+  return new ModuleIdentifier(*WrapUnique(name));
+}
+
+const ProcessAlgebra* NewActionHiding(const std::set<std::string>* actions,
+                                      const ProcessAlgebra* operand) {
+  return new ActionHiding(*WrapUnique(actions), WrapUnique(operand));
+}
+
+const ProcessAlgebra* NewActionRenaming(
+    const std::map<std::string, std::string>* substitutions,
+    const ProcessAlgebra* operand) {
+  return new ActionRenaming(*WrapUnique(substitutions), WrapUnique(operand));
+}
+
+const ProcessAlgebra* NewRestrictedParallelComposition(
+    const std::set<std::string>* actions, const ProcessAlgebra* operand1,
+    const ProcessAlgebra* operand2) {
+  return new RestrictedParallelComposition(
+      *WrapUnique(actions), WrapUnique(operand1), WrapUnique(operand2));
+}
+
+const ProcessAlgebra* NewAlphabetizedParallelComposition(
+    const ProcessAlgebra* operand1, const ProcessAlgebra* operand2) {
+  return new ParallelComposition(ParallelCompositionOperator::ALPHABETIZED,
+                                 WrapUnique(operand1), WrapUnique(operand2));
+}
+
+const ProcessAlgebra* NewAsynchronousParallelComposition(
+    const ProcessAlgebra* operand1, const ProcessAlgebra* operand2) {
+  return new ParallelComposition(ParallelCompositionOperator::ASYNCHRONOUS,
+                                 WrapUnique(operand1), WrapUnique(operand2));
+}
+
 void AddProperty(const Expression* property, ParserState* state) {
   state->add_property(WrapUnique(property));
 }
@@ -505,6 +557,7 @@ void AddProperty(const Expression* property, ParserState* state) {
 %union {
   Type type;
   const std::string* str;
+  std::set<std::string>* str_set;
   std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
@@ -512,6 +565,7 @@ void AddProperty(const Expression* property, ParserState* state) {
   std::vector<Update>* updates;
   Update* update;
   const Expression* expr;
+  const ProcessAlgebra* process_algebra;
   const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
@@ -521,6 +575,7 @@ void AddProperty(const Expression* property, ParserState* state) {
 
 %type <type> constant_type
 %type <str> IDENTIFIER LABEL_NAME action
+%type <str_set> action_set
 %type <substitutions> substitutions action_substitutions
 %type <outcomes> outcomes update_distribution
 %type <outcome> distribution_and_updates
@@ -528,6 +583,7 @@ void AddProperty(const Expression* property, ParserState* state) {
 %type <updates> true_or_updates updates
 %type <update> update
 %type <expr> constant_init variable_init expr property
+%type <process_algebra> process_algebra
 %type <number> NUMBER
 %type <function> function
 %type <arguments> arguments
@@ -535,12 +591,14 @@ void AddProperty(const Expression* property, ParserState* state) {
 %type <time_range> time_range
 
 %destructor { delete $$; } <str>
+%destructor { delete $$; } <str_set>
 %destructor { delete $$; } <substitutions>
 %destructor { delete $$; } <outcomes>
 %destructor { delete $$; } <outcome>
 %destructor { delete $$; } <dist>
 %destructor { delete $$; } <updates>
 %destructor { delete $$; } <expr>
+%destructor { delete $$; } <process_algebra>
 %destructor { delete $$; } <number>
 %destructor { delete $$; } <arguments>
 %destructor { delete $$; } <path>
@@ -741,23 +799,29 @@ transition_reward : '[' action ']' expr ':' expr ';'
                   ;
 
 system : SYSTEM process_algebra ENDSYSTEM
+           { SetSystem(yylloc, $2, state); }
        ;
 
 process_algebra : IDENTIFIER
-                    { delete $1; }
+                    { $$ = NewModuleIdentifier($1); }
                 | '(' process_algebra ')'
-                | process_algebra '/' '{' action_list '}'
+                    { $$ = $2; }
+                | process_algebra '/' '{' action_set '}'
+                    { $$ = NewActionHiding($4, $1); }
                 | process_algebra '{' action_substitutions '}'
-                    { delete $3; }
-                | process_algebra '|' '[' action_list ']' '|' process_algebra
+                    { $$ = NewActionRenaming($3, $1); }
+                | process_algebra '|' '[' action_set ']' '|' process_algebra
+                    { $$ = NewRestrictedParallelComposition($4, $1, $7); }
                 | process_algebra DOUBLE_BAR process_algebra
+                    { $$ = NewAlphabetizedParallelComposition($1, $3); }
                 | process_algebra TRIPLE_BAR process_algebra
+                    { $$ = NewAsynchronousParallelComposition($1, $3); }
                 ;
 
-action_list : IDENTIFIER
-                { delete $1; }
-            | action_list ',' IDENTIFIER
-                { delete $3; }
+action_set : IDENTIFIER
+               { $$ = AddAction($1, nullptr); }
+            | action_set ',' IDENTIFIER
+               { $$ = AddAction($3, $1); }
             ;
 
 action_substitutions : IDENTIFIER BACK_ARROW IDENTIFIER

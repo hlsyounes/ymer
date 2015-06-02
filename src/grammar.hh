@@ -190,10 +190,11 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 505 "grammar.yy" /* yacc.c:1909  */
+#line 557 "grammar.yy" /* yacc.c:1909  */
 
   Type type;
   const std::string* str;
+  std::set<std::string>* str_set;
   std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
@@ -201,13 +202,14 @@ union YYSTYPE
   std::vector<Update>* updates;
   Update* update;
   const Expression* expr;
+  const ProcessAlgebra* process_algebra;
   const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
   const PathProperty* path;
   const TimeRange* time_range;
 
-#line 211 "src/grammar.hh" /* yacc.c:1909  */
+#line 213 "src/grammar.hh" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

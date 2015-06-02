@@ -1135,6 +1135,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
   }
   if (m.init() != nullptr) {
     os << std::endl
+       << std::endl
        << "init" << std::endl
        << "  " << *m.init() << std::endl
        << "endinit";
@@ -1144,6 +1145,7 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
   }
   if (m.system() != nullptr) {
     os << std::endl
+       << std::endl
        << "system" << std::endl
        << "  " << *m.system() << std::endl
        << "endsystem";

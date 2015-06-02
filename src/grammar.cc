@@ -67,6 +67,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -74,6 +75,7 @@
 #include "expression.h"
 #include "model.h"
 #include "parser-state.h"
+#include "process-algebra.h"
 #include "ptrutil.h"
 #include "strutil.h"
 #include "typed-value.h"
@@ -494,13 +496,63 @@ void EndRewards(ParserState* state) {
   state->mutable_model()->EndRewardsStructure();
 }
 
+void SetSystem(const YYLTYPE& location, const ProcessAlgebra* system,
+               ParserState* state) {
+  if (!state->mutable_model()->SetSystem(WrapUnique(system))) {
+    yyerror(location, "multiple system blocks", state);
+  }
+}
+
+std::set<std::string>* AddAction(const std::string* action,
+                                std::set<std::string>* actions) {
+  if (actions == nullptr) {
+    actions = new std::set<std::string>();
+  }
+  actions->insert(*WrapUnique(action));
+  return actions;
+}
+
+const ProcessAlgebra* NewModuleIdentifier(const std::string* name) {
+  return new ModuleIdentifier(*WrapUnique(name));
+}
+
+const ProcessAlgebra* NewActionHiding(const std::set<std::string>* actions,
+                                      const ProcessAlgebra* operand) {
+  return new ActionHiding(*WrapUnique(actions), WrapUnique(operand));
+}
+
+const ProcessAlgebra* NewActionRenaming(
+    const std::map<std::string, std::string>* substitutions,
+    const ProcessAlgebra* operand) {
+  return new ActionRenaming(*WrapUnique(substitutions), WrapUnique(operand));
+}
+
+const ProcessAlgebra* NewRestrictedParallelComposition(
+    const std::set<std::string>* actions, const ProcessAlgebra* operand1,
+    const ProcessAlgebra* operand2) {
+  return new RestrictedParallelComposition(
+      *WrapUnique(actions), WrapUnique(operand1), WrapUnique(operand2));
+}
+
+const ProcessAlgebra* NewAlphabetizedParallelComposition(
+    const ProcessAlgebra* operand1, const ProcessAlgebra* operand2) {
+  return new ParallelComposition(ParallelCompositionOperator::ALPHABETIZED,
+                                 WrapUnique(operand1), WrapUnique(operand2));
+}
+
+const ProcessAlgebra* NewAsynchronousParallelComposition(
+    const ProcessAlgebra* operand1, const ProcessAlgebra* operand2) {
+  return new ParallelComposition(ParallelCompositionOperator::ASYNCHRONOUS,
+                                 WrapUnique(operand1), WrapUnique(operand2));
+}
+
 void AddProperty(const Expression* property, ParserState* state) {
   state->add_property(WrapUnique(property));
 }
 
 }  // namespace
 
-#line 504 "src/grammar.cc" /* yacc.c:339  */
+#line 556 "src/grammar.cc" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -680,10 +732,11 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 505 "grammar.yy" /* yacc.c:355  */
+#line 557 "grammar.yy" /* yacc.c:355  */
 
   Type type;
   const std::string* str;
+  std::set<std::string>* str_set;
   std::map<std::string, std::string>* substitutions;
   std::vector<Outcome>* outcomes;
   Outcome* outcome;
@@ -691,13 +744,14 @@ union YYSTYPE
   std::vector<Update>* updates;
   Update* update;
   const Expression* expr;
+  const ProcessAlgebra* process_algebra;
   const TypedValue* number;
   Function function;
   UniquePtrVector<const Expression>* arguments;
   const PathProperty* path;
   const TimeRange* time_range;
 
-#line 701 "src/grammar.cc" /* yacc.c:355  */
+#line 755 "src/grammar.cc" /* yacc.c:355  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -725,7 +779,7 @@ int yyparse (void* scanner, ParserState* state);
 
 /* Copy the second part of user declarations.  */
 
-#line 729 "src/grammar.cc" /* yacc.c:358  */
+#line 783 "src/grammar.cc" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -1031,22 +1085,22 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   551,   551,   555,   556,   559,   562,   563,   566,   567,
-     568,   569,   570,   571,   572,   573,   574,   577,   579,   581,
-     583,   585,   587,   589,   593,   597,   599,   601,   603,   605,
-     607,   612,   613,   617,   620,   622,   627,   628,   632,   636,
-     640,   641,   645,   647,   651,   652,   655,   656,   659,   664,
-     665,   668,   670,   673,   675,   679,   683,   685,   687,   689,
-     693,   695,   698,   700,   704,   708,   712,   716,   720,   725,
-     726,   730,   731,   732,   735,   739,   743,   746,   748,   749,
-     750,   752,   753,   754,   757,   759,   763,   766,   770,   772,
-     774,   776,   778,   780,   782,   784,   786,   788,   790,   792,
-     794,   796,   798,   800,   802,   804,   806,   808,   810,   812,
-     814,   816,   820,   822,   824,   828,   830,   834,   835,   838,
-     840,   844,   846,   848,   850,   852,   854,   856,   858,   860,
-     862,   864,   866,   868,   870,   872,   874,   876,   878,   880,
-     882,   884,   886,   888,   890,   892,   894,   896,   898,   900,
-     902,   906,   908,   913,   914,   916,   918
+       0,   609,   609,   613,   614,   617,   620,   621,   624,   625,
+     626,   627,   628,   629,   630,   631,   632,   635,   637,   639,
+     641,   643,   645,   647,   651,   655,   657,   659,   661,   663,
+     665,   670,   671,   675,   678,   680,   685,   686,   690,   694,
+     698,   699,   703,   705,   709,   710,   713,   714,   717,   722,
+     723,   726,   728,   731,   733,   737,   741,   743,   745,   747,
+     751,   753,   756,   758,   762,   766,   770,   774,   778,   783,
+     784,   788,   789,   790,   793,   797,   801,   805,   807,   809,
+     811,   813,   815,   817,   821,   823,   827,   830,   834,   836,
+     838,   840,   842,   844,   846,   848,   850,   852,   854,   856,
+     858,   860,   862,   864,   866,   868,   870,   872,   874,   876,
+     878,   880,   884,   886,   888,   892,   894,   898,   899,   902,
+     904,   908,   910,   912,   914,   916,   918,   920,   922,   924,
+     926,   928,   930,   932,   934,   936,   938,   940,   942,   944,
+     946,   948,   950,   952,   954,   956,   958,   960,   962,   964,
+     966,   970,   972,   977,   978,   980,   982
 };
 #endif
 
@@ -1075,7 +1129,7 @@ static const char *const yytname[] =
   "distribution_and_updates", "distribution", "true_or_updates", "updates",
   "update", "formula", "label", "init", "rewards", "rewards_label",
   "reward_rules", "state_reward", "transition_reward", "system",
-  "process_algebra", "action_list", "action_substitutions", "expr",
+  "process_algebra", "action_set", "action_substitutions", "expr",
   "function", "arguments", "properties", "property_list", "property",
   "path_property", "time_range", YY_NULLPTR
 };
@@ -1992,117 +2046,129 @@ yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocatio
   switch (yytype)
     {
           case 33: /* IDENTIFIER  */
-#line 537 "grammar.yy" /* yacc.c:1257  */
+#line 593 "grammar.yy" /* yacc.c:1257  */
       { delete ((*yyvaluep).str); }
-#line 1998 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 34: /* NUMBER  */
-#line 544 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).number); }
-#line 2004 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 35: /* LABEL_NAME  */
-#line 537 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).str); }
-#line 2010 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 100: /* constant_init  */
-#line 543 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).expr); }
-#line 2016 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 103: /* variable_init  */
-#line 543 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).expr); }
-#line 2022 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 107: /* substitutions  */
-#line 538 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).substitutions); }
-#line 2028 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 111: /* action  */
-#line 537 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).str); }
-#line 2034 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 112: /* outcomes  */
-#line 539 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).outcomes); }
-#line 2040 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 113: /* update_distribution  */
-#line 539 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).outcomes); }
-#line 2046 "src/grammar.cc" /* yacc.c:1257  */
-        break;
-
-    case 114: /* distribution_and_updates  */
-#line 540 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).outcome); }
 #line 2052 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 115: /* distribution  */
-#line 541 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).dist); }
+    case 34: /* NUMBER  */
+#line 602 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).number); }
 #line 2058 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 116: /* true_or_updates  */
-#line 542 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).updates); }
+    case 35: /* LABEL_NAME  */
+#line 593 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).str); }
 #line 2064 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 117: /* updates  */
-#line 542 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).updates); }
+    case 100: /* constant_init  */
+#line 600 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).expr); }
 #line 2070 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 130: /* action_substitutions  */
-#line 538 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).substitutions); }
+    case 103: /* variable_init  */
+#line 600 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).expr); }
 #line 2076 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 131: /* expr  */
-#line 543 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).expr); }
+    case 107: /* substitutions  */
+#line 595 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).substitutions); }
 #line 2082 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 133: /* arguments  */
-#line 545 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).arguments); }
+    case 111: /* action  */
+#line 593 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).str); }
 #line 2088 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 136: /* property  */
-#line 543 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).expr); }
+    case 112: /* outcomes  */
+#line 596 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).outcomes); }
 #line 2094 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 137: /* path_property  */
-#line 546 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).path); }
+    case 113: /* update_distribution  */
+#line 596 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).outcomes); }
 #line 2100 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
-    case 138: /* time_range  */
-#line 547 "grammar.yy" /* yacc.c:1257  */
-      { delete ((*yyvaluep).time_range); }
+    case 114: /* distribution_and_updates  */
+#line 597 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).outcome); }
 #line 2106 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 115: /* distribution  */
+#line 598 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).dist); }
+#line 2112 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 116: /* true_or_updates  */
+#line 599 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).updates); }
+#line 2118 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 117: /* updates  */
+#line 599 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).updates); }
+#line 2124 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 128: /* process_algebra  */
+#line 601 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).process_algebra); }
+#line 2130 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 129: /* action_set  */
+#line 594 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).str_set); }
+#line 2136 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 130: /* action_substitutions  */
+#line 595 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).substitutions); }
+#line 2142 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 131: /* expr  */
+#line 600 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).expr); }
+#line 2148 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 133: /* arguments  */
+#line 603 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).arguments); }
+#line 2154 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 136: /* property  */
+#line 600 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).expr); }
+#line 2160 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 137: /* path_property  */
+#line 604 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).path); }
+#line 2166 "src/grammar.cc" /* yacc.c:1257  */
+        break;
+
+    case 138: /* time_range  */
+#line 605 "grammar.yy" /* yacc.c:1257  */
+      { delete ((*yyvaluep).time_range); }
+#line 2172 "src/grammar.cc" /* yacc.c:1257  */
         break;
 
 
@@ -2394,734 +2460,770 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 552 "grammar.yy" /* yacc.c:1646  */
+#line 610 "grammar.yy" /* yacc.c:1646  */
     { if (!state->success()) YYERROR; }
-#line 2400 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 17:
-#line 578 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::MDP, state); }
-#line 2406 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 18:
-#line 580 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::MDP, state); }
-#line 2412 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 19:
-#line 582 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::DTMC, state); }
-#line 2418 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 20:
-#line 584 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::DTMC, state); }
-#line 2424 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 21:
-#line 586 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::CTMC, state); }
-#line 2430 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 22:
-#line 588 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::CTMC, state); }
-#line 2436 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 23:
-#line 590 "grammar.yy" /* yacc.c:1646  */
-    { SetModelType(yylloc, ModelType::GSMP, state); }
-#line 2442 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 24:
-#line 594 "grammar.yy" /* yacc.c:1646  */
-    { AddConstant(yylloc, (yyvsp[-2].str), (yyvsp[-3].type), (yyvsp[-1].expr), state); }
-#line 2448 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 25:
-#line 598 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.type) = Type::INT; }
-#line 2454 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 26:
-#line 600 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.type) = Type::INT; }
-#line 2460 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 27:
-#line 602 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.type) = Type::DOUBLE; }
 #line 2466 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 28:
-#line 604 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.type) = Type::DOUBLE; }
+  case 17:
+#line 636 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::MDP, state); }
 #line 2472 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 29:
-#line 606 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.type) = Type::DOUBLE; }
+  case 18:
+#line 638 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::MDP, state); }
 #line 2478 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 30:
-#line 608 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.type) = Type::BOOL; }
+  case 19:
+#line 640 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::DTMC, state); }
 #line 2484 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 31:
-#line 612 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = nullptr; }
+  case 20:
+#line 642 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::DTMC, state); }
 #line 2490 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 32:
-#line 614 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = (yyvsp[0].expr); }
+  case 21:
+#line 644 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::CTMC, state); }
 #line 2496 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 34:
-#line 621 "grammar.yy" /* yacc.c:1646  */
-    { AddIntVariable(yylloc, (yyvsp[-8].str), (yyvsp[-5].expr), (yyvsp[-3].expr), (yyvsp[-1].expr), state); }
+  case 22:
+#line 646 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::CTMC, state); }
 #line 2502 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 35:
-#line 623 "grammar.yy" /* yacc.c:1646  */
-    { AddBoolVariable(yylloc, (yyvsp[-4].str), (yyvsp[-1].expr), state); }
+  case 23:
+#line 648 "grammar.yy" /* yacc.c:1646  */
+    { SetModelType(yylloc, ModelType::GSMP, state); }
 #line 2508 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 36:
-#line 627 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = nullptr; }
+  case 24:
+#line 652 "grammar.yy" /* yacc.c:1646  */
+    { AddConstant(yylloc, (yyvsp[-2].str), (yyvsp[-3].type), (yyvsp[-1].expr), state); }
 #line 2514 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 37:
-#line 629 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = (yyvsp[0].expr); }
+  case 25:
+#line 656 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.type) = Type::INT; }
 #line 2520 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 38:
-#line 633 "grammar.yy" /* yacc.c:1646  */
-    { EndModule(state); }
+  case 26:
+#line 658 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.type) = Type::INT; }
 #line 2526 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 39:
-#line 637 "grammar.yy" /* yacc.c:1646  */
-    { StartModule(yylloc, (yyvsp[0].str), state); }
+  case 27:
+#line 660 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.type) = Type::DOUBLE; }
 #line 2532 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 41:
-#line 642 "grammar.yy" /* yacc.c:1646  */
-    { AddFromModule(yylloc, (yyvsp[-3].str), (yyvsp[-1].substitutions), state); }
+  case 28:
+#line 662 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.type) = Type::DOUBLE; }
 #line 2538 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 42:
-#line 646 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), nullptr, state); }
+  case 29:
+#line 664 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.type) = Type::DOUBLE; }
 #line 2544 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 43:
-#line 648 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), (yyvsp[-4].substitutions), state); }
+  case 30:
+#line 666 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.type) = Type::BOOL; }
 #line 2550 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 48:
-#line 660 "grammar.yy" /* yacc.c:1646  */
-    { AddCommand(yylloc, (yyvsp[-5].str), (yyvsp[-3].expr), (yyvsp[-1].outcomes), state); }
+  case 31:
+#line 670 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = nullptr; }
 #line 2556 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 49:
-#line 664 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.str) = new std::string(); }
+  case 32:
+#line 672 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = (yyvsp[0].expr); }
 #line 2562 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 51:
-#line 669 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.outcomes) = AddOutcome(NewOutcome(nullptr, (yyvsp[0].updates)), nullptr); }
+  case 34:
+#line 679 "grammar.yy" /* yacc.c:1646  */
+    { AddIntVariable(yylloc, (yyvsp[-8].str), (yyvsp[-5].expr), (yyvsp[-3].expr), (yyvsp[-1].expr), state); }
 #line 2568 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 53:
-#line 674 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.outcomes) = AddOutcome((yyvsp[0].outcome), nullptr); }
+  case 35:
+#line 681 "grammar.yy" /* yacc.c:1646  */
+    { AddBoolVariable(yylloc, (yyvsp[-4].str), (yyvsp[-1].expr), state); }
 #line 2574 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 54:
-#line 676 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.outcomes) = AddOutcome((yyvsp[0].outcome), (yyvsp[-2].outcomes)); }
+  case 36:
+#line 685 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = nullptr; }
 #line 2580 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 55:
-#line 680 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.outcome) = NewOutcome((yyvsp[-2].dist), (yyvsp[0].updates)); }
+  case 37:
+#line 687 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = (yyvsp[0].expr); }
 #line 2586 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 56:
-#line 684 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.dist) = NewMemoryless((yyvsp[0].expr)); }
+  case 38:
+#line 691 "grammar.yy" /* yacc.c:1646  */
+    { EndModule(state); }
 #line 2592 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 57:
-#line 686 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.dist) = NewWeibull((yyvsp[-3].expr), (yyvsp[-1].expr)); }
+  case 39:
+#line 695 "grammar.yy" /* yacc.c:1646  */
+    { StartModule(yylloc, (yyvsp[0].str), state); }
 #line 2598 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 58:
-#line 688 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.dist) = NewLognormal((yyvsp[-3].expr), (yyvsp[-1].expr)); }
+  case 41:
+#line 700 "grammar.yy" /* yacc.c:1646  */
+    { AddFromModule(yylloc, (yyvsp[-3].str), (yyvsp[-1].substitutions), state); }
 #line 2604 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 59:
-#line 690 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.dist) = NewUniform((yyvsp[-3].expr), (yyvsp[-1].expr)); }
+  case 42:
+#line 704 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), nullptr, state); }
 #line 2610 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 60:
-#line 694 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.updates) = new std::vector<Update>(); }
+  case 43:
+#line 706 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), (yyvsp[-4].substitutions), state); }
 #line 2616 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 62:
-#line 699 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.updates) = AddUpdate((yyvsp[0].update), nullptr); }
+  case 48:
+#line 718 "grammar.yy" /* yacc.c:1646  */
+    { AddCommand(yylloc, (yyvsp[-5].str), (yyvsp[-3].expr), (yyvsp[-1].outcomes), state); }
 #line 2622 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 63:
-#line 701 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.updates) = AddUpdate((yyvsp[0].update), (yyvsp[-2].updates)); }
+  case 49:
+#line 722 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.str) = new std::string(); }
 #line 2628 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 64:
-#line 705 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.update) = NewUpdate((yyvsp[-4].str), (yyvsp[-1].expr)); }
+  case 51:
+#line 727 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.outcomes) = AddOutcome(NewOutcome(nullptr, (yyvsp[0].updates)), nullptr); }
 #line 2634 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 65:
-#line 709 "grammar.yy" /* yacc.c:1646  */
-    { AddFormula(yylloc, (yyvsp[-3].str), (yyvsp[-1].expr), state); }
+  case 53:
+#line 732 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.outcomes) = AddOutcome((yyvsp[0].outcome), nullptr); }
 #line 2640 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 66:
-#line 713 "grammar.yy" /* yacc.c:1646  */
-    { AddLabel(yylloc, (yyvsp[-3].str), (yyvsp[-1].expr), state); }
+  case 54:
+#line 734 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.outcomes) = AddOutcome((yyvsp[0].outcome), (yyvsp[-2].outcomes)); }
 #line 2646 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 67:
-#line 717 "grammar.yy" /* yacc.c:1646  */
-    { SetInit(yylloc, (yyvsp[-1].expr), state); }
+  case 55:
+#line 738 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.outcome) = NewOutcome((yyvsp[-2].dist), (yyvsp[0].updates)); }
 #line 2652 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 68:
-#line 721 "grammar.yy" /* yacc.c:1646  */
-    { EndRewards(state); }
+  case 56:
+#line 742 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.dist) = NewMemoryless((yyvsp[0].expr)); }
 #line 2658 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 69:
-#line 725 "grammar.yy" /* yacc.c:1646  */
-    { StartRewards(yylloc, new std::string(), state); }
+  case 57:
+#line 744 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.dist) = NewWeibull((yyvsp[-3].expr), (yyvsp[-1].expr)); }
 #line 2664 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 70:
-#line 727 "grammar.yy" /* yacc.c:1646  */
-    { StartRewards(yylloc, (yyvsp[0].str), state); }
+  case 58:
+#line 746 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.dist) = NewLognormal((yyvsp[-3].expr), (yyvsp[-1].expr)); }
 #line 2670 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 74:
-#line 736 "grammar.yy" /* yacc.c:1646  */
-    { AddStateReward((yyvsp[-3].expr), (yyvsp[-1].expr), state); }
+  case 59:
+#line 748 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.dist) = NewUniform((yyvsp[-3].expr), (yyvsp[-1].expr)); }
 #line 2676 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 75:
-#line 740 "grammar.yy" /* yacc.c:1646  */
-    { AddTransitionReward(yylloc, (yyvsp[-5].str), (yyvsp[-3].expr), (yyvsp[-1].expr), state); }
+  case 60:
+#line 752 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.updates) = new std::vector<Update>(); }
 #line 2682 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 77:
-#line 747 "grammar.yy" /* yacc.c:1646  */
-    { delete (yyvsp[0].str); }
+  case 62:
+#line 757 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.updates) = AddUpdate((yyvsp[0].update), nullptr); }
 #line 2688 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 80:
-#line 751 "grammar.yy" /* yacc.c:1646  */
-    { delete (yyvsp[-1].substitutions); }
+  case 63:
+#line 759 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.updates) = AddUpdate((yyvsp[0].update), (yyvsp[-2].updates)); }
 #line 2694 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 84:
-#line 758 "grammar.yy" /* yacc.c:1646  */
-    { delete (yyvsp[0].str); }
+  case 64:
+#line 763 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.update) = NewUpdate((yyvsp[-4].str), (yyvsp[-1].expr)); }
 #line 2700 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 85:
-#line 760 "grammar.yy" /* yacc.c:1646  */
-    { delete (yyvsp[0].str); }
+  case 65:
+#line 767 "grammar.yy" /* yacc.c:1646  */
+    { AddFormula(yylloc, (yyvsp[-3].str), (yyvsp[-1].expr), state); }
 #line 2706 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
+  case 66:
+#line 771 "grammar.yy" /* yacc.c:1646  */
+    { AddLabel(yylloc, (yyvsp[-3].str), (yyvsp[-1].expr), state); }
+#line 2712 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 67:
+#line 775 "grammar.yy" /* yacc.c:1646  */
+    { SetInit(yylloc, (yyvsp[-1].expr), state); }
+#line 2718 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 68:
+#line 779 "grammar.yy" /* yacc.c:1646  */
+    { EndRewards(state); }
+#line 2724 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 69:
+#line 783 "grammar.yy" /* yacc.c:1646  */
+    { StartRewards(yylloc, new std::string(), state); }
+#line 2730 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 70:
+#line 785 "grammar.yy" /* yacc.c:1646  */
+    { StartRewards(yylloc, (yyvsp[0].str), state); }
+#line 2736 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 74:
+#line 794 "grammar.yy" /* yacc.c:1646  */
+    { AddStateReward((yyvsp[-3].expr), (yyvsp[-1].expr), state); }
+#line 2742 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 75:
+#line 798 "grammar.yy" /* yacc.c:1646  */
+    { AddTransitionReward(yylloc, (yyvsp[-5].str), (yyvsp[-3].expr), (yyvsp[-1].expr), state); }
+#line 2748 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 76:
+#line 802 "grammar.yy" /* yacc.c:1646  */
+    { SetSystem(yylloc, (yyvsp[-1].process_algebra), state); }
+#line 2754 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 77:
+#line 806 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = NewModuleIdentifier((yyvsp[0].str)); }
+#line 2760 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 78:
+#line 808 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = (yyvsp[-1].process_algebra); }
+#line 2766 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 79:
+#line 810 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = NewActionHiding((yyvsp[-1].str_set), (yyvsp[-4].process_algebra)); }
+#line 2772 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 80:
+#line 812 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = NewActionRenaming((yyvsp[-1].substitutions), (yyvsp[-3].process_algebra)); }
+#line 2778 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 81:
+#line 814 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = NewRestrictedParallelComposition((yyvsp[-3].str_set), (yyvsp[-6].process_algebra), (yyvsp[0].process_algebra)); }
+#line 2784 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 82:
+#line 816 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = NewAlphabetizedParallelComposition((yyvsp[-2].process_algebra), (yyvsp[0].process_algebra)); }
+#line 2790 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 83:
+#line 818 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.process_algebra) = NewAsynchronousParallelComposition((yyvsp[-2].process_algebra), (yyvsp[0].process_algebra)); }
+#line 2796 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 84:
+#line 822 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.str_set) = AddAction((yyvsp[0].str), nullptr); }
+#line 2802 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 85:
+#line 824 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.str_set) = AddAction((yyvsp[0].str), (yyvsp[-2].str_set)); }
+#line 2808 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
   case 86:
-#line 764 "grammar.yy" /* yacc.c:1646  */
+#line 828 "grammar.yy" /* yacc.c:1646  */
     { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), nullptr,
                                                 state); }
-#line 2713 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 87:
-#line 767 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), (yyvsp[-4].substitutions), state); }
-#line 2719 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 88:
-#line 771 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLiteral((yyvsp[0].number)); }
-#line 2725 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 89:
-#line 773 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = new Literal(true); }
-#line 2731 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 90:
-#line 775 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = new Literal(false); }
-#line 2737 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 91:
-#line 777 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewIdentifier((yyvsp[0].str)); }
-#line 2743 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 92:
-#line 779 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
-#line 2749 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 93:
-#line 781 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
-#line 2755 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 94:
-#line 783 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewNegate((yyvsp[0].expr)); }
-#line 2761 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 95:
-#line 785 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewNot((yyvsp[0].expr)); }
-#line 2767 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 96:
-#line 787 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewPlus((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2773 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 97:
-#line 789 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewMinus((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2779 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 98:
-#line 791 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewMultiply((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2785 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 99:
-#line 793 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewDivide((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2791 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 100:
-#line 795 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewAnd((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2797 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 101:
-#line 797 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewOr((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2803 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 102:
-#line 799 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewImply((yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2809 "src/grammar.cc" /* yacc.c:1646  */
-    break;
-
-  case 103:
-#line 801 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewIff((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2815 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 104:
-#line 803 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLess((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 87:
+#line 831 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.substitutions) = AddSubstitution(yylloc, (yyvsp[-2].str), (yyvsp[0].str), (yyvsp[-4].substitutions), state); }
 #line 2821 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 105:
-#line 805 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLessEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 88:
+#line 835 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLiteral((yyvsp[0].number)); }
 #line 2827 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 106:
-#line 807 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewGreaterEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 89:
+#line 837 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = new Literal(true); }
 #line 2833 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 107:
-#line 809 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewGreater((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 90:
+#line 839 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = new Literal(false); }
 #line 2839 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 108:
-#line 811 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 91:
+#line 841 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewIdentifier((yyvsp[0].str)); }
 #line 2845 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 109:
-#line 813 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewNotEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 92:
+#line 843 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
 #line 2851 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 110:
-#line 815 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewConditional((yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 93:
+#line 845 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
 #line 2857 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 111:
-#line 817 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = (yyvsp[-1].expr); }
+  case 94:
+#line 847 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewNegate((yyvsp[0].expr)); }
 #line 2863 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 112:
-#line 821 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.function) = MakeFunction(yylloc, (yyvsp[0].str), state); }
+  case 95:
+#line 849 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewNot((yyvsp[0].expr)); }
 #line 2869 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 113:
-#line 823 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.function) = Function::MIN; }
+  case 96:
+#line 851 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewPlus((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2875 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 114:
-#line 825 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.function) = Function::MAX; }
+  case 97:
+#line 853 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewMinus((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2881 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 115:
-#line 829 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.arguments) = AddArgument((yyvsp[0].expr), nullptr);  }
+  case 98:
+#line 855 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewMultiply((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2887 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 116:
-#line 831 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.arguments) = AddArgument((yyvsp[0].expr), (yyvsp[-2].arguments)); }
+  case 99:
+#line 857 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewDivide((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2893 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 119:
-#line 839 "grammar.yy" /* yacc.c:1646  */
-    { AddProperty((yyvsp[0].expr), state); }
+  case 100:
+#line 859 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewAnd((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2899 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 120:
-#line 841 "grammar.yy" /* yacc.c:1646  */
-    { AddProperty((yyvsp[0].expr), state); }
+  case 101:
+#line 861 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewOr((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2905 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 121:
-#line 845 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLiteral((yyvsp[0].number)); }
+  case 102:
+#line 863 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewImply((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2911 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 122:
-#line 847 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = new Literal(true); }
+  case 103:
+#line 865 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewIff((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2917 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 123:
-#line 849 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = new Literal(false); }
+  case 104:
+#line 867 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLess((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2923 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 124:
-#line 851 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewIdentifier((yyvsp[0].str)); }
+  case 105:
+#line 869 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLessEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2929 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 125:
-#line 853 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLabel((yyvsp[0].str)); }
+  case 106:
+#line 871 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewGreaterEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2935 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 126:
-#line 855 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
+  case 107:
+#line 873 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewGreater((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2941 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 127:
-#line 857 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
+  case 108:
+#line 875 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2947 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 128:
-#line 859 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewProbabilityLess(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
+  case 109:
+#line 877 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewNotEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2953 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 129:
-#line 861 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewProbabilityLessEqual(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
+  case 110:
+#line 879 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewConditional((yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2959 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 130:
-#line 863 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewProbabilityGreaterEqual(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
+  case 111:
+#line 881 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = (yyvsp[-1].expr); }
 #line 2965 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 131:
-#line 865 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewProbabilityGreater(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
+  case 112:
+#line 885 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.function) = MakeFunction(yylloc, (yyvsp[0].str), state); }
 #line 2971 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 132:
-#line 867 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewProbabilityEqual((yyvsp[-1].path)); }
+  case 113:
+#line 887 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.function) = Function::MIN; }
 #line 2977 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 133:
-#line 869 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewNegate((yyvsp[0].expr)); }
+  case 114:
+#line 889 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.function) = Function::MAX; }
 #line 2983 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 134:
-#line 871 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewNot((yyvsp[0].expr)); }
+  case 115:
+#line 893 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.arguments) = AddArgument((yyvsp[0].expr), nullptr);  }
 #line 2989 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 135:
-#line 873 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewPlus((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 116:
+#line 895 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.arguments) = AddArgument((yyvsp[0].expr), (yyvsp[-2].arguments)); }
 #line 2995 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 136:
-#line 875 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewMinus((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 119:
+#line 903 "grammar.yy" /* yacc.c:1646  */
+    { AddProperty((yyvsp[0].expr), state); }
 #line 3001 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 137:
-#line 877 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewMultiply((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 120:
+#line 905 "grammar.yy" /* yacc.c:1646  */
+    { AddProperty((yyvsp[0].expr), state); }
 #line 3007 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 138:
-#line 879 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewDivide((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 121:
+#line 909 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLiteral((yyvsp[0].number)); }
 #line 3013 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 139:
-#line 881 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewAnd((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 122:
+#line 911 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = new Literal(true); }
 #line 3019 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 140:
-#line 883 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewOr((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 123:
+#line 913 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = new Literal(false); }
 #line 3025 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 141:
-#line 885 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewImply((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 124:
+#line 915 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewIdentifier((yyvsp[0].str)); }
 #line 3031 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 142:
-#line 887 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewIff((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 125:
+#line 917 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLabel((yyvsp[0].str)); }
 #line 3037 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 143:
-#line 889 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLess((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 126:
+#line 919 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
 #line 3043 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 144:
-#line 891 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewLessEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 127:
+#line 921 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewFunctionCall((yyvsp[-3].function), (yyvsp[-1].arguments)); }
 #line 3049 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 145:
-#line 893 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewGreaterEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 128:
+#line 923 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewProbabilityLess(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
 #line 3055 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 146:
-#line 895 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewGreater((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 129:
+#line 925 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewProbabilityLessEqual(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
 #line 3061 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 147:
-#line 897 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 130:
+#line 927 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewProbabilityGreaterEqual(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
 #line 3067 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 148:
-#line 899 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewNotEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 131:
+#line 929 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewProbabilityGreater(Double((yyvsp[-3].number)), (yyvsp[-1].path)); }
 #line 3073 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 149:
-#line 901 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = NewConditional((yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 132:
+#line 931 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewProbabilityEqual((yyvsp[-1].path)); }
 #line 3079 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 150:
-#line 903 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.expr) = (yyvsp[-1].expr); }
+  case 133:
+#line 933 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewNegate((yyvsp[0].expr)); }
 #line 3085 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 151:
-#line 907 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.path) = NewUntil((yyvsp[-1].time_range), (yyvsp[-3].expr), (yyvsp[0].expr)); }
+  case 134:
+#line 935 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewNot((yyvsp[0].expr)); }
 #line 3091 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 152:
-#line 909 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.path) = NewEventually((yyvsp[-1].time_range), (yyvsp[0].expr)); }
+  case 135:
+#line 937 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewPlus((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 3097 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 153:
-#line 913 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.time_range) = new TimeRange(0, Infinity()); }
+  case 136:
+#line 939 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewMinus((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 3103 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 154:
-#line 915 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.time_range) = new TimeRange(0, Double((yyvsp[0].number))); }
+  case 137:
+#line 941 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewMultiply((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 3109 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 155:
-#line 917 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.time_range) = new TimeRange(Double((yyvsp[-3].number)), Double((yyvsp[-1].number))); }
+  case 138:
+#line 943 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewDivide((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 3115 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
-  case 156:
-#line 919 "grammar.yy" /* yacc.c:1646  */
-    { (yyval.time_range) = new TimeRange(Double((yyvsp[0].number)), Infinity()); }
+  case 139:
+#line 945 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewAnd((yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 3121 "src/grammar.cc" /* yacc.c:1646  */
     break;
 
+  case 140:
+#line 947 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewOr((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3127 "src/grammar.cc" /* yacc.c:1646  */
+    break;
 
-#line 3125 "src/grammar.cc" /* yacc.c:1646  */
+  case 141:
+#line 949 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewImply((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3133 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 142:
+#line 951 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewIff((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3139 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 143:
+#line 953 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLess((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3145 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 144:
+#line 955 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewLessEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3151 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 145:
+#line 957 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewGreaterEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3157 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 146:
+#line 959 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewGreater((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3163 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 147:
+#line 961 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3169 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 148:
+#line 963 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewNotEqual((yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3175 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 149:
+#line 965 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = NewConditional((yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 3181 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 150:
+#line 967 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.expr) = (yyvsp[-1].expr); }
+#line 3187 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 151:
+#line 971 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.path) = NewUntil((yyvsp[-1].time_range), (yyvsp[-3].expr), (yyvsp[0].expr)); }
+#line 3193 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 152:
+#line 973 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.path) = NewEventually((yyvsp[-1].time_range), (yyvsp[0].expr)); }
+#line 3199 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 153:
+#line 977 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.time_range) = new TimeRange(0, Infinity()); }
+#line 3205 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 154:
+#line 979 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.time_range) = new TimeRange(0, Double((yyvsp[0].number))); }
+#line 3211 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 155:
+#line 981 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.time_range) = new TimeRange(Double((yyvsp[-3].number)), Double((yyvsp[-1].number))); }
+#line 3217 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+  case 156:
+#line 983 "grammar.yy" /* yacc.c:1646  */
+    { (yyval.time_range) = new TimeRange(Double((yyvsp[0].number)), Infinity()); }
+#line 3223 "src/grammar.cc" /* yacc.c:1646  */
+    break;
+
+
+#line 3227 "src/grammar.cc" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3356,5 +3458,5 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 922 "grammar.yy" /* yacc.c:1906  */
+#line 986 "grammar.yy" /* yacc.c:1906  */
 

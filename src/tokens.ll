@@ -27,6 +27,7 @@
 #include "expression.h"
 #include "model.h"
 #include "parser-state.h"
+#include "process-algebra.h"
 #include "typed-value.h"
 #include "unique-ptr-vector.h"
 

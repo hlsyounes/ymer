@@ -103,7 +103,10 @@ TEST(ParseStringTest, ParsesValidModel) {
       "endrewards\n\n"
       "rewards \"r\"\n"
       "  [a2] true : 0.25;\n"
-      "endrewards",
+      "endrewards\n\n"
+      "system\n"
+      "  M1 {a1<-a3} ||| M2\n"
+      "endsystem",
       StrCat(result.model.value()));
 }
 
