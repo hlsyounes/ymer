@@ -31,6 +31,7 @@
 
 #include "distribution.h"
 #include "expression.h"
+#include "process-algebra.h"
 #include "typed-value.h"
 
 // A variable update.
@@ -412,6 +413,10 @@ class Model {
   // structure is currently open.
   void EndRewardsStructure();
 
+  // Sets the process algebra expression for this model.  Returns false if this
+  // model already has an process algebra expression.
+  bool SetSystem(std::unique_ptr<const ProcessAlgebra>&& system);
+
   // Returns the type of this model.
   ModelType type() const { return type_; }
 
@@ -450,6 +455,10 @@ class Model {
     return rewards_structures_;
   }
 
+  // Returns the process algebra expression for this model, or null if this
+  // model does not have a process algebra expression.
+  const ProcessAlgebra* system() const { return system_.get(); }
+
 private:
   struct IdentifierIndex {
     enum Type { kConstant, kVariable, kFormula, kAction } type;
@@ -481,6 +490,7 @@ private:
   int current_rewards_structure_;
   std::set<std::string> rewards_structure_labels_;
   std::vector<ParsedRewardsStructure> rewards_structures_;
+  std::unique_ptr<const ProcessAlgebra> system_;
 };
 
 // Output operator for models.

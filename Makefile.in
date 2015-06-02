@@ -255,7 +255,8 @@ src_libexpression_la_DEPENDENCIES = src/libtyped-value.la \
 am_src_libexpression_la_OBJECTS = src/expression.lo
 src_libexpression_la_OBJECTS = $(am_src_libexpression_la_OBJECTS)
 src_libmodel_la_DEPENDENCIES = src/libdistribution.la \
-	src/libexpression.la src/libtyped-value.la glog/libglog.la
+	src/libexpression.la src/libprocess-algebra.la \
+	src/libtyped-value.la glog/libglog.la
 am_src_libmodel_la_OBJECTS = src/model.lo
 src_libmodel_la_OBJECTS = $(am_src_libmodel_la_OBJECTS)
 src_libparser_la_DEPENDENCIES = src/libdistribution.la \
@@ -1023,7 +1024,7 @@ src_libprocess_algebra_la_SOURCES = src/process-algebra.h src/process-algebra.cc
 src_libprocess_algebra_la_LIBADD = glog/libglog.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
-    src/libtyped-value.la glog/libglog.la
+    src/libprocess-algebra.la src/libtyped-value.la glog/libglog.la
 
 src_libparser_la_SOURCES = src/parser.h src/parser.cc src/parser-state.h \
     src/grammar.yy src/tokens.ll

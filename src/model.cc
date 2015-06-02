@@ -1053,6 +1053,14 @@ void Model::EndRewardsStructure() {
   current_rewards_structure_ = kNoRewardsStructure;
 }
 
+bool Model::SetSystem(std::unique_ptr<const ProcessAlgebra>&& system) {
+  if (system_ != nullptr) {
+    return false;
+  }
+  system_ = std::move(system);
+  return true;
+}
+
 size_t Model::ActionIndex(const std::string& name) const {
   auto i = identifier_indices_.find(name);
   CHECK(i != identifier_indices_.end());
@@ -1133,6 +1141,12 @@ std::ostream& operator<<(std::ostream& os, const Model& m) {
   }
   for (const auto& rewards_structure : m.rewards_structures()) {
     os << std::endl << std::endl << rewards_structure;
+  }
+  if (m.system() != nullptr) {
+    os << std::endl
+       << "system" << std::endl
+       << "  " << *m.system() << std::endl
+       << "endsystem";
   }
   return os;
 }

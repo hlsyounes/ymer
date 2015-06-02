@@ -660,4 +660,17 @@ TEST(ModelTest, SetsInitOnce) {
   EXPECT_EQ("true", StrCat(*model.init()));
 }
 
+TEST(ModelTest, DefaultsToNullSystem) {
+  Model model;
+  EXPECT_EQ(nullptr, model.system());
+}
+
+TEST(ModelTest, SetsSystemOnce) {
+  Model model;
+  EXPECT_TRUE(model.SetSystem(MakeUnique<ModuleIdentifier>("foo")));
+  EXPECT_EQ("foo", StrCat(*model.system()));
+  EXPECT_FALSE(model.SetSystem(MakeUnique<ModuleIdentifier>("bar")));
+  EXPECT_EQ("foo", StrCat(*model.system()));
+}
+
 }  // namespace

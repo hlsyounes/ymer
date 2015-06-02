@@ -128,7 +128,7 @@ src_libprocess_algebra_la_LIBADD = glog/libglog.la
 noinst_LTLIBRARIES += src/libmodel.la
 src_libmodel_la_SOURCES = src/model.h src/model.cc
 src_libmodel_la_LIBADD = src/libdistribution.la src/libexpression.la \
-    src/libtyped-value.la glog/libglog.la
+    src/libprocess-algebra.la src/libtyped-value.la glog/libglog.la
 
 # Parser library.
 noinst_LTLIBRARIES += src/libparser.la
