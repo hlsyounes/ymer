@@ -116,7 +116,7 @@ void display_help() {
       << "\t\t\t  or `mixed'" << std::endl
       << "  -H h,  --host=h\t"
       << "connect to server on host h" << std::endl
-      << "  -L l,  --max_path-length=l" << std::endl
+      << "  -L l,  --max-path-length=l" << std::endl
       << "\t\t\tlimit sample path to l states" << std::endl
       << "  -M,    --memoization\t"
       << "use memoization for sampling engine" << std::endl

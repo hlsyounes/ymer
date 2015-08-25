@@ -576,7 +576,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   const double t_min = path_property.min_time();
   const double t_max = path_property.max_time();
   int path_length = 1;
-  bool done = false, output = false, early_termination = false;
+  bool done = false, early_termination = false;
   std::set<State, StateLess> unique_pre_states;
   auto pre_states_inserter =
       inserter(unique_pre_states, unique_pre_states.begin());
@@ -600,7 +600,6 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       t = std::numeric_limits<double>::infinity();
       result_ = false;
       done = true;
-      output = true;
       early_termination = true;
     } else {
       simulator_.NextState(curr_state, &next_state);
@@ -628,7 +627,6 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
           t = t_min;
           result_ = true;
           done = true;
-          output = true;
         }
       }
       std::swap(state_, curr_state_ptr);
@@ -638,7 +636,6 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
         if (t_max < t || t == std::numeric_limits<double>::infinity()) {
           result_ = false;
           done = true;
-          output = true;
         }
         path_length++;
       }
@@ -724,10 +721,8 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       std::swap(params_.beta, beta);
     }
   }
-  if (VLOG_IS_ON(3)) {
-    if (output) {
-      LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
-    }
+  if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
+    LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
     if (result_) {
       LOG(INFO) << ">>positive sample";
     } else {
