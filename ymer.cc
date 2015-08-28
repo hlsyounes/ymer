@@ -33,10 +33,10 @@
 #include "src/rng.h"
 #include "src/simulator.h"
 #include "src/strutil.h"
+#include "src/timeutil.h"
 #include "src/typed-value.h"
 #include "glog/logging.h"
 #include <cudd.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -1605,28 +1605,13 @@ int main(int argc, char* argv[]) {
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", p_term=" << params.termination_probability
                 << ", seed=" << seed << std::endl;
-      itimerval timer = {{0L, 0L}, {40000000L, 0L}};
-      itimerval stimer;
-#ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
-#else
-      setitimer(ITIMER_PROF, &timer, 0);
-      getitimer(ITIMER_PROF, &stimer);
-#endif
+      Timer<> model_timer;
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
       const State init_state(compiled_model);
-#ifdef PROFILING
-      getitimer(ITIMER_VIRTUAL, &timer);
-#else
-      getitimer(ITIMER_PROF, &timer);
-#endif
-      long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-      long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-      double t = std::max(0.0, sec + usec * 1e-6);
-      std::cout << "Model built in " << t << " seconds." << std::endl;
+      std::cout << "Model built in " << model_timer.GetElapsedSeconds()
+                << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
       for (auto fi = parse_result.properties.begin();
@@ -1639,46 +1624,12 @@ int main(int argc, char* argv[]) {
         size_t accepts = 0;
         ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
-          timeval start_time;
-          itimerval timer = {{0, 0}, {40000000L, 0}};
-          itimerval stimer;
-          if (server_socket != -1) {
-            gettimeofday(&start_time, 0);
-          } else {
-#ifdef PROFILING
-            setitimer(ITIMER_VIRTUAL, &timer, 0);
-            getitimer(ITIMER_VIRTUAL, &stimer);
-#else
-            setitimer(ITIMER_PROF, &timer, 0);
-            getitimer(ITIMER_PROF, &stimer);
-#endif
-          }
+          Timer<> property_timer;
           if (Verify(property, compiled_model, nullptr, params, &evaluator,
                      &sampler, init_state, &stats)) {
             ++accepts;
           }
-          double t;
-          if (server_socket != -1) {
-            timeval end_time;
-            gettimeofday(&end_time, 0);
-            long sec = end_time.tv_sec - start_time.tv_sec;
-            long usec = end_time.tv_usec - start_time.tv_usec;
-            if (usec < 0) {
-              sec--;
-              usec = 1000000 + usec;
-            }
-            t = std::max(0.0, sec + usec * 1e-6);
-          } else {
-#ifdef PROFILING
-            getitimer(ITIMER_VIRTUAL, &timer);
-#else
-            getitimer(ITIMER_PROF, &timer);
-#endif
-            long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-            long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-            t = std::max(0.0, sec + usec * 1e-6);
-          }
-          stats.time.AddObservation(t);
+          stats.time.AddObservation(property_timer.GetElapsedSeconds());
         }
         if (report_statistics) {
           PrintModelCheckingStats(stats);
@@ -1699,26 +1650,11 @@ int main(int argc, char* argv[]) {
       }
     } else if (params.engine == ModelCheckingEngine::HYBRID) {
       std::cout << "Hybrid engine: epsilon=" << params.epsilon << std::endl;
-      itimerval timer = {{0L, 0L}, {40000000L, 0L}};
-      itimerval stimer;
-#ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
-#else
-      setitimer(ITIMER_PROF, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
-#endif
+      Timer<> model_timer;
       DecisionDiagramModel dd_model = DecisionDiagramModel::Make(
           &dd_manager.value(), compiled_model, moments, identifiers_by_name);
-#ifdef PROFILING
-      getitimer(ITIMER_VIRTUAL, &timer);
-#else
-      getitimer(ITIMER_PROF, &timer);
-#endif
-      long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-      long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-      double t = std::max(0.0, sec + usec * 1e-6);
-      std::cout << "Model built in " << t << " seconds." << std::endl;
+      std::cout << "Model built in " << model_timer.GetElapsedSeconds()
+                << " seconds." << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
                        dd_manager.value().GetVariableCount() / 2) << std::endl
@@ -1738,39 +1674,19 @@ int main(int argc, char* argv[]) {
         current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
-        double total_time = 0.0;
         bool accepted = false;
         double accept_count = 0;
+        ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
-          itimerval timer = {{0L, 0L}, {40000000L, 0L}};
-          itimerval stimer;
-#ifdef PROFILING
-          setitimer(ITIMER_VIRTUAL, &timer, 0);
-          getitimer(ITIMER_VIRTUAL, &stimer);
-#else
-          setitimer(ITIMER_PROF, &timer, 0);
-          getitimer(ITIMER_PROF, &stimer);
-#endif
+          Timer<> property_timer;
           BDD ddf = Verify(property, dd_model, true, params.epsilon);
           BDD sol = ddf && dd_model.initial_states();
-#ifdef PROFILING
-          getitimer(ITIMER_VIRTUAL, &timer);
-#else
-          getitimer(ITIMER_PROF, &timer);
-#endif
-          long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-          long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-          double t = std::max(0.0, sec + usec * 1e-6);
-          total_time += t;
+          stats.time.AddObservation(property_timer.GetElapsedSeconds());
           accepted = !sol.is_same(dd_manager.value().GetConstant(false));
           accept_count =
               sol.MintermCount(dd_manager.value().GetVariableCount() / 2);
-          if (t > 1.0) {
-            total_time *= trials;
-            break;
-          }
         }
-        std::cout << "Model checking completed in " << total_time / trials
+        std::cout << "Model checking completed in " << stats.time.mean()
                   << " seconds." << std::endl;
         if (!is_estimation[current_property]) {
           const auto init_count = dd_model.initial_states().MintermCount(
@@ -1801,30 +1717,15 @@ int main(int argc, char* argv[]) {
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", epsilon=" << params.epsilon << ", seed=" << seed
                 << std::endl;
-      itimerval timer = {{0L, 0L}, {40000000L, 0L}};
-      itimerval stimer;
-#ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, 0);
-      getitimer(ITIMER_VIRTUAL, &stimer);
-#else
-      setitimer(ITIMER_PROF, &timer, 0);
-      getitimer(ITIMER_PROF, &stimer);
-#endif
+      Timer<> model_timer;
       DecisionDiagramModel dd_model = DecisionDiagramModel::Make(
           &dd_manager.value(), compiled_model, moments, identifiers_by_name);
       CompiledExpressionEvaluator evaluator(reg_counts.first,
                                             reg_counts.second);
       CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
       const State init_state(compiled_model);
-#ifdef PROFILING
-      getitimer(ITIMER_VIRTUAL, &timer);
-#else
-      getitimer(ITIMER_PROF, &timer);
-#endif
-      long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-      long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-      double t = std::max(0.0, sec + usec * 1e-6);
-      std::cout << "Model built in " << t << " seconds." << std::endl;
+      std::cout << "Model built in " << model_timer.GetElapsedSeconds()
+                << " seconds." << std::endl;
       std::cout << "Variables: " << init_state.values().size() << std::endl;
       std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
       std::cout << "States:      "
@@ -1849,28 +1750,12 @@ int main(int argc, char* argv[]) {
         size_t accepts = 0;
         ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
-          itimerval timer = {{0L, 0L}, {40000000L, 0L}};
-          itimerval stimer;
-#ifdef PROFILING
-          setitimer(ITIMER_VIRTUAL, &timer, 0);
-          getitimer(ITIMER_VIRTUAL, &stimer);
-#else
-          setitimer(ITIMER_PROF, &timer, 0);
-          getitimer(ITIMER_PROF, &stimer);
-#endif
+          Timer<> property_timer;
           if (Verify(property, compiled_model, &dd_model, params, &evaluator,
                      &sampler, init_state, &stats)) {
             ++accepts;
           }
-#ifdef PROFILING
-          getitimer(ITIMER_VIRTUAL, &timer);
-#else
-          getitimer(ITIMER_PROF, &timer);
-#endif
-          long sec = stimer.it_value.tv_sec - timer.it_value.tv_sec;
-          long usec = stimer.it_value.tv_usec - timer.it_value.tv_usec;
-          double t = std::max(0.0, sec + usec * 1e-6);
-          stats.time.AddObservation(t);
+          stats.time.AddObservation(property_timer.GetElapsedSeconds());
         }
         if (report_statistics) {
           PrintModelCheckingStats(stats);
