@@ -3,7 +3,7 @@ Building model...18 variables.
 Computing reachable states 18 iterations.
 States:      240
 Transitions: 800
-Rate matrix: 271 nodes 4 leaves 800 minterms
+Rate matrix: 271 nodes; 4 leaves; 800 minterms
 ODD:         33 nodes
 
 Model checking P=?[ F<=10 s = 1 & a = 0 ] ...

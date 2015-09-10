@@ -5,7 +5,7 @@ Variables: 8
 Events:    16
 States:      21252
 Transitions: 31927
-Rate matrix: 4081 nodes 45 leaves 31927 minterms
+Rate matrix: 4081 nodes; 45 leaves; 31927 minterms
 ODD:         916 nodes
 
 Model checking P=?[ F s = 4 & z / N < 0.1 ] ...

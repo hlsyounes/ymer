@@ -65,6 +65,71 @@ TEST(DecisionDiagramTest, IsConstant) {
   EXPECT_FALSE(manager.GetAddVariable(0).IsConstant());
 }
 
+TEST(DecisionDiagramTest, NodeCount) {
+  const DecisionDiagramManager manager(2);
+  EXPECT_EQ(1, manager.GetConstant(1).NodeCount());
+  EXPECT_EQ(1, manager.GetConstant(false).NodeCount());
+  EXPECT_EQ(2, manager.GetBddVariable(0).NodeCount());
+  EXPECT_EQ(
+      3, (manager.GetBddVariable(0) && manager.GetBddVariable(1)).NodeCount());
+  EXPECT_EQ(6, Ite(manager.GetBddVariable(0),
+                   Ite(manager.GetBddVariable(1), manager.GetConstant(1),
+                       manager.GetConstant(0)),
+                   Ite(manager.GetBddVariable(1), manager.GetConstant(0),
+                       manager.GetConstant(3.14159)))
+                   .NodeCount());
+}
+
+TEST(DecisionDiagramTest, LeafCount) {
+  const DecisionDiagramManager manager(2);
+  EXPECT_EQ(1, manager.GetConstant(1).LeafCount());
+  EXPECT_EQ(1, manager.GetConstant(false).LeafCount());
+  EXPECT_EQ(1, manager.GetBddVariable(0).LeafCount());
+  EXPECT_EQ(
+      1, (manager.GetBddVariable(0) && manager.GetBddVariable(1)).LeafCount());
+  EXPECT_EQ(3, Ite(manager.GetBddVariable(0),
+                   Ite(manager.GetBddVariable(1), manager.GetConstant(1),
+                       manager.GetConstant(0)),
+                   Ite(manager.GetBddVariable(1), manager.GetConstant(0),
+                       manager.GetConstant(3.14159)))
+                   .LeafCount());
+}
+
+TEST(DecisionDiagramTest, MintermCount) {
+  const DecisionDiagramManager manager(2);
+  EXPECT_EQ(4, manager.GetConstant(1).MintermCount(2));
+  EXPECT_EQ(0, manager.GetConstant(false).MintermCount(2));
+  EXPECT_EQ(2, manager.GetBddVariable(0).MintermCount(2));
+  EXPECT_EQ(1, (manager.GetBddVariable(0) && manager.GetBddVariable(1))
+                   .MintermCount(2));
+  EXPECT_EQ(2, Ite(manager.GetBddVariable(0),
+                   Ite(manager.GetBddVariable(1), manager.GetConstant(1),
+                       manager.GetConstant(0)),
+                   Ite(manager.GetBddVariable(1), manager.GetConstant(0),
+                       manager.GetConstant(3.14159)))
+                   .MintermCount(2));
+}
+
+TEST(DecisionDiagramTest, ShortDebugString) {
+  const DecisionDiagramManager manager(2);
+  EXPECT_EQ("1 nodes; 1 leaves; 4 minterms",
+            manager.GetConstant(1).ShortDebugString(2));
+  EXPECT_EQ("1 nodes; 1 leaves; 0 minterms",
+            manager.GetConstant(false).ShortDebugString(2));
+  EXPECT_EQ("2 nodes; 1 leaves; 2 minterms",
+            manager.GetBddVariable(0).ShortDebugString(2));
+  EXPECT_EQ("3 nodes; 1 leaves; 1 minterms",
+            (manager.GetBddVariable(0) && manager.GetBddVariable(1))
+                .ShortDebugString(2));
+  EXPECT_EQ("6 nodes; 3 leaves; 2 minterms",
+            Ite(manager.GetBddVariable(0),
+                Ite(manager.GetBddVariable(1), manager.GetConstant(1),
+                    manager.GetConstant(0)),
+                Ite(manager.GetBddVariable(1), manager.GetConstant(0),
+                    manager.GetConstant(3.14159)))
+                .ShortDebugString(2));
+}
+
 TEST(DecisionDiagramTest, Value) {
   const DecisionDiagramManager manager(0);
   EXPECT_TRUE(manager.GetConstant(true).Value());

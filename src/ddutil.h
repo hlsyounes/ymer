@@ -57,9 +57,19 @@ class DecisionDiagram {
   // Returns true if this decision diagram is a constant.
   bool IsConstant() const;
 
+  // Returns the node count for this decision diagram.
+  int NodeCount() const;
+
+  // Returns the leaf count for this decision diagram.
+  int LeafCount() const;
+
   // Returns the minterm count for this decision diagram assuming the given
   // variable count.
   double MintermCount(int variable_count) const;
+
+  // Returns a short debug string with node, leaf, and minterm counts (assuming
+  // the given variable count) for this decision diagram.
+  std::string ShortDebugString(int variable_count) const;
 
   // Returns true if the given decision diagram is the same as this one.
   bool is_same(const DecisionDiagram& dd) { return node_ == dd.node_; }

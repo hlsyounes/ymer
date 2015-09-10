@@ -25,6 +25,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "strutil.h"
+
 #include "cudd.h"
 #include "glog/logging.h"
 
@@ -176,8 +178,17 @@ void DecisionDiagram::Deref() {
 
 bool DecisionDiagram::IsConstant() const { return Cudd_IsConstant(node_); }
 
+int DecisionDiagram::NodeCount() const { return Cudd_DagSize(node_); }
+
+int DecisionDiagram::LeafCount() const { return Cudd_CountLeaves(node_); }
+
 double DecisionDiagram::MintermCount(int variable_count) const {
   return Cudd_CountMinterm(manager_, node_, variable_count);
+}
+
+std::string DecisionDiagram::ShortDebugString(int variable_count) const {
+  return StrCat(NodeCount(), " nodes; ", LeafCount(), " leaves; ",
+                MintermCount(variable_count), " minterms");
 }
 
 BDD::BDD(DdManager* manager, DdNode* node) : DecisionDiagram(manager, node) {}

@@ -5,7 +5,7 @@ Variables: 17
 Events:    129140163
 States:      131072
 Transitions: 1.2914e+08
-Rate matrix: 1053 nodes 10 leaves 1.2914e+08 minterms
+Rate matrix: 1053 nodes; 10 leaves; 1.2914e+08 minterms
 ODD:         18 nodes
 
 Model checking P=?[ F "stable" ] ...

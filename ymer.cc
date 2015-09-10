@@ -1657,15 +1657,17 @@ int main(int argc, char* argv[]) {
                 << " seconds." << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
-                       dd_manager.value().GetVariableCount() / 2) << std::endl
+                       dd_manager.value().GetVariableCount() / 2)
+                << std::endl
                 << "Transitions: "
                 << dd_model.rate_matrix().MintermCount(
-                       dd_manager.value().GetVariableCount()) << std::endl;
-      std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_manager.value().manager(),
-                      dd_model.rate_matrix().get(),
-                      dd_manager.value().GetVariableCount(), 1);
-      std::cout << "ODD:         " << dd_model.odd().node_count() << " nodes"
+                       dd_manager.value().GetVariableCount())
+                << std::endl
+                << "Rate matrix: "
+                << dd_model.rate_matrix().ShortDebugString(
+                       dd_manager.value().GetVariableCount())
+                << std::endl
+                << "ODD:         " << dd_model.odd().node_count() << " nodes"
                 << std::endl;
       for (auto fi = parse_result.properties.begin();
            fi != parse_result.properties.end(); ++fi) {
@@ -1730,15 +1732,17 @@ int main(int argc, char* argv[]) {
       std::cout << "Events:    " << compiled_model.EventCount() << std::endl;
       std::cout << "States:      "
                 << dd_model.reachable_states().MintermCount(
-                       dd_manager.value().GetVariableCount() / 2) << std::endl
+                       dd_manager.value().GetVariableCount() / 2)
+                << std::endl
                 << "Transitions: "
                 << dd_model.rate_matrix().MintermCount(
-                       dd_manager.value().GetVariableCount()) << std::endl;
-      std::cout << "Rate matrix";
-      Cudd_PrintDebug(dd_manager.value().manager(),
-                      dd_model.rate_matrix().get(),
-                      dd_manager.value().GetVariableCount(), 1);
-      std::cout << "ODD:         " << dd_model.odd().node_count() << " nodes"
+                       dd_manager.value().GetVariableCount())
+                << std::endl
+                << "Rate matrix: "
+                << dd_model.rate_matrix().ShortDebugString(
+                       dd_manager.value().GetVariableCount())
+                << std::endl
+                << "ODD:         " << dd_model.odd().node_count() << " nodes"
                 << std::endl;
       for (auto fi = parse_result.properties.begin();
            fi != parse_result.properties.end(); ++fi) {
