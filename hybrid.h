@@ -93,26 +93,8 @@ struct HDDMatrix {
   int num_nodes;
   int sbl;
   int num_sb;
-  double sb_mem;
   int sorl;
 };
-
-// hybrid mtbdd matrices
-
-struct HDDMatrices {
-  // num matrices (choices)
-  int nc;
-  // matrices (choices)
-  HDDMatrix **choices;
-  // stats
-  int num_nodes;
-  int sbl_min;
-  int sbl_max;
-  int num_sb;
-  double sb_mem;
-  int sorl;
-};
-
 
 //------------------------------------------------------------------------------
 

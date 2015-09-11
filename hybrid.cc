@@ -21,17 +21,14 @@
  */
 #include "hybrid.h"
 
-#include <cstdio>
-
 #include "cudd.h"
 
 // static variables
-static int sb_max_mem = 1024;
+static const int sb_max_mem = 1024;
 static int num_sb_levels = -1;
 static int num_hdd_matrix_nodes;
 static int actual_num_sb_levels;
 static int num_sparse_bits;
-static double sparse_bits_memory;
 static HDDNode *zero = NULL;
 
 // local prototypes
@@ -114,7 +111,6 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 	// initialise other stats
 	res->sbl = 0;
 	res->num_sb = 0;
-	res->sb_mem = 0;
 	res->sorl = 0;
 	
 	return res;
@@ -248,7 +244,6 @@ void add_sparse_bits(HDDMatrix *hddm)
 	
 	// initialise variables
 	num_sparse_bits = 0;
-	sparse_bits_memory = 0;
 	zero = hddm->zero;
 	
 	// first, we make sure that all sparse bit pointers are null
@@ -294,7 +289,6 @@ void add_sparse_bits(HDDMatrix *hddm)
 				}
 				ptr = ptr->next;
 			}
-//			printf("Level %d: %f KB %s\n", hddm->num_levels-(i), level_memory/1024.0, (sb_mem_out?"(mem out)":""));
 			if (sb_mem_out) break;
 		}
 		// pick max level we can afford (memory-wise)
@@ -349,7 +343,6 @@ void add_sparse_bits(HDDMatrix *hddm)
 	// store sparse bit stats
 	hddm->sbl = actual_num_sb_levels;
 	hddm->num_sb = num_sparse_bits;
-	hddm->sb_mem = sparse_bits_memory;
 }
 
 //------------------------------------------------------------------------------
@@ -410,8 +403,6 @@ SparseBit *build_sparse_bit(HDDNode *hdd, int level, int num_levels)
 	nnz = hdd->off2;
 	// size of submatrix is stored in sb pointer
 	n = (size_t)hdd->sb;
-	// work out memory running total
-	sparse_bits_memory += (nnz*12.0 + n*4.0 + 5*4.0);
 	// create the sparse bit
 	num_sparse_bits++;
 	sb = new SparseBit();
