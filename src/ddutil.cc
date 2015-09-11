@@ -573,6 +573,39 @@ Optional<int> ODD::StateIndex(const BDD& state) const {
   return index;
 }
 
+namespace {
+
+void AddToVectorImpl(DdManager* manager, DdNode* node, size_t level,
+                     size_t max_level, const OddNode* odd_node, size_t i,
+                     std::vector<double>* values) {
+  if (node != Cudd_ReadZero(manager)) {
+    if (level == max_level) {
+      (*values)[i] = NodeValue<double>(node);
+      return;
+    }
+    DdNode* e;
+    DdNode* t;
+    if (2 * level < NodeIndex(node)) {
+      e = t = node;
+    } else {
+      e = ElseChild(node);
+      t = ThenChild(node);
+    }
+    AddToVectorImpl(manager, e, level + 1, max_level, odd_node->e, i, values);
+    AddToVectorImpl(manager, t, level + 1, max_level, odd_node->t,
+                    i + odd_node->eoff, values);
+  }
+}
+
+}  // namespace
+
+std::vector<double> ODD::AddToVector(const ADD& dd) const {
+  std::vector<double> values(root_->eoff + root_->toff);
+  AddToVectorImpl(dd.manager(), dd.node(), 0, Cudd_ReadSize(dd.manager()) / 2,
+                  root_, 0, &values);
+  return values;
+}
+
 int Log2(int n) {
   CHECK_GT(n, 0);
   int m = 0;

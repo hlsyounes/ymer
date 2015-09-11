@@ -160,43 +160,6 @@ void SymbolicVerifier::DoVisitCompiledExpressionProperty(
   result_ = dd_model_->reachable_states() && BDD(property.expr().dd().value());
 }
 
-// Recursive component of mtbdd_to_double_vector.
-static void mtbdd_to_double_vector_rec(const DecisionDiagramManager& ddman,
-                                       DdNode* dd, int level,
-                                       const OddNode* odd, long o,
-                                       double* res) {
-  if (dd != Cudd_ReadZero(ddman.manager())) {
-    DdNode* e;
-    DdNode* t;
-    if (level == ddman.GetVariableCount() / 2) {
-      res[o] = Cudd_V(dd);
-      return;
-    } else if (dd->index > ddman.GetBddVariable(2 * level).get()->index) {
-      e = t = dd;
-    } else {
-      e = Cudd_E(dd);
-      t = Cudd_T(dd);
-    }
-    mtbdd_to_double_vector_rec(ddman, e, level + 1, odd->e, o, res);
-    mtbdd_to_double_vector_rec(ddman, t, level + 1, odd->t, o + odd->eoff, res);
-  }
-}
-
-// Converts an MTBDD to a double vector.
-static double* mtbdd_to_double_vector(const DecisionDiagramManager& ddman,
-                                      const ADD& dd, const OddNode* odd) {
-  // Determine size.
-  size_t n = odd->eoff + odd->toff;
-  // Create array.
-  double* res = new double[n];
-  for (size_t i = 0; i < n; i++) {
-    res[i] = 0.0;
-  }
-  mtbdd_to_double_vector_rec(ddman, dd.get(), 0, odd, 0, res);
-
-  return res;
-}
-
 // Recursive component of double_vector_to_bdd.
 static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
                                     const std::vector<double>& vec, bool strict,
@@ -230,8 +193,9 @@ static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
 }
 
 // Matrix vector multiplication stuff.
-static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
-                     HDDNode* hdd, int level, long row, long col) {
+static void mult_rec(const std::vector<double>& soln, double unif,
+                     HDDMatrix* hddm, HDDNode* hdd, int level, long row,
+                     long col, std::vector<double>* soln2) {
   if (hdd == hddm->zero) {
     // It is the zero node.
     return;
@@ -246,27 +210,27 @@ static void mult_rec(double* soln2, double* soln, double unif, HDDMatrix* hddm,
       int l = row_starts[i];
       int h = row_starts[i + 1];
       for (int j = l; j < h; j++) {
-        soln2[row + i] += soln[col + cols[j]] * non_zeros[j] * unif;
+        (*soln2)[row + i] += soln[col + cols[j]] * non_zeros[j] * unif;
       }
     }
     return;
   } else if (level == hddm->num_levels) {
     // We have reached the bottom.
-    soln2[row] += soln[col] * hdd->type.val * unif;
+    (*soln2)[row] += soln[col] * hdd->type.val * unif;
     return;
   }
   HDDNode* e = hdd->type.kids.e;
   if (e != hddm->zero) {
-    mult_rec(soln2, soln, unif, hddm, e->type.kids.e, level + 1, row, col);
-    mult_rec(soln2, soln, unif, hddm, e->type.kids.t, level + 1, row,
-             col + e->off);
+    mult_rec(soln, unif, hddm, e->type.kids.e, level + 1, row, col, soln2);
+    mult_rec(soln, unif, hddm, e->type.kids.t, level + 1, row, col + e->off,
+             soln2);
   }
   HDDNode* t = hdd->type.kids.t;
   if (t != hddm->zero) {
-    mult_rec(soln2, soln, unif, hddm, t->type.kids.e, level + 1, row + hdd->off,
-             col);
-    mult_rec(soln2, soln, unif, hddm, t->type.kids.t, level + 1, row + hdd->off,
-             col + t->off);
+    mult_rec(soln, unif, hddm, t->type.kids.e, level + 1, row + hdd->off, col,
+             soln2);
+    mult_rec(soln, unif, hddm, t->type.kids.t, level + 1, row + hdd->off,
+             col + t->off, soln2);
   }
 }
 
@@ -518,8 +482,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   /*
    * Create solution/iteration vectors.
    */
-  double* soln = mtbdd_to_double_vector(dd_model_->manager(), ADD(dd2), odd);
-  double* soln2 = new double[nstates];
+  std::vector<double> soln = dd_model_->odd().AddToVector(ADD(dd2));
+  std::vector<double> soln2(nstates);
   Optional<int> init;
   if (top_level_property_) {
     init = dd_model_->initial_state_index();
@@ -566,7 +530,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
     for (size_t i = 0; i < nstates; i++) {
       soln2[i] = diags[i] * soln[i];
     }
-    mult_rec(soln2, soln, unif, hddm, hddm->top, 0, 0, 0);
+    mult_rec(soln, unif, hddm, hddm->top, 0, 0, 0, &soln2);
     /*
      * Check for steady state convergence.
      */
@@ -597,9 +561,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
     /*
      * Prepare for next iteration.
      */
-    double* tmp = soln;
-    soln = soln2;
-    soln2 = tmp;
+    soln.swap(soln2);
   }
 
   /*
@@ -620,7 +582,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       for (size_t i = 0; i < nstates; i++) {
         soln2[i] = diags[i] * soln[i];
       }
-      mult_rec(soln2, soln, unif, hddm, hddm->top, 0, 0, 0);
+      mult_rec(soln, unif, hddm, hddm->top, 0, 0, 0, &soln2);
       /*
        * Check for steady state convergence.
        */
@@ -655,9 +617,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
       /*
        * Prepare for next iteration.
        */
-      double* tmp = soln;
-      soln = soln2;
-      soln2 = tmp;
+      soln.swap(soln2);
     }
     /*
      * Add to sum.
@@ -730,8 +690,6 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
    */
   free_hdd_matrix(hddm);
   delete diags;
-  delete soln;
-  delete soln2;
   delete weights;
 
   if (init.has_value()) {

@@ -367,11 +367,16 @@ class ODD {
 
   static ODD Make(const BDD& reachable_states);
 
+  // TODO(hlsyounes): remove once all code is using wrapper classes.
   const OddNode* root() const { return root_; }
 
   int node_count() const { return node_count_; }
 
   Optional<int> StateIndex(const BDD& state) const;
+
+  // Returns a vector representation of the given ADD, using this ODD to map
+  // decision diagram nodes to vector indices.
+  std::vector<double> AddToVector(const ADD& dd) const;
 
  private:
   explicit ODD(const OddNode* root, int node_count);
