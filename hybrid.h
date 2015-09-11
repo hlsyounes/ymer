@@ -61,19 +61,6 @@ struct HDDNode {
   HDDNode *next;
 };
 
-// hybrid mtbdd block storage (for sor/gs)
-// (sparse storage - either row/col major)
-
-struct HDDBlocks {
-  int n;
-  int nnz;
-  long *offsets;
-  HDDNode **blocks;
-  int *rowscols;
-  int *starts;
-  int max;
-};
-
 // hybrid mtbdd matrix
 
 struct HDDMatrix {
@@ -87,8 +74,6 @@ struct HDDMatrix {
   HDDNode *zero;
   // odd
   const OddNode *odd;
-  // block storage
-  HDDBlocks *blocks;
   // stats
   int num_nodes;
   int sbl;

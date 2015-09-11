@@ -102,9 +102,6 @@ HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matr
 	// store odd too
 	res->odd = odd;
 	
-	// initialise block storage to null
-	res->blocks = NULL;
-	
 	// store num nodes
 	res->num_nodes = num_hdd_matrix_nodes;
 	
@@ -300,9 +297,6 @@ void add_sparse_bits(HDDMatrix *hddm)
 			actual_num_sb_levels = hddm->num_levels;
 		}
 			
-		// this was the old heuristic
-		//actual_num_sb_levels = hddm->num_levels/3;
-
 		// if matrix has been split into blocks for gauss-seidel/sor, make sure the two schemes don't overlap
 		if (actual_num_sb_levels + hddm->sorl > hddm->num_levels) actual_num_sb_levels = hddm->num_levels - hddm->sorl;
 	}
