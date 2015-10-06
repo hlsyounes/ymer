@@ -26,18 +26,18 @@
 
 class FakeEngine {
  public:
-  typedef uint32_t result_type;
+  using result_type = uint32_t;
 
   FakeEngine(result_type min, result_type max, std::vector<result_type> values)
-      : min_(min), max_(max), values_(values), next_value_(0) {}
+      : min_(min), max_(max), values_(std::move(values)), next_value_(0) {}
 
   ~FakeEngine() {
     CHECK_EQ(next_value_, values_.size()) << values_.size() - next_value_
                                           << " unconsumed values";
   }
 
-  result_type min() { return min_; }
-  result_type max() { return max_; }
+  result_type min() const { return min_; }
+  result_type max() const { return max_; }
 
   result_type operator()() {
     CHECK_LT(next_value_, values_.size()) << "insufficient values";

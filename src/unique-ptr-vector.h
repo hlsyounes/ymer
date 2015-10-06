@@ -31,7 +31,7 @@
 template <typename T>
 class UniquePtrVector {
  public:
-  typedef typename std::vector<std::unique_ptr<T>>::size_type size_type;
+  using size_type = typename std::vector<std::unique_ptr<T>>::size_type;
 
   class Iterator : public std::iterator<std::input_iterator_tag, T> {
    public:
@@ -48,7 +48,7 @@ class UniquePtrVector {
       return tmp;
     }
     typename std::vector<std::unique_ptr<T>>::difference_type operator-(
-        const Iterator& rhs) {
+        const Iterator& rhs) const {
       return i_ - rhs.i_;
     }
 
