@@ -873,6 +873,36 @@ TEST(OddTest, AddToVector) {
   EXPECT_EQ(std::vector<double>({2, 0, 5, 5, 2, 2, 5}), odd.AddToVector(dd));
 }
 
+TEST(OddTest, VectorToBdd) {
+  const DecisionDiagramManager manager(8);
+  const BDD reachable_states =
+      Ite(manager.GetBddVariable(0),
+          Ite(manager.GetBddVariable(2),
+              Ite(manager.GetBddVariable(4), manager.GetConstant(false),
+                  manager.GetBddVariable(6)),
+              manager.GetBddVariable(6)),
+          Ite(manager.GetBddVariable(2), manager.GetBddVariable(6),
+              Ite(manager.GetBddVariable(4), !manager.GetBddVariable(6),
+                  manager.GetBddVariable(6))));
+  const ODD odd = ODD::Make(reachable_states);
+  const BDD bdd = odd.VectorToBdd(manager, {2, 0, 5, 5, 3, 2, 5},
+                                  [](double value) { return value > 2; });
+  EXPECT_FALSE(bdd.ValueInState(
+      {false, false, false, false, false, false, false, false}));
+  EXPECT_FALSE(bdd.ValueInState(
+      {false, false, false, false, true, false, false, false}));
+  EXPECT_TRUE(
+      bdd.ValueInState({false, false, true, false, false, false, true, false}));
+  EXPECT_TRUE(
+      bdd.ValueInState({false, false, true, false, true, false, true, false}));
+  EXPECT_TRUE(
+      bdd.ValueInState({true, false, false, false, false, false, true, false}));
+  EXPECT_FALSE(
+      bdd.ValueInState({true, false, false, false, true, false, true, false}));
+  EXPECT_TRUE(
+      bdd.ValueInState({true, false, true, false, false, false, true, false}));
+}
+
 TEST(Log2Test, All) {
   EXPECT_EQ(0, Log2(1));
   EXPECT_EQ(1, Log2(2));

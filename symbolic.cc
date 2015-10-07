@@ -160,38 +160,6 @@ void SymbolicVerifier::DoVisitCompiledExpressionProperty(
   result_ = dd_model_->reachable_states() && BDD(property.expr().dd().value());
 }
 
-// Recursive component of double_vector_to_bdd.
-static BDD double_vector_to_bdd_rec(const DecisionDiagramManager& ddman,
-                                    const std::vector<double>& vec, bool strict,
-                                    double bound, int level, const OddNode* odd,
-                                    long o) {
-  if (level == ddman.GetVariableCount() / 2) {
-    return ddman.GetConstant((strict && vec[o] > bound) ||
-                             (!strict && vec[o] >= bound));
-  } else {
-    BDD e = (odd->eoff > 0)
-                ? double_vector_to_bdd_rec(ddman, vec, strict, bound, level + 1,
-                                           odd->e, o)
-                : ddman.GetConstant(false);
-    BDD t = (odd->toff > 0)
-                ? double_vector_to_bdd_rec(ddman, vec, strict, bound, level + 1,
-                                           odd->t, o + odd->eoff)
-                : ddman.GetConstant(false);
-    if (e.is_same(t)) {
-      return e;
-    } else {
-      return Ite(ddman.GetBddVariable(2 * level), t, e);
-    }
-  }
-}
-
-// Converts a double vector to a BDD.
-static BDD double_vector_to_bdd(const DecisionDiagramManager& ddman,
-                                const std::vector<double>& vec, bool strict,
-                                double bound, const OddNode* odd) {
-  return double_vector_to_bdd_rec(ddman, vec, strict, bound, 0, odd, 0);
-}
-
 // Matrix vector multiplication stuff.
 static void mult_rec(const std::vector<double>& soln, double unif,
                      HDDMatrix* hddm, HDDNode* hdd, int level, long row,
@@ -426,10 +394,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
 
   /* Time limit. */
   double time = path_property.max_time();
-  /* ODD for model. */
-  const OddNode* odd = dd_model_->odd().root();
   /* Number of states. */
-  size_t nstates = odd->eoff + odd->toff;
+  size_t nstates = dd_model_->odd().state_count();
 
   /*
    * Build HDD for matrix.
@@ -438,7 +404,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
     std::cout << "Building hybrid MTBDD matrix...";
   }
   ADD ddR = dd_model_->rate_matrix() * ADD(maybe);
-  HDDMatrix* hddm = build_hdd_matrix(dd_model_->manager(), ddR, odd);
+  HDDMatrix* hddm =
+      build_hdd_matrix(dd_model_->manager(), ddR, dd_model_->odd().root());
   if (top_level_property_) {
     std::cout << hddm->num_nodes << " nodes." << std::endl;
   }
@@ -692,16 +659,21 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   delete diags;
   delete weights;
 
+  std::function<bool(double)> satisfies_threshold;
+  if (strict_) {
+    satisfies_threshold = [this](double value) { return value > threshold_; };
+  } else {
+    satisfies_threshold = [this](double value) { return value >= threshold_; };
+  }
   if (init.has_value()) {
-    if ((strict_ && sum[0] > threshold_) ||
-        (!strict_ && sum[0] >= threshold_)) {
+    if (satisfies_threshold(sum[0])) {
       result_ = dd_model_->initial_states();
     } else {
       result_ = dd_model_->manager().GetConstant(false);
     }
   } else {
-    result_ = double_vector_to_bdd(dd_model_->manager(), sum, strict_,
-                                   threshold_, odd);
+    result_ = dd_model_->odd().VectorToBdd(dd_model_->manager(), sum,
+                                           satisfies_threshold);
   }
 }
 

@@ -22,6 +22,7 @@
 #ifndef DDUTIL_H_
 #define DDUTIL_H_
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -351,8 +352,8 @@ class DecisionDiagramManager {
 struct OddNode {
   const OddNode* e;
   const OddNode* t;
-  long eoff;
-  long toff;
+  size_t eoff;
+  size_t toff;
 };
 
 class ODD {
@@ -372,11 +373,20 @@ class ODD {
 
   int node_count() const { return node_count_; }
 
+  size_t state_count() const { return root_->eoff + root_->toff; }
+
   Optional<int> StateIndex(const BDD& state) const;
 
   // Returns a vector representation of the given ADD, using this ODD to map
   // decision diagram nodes to vector indices.
   std::vector<double> AddToVector(const ADD& dd) const;
+
+  // Returns a BDD representation of the given vector, using this ODD to map
+  // vector indices to decision diagram nodes and the given function to turn
+  // double values into bool.
+  BDD VectorToBdd(const DecisionDiagramManager& manager,
+                  const std::vector<double>& values,
+                  const std::function<bool(double)>& value_to_bool) const;
 
  private:
   explicit ODD(const OddNode* root, int node_count);

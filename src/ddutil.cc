@@ -597,13 +597,38 @@ void AddToVectorImpl(DdManager* manager, DdNode* node, size_t level,
   }
 }
 
+BDD VectorToBddImpl(const DecisionDiagramManager& manager,
+                    const std::vector<double>& values, size_t level,
+                    size_t max_level, const OddNode* odd_node, size_t i,
+                    const std::function<bool(double)>& value_to_bool) {
+  if (level == max_level) {
+    return manager.GetConstant(value_to_bool(values[i]));
+  }
+  BDD e = (odd_node->eoff > 0)
+              ? VectorToBddImpl(manager, values, level + 1, max_level,
+                                odd_node->e, i, value_to_bool)
+              : manager.GetConstant(false);
+  BDD t = (odd_node->toff > 0)
+              ? VectorToBddImpl(manager, values, level + 1, max_level,
+                                odd_node->t, i + odd_node->eoff, value_to_bool)
+              : manager.GetConstant(false);
+  return e.is_same(t) ? e : Ite(manager.GetBddVariable(2 * level), t, e);
+}
+
 }  // namespace
 
 std::vector<double> ODD::AddToVector(const ADD& dd) const {
-  std::vector<double> values(root_->eoff + root_->toff);
+  std::vector<double> values(state_count());
   AddToVectorImpl(dd.manager(), dd.node(), 0, Cudd_ReadSize(dd.manager()) / 2,
                   root_, 0, &values);
   return values;
+}
+
+BDD ODD::VectorToBdd(const DecisionDiagramManager& manager,
+                     const std::vector<double>& values,
+                     const std::function<bool(double)>& value_to_bool) const {
+  return VectorToBddImpl(manager, values, 0, manager.GetVariableCount() / 2,
+                         root_, 0, value_to_bool);
 }
 
 int Log2(int n) {
