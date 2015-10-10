@@ -31,13 +31,10 @@
 // Twister engines.
 class DCEngine {
  public:
-  typedef uint32_t result_type;
+  using result_type = uint32_t;
 
   DCEngine();
   DCEngine(int id, result_type seed);
-
-  DCEngine(const DCEngine&) = delete;
-  DCEngine& operator=(const DCEngine&) = delete;
 
   static result_type min();
   static result_type max();
