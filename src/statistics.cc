@@ -23,7 +23,9 @@
 #include <cmath>
 
 double lchoose(double x, double y) {
-  return lgamma(x + 1) - lgamma(y + 1) - lgamma(x - y + 1);
+  int sign;
+  return lgamma_r(x + 1, &sign) - lgamma_r(y + 1, &sign) -
+         lgamma_r(x - y + 1, &sign);
 }
 
 int binoinv(double y, int n, double p) {
