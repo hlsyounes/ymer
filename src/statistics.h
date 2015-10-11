@@ -73,6 +73,9 @@ class Sample {
 
   void AddObservation(T x);
 
+  template <typename U>
+  void MergeFrom(const Sample<U>& sample);
+
   bool populate_distribution() const { return populate_distribution_; }
   T min() const { return min_; }
   T max() const { return max_; }
@@ -272,6 +275,37 @@ void Sample<T>::AddObservation(T x) {
   m2_ += delta * (x - mean_);
   if (populate_distribution_) {
     ++distribution_[(x < 1) ? 0 : static_cast<int>(floor(log2(x))) + 1];
+  }
+}
+
+template <typename T>
+template <typename U>
+void Sample<T>::MergeFrom(const Sample<U>& sample) {
+  if (count_ > 0 && sample.count() > 0) {
+    min_ = std::min(min_, sample.min());
+    max_ = std::max(max_, sample.max());
+    const double delta = sample.sum() - sample.count() * mean_;
+    mean_ += delta / (count_ + sample.count());
+    const double delta2 =
+        count_ * sample.sum() * sample.mean() - sum_ * (sample.sum() + delta);
+    m2_ += sample.m2_ + delta2 / (count_ + sample.count());
+    count_ += sample.count();
+    sum_ += sample.sum();
+    if (populate_distribution_) {
+      for (const auto& entry : sample.distribution()) {
+        distribution_[entry.first] += entry.second;
+      }
+    }
+  } else if (sample.count() > 0) {
+    min_ = sample.min();
+    max_ = sample.max();
+    mean_ = sample.mean();
+    m2_ = sample.m2_;
+    count_ = sample.count();
+    sum_ = sample.count();
+    if (populate_distribution_) {
+      distribution_ = sample.distribution();
+    }
   }
 }
 

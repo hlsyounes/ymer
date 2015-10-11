@@ -157,6 +157,34 @@ TEST(SampleTest, IntegerObservations) {
   EXPECT_TRUE(s.distribution().empty());
 }
 
+TEST(SampleTest, MergeFromIntegerObservations) {
+  Sample<int> s1, s2;
+
+  s1.AddObservation(2);
+  s1.MergeFrom(s2);
+  EXPECT_EQ(2, s1.min());
+  EXPECT_EQ(2, s1.max());
+  EXPECT_EQ(2, s1.sum());
+  EXPECT_EQ(1, s1.count());
+  EXPECT_EQ(2, s1.mean());
+  EXPECT_EQ(0, s1.variance());
+  EXPECT_EQ(0, s1.sample_variance());
+  EXPECT_EQ(0, s1.sample_stddev());
+
+  s2.AddObservation(3);
+  s2.AddObservation(1);
+  s1.MergeFrom(s2);
+  EXPECT_EQ(1, s1.min());
+  EXPECT_EQ(3, s1.max());
+  EXPECT_EQ(6, s1.sum());
+  EXPECT_EQ(3, s1.count());
+  EXPECT_EQ(2, s1.mean());
+  EXPECT_EQ(2.0 / 3.0, s1.variance());
+  EXPECT_EQ(1, s1.sample_variance());
+  EXPECT_EQ(1, s1.sample_stddev());
+  EXPECT_TRUE(s1.distribution().empty());
+}
+
 TEST(SampleTest, IntegerObservationsWithDistribution) {
   using Dist = std::map<int, int>;
   Sample<int> s(true);
@@ -176,6 +204,22 @@ TEST(SampleTest, IntegerObservationsWithDistribution) {
 
   s.AddObservation(0);
   EXPECT_EQ(Dist({{0, 1}, {1, 1}, {2, 2}, {3, 1}}), s.distribution());
+}
+
+TEST(SampleTest, MergeFromIntegerObservationsWithDistribution) {
+  using Dist = std::map<int, int>;
+  Sample<int> s1(true), s2(true), s3(true);
+
+  s2.AddObservation(2);
+  s2.AddObservation(3);
+  s1.MergeFrom(s2);
+  EXPECT_EQ(Dist({{2, 2}}), s1.distribution());
+
+  s3.AddObservation(1);
+  s3.AddObservation(4);
+  s3.AddObservation(0);
+  s1.MergeFrom(s3);
+  EXPECT_EQ(Dist({{0, 1}, {1, 1}, {2, 2}, {3, 1}}), s1.distribution());
 }
 
 TEST(SampleTest, BoolObservations) {
