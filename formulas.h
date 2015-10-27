@@ -30,7 +30,6 @@
 #include "src/ddmodel.h"
 #include "src/ddutil.h"
 #include "src/model-checking-params.h"
-#include "src/rng.h"
 #include "src/simulator.h"
 #include "src/statistics.h"
 
@@ -55,9 +54,9 @@ struct ModelCheckingStats {
 
 bool Verify(const CompiledProperty& property, const CompiledModel& model,
             const DecisionDiagramModel* dd_model,
-            const ModelCheckingParams& params,
-            CompiledExpressionEvaluator* evaluator,
-            CompiledDistributionSampler<DCEngine>* sampler, const State& state,
+            const ModelCheckingParams& params, const State& state,
+            std::vector<CompiledExpressionEvaluator>* evaluators,
+            std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers,
             ModelCheckingStats* stats);
 
 BDD Verify(const CompiledProperty& property,
@@ -66,13 +65,5 @@ BDD Verify(const CompiledProperty& property,
 
 BDD VerifyExistsUntil(const DecisionDiagramModel& dd_model, const BDD& pre,
                       const BDD& post);
-
-bool GetObservation(const CompiledPathProperty& property,
-                    const CompiledModel& model,
-                    const DecisionDiagramModel* dd_model,
-                    const ModelCheckingParams& params,
-                    CompiledExpressionEvaluator* evaluator,
-                    CompiledDistributionSampler<DCEngine>* sampler,
-                    const State& state, ModelCheckingStats* stats);
 
 #endif /* FORMULAS_H */

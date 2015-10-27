@@ -24,9 +24,8 @@
 
 #include <cmath>
 #include <initializer_list>
+#include <random>
 #include <vector>
-
-#include "rng.h"
 
 #include "glog/logging.h"
 
@@ -73,6 +72,7 @@ class CompiledDistributionSampler {
   double Exponential(double lambda);
 
  private:
+  std::uniform_real_distribution<> standard_uniform_;
   Engine* engine_;
   bool has_unused_lognormal_;
   double unused_lognormal_;
@@ -120,7 +120,7 @@ double CompiledDistributionSampler<Engine>::Sample(
 
 template <typename Engine>
 double CompiledDistributionSampler<Engine>::StandardUniform() {
-  return ::StandardUniform(*engine_);
+  return standard_uniform_(*engine_);
 }
 
 template <typename Engine>

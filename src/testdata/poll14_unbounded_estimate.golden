@@ -3,5 +3,5 @@ Variables: 16
 Events:    56
 
 Model checking P=?[ !(s = 2 & a = 1) U s = 1 & a = 1 ] ...
-Acceptance sampling......670 observations.
-Pr[!(s = 2 & a = 1) U s = 1 & a = 1] = 0.531658 (0.481658,0.581658)
+Acceptance sampling......672 observations.
+Pr[!(s = 2 & a = 1) U s = 1 & a = 1] = 0.515178 (0.465178,0.565178)

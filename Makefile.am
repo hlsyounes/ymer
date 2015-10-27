@@ -75,13 +75,6 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 
-# Library for dynamic creation of Mersenne Twister generators.
-noinst_LTLIBRARIES += dcmt/lib/libdcmt.la
-dcmt_lib_libdcmt_la_SOURCES = dcmt/include/dc.h dcmt/lib/dci.h \
-    dcmt/lib/check32.c dcmt/lib/prescr.c dcmt/lib/mt19937.c dcmt/lib/mt19937.h \
-    dcmt/lib/eqdeg.c dcmt/lib/seive.c dcmt/lib/genmtrand.c dcmt/lib/init.c
-dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
-
 #
 # Ymer libraries.
 #
@@ -99,11 +92,6 @@ src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
 noinst_LTLIBRARIES += src/libddutil.la
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
-
-# Random number generator library.
-noinst_LTLIBRARIES += src/librng.la
-src_librng_la_SOURCES = src/rng.h src/rng.cc
-src_librng_la_LIBADD = dcmt/lib/libdcmt.la
 
 # Typed-value library.
 noinst_LTLIBRARIES += src/libtyped-value.la
@@ -150,7 +138,7 @@ src_libcompiled_expression_la_LIBADD = src/libddutil.la src/libexpression.la \
 noinst_LTLIBRARIES += src/libcompiled-distribution.la
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
     src/compiled-distribution.cc
-src_libcompiled_distribution_la_LIBADD = src/librng.la glog/libglog.la
+src_libcompiled_distribution_la_LIBADD = glog/libglog.la
 
 # Compiled model library.
 noinst_LTLIBRARIES += src/libcompiled-model.la
@@ -177,9 +165,9 @@ src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
 #
 
 bin_PROGRAMS = ymer
-ymer_SOURCES = ymer.cc formulas.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.h sampling.cc hybrid.cc hybrid.h symbolic.cc $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
-    src/libstatistics.la src/libddutil.la src/librng.la \
+    src/libstatistics.la src/libddutil.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
     src/libmodel.la src/libparser.la src/libcompiled-model.la \
     src/libddmodel.la src/libcompiled-property.la
@@ -226,11 +214,6 @@ src_statistics_test_LDADD = src/libstatistics.la src/libtest-main.la
 check_PROGRAMS += src/ddutil_test
 src_ddutil_test_SOURCES = src/ddutil_test.cc
 src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
-
-# Test for random number generator library.
-check_PROGRAMS += src/rng_test
-src_rng_test_SOURCES = src/rng_test.cc
-src_rng_test_LDADD = src/librng.la src/libtest-main.la
 
 # Test for typed-value library.
 check_PROGRAMS += src/typed-value_test
@@ -312,9 +295,8 @@ dist-hook:
 
 CLEANFILES = core
 
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
-    -I$(builddir)/gsl -I$(srcdir)/gtest/include
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr -I$(srcdir)/glog/src \
+    -I$(builddir)/glog/src -I$(builddir)/gsl -I$(srcdir)/gtest/include
 AM_CXXFLAGS = -Wall -Werror
 AM_YFLAGS = -d
 

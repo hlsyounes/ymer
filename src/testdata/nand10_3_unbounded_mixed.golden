@@ -10,4 +10,4 @@ ODD:         916 nodes
 
 Model checking P=?[ F s = 4 & z / N < 0.1 ] ...
 Acceptance sampling.174 observations.
-Pr[F s = 4 & z / N < 0.1] = 0.494253 (0.394253,0.594253)
+Pr[F s = 4 & z / N < 0.1] = 0.477011 (0.377011,0.577011)

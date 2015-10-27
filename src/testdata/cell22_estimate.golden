@@ -3,5 +3,5 @@ Variables: 1
 Events:    3
 
 Model checking P=?[ F<=1 n = N ] ...
-Acceptance sampling....491 observations.
-Pr[F<=1 n = N] = 0.761711 (0.711711,0.811711)
+Acceptance sampling....437 observations.
+Pr[F<=1 n = N] = 0.798627 (0.748627,0.848627)

@@ -21,7 +21,6 @@
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <config.h>
-#include "comm.h"
 #include "formulas.h"
 #include "src/compiled-property.h"
 #include "src/ddmodel.h"
@@ -30,16 +29,12 @@
 #include "src/model.h"
 #include "src/model-checking-params.h"
 #include "src/parser.h"
-#include "src/rng.h"
 #include "src/simulator.h"
 #include "src/strutil.h"
 #include "src/timeutil.h"
 #include "src/typed-value.h"
 #include "glog/logging.h"
 #include <cudd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -59,26 +54,21 @@
 #include <string>
 #include <utility>
 
-/* Sockets for communication. */
-int server_socket = -1;
-/* Current property. */
-int current_property;
-
 /* Program options. */
 static option long_options[] = {
     {"alpha", required_argument, 0, 'A'},
     {"beta", required_argument, 0, 'B'},
+    {"thread-count", required_argument, 0, 'C'},
+    {"const", required_argument, 0, 'c'},
     {"delta", required_argument, 0, 'D'},
     {"epsilon", required_argument, 0, 'E'},
-    {"const", required_argument, 0, 'c'},
     {"engine", required_argument, 0, 'e'},
-    {"host", required_argument, 0, 'H'},
+    {"help", no_argument, 0, 'h'},
     {"max-path-length", required_argument, 0, 'L'},
     {"memoization", no_argument, 0, 'M'},
     {"matching-moments", required_argument, 0, 'm'},
     {"fixed-sample-size", required_argument, 0, 'N'},
     {"nested-error", required_argument, 0, 'n'},
-    {"port", required_argument, 0, 'P'},
     {"termination-probability", required_argument, 0, 'p'},
     {"estimation-algorithm", required_argument, 0, 'q'},
     {"report-statistics", no_argument, 0, 'R'},
@@ -86,9 +76,8 @@ static option long_options[] = {
     {"trials", required_argument, 0, 'T'},
     {"threshold-algorithm", required_argument, 0, 't'},
     {"version", no_argument, 0, 'V'},
-    {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}};
-static const char OPTION_STRING[] = "A:B:c:D:E:e:H:hL:Mm:N:n:p:P:q:S:T:t:V";
+static const char OPTION_STRING[] = "A:B:C:c:D:E:e:hL:Mm:N:n:p:q:RS:T:t:V";
 
 namespace {
 
@@ -106,6 +95,8 @@ void display_help() {
       << "  -c c,  --const=c\t"
       << "overrides for model constants" << std::endl
       << "\t\t\t  (for example, --const=N=2,M=3)" << std::endl
+      << "  -C c,  --thread-count=c\t"
+      << "thread count for concurrent sampling" << std::endl
       << "  -D d,  --delta=d\t"
       << "use indifference region of width 2*d with sampling" << std::endl
       << "\t\t\t  engine (default is 1e-2)" << std::endl
@@ -114,8 +105,6 @@ void display_help() {
       << "  -e e,  --engine=e\t"
       << "use engine e; can be `sampling' (default), `hybrid'," << std::endl
       << "\t\t\t  or `mixed'" << std::endl
-      << "  -H h,  --host=h\t"
-      << "connect to server on host h" << std::endl
       << "  -L l,  --max-path-length=l" << std::endl
       << "\t\t\tlimit sample path to l states" << std::endl
       << "  -M,    --memoization\t"
@@ -124,8 +113,6 @@ void display_help() {
       << "\t\t\tmatch the first m moments of general distributions" << std::endl
       << "  -N n,  --fixed-sample-size=n" << std::endl
       << "\t\t\tuse a fixed sample size" << std::endl
-      << "  -P p,  --port=p\t"
-      << "communicate using port p" << std::endl
       << "  -p p,  --termination-probability=p" << std::endl
       << "\t\t\tuse termination probability p for unbounded path properties"
       << std::endl
@@ -1229,12 +1216,9 @@ int main(int argc, char* argv[]) {
   size_t seed = time(0);
   /* Set default number of trials. */
   size_t trials = 1;
-  /* Sever hostname */
-  std::string hostname;
-  /* Server port. */
-  int port = -1;
   /* Constant overrides. */
   std::map<std::string, TypedValue> const_overrides;
+  int thread_count = 1;
   bool report_statistics = false;
 
   ModelAndProperties parse_result;
@@ -1276,6 +1260,12 @@ int main(int argc, char* argv[]) {
             throw std::invalid_argument("bad --const specification");
           }
           break;
+        case 'C':
+          thread_count = atoi(optarg);
+          if (thread_count < 1) {
+            throw std::invalid_argument("thread-count < 1");
+          }
+          break;
         case 'D':
           params.delta = atof(optarg);
           if (params.delta < 1e-10) {
@@ -1304,9 +1294,6 @@ int main(int argc, char* argv[]) {
                                         std::string(optarg) + "'");
           }
           break;
-        case 'H':
-          hostname = optarg;
-          break;
         case 'L':
           params.max_path_length = atoi(optarg);
           break;
@@ -1328,12 +1315,6 @@ int main(int argc, char* argv[]) {
           break;
         case 'n':
           params.nested_error = atof(optarg);
-          break;
-        case 'P':
-          port = atoi(optarg);
-          if (port < 0 || port > 0xffff) {
-            throw std::invalid_argument("invalid port number");
-          }
           break;
         case 'p':
           params.termination_probability = atof(optarg);
@@ -1462,153 +1443,28 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout.setf(std::ios::unitbuf);
-    if (port >= 0) {
-      sockaddr_in srvaddr;
-      srvaddr.sin_family = AF_INET;
-      srvaddr.sin_port = htons(port);
-      if (!hostname.empty()) {
-        /* Client mode. */
-        hostent* host = gethostbyname(hostname.c_str());
-        if (host == 0) {
-          herror(PACKAGE);
-          return 1;
-        }
-        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd == -1) {
-          perror(PACKAGE);
-          return 1;
-        }
-        srvaddr.sin_addr = *(in_addr*)host->h_addr;
-        if (-1 == connect(sockfd, (sockaddr*)&srvaddr, sizeof srvaddr)) {
-          perror(PACKAGE);
-          return 1;
-        }
-        ServerMsg smsg;
-        int nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
-        if (nbytes == -1) {
-          perror(PACKAGE);
-          return 1;
-        } else if (nbytes == 0) {
-          VLOG(1) << "Shutting down (server unavailable)";
-          return 0;
-        }
-        if (smsg.id != ServerMsg::REGISTER) {
-          throw std::logic_error("expecting register message");
-        }
-        int client_id = smsg.value;
-        std::cout << "Client " << client_id << std::endl;
-        std::cout << "Initializing random number generator...";
-        DCEngine dc_engine(client_id, seed);
-        dc_engine.seed(seed);
-        std::cout << "done" << std::endl;
-        fd_set master_fds;
-        FD_ZERO(&master_fds);
-        FD_SET(sockfd, &master_fds);
-        CompiledExpressionEvaluator evaluator(reg_counts.first,
-                                              reg_counts.second);
-        CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
-        const State init_state(compiled_model);
-        const CompiledPathProperty* path_property = nullptr;
-        ModelCheckingParams nested_params = params;
-        timeval timeout;
-        timeval* to = 0;
-        while (true) {
-          if (to != 0) {
-            to->tv_sec = 0;
-            to->tv_usec = 0;
-          }
-          fd_set read_fds = master_fds;
-          int result = select(sockfd + 1, &read_fds, 0, 0, to);
-          if (result == -1) {
-            perror(PACKAGE);
-            exit(-1);
-          } else if (result == 0) {
-            if (path_property) {
-              ClientMsg msg = {ClientMsg::SAMPLE};
-              ModelCheckingStats stats(report_statistics);
-              msg.value = GetObservation(*path_property, compiled_model,
-                                         nullptr, nested_params, &evaluator,
-                                         &sampler, init_state, &stats);
-              VLOG(2) << "Sending sample " << msg.value;
-              nbytes = send(sockfd, &msg, sizeof msg, 0);
-              if (nbytes == -1) {
-                perror(PACKAGE);
-                return 1;
-              } else if (nbytes == 0) {
-                VLOG(1) << "Shutting down (server unavailable)";
-                return 0;
-              }
-            }
-          } else {
-            nbytes = recv(sockfd, &smsg, sizeof smsg, 0);
-            if (nbytes == -1) {
-              perror(PACKAGE);
-              return 1;
-            } else if (nbytes == 0) {
-              VLOG(1) << "Shutting down (server unavailable)";
-              return 0;
-            }
-            if (smsg.id == ServerMsg::START) {
-              path_property =
-                  ExtractPathProperty(compiled_properties[smsg.value]);
-              if (path_property == nullptr) {
-                std::cerr << PACKAGE << ":zero or multiple path formulae"
-                          << std::endl;
-                return 1;
-              }
-              // Since we currently do not support distributed sampling for
-              // properties with nested probabilistic operators, we can just
-              // set the nested error bounds to 0.
-              nested_params.alpha = 0;
-              nested_params.beta = 0;
-              to = &timeout;
-              VLOG(1) << "Sampling started for property " << smsg.value;
-            } else if (smsg.id == ServerMsg::STOP) {
-              to = 0;
-              VLOG(1) << "Sampling stopped.";
-            } else {
-              std::cerr << "Message with bad id (" << smsg.id << ") ignored."
-                        << std::endl;
-            }
-          }
-        }
-      } else {
-        /* Server mode. */
-        server_socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (server_socket == -1) {
-          perror(PACKAGE);
-          return 1;
-        }
-        int yes = 1;
-        if (-1 == setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
-                             sizeof yes)) {
-          perror(PACKAGE);
-          return 1;
-        }
-        srvaddr.sin_addr.s_addr = INADDR_ANY;
-        if (-1 == bind(server_socket, (sockaddr*)&srvaddr, sizeof srvaddr)) {
-          perror(PACKAGE);
-          return 1;
-        }
-        if (-1 == listen(server_socket, 100)) {
-          perror(PACKAGE);
-          return 1;
-        }
-        VLOG(1) << "Server at port " << port;
-      }
-    }
 
     if (params.engine == ModelCheckingEngine::SAMPLING) {
-      DCEngine dc_engine;
-      dc_engine.seed(seed);
       std::cout << "Sampling engine: alpha=" << params.alpha
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", p_term=" << params.termination_probability
                 << ", seed=" << seed << std::endl;
       Timer<> model_timer;
-      CompiledExpressionEvaluator evaluator(reg_counts.first,
-                                            reg_counts.second);
-      CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
+      std::vector<CompiledExpressionEvaluator> evaluators;
+      evaluators.reserve(thread_count);
+      std::seed_seq seed_generator{seed};
+      std::vector<std::uint32_t> seeds(thread_count);
+      seed_generator.generate(seeds.begin(), seeds.end());
+      std::vector<std::mt19937_64> engines;
+      engines.reserve(thread_count);
+      std::vector<CompiledDistributionSampler<std::mt19937_64>> samplers;
+      samplers.reserve(thread_count);
+      for (int i = 0; i < thread_count; ++i) {
+        evaluators.emplace_back(reg_counts.first, reg_counts.second);
+        engines.emplace_back();
+        engines.back().seed(seeds[i]);
+        samplers.emplace_back(&engines.back());
+      }
       const State init_state(compiled_model);
       std::cout << "Model built in " << model_timer.GetElapsedSeconds()
                 << " seconds." << std::endl;
@@ -1618,15 +1474,15 @@ int main(int argc, char* argv[]) {
            fi != parse_result.properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
-        current_property = fi - parse_result.properties.begin();
+        const auto current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
         ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
           Timer<> property_timer;
-          if (Verify(property, compiled_model, nullptr, params, &evaluator,
-                     &sampler, init_state, &stats)) {
+          if (Verify(property, compiled_model, nullptr, params, init_state,
+                     &evaluators, &samplers, &stats)) {
             ++accepts;
           }
           stats.time.AddObservation(property_timer.GetElapsedSeconds());
@@ -1673,7 +1529,7 @@ int main(int argc, char* argv[]) {
            fi != parse_result.properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
-        current_property = fi - parse_result.properties.begin();
+        const auto current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         bool accepted = false;
@@ -1713,8 +1569,6 @@ int main(int argc, char* argv[]) {
         }
       }
     } else if (params.engine == ModelCheckingEngine::MIXED) {
-      DCEngine dc_engine;
-      dc_engine.seed(seed);
       std::cout << "Mixed engine: alpha=" << params.alpha
                 << ", beta=" << params.beta << ", delta=" << params.delta
                 << ", epsilon=" << params.epsilon << ", seed=" << seed
@@ -1722,9 +1576,21 @@ int main(int argc, char* argv[]) {
       Timer<> model_timer;
       DecisionDiagramModel dd_model = DecisionDiagramModel::Make(
           &dd_manager.value(), compiled_model, moments, identifiers_by_name);
-      CompiledExpressionEvaluator evaluator(reg_counts.first,
-                                            reg_counts.second);
-      CompiledDistributionSampler<DCEngine> sampler(&dc_engine);
+      std::vector<CompiledExpressionEvaluator> evaluators;
+      evaluators.reserve(thread_count);
+      std::seed_seq seed_generator{seed};
+      std::vector<std::uint32_t> seeds(thread_count);
+      seed_generator.generate(seeds.begin(), seeds.end());
+      std::vector<std::mt19937_64> engines;
+      engines.reserve(thread_count);
+      std::vector<CompiledDistributionSampler<std::mt19937_64>> samplers;
+      samplers.reserve(thread_count);
+      for (int i = 0; i < thread_count; ++i) {
+        evaluators.emplace_back(reg_counts.first, reg_counts.second);
+        engines.emplace_back();
+        engines.back().seed(seeds[i]);
+        samplers.emplace_back(&engines.back());
+      }
       const State init_state(compiled_model);
       std::cout << "Model built in " << model_timer.GetElapsedSeconds()
                 << " seconds." << std::endl;
@@ -1748,15 +1614,15 @@ int main(int argc, char* argv[]) {
            fi != parse_result.properties.end(); ++fi) {
         std::cout << std::endl << "Model checking " << *fi << " ..."
                   << std::endl;
-        current_property = fi - parse_result.properties.begin();
+        const auto current_property = fi - parse_result.properties.begin();
         const CompiledProperty& property =
             compiled_properties[current_property];
         size_t accepts = 0;
         ModelCheckingStats stats(report_statistics);
         for (size_t i = 0; i < trials; ++i) {
           Timer<> property_timer;
-          if (Verify(property, compiled_model, &dd_model, params, &evaluator,
-                     &sampler, init_state, &stats)) {
+          if (Verify(property, compiled_model, &dd_model, params, init_state,
+                     &evaluators, &samplers, &stats)) {
             ++accepts;
           }
           stats.time.AddObservation(property_timer.GetElapsedSeconds());

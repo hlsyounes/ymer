@@ -3,5 +3,5 @@ Variables: 3
 Events:    5
 
 Model checking P=?[ F<=26 sc = c & sm = c ] ...
-Acceptance sampling..257 observations.
-Pr[F<=26 sc = c & sm = c] = 0.101167 (0.0511673,0.151167)
+Acceptance sampling..285 observations.
+Pr[F<=26 sc = c & sm = c] = 0.115789 (0.0657895,0.165789)

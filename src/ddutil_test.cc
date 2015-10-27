@@ -858,8 +858,6 @@ TEST(OddTest, StateIndex) {
 
 TEST(OddTest, AddToVector) {
   const DecisionDiagramManager manager(8);
-  const ADD dd = manager.GetAddVariable(2) * manager.GetConstant(3) +
-                 manager.GetAddVariable(6) * manager.GetConstant(2);
   const BDD reachable_states =
       Ite(manager.GetBddVariable(0),
           Ite(manager.GetBddVariable(2),
@@ -869,6 +867,9 @@ TEST(OddTest, AddToVector) {
           Ite(manager.GetBddVariable(2), manager.GetBddVariable(6),
               Ite(manager.GetBddVariable(4), !manager.GetBddVariable(6),
                   manager.GetBddVariable(6))));
+  const ADD dd = ADD(reachable_states) *
+                 (manager.GetAddVariable(2) * manager.GetConstant(3) +
+                  manager.GetAddVariable(6) * manager.GetConstant(2));
   const ODD odd = ODD::Make(reachable_states);
   EXPECT_EQ(std::vector<double>({2, 0, 5, 5, 2, 2, 5}), odd.AddToVector(dd));
 }

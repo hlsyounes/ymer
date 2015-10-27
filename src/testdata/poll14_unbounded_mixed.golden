@@ -9,5 +9,5 @@ Rate matrix: 1707 nodes; 4 leaves; 2.69517e+06 minterms
 ODD:         149 nodes
 
 Model checking P=?[ !(s = 2 & a = 1) U s = 1 & a = 1 ] ...
-Acceptance sampling......666 observations.
-Pr[!(s = 2 & a = 1) U s = 1 & a = 1] = 0.548048 (0.498048,0.598048)
+Acceptance sampling......664 observations.
+Pr[!(s = 2 & a = 1) U s = 1 & a = 1] = 0.552711 (0.502711,0.602711)

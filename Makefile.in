@@ -83,8 +83,8 @@ bin_PROGRAMS = ymer$(EXEEXT)
 check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
 	src/timeutil_test$(EXEEXT) src/ptrutil_test$(EXEEXT) \
 	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
-	src/rng_test$(EXEEXT) src/typed-value_test$(EXEEXT) \
-	src/expression_test$(EXEEXT) src/distribution_test$(EXEEXT) \
+	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT) \
+	src/distribution_test$(EXEEXT) \
 	src/process-algebra_test$(EXEEXT) src/model_test$(EXEEXT) \
 	src/parser_test$(EXEEXT) src/compiled-expression_test$(EXEEXT) \
 	src/compiled-distribution_test$(EXEEXT) \
@@ -208,18 +208,7 @@ am_cudd_util_libutil_la_OBJECTS =  \
 	cudd/util/cudd_util_libutil_la-tmpfile.lo \
 	cudd/util/cudd_util_libutil_la-datalimit.lo
 cudd_util_libutil_la_OBJECTS = $(am_cudd_util_libutil_la_OBJECTS)
-dcmt_lib_libdcmt_la_LIBADD =
-am_dcmt_lib_libdcmt_la_OBJECTS =  \
-	dcmt/lib/dcmt_lib_libdcmt_la-check32.lo \
-	dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo \
-	dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo \
-	dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo \
-	dcmt/lib/dcmt_lib_libdcmt_la-seive.lo \
-	dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo \
-	dcmt/lib/dcmt_lib_libdcmt_la-init.lo
-dcmt_lib_libdcmt_la_OBJECTS = $(am_dcmt_lib_libdcmt_la_OBJECTS)
-src_libcompiled_distribution_la_DEPENDENCIES = src/librng.la \
-	glog/libglog.la
+src_libcompiled_distribution_la_DEPENDENCIES = glog/libglog.la
 am_src_libcompiled_distribution_la_OBJECTS =  \
 	src/compiled-distribution.lo
 src_libcompiled_distribution_la_OBJECTS =  \
@@ -269,9 +258,6 @@ src_libprocess_algebra_la_DEPENDENCIES = glog/libglog.la
 am_src_libprocess_algebra_la_OBJECTS = src/process-algebra.lo
 src_libprocess_algebra_la_OBJECTS =  \
 	$(am_src_libprocess_algebra_la_OBJECTS)
-src_librng_la_DEPENDENCIES = dcmt/lib/libdcmt.la
-am_src_librng_la_OBJECTS = src/rng.lo
-src_librng_la_OBJECTS = $(am_src_librng_la_OBJECTS)
 src_libstatistics_la_DEPENDENCIES = glog/libglog.la gsl/libgsl.la
 am_src_libstatistics_la_OBJECTS = src/statistics.lo
 src_libstatistics_la_OBJECTS = $(am_src_libstatistics_la_OBJECTS)
@@ -340,9 +326,6 @@ src_process_algebra_test_DEPENDENCIES = src/libprocess-algebra.la \
 am_src_ptrutil_test_OBJECTS = src/ptrutil_test.$(OBJEXT)
 src_ptrutil_test_OBJECTS = $(am_src_ptrutil_test_OBJECTS)
 src_ptrutil_test_DEPENDENCIES = src/libtest-main.la
-am_src_rng_test_OBJECTS = src/rng_test.$(OBJEXT)
-src_rng_test_OBJECTS = $(am_src_rng_test_OBJECTS)
-src_rng_test_DEPENDENCIES = src/librng.la src/libtest-main.la
 am_src_simulator_test_OBJECTS = src/simulator_test.$(OBJEXT)
 src_simulator_test_OBJECTS = $(am_src_simulator_test_OBJECTS)
 src_simulator_test_DEPENDENCIES = src/libcompiled-distribution.la \
@@ -367,10 +350,9 @@ am_ymer_OBJECTS = ymer.$(OBJEXT) sampling.$(OBJEXT) hybrid.$(OBJEXT) \
 	symbolic.$(OBJEXT) $(am__objects_1)
 ymer_OBJECTS = $(am_ymer_OBJECTS)
 ymer_DEPENDENCIES = cudd/cudd/libcudd.la gsl/libgsl.la \
-	src/libstatistics.la src/libddutil.la src/librng.la \
-	src/libtyped-value.la src/libexpression.la \
-	src/libdistribution.la src/libmodel.la src/libparser.la \
-	src/libcompiled-model.la src/libddmodel.la \
+	src/libstatistics.la src/libddutil.la src/libtyped-value.la \
+	src/libexpression.la src/libdistribution.la src/libmodel.la \
+	src/libparser.la src/libcompiled-model.la src/libddmodel.la \
 	src/libcompiled-property.la
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -443,7 +425,7 @@ am__v_YACC_0 = @echo "  YACC    " $@;
 am__v_YACC_1 = 
 SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
-	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
+	$(cudd_util_libutil_la_SOURCES) \
 	$(src_libcompiled_distribution_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
@@ -452,7 +434,7 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
 	$(src_libparser_la_SOURCES) \
-	$(src_libprocess_algebra_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libprocess_algebra_la_SOURCES) \
 	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
@@ -464,13 +446,13 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
 	$(src_process_algebra_test_SOURCES) \
-	$(src_ptrutil_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_timeutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_ptrutil_test_SOURCES) $(src_simulator_test_SOURCES) \
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_timeutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
-	$(cudd_util_libutil_la_SOURCES) $(dcmt_lib_libdcmt_la_SOURCES) \
+	$(cudd_util_libutil_la_SOURCES) \
 	$(src_libcompiled_distribution_la_SOURCES) \
 	$(src_libcompiled_expression_la_SOURCES) \
 	$(src_libcompiled_model_la_SOURCES) \
@@ -479,7 +461,7 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_libdistribution_la_SOURCES) \
 	$(src_libexpression_la_SOURCES) $(src_libmodel_la_SOURCES) \
 	$(src_libparser_la_SOURCES) \
-	$(src_libprocess_algebra_la_SOURCES) $(src_librng_la_SOURCES) \
+	$(src_libprocess_algebra_la_SOURCES) \
 	$(src_libstatistics_la_SOURCES) $(src_libtest_main_la_SOURCES) \
 	$(src_libtyped_value_la_SOURCES) \
 	$(src_compiled_distribution_test_SOURCES) \
@@ -491,10 +473,10 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
 	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
 	$(src_process_algebra_test_SOURCES) \
-	$(src_ptrutil_test_SOURCES) $(src_rng_test_SOURCES) \
-	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
-	$(src_strutil_test_SOURCES) $(src_timeutil_test_SOURCES) \
-	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
+	$(src_ptrutil_test_SOURCES) $(src_simulator_test_SOURCES) \
+	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
+	$(src_timeutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
+	$(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -918,13 +900,9 @@ SUBDIRS = glog gsl gtest
 
 # CUDD utility library.
 
-# Library for dynamic creation of Mersenne Twister generators.
-
 # Statistics library.
 
 # Decision diagram utility library.
-
-# Random number generator library.
 
 # Typed-value library.
 
@@ -948,9 +926,8 @@ SUBDIRS = glog gsl gtest
 
 # Compiled property library.
 noinst_LTLIBRARIES = cudd/cudd/libcudd.la cudd/mtr/libmtr.la \
-	cudd/st/libst.la cudd/util/libutil.la dcmt/lib/libdcmt.la \
-	src/libstatistics.la src/libddutil.la src/librng.la \
-	src/libtyped-value.la src/libexpression.la \
+	cudd/st/libst.la cudd/util/libutil.la src/libstatistics.la \
+	src/libddutil.la src/libtyped-value.la src/libexpression.la \
 	src/libdistribution.la src/libprocess-algebra.la \
 	src/libmodel.la src/libparser.la src/libcompiled-expression.la \
 	src/libcompiled-distribution.la src/libcompiled-model.la \
@@ -999,11 +976,6 @@ cudd_util_libutil_la_SOURCES = cudd/util/cpu_time.c cudd/util/cpu_stats.c \
     cudd/util/tmpfile.c cudd/util/datalimit.c
 
 cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
-dcmt_lib_libdcmt_la_SOURCES = dcmt/include/dc.h dcmt/lib/dci.h \
-    dcmt/lib/check32.c dcmt/lib/prescr.c dcmt/lib/mt19937.c dcmt/lib/mt19937.h \
-    dcmt/lib/eqdeg.c dcmt/lib/seive.c dcmt/lib/genmtrand.c dcmt/lib/init.c
-
-dcmt_lib_libdcmt_la_CPPFLAGS = -I$(srcdir)/dcmt/include
 
 #
 # Ymer libraries.
@@ -1016,8 +988,6 @@ src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
 src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
 src_libddutil_la_SOURCES = src/ddutil.h src/ddutil.cc
 src_libddutil_la_LIBADD = cudd/cudd/libcudd.la glog/libglog.la
-src_librng_la_SOURCES = src/rng.h src/rng.cc
-src_librng_la_LIBADD = dcmt/lib/libdcmt.la
 src_libtyped_value_la_SOURCES = src/typed-value.h src/typed-value.cc
 src_libtyped_value_la_LIBADD = glog/libglog.la
 src_libexpression_la_SOURCES = src/expression.h src/expression.cc
@@ -1046,7 +1016,7 @@ src_libcompiled_expression_la_LIBADD = src/libddutil.la src/libexpression.la \
 src_libcompiled_distribution_la_SOURCES = src/compiled-distribution.h \
     src/compiled-distribution.cc
 
-src_libcompiled_distribution_la_LIBADD = src/librng.la glog/libglog.la
+src_libcompiled_distribution_la_LIBADD = glog/libglog.la
 src_libcompiled_model_la_SOURCES = src/compiled-model.h src/compiled-model.cc
 src_libcompiled_model_la_LIBADD = src/libddutil.la \
     src/libcompiled-distribution.la src/libcompiled-expression.la \
@@ -1062,9 +1032,9 @@ src_libcompiled_property_la_SOURCES = src/compiled-property.h \
 src_libcompiled_property_la_LIBADD = src/libcompiled-expression.la \
     src/libddutil.la glog/libglog.la
 
-ymer_SOURCES = ymer.cc formulas.h sampling.cc hybrid.cc hybrid.h symbolic.cc comm.h $(HEADER_FILES)
+ymer_SOURCES = ymer.cc formulas.h sampling.cc hybrid.cc hybrid.h symbolic.cc $(HEADER_FILES)
 ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
-    src/libstatistics.la src/libddutil.la src/librng.la \
+    src/libstatistics.la src/libddutil.la \
     src/libtyped-value.la src/libexpression.la src/libdistribution.la \
     src/libmodel.la src/libparser.la src/libcompiled-model.la \
     src/libddmodel.la src/libcompiled-property.la
@@ -1090,8 +1060,6 @@ src_statistics_test_SOURCES = src/statistics_test.cc
 src_statistics_test_LDADD = src/libstatistics.la src/libtest-main.la
 src_ddutil_test_SOURCES = src/ddutil_test.cc
 src_ddutil_test_LDADD = src/libddutil.la src/libtest-main.la
-src_rng_test_SOURCES = src/rng_test.cc
-src_rng_test_LDADD = src/librng.la src/libtest-main.la
 src_typed_value_test_SOURCES = src/typed-value_test.cc
 src_typed_value_test_LDADD = src/libtyped-value.la src/libtest-main.la
 src_expression_test_SOURCES = src/expression_test.cc
@@ -1132,9 +1100,8 @@ TESTS_ENVIRONMENT = HEAPCHECK=normal GLOG_logtostderr=1 TEST_SRCDIR=$(srcdir)
 TESTS = $(check_PROGRAMS)
 EXTRA_DIST = cudd examples scripts src/ymer_regtest.sh src/testdata
 CLEANFILES = core
-AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr \
-    -I$(srcdir)/dcmt/include -I$(srcdir)/glog/src -I$(builddir)/glog/src \
-    -I$(builddir)/gsl -I$(srcdir)/gtest/include
+AM_CPPFLAGS = -I$(srcdir)/cudd/cudd -I$(srcdir)/cudd/mtr -I$(srcdir)/glog/src \
+    -I$(builddir)/glog/src -I$(builddir)/gsl -I$(srcdir)/gtest/include
 
 AM_CXXFLAGS = -Wall -Werror
 AM_YFLAGS = -d
@@ -1405,29 +1372,6 @@ cudd/util/cudd_util_libutil_la-datalimit.lo:  \
 
 cudd/util/libutil.la: $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_DEPENDENCIES) $(EXTRA_cudd_util_libutil_la_DEPENDENCIES) cudd/util/$(am__dirstamp)
 	$(AM_V_CCLD)$(LINK)  $(cudd_util_libutil_la_OBJECTS) $(cudd_util_libutil_la_LIBADD) $(LIBS)
-dcmt/lib/$(am__dirstamp):
-	@$(MKDIR_P) dcmt/lib
-	@: > dcmt/lib/$(am__dirstamp)
-dcmt/lib/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) dcmt/lib/$(DEPDIR)
-	@: > dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-check32.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-seive.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-dcmt/lib/dcmt_lib_libdcmt_la-init.lo: dcmt/lib/$(am__dirstamp) \
-	dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-
-dcmt/lib/libdcmt.la: $(dcmt_lib_libdcmt_la_OBJECTS) $(dcmt_lib_libdcmt_la_DEPENDENCIES) $(EXTRA_dcmt_lib_libdcmt_la_DEPENDENCIES) dcmt/lib/$(am__dirstamp)
-	$(AM_V_CCLD)$(LINK)  $(dcmt_lib_libdcmt_la_OBJECTS) $(dcmt_lib_libdcmt_la_LIBADD) $(LIBS)
 src/$(am__dirstamp):
 	@$(MKDIR_P) src
 	@: > src/$(am__dirstamp)
@@ -1488,10 +1432,6 @@ src/process-algebra.lo: src/$(am__dirstamp) \
 
 src/libprocess-algebra.la: $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_DEPENDENCIES) $(EXTRA_src_libprocess_algebra_la_DEPENDENCIES) src/$(am__dirstamp)
 	$(AM_V_CXXLD)$(CXXLINK)  $(src_libprocess_algebra_la_OBJECTS) $(src_libprocess_algebra_la_LIBADD) $(LIBS)
-src/rng.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-
-src/librng.la: $(src_librng_la_OBJECTS) $(src_librng_la_DEPENDENCIES) $(EXTRA_src_librng_la_DEPENDENCIES) src/$(am__dirstamp)
-	$(AM_V_CXXLD)$(CXXLINK)  $(src_librng_la_OBJECTS) $(src_librng_la_LIBADD) $(LIBS)
 src/statistics.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
 src/libstatistics.la: $(src_libstatistics_la_OBJECTS) $(src_libstatistics_la_DEPENDENCIES) $(EXTRA_src_libstatistics_la_DEPENDENCIES) src/$(am__dirstamp)
@@ -1640,12 +1580,6 @@ src/ptrutil_test.$(OBJEXT): src/$(am__dirstamp) \
 src/ptrutil_test$(EXEEXT): $(src_ptrutil_test_OBJECTS) $(src_ptrutil_test_DEPENDENCIES) $(EXTRA_src_ptrutil_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/ptrutil_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_ptrutil_test_OBJECTS) $(src_ptrutil_test_LDADD) $(LIBS)
-src/rng_test.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-
-src/rng_test$(EXEEXT): $(src_rng_test_OBJECTS) $(src_rng_test_DEPENDENCIES) $(EXTRA_src_rng_test_DEPENDENCIES) src/$(am__dirstamp)
-	@rm -f src/rng_test$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(src_rng_test_OBJECTS) $(src_rng_test_LDADD) $(LIBS)
 src/simulator_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1691,8 +1625,6 @@ mostlyclean-compile:
 	-rm -f cudd/st/*.lo
 	-rm -f cudd/util/*.$(OBJEXT)
 	-rm -f cudd/util/*.lo
-	-rm -f dcmt/lib/*.$(OBJEXT)
-	-rm -f dcmt/lib/*.lo
 	-rm -f src/*.$(OBJEXT)
 	-rm -f src/*.lo
 
@@ -1780,13 +1712,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@cudd/util/$(DEPDIR)/cudd_util_libutil_la-stub.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@cudd/util/$(DEPDIR)/cudd_util_libutil_la-texpand.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@cudd/util/$(DEPDIR)/cudd_util_libutil_la-tmpfile.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-check32.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-eqdeg.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-genmtrand.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-init.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-mt19937.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-prescr.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-seive.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/compiled-distribution.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/compiled-distribution_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/compiled-expression.Plo@am__quote@
@@ -1812,8 +1737,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/process-algebra.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/process-algebra_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ptrutil_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/rng_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics_test.Po@am__quote@
@@ -2387,55 +2310,6 @@ cudd/util/cudd_util_libutil_la-datalimit.lo: cudd/util/datalimit.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(cudd_util_libutil_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o cudd/util/cudd_util_libutil_la-datalimit.lo `test -f 'cudd/util/datalimit.c' || echo '$(srcdir)/'`cudd/util/datalimit.c
 
-dcmt/lib/dcmt_lib_libdcmt_la-check32.lo: dcmt/lib/check32.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-check32.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-check32.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-check32.lo `test -f 'dcmt/lib/check32.c' || echo '$(srcdir)/'`dcmt/lib/check32.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-check32.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-check32.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/check32.c' object='dcmt/lib/dcmt_lib_libdcmt_la-check32.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-check32.lo `test -f 'dcmt/lib/check32.c' || echo '$(srcdir)/'`dcmt/lib/check32.c
-
-dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo: dcmt/lib/prescr.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-prescr.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo `test -f 'dcmt/lib/prescr.c' || echo '$(srcdir)/'`dcmt/lib/prescr.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-prescr.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-prescr.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/prescr.c' object='dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-prescr.lo `test -f 'dcmt/lib/prescr.c' || echo '$(srcdir)/'`dcmt/lib/prescr.c
-
-dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo: dcmt/lib/mt19937.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-mt19937.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo `test -f 'dcmt/lib/mt19937.c' || echo '$(srcdir)/'`dcmt/lib/mt19937.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-mt19937.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-mt19937.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/mt19937.c' object='dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-mt19937.lo `test -f 'dcmt/lib/mt19937.c' || echo '$(srcdir)/'`dcmt/lib/mt19937.c
-
-dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo: dcmt/lib/eqdeg.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-eqdeg.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo `test -f 'dcmt/lib/eqdeg.c' || echo '$(srcdir)/'`dcmt/lib/eqdeg.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-eqdeg.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-eqdeg.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/eqdeg.c' object='dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-eqdeg.lo `test -f 'dcmt/lib/eqdeg.c' || echo '$(srcdir)/'`dcmt/lib/eqdeg.c
-
-dcmt/lib/dcmt_lib_libdcmt_la-seive.lo: dcmt/lib/seive.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-seive.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-seive.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-seive.lo `test -f 'dcmt/lib/seive.c' || echo '$(srcdir)/'`dcmt/lib/seive.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-seive.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-seive.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/seive.c' object='dcmt/lib/dcmt_lib_libdcmt_la-seive.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-seive.lo `test -f 'dcmt/lib/seive.c' || echo '$(srcdir)/'`dcmt/lib/seive.c
-
-dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo: dcmt/lib/genmtrand.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-genmtrand.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo `test -f 'dcmt/lib/genmtrand.c' || echo '$(srcdir)/'`dcmt/lib/genmtrand.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-genmtrand.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-genmtrand.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/genmtrand.c' object='dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-genmtrand.lo `test -f 'dcmt/lib/genmtrand.c' || echo '$(srcdir)/'`dcmt/lib/genmtrand.c
-
-dcmt/lib/dcmt_lib_libdcmt_la-init.lo: dcmt/lib/init.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dcmt/lib/dcmt_lib_libdcmt_la-init.lo -MD -MP -MF dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-init.Tpo -c -o dcmt/lib/dcmt_lib_libdcmt_la-init.lo `test -f 'dcmt/lib/init.c' || echo '$(srcdir)/'`dcmt/lib/init.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-init.Tpo dcmt/lib/$(DEPDIR)/dcmt_lib_libdcmt_la-init.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dcmt/lib/init.c' object='dcmt/lib/dcmt_lib_libdcmt_la-init.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dcmt_lib_libdcmt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dcmt/lib/dcmt_lib_libdcmt_la-init.lo `test -f 'dcmt/lib/init.c' || echo '$(srcdir)/'`dcmt/lib/init.c
-
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
@@ -2475,7 +2349,6 @@ clean-libtool:
 	-rm -rf cudd/mtr/.libs cudd/mtr/_libs
 	-rm -rf cudd/st/.libs cudd/st/_libs
 	-rm -rf cudd/util/.libs cudd/util/_libs
-	-rm -rf dcmt/lib/.libs dcmt/lib/_libs
 	-rm -rf src/.libs src/_libs
 
 distclean-libtool:
@@ -2766,13 +2639,6 @@ src/statistics_test.log: src/statistics_test$(EXEEXT)
 src/ddutil_test.log: src/ddutil_test$(EXEEXT)
 	@p='src/ddutil_test$(EXEEXT)'; \
 	b='src/ddutil_test'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
-src/rng_test.log: src/rng_test$(EXEEXT)
-	@p='src/rng_test$(EXEEXT)'; \
-	b='src/rng_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -3117,8 +2983,6 @@ distclean-generic:
 	-rm -f cudd/st/$(am__dirstamp)
 	-rm -f cudd/util/$(DEPDIR)/$(am__dirstamp)
 	-rm -f cudd/util/$(am__dirstamp)
-	-rm -f dcmt/lib/$(DEPDIR)/$(am__dirstamp)
-	-rm -f dcmt/lib/$(am__dirstamp)
 	-rm -f src/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/$(am__dirstamp)
 
@@ -3137,7 +3001,7 @@ clean-am: clean-binPROGRAMS clean-checkLTLIBRARIES clean-checkPROGRAMS \
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf ./$(DEPDIR) cudd/cudd/$(DEPDIR) cudd/mtr/$(DEPDIR) cudd/st/$(DEPDIR) cudd/util/$(DEPDIR) dcmt/lib/$(DEPDIR) src/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) cudd/cudd/$(DEPDIR) cudd/mtr/$(DEPDIR) cudd/st/$(DEPDIR) cudd/util/$(DEPDIR) src/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -3185,7 +3049,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf ./$(DEPDIR) cudd/cudd/$(DEPDIR) cudd/mtr/$(DEPDIR) cudd/st/$(DEPDIR) cudd/util/$(DEPDIR) dcmt/lib/$(DEPDIR) src/$(DEPDIR)
+	-rm -rf ./$(DEPDIR) cudd/cudd/$(DEPDIR) cudd/mtr/$(DEPDIR) cudd/st/$(DEPDIR) cudd/util/$(DEPDIR) src/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

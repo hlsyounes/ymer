@@ -23,21 +23,18 @@
 
 #include "formulas.h"
 
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
+#include <condition_variable>
 #include <iostream>
 #include <limits>
+#include <mutex>
 #include <queue>
 #include <set>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
-#include "comm.h"
 #include "src/compiled-property.h"
 #include "src/ddmodel.h"
-#include "src/rng.h"
 #include "src/simulator.h"
 #include "src/statistics.h"
 #include "src/strutil.h"
@@ -69,28 +66,74 @@ void PrintProgress(int n) {
   }
 }
 
-class SamplingVerifier : public CompiledPropertyVisitor,
-                         public CompiledPathPropertyVisitor {
- public:
-  SamplingVerifier(const CompiledModel* model,
-                   const DecisionDiagramModel* dd_model,
-                   const ModelCheckingParams& params,
-                   CompiledExpressionEvaluator* evaluator,
-                   CompiledDistributionSampler<DCEngine>* sampler,
-                   const State* state, int probabilistic_level,
-                   ModelCheckingStats* stats);
-
-  bool result() const { return result_; }
-
-  int GetSampleCacheSize() const;
-
- private:
-  struct DdCacheEntry {
+struct DdCache {
+  struct Entry {
     BDD dd1;
     BDD dd2;
     Optional<BDD> feasible;
   };
 
+  std::unordered_map<int, Entry> entries;
+  std::mutex mutex;
+};
+
+class SamplingVerifier : public CompiledPropertyVisitor,
+                         public CompiledPathPropertyVisitor {
+ private:
+  struct Result {
+    int path_length;
+    bool early_termination;
+    bool value;
+  };
+
+  class ResultQueue {
+   public:
+    ResultQueue();
+
+    int pop_count() const { return pop_count_; }
+
+    int push_count() const { return push_count_; }
+
+    bool Enabled() const;
+
+    void Push(const Result& result);
+
+    Result Pop();
+
+    void Disable();
+
+   private:
+    std::queue<Result> results_;
+    mutable std::mutex mutex_;
+    std::condition_variable cv_;
+    int push_count_;
+    int pop_count_;
+    bool enabled_;
+  };
+
+ public:
+  SamplingVerifier(
+      const CompiledModel* model, const DecisionDiagramModel* dd_model,
+      DdCache* dd_cache, ModelCheckingStats* stats,
+      const ModelCheckingParams& params, const State* state,
+      std::vector<CompiledExpressionEvaluator>* evaluators,
+      std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers,
+      std::vector<NextStateSampler<std::mt19937_64>>* simulators);
+
+  SamplingVerifier(
+      const CompiledModel* model, const DecisionDiagramModel* dd_model,
+      DdCache* dd_cache, ModelCheckingStats* stats,
+      const ModelCheckingParams& params, const State* state,
+      std::vector<CompiledExpressionEvaluator>* evaluators,
+      std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers,
+      std::vector<NextStateSampler<std::mt19937_64>>* simulators,
+      int thread_index, ResultQueue* result_queue);
+
+  bool result() const { return result_.value; }
+
+  int GetSampleCacheSize() const;
+
+ private:
   void DoVisitCompiledNaryProperty(
       const CompiledNaryProperty& property) override;
   void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
@@ -115,58 +158,85 @@ class SamplingVerifier : public CompiledPropertyVisitor,
                     bool default_result, OutputIterator* state_inserter);
   std::string StateToString(const State& state) const;
 
-  bool result_;
-  double observation_weight_;
-  const CompiledModel* model_;
-  const DecisionDiagramModel* dd_model_;
+  const CompiledModel* const model_;
+  const DecisionDiagramModel* const dd_model_;
+  DdCache* const dd_cache_;
+  ModelCheckingStats* const stats_;
+  Result result_;
   ModelCheckingParams params_;
-  CompiledExpressionEvaluator* evaluator_;
-  CompiledDistributionSampler<DCEngine>* sampler_;
-  NextStateSampler<DCEngine> simulator_;
   const State* state_;
   int probabilistic_level_;
-  ModelCheckingStats* stats_;
+  std::vector<CompiledExpressionEvaluator>* evaluators_;
+  CompiledExpressionEvaluator* evaluator_;
+  std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers_;
+  CompiledDistributionSampler<std::mt19937_64>* sampler_;
+  std::vector<NextStateSampler<std::mt19937_64>>* simulators_;
+  NextStateSampler<std::mt19937_64>* simulator_;
+  ResultQueue* const result_queue_;
   std::unordered_map<int, std::map<std::vector<int>, Sample<double>>>
       sample_cache_;
-  std::unordered_map<int, DdCacheEntry> dd_cache_;
-
-  // Registered clients.
-  std::map<int, short> registered_clients_;
-  // Next client id.
-  short next_client_id_;
 };
 
 SamplingVerifier::SamplingVerifier(
     const CompiledModel* model, const DecisionDiagramModel* dd_model,
-    const ModelCheckingParams& params, CompiledExpressionEvaluator* evaluator,
-    CompiledDistributionSampler<DCEngine>* sampler, const State* state,
-    int probabilistic_level, ModelCheckingStats* stats)
+    DdCache* dd_cache, ModelCheckingStats* stats,
+    const ModelCheckingParams& params, const State* state,
+    std::vector<CompiledExpressionEvaluator>* evaluators,
+    std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers,
+    std::vector<NextStateSampler<std::mt19937_64>>* simulators)
     : model_(model),
       dd_model_(dd_model),
-      params_(params),
-      evaluator_(evaluator),
-      sampler_(sampler),
-      simulator_(model, evaluator, sampler),
-      state_(state),
-      probabilistic_level_(probabilistic_level),
+      dd_cache_(dd_cache),
       stats_(stats),
-      next_client_id_(1) {}
+      params_(params),
+      state_(state),
+      probabilistic_level_(0),
+      evaluators_(evaluators),
+      evaluator_(&(*evaluators)[0]),
+      samplers_(samplers),
+      sampler_(&(*samplers)[0]),
+      simulators_(simulators),
+      simulator_(&(*simulators)[0]),
+      result_queue_(nullptr) {}
+
+SamplingVerifier::SamplingVerifier(
+    const CompiledModel* model, const DecisionDiagramModel* dd_model,
+    DdCache* dd_cache, ModelCheckingStats* stats,
+    const ModelCheckingParams& params, const State* state,
+    std::vector<CompiledExpressionEvaluator>* evaluators,
+    std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers,
+    std::vector<NextStateSampler<std::mt19937_64>>* simulators,
+    int thread_index, ResultQueue* result_queue)
+    : model_(model),
+      dd_model_(dd_model),
+      dd_cache_(dd_cache),
+      stats_(stats),
+      params_(params),
+      state_(state),
+      probabilistic_level_(1),
+      evaluators_(evaluators),
+      evaluator_(&(*evaluators)[thread_index]),
+      samplers_(samplers),
+      sampler_(&(*samplers)[thread_index]),
+      simulators_(simulators),
+      simulator_(&(*simulators)[thread_index]),
+      result_queue_(result_queue) {}
 
 void SamplingVerifier::DoVisitCompiledNaryProperty(
     const CompiledNaryProperty& property) {
   switch (property.op()) {
     case CompiledNaryOperator::AND:
-      result_ = true;
+      result_.value = true;
       if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(
+        result_.value = evaluator_->EvaluateIntExpression(
             property.expr_operand().expr(), state_->values());
       }
-      if (result_ == true && !property.other_operands().empty()) {
+      if (result_.value == true && !property.other_operands().empty()) {
         double alpha = params_.alpha / property.other_operands().size();
         std::swap(params_.alpha, alpha);
         for (const CompiledProperty& operand : property.other_operands()) {
           operand.Accept(this);
-          if (result_ == false) {
+          if (result_.value == false) {
             break;
           }
         }
@@ -174,17 +244,17 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
       }
       break;
     case CompiledNaryOperator::OR:
-      result_ = false;
+      result_.value = false;
       if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(
+        result_.value = evaluator_->EvaluateIntExpression(
             property.expr_operand().expr(), state_->values());
       }
-      if (result_ == false && !property.other_operands().empty()) {
+      if (result_.value == false && !property.other_operands().empty()) {
         double beta = params_.beta / property.other_operands().size();
         std::swap(params_.beta, beta);
         for (const CompiledProperty& operand : property.other_operands()) {
           operand.Accept(this);
-          if (result_ == true) {
+          if (result_.value == true) {
             break;
           }
         }
@@ -192,11 +262,11 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
       }
       break;
     case CompiledNaryOperator::IFF: {
-      bool has_result = false;
+      bool has_value = false;
       if (property.has_expr_operand()) {
-        result_ = evaluator_->EvaluateIntExpression(
+        result_.value = evaluator_->EvaluateIntExpression(
             property.expr_operand().expr(), state_->values());
-        has_result = true;
+        has_value = true;
       }
       double alpha = std::min(params_.alpha, params_.beta) /
                      property.other_operands().size();
@@ -205,12 +275,12 @@ void SamplingVerifier::DoVisitCompiledNaryProperty(
       std::swap(params_.alpha, alpha);
       std::swap(params_.beta, beta);
       for (const CompiledProperty& operand : property.other_operands()) {
-        bool prev_result = result_;
+        bool prev_value = result_.value;
         operand.Accept(this);
-        if (has_result) {
-          result_ = prev_result == result_;
+        if (has_value) {
+          result_.value = prev_value == result_.value;
         }
-        has_result = true;
+        has_value = true;
       }
       std::swap(params_.beta, beta);
       std::swap(params_.alpha, alpha);
@@ -223,7 +293,7 @@ void SamplingVerifier::DoVisitCompiledNotProperty(
     const CompiledNotProperty& property) {
   std::swap(params_.alpha, params_.beta);
   property.operand().Accept(this);
-  result_ = !result_;
+  result_.value = !result_.value;
   std::swap(params_.alpha, params_.beta);
 }
 
@@ -291,167 +361,52 @@ SamplingVerifier::VerifyProbabilisticProperty(
       tester->SetSample(ci->second);
     }
   }
-  std::queue<short> schedule;
-  std::map<short, std::queue<bool>> buffer;
-  std::map<short, size_t> sample_count;
-  std::map<short, size_t> usage_count;
-  std::set<short> dead_clients;
-  fd_set master_fds;
-  int fdmax = -1;
-  if (server_socket != -1) {
-    FD_ZERO(&master_fds);
-    FD_SET(server_socket, &master_fds);
-    fdmax = server_socket;
-    std::set<int> closed_sockets;
-    for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
-         ci != registered_clients_.end(); ci++) {
-      int sockfd = (*ci).first;
-      short client_id = (*ci).second;
-      ServerMsg smsg = {ServerMsg::START, current_property};
-      int nbytes = send(sockfd, &smsg, sizeof smsg, 0);
-      if (nbytes == -1) {
-        PLOG(FATAL) << "server error";
-      } else if (nbytes == 0) {
-        closed_sockets.insert(sockfd);
-        close(sockfd);
-      } else {
-        schedule.push(client_id);
-        FD_SET(sockfd, &master_fds);
-        if (sockfd > fdmax) {
-          fdmax = sockfd;
+  std::vector<ResultQueue> result_queues;
+  std::vector<SamplingVerifier> verifiers;
+  std::vector<std::thread> workers;
+  std::queue<int> schedule;
+  if (result_queue_ == nullptr && evaluators_->size() > 1) {
+    result_queues = std::vector<ResultQueue>(evaluators_->size());
+    verifiers.reserve(evaluators_->size());
+    for (size_t i = 0; i < evaluators_->size(); ++i) {
+      verifiers.emplace_back(model_, dd_model_, dd_cache_, nullptr,
+                             nested_params, state_, evaluators_, samplers_,
+                             simulators_, i, &result_queues[i]);
+      workers.emplace_back([&path_property, &result_queues, &verifiers, i]() {
+        while (result_queues[i].Enabled()) {
+          path_property.Accept(&verifiers[i]);
+          result_queues[i].Push(verifiers[i].result_);
         }
-      }
-    }
-    for (std::set<int>::const_iterator ci = closed_sockets.begin();
-         ci != closed_sockets.end(); ci++) {
-      registered_clients_.erase(*ci);
+      });
+      schedule.push(i);
     }
   }
   std::swap(params_, nested_params);
   while (!tester->done()) {
-    bool s = false, have_sample = false;
-    if (!schedule.empty() && !buffer[schedule.front()].empty()) {
-      short client_id = schedule.front();
-      s = buffer[client_id].front();
-      buffer[client_id].pop();
-      schedule.push(client_id);
-      schedule.pop();
-      if (VLOG_IS_ON(2)) {
-        LOG(INFO) << "Using sample (" << s << ") from client " << client_id;
-      }
-      usage_count[client_id]++;
-      have_sample = true;
-    } else if (server_socket != -1) {
-      /* Server mode. */
-      while (!schedule.empty() &&
-             dead_clients.find(schedule.front()) != dead_clients.end() &&
-             buffer[schedule.front()].empty()) {
-        /* Do not expect messages from dead clients. */
-        schedule.pop();
-      }
-      fd_set read_fds = master_fds;
-      if (-1 == select(fdmax + 1, &read_fds, NULL, NULL, NULL)) {
-        PLOG(FATAL);
-      }
-      if (FD_ISSET(server_socket, &read_fds)) {
-        /* register a client */
-        sockaddr_in client_addr;
-        int addrlen = sizeof client_addr;
-        int sockfd = accept(server_socket, (sockaddr*)&client_addr,
-                            (socklen_t*)&addrlen);
-        if (sockfd == -1) {
-          PLOG(ERROR);
-        }
-        FD_SET(sockfd, &master_fds);
-        if (sockfd > fdmax) {
-          fdmax = sockfd;
-        }
-        int client_id = next_client_id_++;
-        ServerMsg smsg = {ServerMsg::REGISTER, client_id};
-        if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-          PLOG(ERROR);
-          close(sockfd);
-        } else {
-          smsg.id = ServerMsg::START;
-          smsg.value = current_property;
-          if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-            PLOG(ERROR);
-            close(sockfd);
-          } else {
-            registered_clients_[sockfd] = client_id;
-            schedule.push(client_id);
-            unsigned long addr = ntohl(client_addr.sin_addr.s_addr);
-            std::cout << "Registering client " << client_id << " @ "
-                      << (0xff & (addr >> 24UL)) << '.'
-                      << (0xff & (addr >> 16UL)) << '.'
-                      << (0xff & (addr >> 8UL)) << '.' << (0xff & addr)
-                      << std::endl;
-          }
-        }
-      }
-      std::set<int> closed_sockets;
-      for (std::map<int, short>::const_iterator ci =
-               registered_clients_.begin();
-           ci != registered_clients_.end(); ci++) {
-        int sockfd = (*ci).first;
-        short client_id = (*ci).second;
-        if (FD_ISSET(sockfd, &read_fds)) {
-          /* receive a sample */
-          ClientMsg msg;
-          int nbytes = recv(sockfd, &msg, sizeof msg, 0);
-          if (nbytes <= 0) {
-            if (nbytes == -1) {
-              PLOG(ERROR);
-            } else {
-              std::cout << "Client " << client_id << " disconnected"
-                        << std::endl;
-            }
-            closed_sockets.insert(sockfd);
-            dead_clients.insert(client_id);
-            close(sockfd);
-            FD_CLR(sockfd, &master_fds);
-          } else if (msg.id == ClientMsg::SAMPLE) {
-            s = msg.value;
-            if (VLOG_IS_ON(2)) {
-              LOG(INFO) << "Receiving sample (" << s << ") from client "
-                        << client_id;
-            }
-            sample_count[client_id]++;
-            schedule.push(client_id);
-            if (schedule.front() == client_id) {
-              schedule.pop();
-              if (VLOG_IS_ON(2)) {
-                LOG(INFO) << "Using sample (" << s << ") from client "
-                          << client_id;
-              }
-              usage_count[client_id]++;
-              have_sample = true;
-            } else {
-              buffer[client_id].push(s);
-            }
-          } else {
-            std::cerr << "Message with bad id (" << msg.id << ") ignored."
-                      << std::endl;
-          }
-        }
-      }
-      for (std::set<int>::const_iterator ci = closed_sockets.begin();
-           ci != closed_sockets.end(); ci++) {
-        registered_clients_.erase(*ci);
-      }
-      observation_weight_ = 1;
-    } else {
-      /* Local mode. */
+    if (result_queues.empty()) {
       path_property.Accept(this);
-      s = result_;
-      have_sample = true;
+    } else {
+      int i = schedule.front();
+      schedule.pop();
+      result_ = result_queues[i].Pop();
+      schedule.push(i);
     }
-    if (!have_sample) {
-      continue;
+    double observation_weight = 1;
+    if (dd_model_ == nullptr && path_property.is_unbounded()) {
+      observation_weight =
+          pow(1 - params_.termination_probability, -(result_.path_length - 1));
     }
-    tester->AddObservation(s ? observation_weight_ : 0);
+    tester->AddObservation(result_.value ? observation_weight : 0);
     if (probabilistic_level_ == 1) {
       PrintProgress(tester->sample().count());
+      stats_->path_length.AddObservation(result_.path_length);
+      if (result_.value) {
+        stats_->path_length_accept.AddObservation(result_.path_length);
+      } else if (result_.early_termination) {
+        stats_->path_length_terminate.AddObservation(result_.path_length);
+      } else {
+        stats_->path_length_reject.AddObservation(result_.path_length);
+      }
     }
     if (VLOG_IS_ON(2)) {
       LOG(INFO) << std::string(2 * (probabilistic_level_ - 1), ' ')
@@ -463,27 +418,19 @@ SamplingVerifier::VerifyProbabilisticProperty(
     std::cout << tester->sample().count() << " observations." << std::endl;
     stats_->sample_size.AddObservation(tester->sample().count());
   }
-  if (server_socket != -1) {
-    if (VLOG_IS_ON(1)) {
-      for (std::map<short, size_t>::const_iterator si = sample_count.begin();
-           si != sample_count.end(); si++) {
-        LOG(INFO) << "Client " << (*si).first << ": " << (*si).second
-                  << " generated " << usage_count[(*si).first] << " used";
-      }
-    }
-    for (std::map<int, short>::const_iterator ci = registered_clients_.begin();
-         ci != registered_clients_.end(); ci++) {
-      int sockfd = (*ci).first;
-      ServerMsg smsg = {ServerMsg::STOP};
-      if (-1 == send(sockfd, &smsg, sizeof smsg, 0)) {
-        PLOG(FATAL);
-      }
+  if (!result_queues.empty()) {
+    for (size_t i = 0; i < result_queues.size(); ++i) {
+      result_queues[i].Disable();
+      workers[i].join();
+      std::cout << "Used " << result_queues[i].pop_count() << " of "
+                << result_queues[i].push_count() << " observations from thread "
+                << i + 1 << "." << std::endl;
     }
   }
   if (params_.memoization) {
     sample_cache_[path_property.index()][state_->values()] = tester->sample();
   }
-  result_ = tester->accept();
+  result_.value = tester->accept();
   --probabilistic_level_;
   return std::move(tester);
 }
@@ -527,7 +474,7 @@ std::unique_ptr<SequentialTester<double>> SamplingVerifier::NewSequentialTester(
 
 void SamplingVerifier::DoVisitCompiledExpressionProperty(
     const CompiledExpressionProperty& property) {
-  result_ =
+  result_.value =
       evaluator_->EvaluateIntExpression(property.expr(), state_->values());
 }
 
@@ -549,8 +496,9 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
     use_termination_probability = path_property.is_unbounded();
   } else  {
     // Mixed engine.
-    auto i = dd_cache_.find(path_property.index());
-    if (i != dd_cache_.end()) {
+    std::lock_guard<std::mutex> lock(dd_cache_->mutex);
+    auto i = dd_cache_->entries.find(path_property.index());
+    if (i != dd_cache_->entries.end()) {
       dd1 = i->second.dd1;
       dd2 = i->second.dd2;
       feasible = i->second.feasible;
@@ -566,8 +514,8 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
           feasible = dd_model_->manager().GetConstant(true);
         }
       }
-      dd_cache_.insert({path_property.index(),
-                        {dd1.value(), dd2.value(), feasible}});
+      dd_cache_->entries.insert(
+          {path_property.index(), {dd1.value(), dd2.value(), feasible}});
     }
   }
   double t = 0.0;
@@ -598,34 +546,34 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
          !feasible.value().ValueInState(curr_state.values(),
                                         model_->variables()))) {
       t = std::numeric_limits<double>::infinity();
-      result_ = false;
+      result_.value = false;
       done = true;
       early_termination = true;
     } else {
-      simulator_.NextState(curr_state, &next_state);
+      simulator_->NextState(curr_state, &next_state);
       double next_t = t + (next_state.time() - curr_state.time());
       const State* curr_state_ptr = &curr_state;
       std::swap(state_, curr_state_ptr);
       if (t_min <= t) {
         if (VerifyHelper(path_property.post_property(), dd2, false,
                          post_states_inserter_ptr)) {
-          result_ = true;
+          result_.value = true;
           done = true;
         } else if (!VerifyHelper(path_property.pre_property(), dd1, true,
                                  false ? pre_states_inserter_ptr : nullptr)) {
-          result_ = false;
+          result_.value = false;
           done = true;
         }
       } else {
         if (!VerifyHelper(path_property.pre_property(), dd1, true,
                           t_min < next_t ? nullptr : pre_states_inserter_ptr)) {
-          result_ = false;
+          result_.value = false;
           done = true;
         } else if (t_min < next_t &&
                    VerifyHelper(path_property.post_property(), dd2, false,
                                 post_states_inserter_ptr)) {
           t = t_min;
-          result_ = true;
+          result_.value = true;
           done = true;
         }
       }
@@ -634,7 +582,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
         curr_state.swap(next_state);
         t = next_t;
         if (t_max < t || t == std::numeric_limits<double>::infinity()) {
-          result_ = false;
+          result_.value = false;
           done = true;
         }
         path_length++;
@@ -653,7 +601,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
           double beta = params_.beta / post_states.size();
           std::swap(params_.beta, beta);
           for (size_t i = 0; i < post_states.size(); ++i) {
-            result_ = true;
+            result_.value = true;
             double alpha = params_.alpha / (unique_pre_states.size() + i + 1);
             std::swap(params_.alpha, alpha);
             for (const State& state : unique_pre_states) {
@@ -661,24 +609,24 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
               std::swap(state_, curr_state_ptr);
               path_property.pre_property().Accept(this);
               std::swap(state_, curr_state_ptr);
-              if (result_ == false) {
+              if (result_.value == false) {
                 break;
               }
             }
-            for (size_t j = 0; result_ == true && j < i; ++j) {
+            for (size_t j = 0; result_.value == true && j < i; ++j) {
               const State* curr_state_ptr = &post_states[j];
               std::swap(state_, curr_state_ptr);
               path_property.pre_property().Accept(this);
               std::swap(state_, curr_state_ptr);
             }
-            if (result_ == true) {
+            if (result_.value == true) {
               const State* curr_state_ptr = &post_states[i];
               std::swap(state_, curr_state_ptr);
               path_property.post_property().Accept(this);
               std::swap(state_, curr_state_ptr);
             }
             std::swap(params_.alpha, alpha);
-            if (result_ == true) {
+            if (result_.value == true) {
               break;
             }
           }
@@ -687,7 +635,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       } else {
         // Just verify pre_property in unique_pre_states, treating each
         // verification as a conjunct.
-        result_ = true;
+        result_.value = true;
         double alpha = params_.alpha / unique_pre_states.size();
         std::swap(params_.alpha, alpha);
         for (const State& state : unique_pre_states) {
@@ -695,7 +643,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
           std::swap(state_, curr_state_ptr);
           path_property.pre_property().Accept(this);
           std::swap(state_, curr_state_ptr);
-          if (result_ == false) {
+          if (result_.value == false) {
             break;
           }
         }
@@ -706,7 +654,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
       // verification as a disjunct.
       std::set<State, StateLess> unique_post_states(post_states.begin(),
                                                     post_states.end());
-      result_ = false;
+      result_.value = false;
       double beta = params_.beta / unique_post_states.size();
       std::swap(params_.beta, beta);
       for (const State& state : unique_post_states) {
@@ -714,7 +662,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
         std::swap(state_, curr_state_ptr);
         path_property.pre_property().Accept(this);
         std::swap(state_, curr_state_ptr);
-        if (result_ == true) {
+        if (result_.value == true) {
           break;
         }
       }
@@ -723,26 +671,14 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
   }
   if (VLOG_IS_ON(3) && probabilistic_level_ == 1) {
     LOG(INFO) << "t = " << t << ": " << StateToString(curr_state);
-    if (result_) {
+    if (result_.value) {
       LOG(INFO) << ">>positive sample";
     } else {
       LOG(INFO) << ">>negative sample";
     }
   }
-  if (probabilistic_level_ == 1) {
-    stats_->path_length.AddObservation(path_length);
-    if (result_) {
-      stats_->path_length_accept.AddObservation(path_length);
-    } else if (early_termination) {
-      stats_->path_length_terminate.AddObservation(path_length);
-    } else {
-      stats_->path_length_reject.AddObservation(path_length);
-    }
-  }
-  observation_weight_ =
-      use_termination_probability
-          ? pow(1 - params_.termination_probability, -(path_length - 1))
-          : 1;
+  result_.path_length = path_length;
+  result_.early_termination = early_termination;
 }
 
 template <typename OutputIterator>
@@ -754,7 +690,7 @@ bool SamplingVerifier::VerifyHelper(const CompiledProperty& property,
     return ddf.value().ValueInState(state_->values(), model_->variables());
   } else if (!property.is_probabilistic()) {
     property.Accept(this);
-    return result_;
+    return result_.value;
   } else if (state_inserter != nullptr) {
     **state_inserter = *state_;
   }
@@ -780,30 +716,52 @@ int SamplingVerifier::GetSampleCacheSize() const {
   return sample_cache_size;
 }
 
+SamplingVerifier::ResultQueue::ResultQueue()
+    : push_count_(0), pop_count_(0), enabled_(true) {}
+
+bool SamplingVerifier::ResultQueue::Enabled() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return enabled_;
+}
+
+void SamplingVerifier::ResultQueue::Push(const Result& result) {
+  ++push_count_;
+  std::unique_lock<std::mutex> lock(mutex_);
+  results_.push(result);
+  lock.unlock();
+  cv_.notify_one();
+}
+
+SamplingVerifier::Result SamplingVerifier::ResultQueue::Pop() {
+  ++pop_count_;
+  std::unique_lock<std::mutex> lock(mutex_);
+  cv_.wait(lock, [this] { return !results_.empty(); });
+  Result result = results_.front();
+  results_.pop();
+  return result;
+}
+
+void SamplingVerifier::ResultQueue::Disable() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  enabled_ = false;
+}
+
 }  // namespace
 
 bool Verify(const CompiledProperty& property, const CompiledModel& model,
             const DecisionDiagramModel* dd_model,
-            const ModelCheckingParams& params,
-            CompiledExpressionEvaluator* evaluator,
-            CompiledDistributionSampler<DCEngine>* sampler, const State& state,
+            const ModelCheckingParams& params, const State& state,
+            std::vector<CompiledExpressionEvaluator>* evaluators,
+            std::vector<CompiledDistributionSampler<std::mt19937_64>>* samplers,
             ModelCheckingStats* stats) {
-  SamplingVerifier verifier(&model, dd_model, params, evaluator, sampler,
-                            &state, 0, stats);
-  property.Accept(&verifier);
-  stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
-  return verifier.result();
-}
-
-bool GetObservation(const CompiledPathProperty& property,
-                    const CompiledModel& model,
-                    const DecisionDiagramModel* dd_model,
-                    const ModelCheckingParams& params,
-                    CompiledExpressionEvaluator* evaluator,
-                    CompiledDistributionSampler<DCEngine>* sampler,
-                    const State& state, ModelCheckingStats* stats) {
-  SamplingVerifier verifier(&model, dd_model, params, evaluator, sampler,
-                            &state, 1, stats);
+  DdCache dd_cache;
+  std::vector<NextStateSampler<std::mt19937_64>> simulators;
+  simulators.reserve(evaluators->size());
+  for (size_t i = 0; i < evaluators->size(); ++i) {
+    simulators.emplace_back(&model, &(*evaluators)[i], &(*samplers)[i]);
+  }
+  SamplingVerifier verifier(&model, dd_model, &dd_cache, stats, params, &state,
+                            evaluators, samplers, &simulators);
   property.Accept(&verifier);
   stats->sample_cache_size.AddObservation(verifier.GetSampleCacheSize());
   return verifier.result();
