@@ -31,16 +31,6 @@
 
 // hdd data structure definitions
 
-// sparse bit
-
-struct SparseBit {
-  int n;
-  int nnz;
-  double *non_zeros;
-  int *cols;
-  int *row_starts;
-};
-
 // hybrid mtbdd node (based on structure of CUDD nodes)
 
 struct HDDNode;
@@ -57,7 +47,7 @@ struct HDDNode {
   } type;
   size_t off;
   size_t off2;
-  SparseBit *sb;
+  SparseMatrix *sb;
   HDDNode *next;
 };
 
@@ -78,7 +68,6 @@ struct HDDMatrix {
   int num_nodes;
   int sbl;
   int num_sb;
-  int sorl;
 };
 
 //------------------------------------------------------------------------------
@@ -86,7 +75,6 @@ struct HDDMatrix {
 // function prototypes
 
 HDDMatrix *build_hdd_matrix(const DecisionDiagramManager &ddman, const ADD &matrix, const OddNode *odd);
-void add_sparse_bits(HDDMatrix *hddm);
 double *hdd_negative_row_sums(HDDMatrix *hddm, int n);
 void free_hdd_matrix(HDDMatrix *hddm);
 

@@ -7,8 +7,7 @@ Rate matrix: 271 nodes; 4 leaves; 800 minterms
 ODD:         33 nodes
 
 Model checking P=?[ F<=10 s = 1 & a = 0 ] ...
-Building hybrid MTBDD matrix...275 nodes.
-Adding sparse bits...9 levels, 1 bits.
+Building hybrid MTBDD matrix...275 nodes, 1 sparse matrices (9 levels).
 Uniformization: 201*10 = 2010
 Fox-Glynn: left = 1807, right = 2349
 Computing probabilities.........:.........:... 2349 iterations.

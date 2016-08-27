@@ -23,6 +23,7 @@
 #define DDUTIL_H_
 
 #include <functional>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -393,6 +394,81 @@ class ODD {
 
   const OddNode* root_;
   int node_count_;
+};
+
+// A matrix represented using compressed row storage format.
+class SparseMatrix {
+ public:
+  class Iterator;
+
+  // A sparse matrix element.
+  class Element {
+   public:
+    double value() const { return value_; }
+    size_t row() const { return row_; }
+    size_t column() const { return column_; }
+
+   private:
+    explicit Element(double value, size_t row, size_t column)
+        : value_(value), row_(row), column_(column) {}
+
+    double value_;
+    size_t row_;
+    size_t column_;
+
+    friend class Iterator;
+  };
+
+  // Iterator over sparse matrix elements.
+  class Iterator : public std::iterator<std::input_iterator_tag, Element> {
+   public:
+    bool operator==(const Iterator& rhs) const { return i_ == rhs.i_; }
+    bool operator!=(const Iterator& rhs) const { return i_ != rhs.i_; }
+    Element operator*() const {
+      return Element(m_->values_[i_], r_, m_->columns_[i_]);
+    }
+    Iterator& operator++() {
+      ++i_;
+      update_r();
+      return *this;
+    }
+    Iterator operator++(int) {
+      Iterator tmp(*this);
+      ++i_;
+      update_r();
+      return tmp;
+    }
+
+   private:
+    explicit Iterator(const SparseMatrix* m, size_t i) : m_(m), i_(i), r_(0) {
+      update_r();
+    }
+
+    void update_r() {
+      if (i_ < m_->values_.size()) {
+        while (i_ >= m_->row_starts_[r_ + 1]) {
+          ++r_;
+        }
+      }
+    }
+
+    const SparseMatrix* m_;
+    size_t i_;
+    size_t r_;
+
+    friend class SparseMatrix;
+ };
+
+ SparseMatrix(std::vector<double>&& values, std::vector<size_t>&& columns,
+              std::vector<size_t>&& row_starts);
+
+ Iterator begin() const { return Iterator(this, 0); }
+ Iterator end() const { return Iterator(this, values_.size()); }
+
+private:
+ std::vector<double> values_;
+ std::vector<size_t> columns_;
+ std::vector<size_t> row_starts_;
 };
 
 // Returns the base-2 logarithm of the given integer.

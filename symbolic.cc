@@ -169,17 +169,9 @@ static void mult_rec(const std::vector<double>& soln, double unif,
     return;
   } else if (hdd->sb) {
     // There is a sparse bit.
-    SparseBit* sb = hdd->sb;
-    int n = sb->n;
-    double* non_zeros = sb->non_zeros;
-    int* cols = sb->cols;
-    int* row_starts = sb->row_starts;
-    for (int i = 0; i < n; i++) {
-      int l = row_starts[i];
-      int h = row_starts[i + 1];
-      for (int j = l; j < h; j++) {
-        (*soln2)[row + i] += soln[col + cols[j]] * non_zeros[j] * unif;
-      }
+    for (auto element : *hdd->sb) {
+      (*soln2)[row + element.row()] +=
+          soln[col + element.column()] * element.value() * unif;
     }
     return;
   } else if (level == hddm->num_levels) {
@@ -407,19 +399,8 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
   HDDMatrix* hddm =
       build_hdd_matrix(dd_model_->manager(), ddR, dd_model_->odd().root());
   if (top_level_property_) {
-    std::cout << hddm->num_nodes << " nodes." << std::endl;
-  }
-
-  /*
-   * Add sparse bits.
-   */
-  if (top_level_property_) {
-    std::cout << "Adding sparse bits...";
-  }
-  add_sparse_bits(hddm);
-  if (top_level_property_) {
-    std::cout << hddm->sbl << " levels, " << hddm->num_sb << " bits."
-              << std::endl;
+    std::cout << hddm->num_nodes << " nodes, " << hddm->num_sb
+              << " sparse matrices (" << hddm->sbl << " levels)." << std::endl;
   }
 
   /* Get vector of diagonals. */

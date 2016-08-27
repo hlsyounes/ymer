@@ -904,6 +904,32 @@ TEST(OddTest, VectorToBdd) {
       bdd.ValueInState({true, false, true, false, false, false, true, false}));
 }
 
+TEST(SparseMatrixTest, IteratesOverElements) {
+  const SparseMatrix m({5, 8, 3, 6}, {0, 1, 2, 1}, {0, 0, 2, 3, 4});
+  auto i = m.begin();
+  const auto e0 = *i;
+  EXPECT_EQ(5, e0.value());
+  EXPECT_EQ(1, e0.row());
+  EXPECT_EQ(0, e0.column());
+  ++i;
+  const auto e1 = *i;
+  EXPECT_EQ(8, e1.value());
+  EXPECT_EQ(1, e1.row());
+  EXPECT_EQ(1, e1.column());
+  ++i;
+  const auto e2 = *i;
+  EXPECT_EQ(3, e2.value());
+  EXPECT_EQ(2, e2.row());
+  EXPECT_EQ(2, e2.column());
+  ++i;
+  const auto e3 = *i;
+  EXPECT_EQ(6, e3.value());
+  EXPECT_EQ(3, e3.row());
+  EXPECT_EQ(1, e3.column());
+  ++i;
+  EXPECT_TRUE(i == m.end());
+}
+
 TEST(Log2Test, All) {
   EXPECT_EQ(0, Log2(1));
   EXPECT_EQ(1, Log2(2));

@@ -631,6 +631,13 @@ BDD ODD::VectorToBdd(const DecisionDiagramManager& manager,
                          root_, 0, value_to_bool);
 }
 
+SparseMatrix::SparseMatrix(std::vector<double>&& values,
+                           std::vector<size_t>&& columns,
+                           std::vector<size_t>&& row_starts)
+    : values_(std::move(values)),
+      columns_(std::move(columns)),
+      row_starts_(std::move(row_starts)) {}
+
 int Log2(int n) {
   CHECK_GT(n, 0);
   int m = 0;
