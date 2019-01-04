@@ -937,7 +937,7 @@ std::vector<Update> RewriteUpdates(
         RewriteSimpleIdentifier(update.variable(), substitutions),
         RewriteExpression(update.expr(), formulas, substitutions));
   }
-  return std::move(new_updates);
+  return new_updates;
 }
 
 std::vector<Outcome> RewriteOutcomes(
@@ -950,7 +950,7 @@ std::vector<Outcome> RewriteOutcomes(
         RewriteDistribution(outcome.delay(), formulas, substitutions),
         RewriteUpdates(outcome.updates(), formulas, substitutions));
   }
-  return std::move(new_outcomes);
+  return new_outcomes;
 }
 
 Command RewriteCommand(
