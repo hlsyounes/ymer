@@ -941,61 +941,6 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
   return std::move(result.property);
 }
 
-class CompiledPathPropertyExtractor : public CompiledPropertyVisitor {
- public:
-  const CompiledPathProperty* PathProperty();
-
- private:
-  void DoVisitCompiledNaryProperty(
-      const CompiledNaryProperty& property) override;
-  void DoVisitCompiledNotProperty(const CompiledNotProperty& property) override;
-  void DoVisitCompiledProbabilityThresholdProperty(
-      const CompiledProbabilityThresholdProperty& property) override;
-  void DoVisitCompiledProbabilityEstimationProperty(
-      const CompiledProbabilityEstimationProperty& property) override;
-  void DoVisitCompiledExpressionProperty(
-      const CompiledExpressionProperty& property) override;
-
-  std::vector<const CompiledPathProperty*> path_properties_;
-};
-
-const CompiledPathProperty* CompiledPathPropertyExtractor::PathProperty() {
-  return path_properties_.size() == 1 ? path_properties_[0] : nullptr;
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledNaryProperty(
-    const CompiledNaryProperty& property) {
-  for (const CompiledProperty& operand : property.other_operands()) {
-    operand.Accept(this);
-  }
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledNotProperty(
-    const CompiledNotProperty& property) {
-  property.operand().Accept(this);
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledProbabilityThresholdProperty(
-    const CompiledProbabilityThresholdProperty& property) {
-  path_properties_.push_back(&property.path_property());
-}
-
-void CompiledPathPropertyExtractor::
-    DoVisitCompiledProbabilityEstimationProperty(
-        const CompiledProbabilityEstimationProperty& property) {
-  path_properties_.push_back(&property.path_property());
-}
-
-void CompiledPathPropertyExtractor::DoVisitCompiledExpressionProperty(
-    const CompiledExpressionProperty& property) {}
-
-const CompiledPathProperty* ExtractPathProperty(
-    const CompiledProperty& property) {
-  CompiledPathPropertyExtractor extractor;
-  property.Accept(&extractor);
-  return extractor.PathProperty();
-}
-
 class CompiledPropertyInspector : public CompiledPropertyVisitor,
                                   public CompiledPathPropertyVisitor {
  public:
