@@ -613,7 +613,7 @@ CompilePropertyResult CompileProperty(
                             &identifiers_by_name, &dd_manager, &result.errors);
   expr.Accept(&compiler);
   result.property = compiler.release_property();
-  return std::move(result);
+  return result;
 }
 
 namespace {
