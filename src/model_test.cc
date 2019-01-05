@@ -30,7 +30,7 @@ std::vector<Outcome> NewSimpleOutcomes() {
   std::vector<Outcome> outcomes;
   outcomes.emplace_back(MakeUnique<Memoryless>(MakeUnique<Literal>(1)),
                         std::vector<Update>());
-  return std::move(outcomes);
+  return outcomes;
 }
 
 TEST(UpdateTest, Output) {

@@ -50,10 +50,8 @@ void* DieInThread(void*) {
   // returns a pointer.  Hence we use C-style cast here, rather than
   // reinterpret/static_cast, to support both types of environments.
   fprintf(stderr, "0x%lx is dying\n", (long)pthread_self());
-  // Use volatile to prevent from these to be optimized away.
-  volatile int a = 0;
-  volatile int b = 1 / a;
-  fprintf(stderr, "We should have died: b=%d\n", b);
+  raise(SIGFPE);
+  fprintf(stderr, "We should have died\n");
   return NULL;
 }
 
