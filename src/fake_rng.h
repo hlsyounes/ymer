@@ -33,36 +33,27 @@ class FakeEngine {
  public:
   using result_type = uint64_t;
 
-  FakeEngine(result_type min, result_type max, std::vector<result_type> values)
-      : min_(min),
-        max_(max),
-        values_(std::move(values)),
-        next_value_(0),
-        // Transform values so that std::generate_canonical will consume exactly
-        // one value per call.
-        multiplier_(1L << (std::numeric_limits<double>::digits - 1 +
-                           static_cast<size_t>(std::log2(max_ - min_ + 1.0)))) {
-  }
+  explicit FakeEngine(std::vector<double> values)
+      : values_(std::move(values)), next_value_(0) {}
 
   ~FakeEngine() {
     CHECK_EQ(next_value_, values_.size()) << values_.size() - next_value_
                                           << " unconsumed values";
   }
 
-  result_type min() const { return min_; }
-  result_type max() const { return multiplier_ * max_ - 1 + multiplier_; }
+  static constexpr result_type min() { return 0; }
+  static constexpr result_type max() {
+    return result_type(1) << std::numeric_limits<double>::digits;
+  }
 
   result_type operator()() {
     CHECK_LT(next_value_, values_.size()) << "insufficient values";
-    return multiplier_ * values_[next_value_++];
+    return max() * values_[next_value_++];
   }
 
  private:
-  result_type min_;
-  result_type max_;
-  std::vector<result_type> values_;
-  std::vector<result_type>::size_type next_value_;
-  result_type multiplier_;
+  std::vector<double> values_;
+  std::vector<double>::size_type next_value_;
 };
 
 #endif  // FAKE_RNG_H_

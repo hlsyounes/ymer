@@ -54,7 +54,7 @@ TEST(NextStateSamplerTest, NoEvents) {
   EXPECT_EQ(0, model.EventCount());
   CompiledExpressionEvaluator evaluator(0, 0);
   // No random numbers consumed.
-  FakeEngine engine(0, 0, {});
+  FakeEngine engine({});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -76,7 +76,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventDtmc) {
   EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // No random numbers consumed.  No choice.
-  FakeEngine engine(0, 0, {});
+  FakeEngine engine({});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -106,7 +106,7 @@ TEST(NextStateSamplerTest, OneEnabledMarkovEventCtmc) {
   EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // One random number consumed per state transition.  No choice.
-  FakeEngine engine(0, 3, {1, 2});
+  FakeEngine engine({0.25, 0.5});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -140,17 +140,17 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsDtmc) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 1 random number for the 1st state transition:
   //
-  //   2nd command wins tie because 1/4 * 2 < 1
+  //   2nd command wins tie because 0.25 * 2 < 1
   //
   // 2 random numbers for the 2nd state transition:
   //
-  //   3rd command wins tie because 0/4 * 3 < 1
+  //   3rd command wins tie because 0.25 * 3 < 1
   //
   // 1 random number for the 3rd state transition:
   //
-  //   1st command winst tie because 2/4 * 2 >= 1
+  //   1st command winst tie because 0.5 * 2 >= 1
   //
-  FakeEngine engine(0, 3, {1, 1, 0, 2});
+  FakeEngine engine({0.25, 0.25, 0, 0.5});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -188,21 +188,21 @@ TEST(NextStateSamplerTest, MultipleEnabledMarkovEventsCtmc) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 2 random numbers for the 1st state transition:
   //
-  //   choice 1: -log(1 - 4/8) / 2 = 0.347
-  //   choice 2: -log(1 - 4/8) / 3 = 0.231  [winner]
+  //   choice 1: -log(1 - 0.5) / 2 = 0.347
+  //   choice 2: -log(1 - 0.5) / 3 = 0.231  [winner]
   //
   // 3 random numbers for the 2nd state transition:
   //
-  //   choice 1: -log(1 - 4/8) / 2 = 0.347
-  //   choice 2: -log(1 - 6/8) / 3 = 0.462
-  //   choice 3: -log(1 - 1/8) / 1 = 0.134  [winner]
+  //   choice 1: -log(1 - 0.5) / 2 = 0.347
+  //   choice 2: -log(1 - 0.75) / 3 = 0.462
+  //   choice 3: -log(1 - 0.125) / 1 = 0.134  [winner]
   //
   // 2 random numbers for the 3rd state transition:
   //
-  //   choice 1: -log(1 - 4/8) / 2 = 0.347  [winner]
-  //   choice 2: -log(1 - 6/8) / 3 = 0.462
+  //   choice 1: -log(1 - 0.5) / 2 = 0.347  [winner]
+  //   choice 2: -log(1 - 0.75) / 3 = 0.462
   //
-  FakeEngine engine(0, 7, {4, 4, 4, 6, 1, 4, 6});
+  FakeEngine engine({0.5, 0.5, 0.5, 0.75, 0.125, 0.5, 0.75});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -265,19 +265,19 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsDtmc) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 4 random numbers for the 1st state transition:
   //
-  //   2nd command wins because 3/8 * 2 < 1, 3/8 * 3 >= 1, 2/8 * 4 >=1
-  //   1st outcome wins because 0/8 < 0.125
+  //   2nd command wins because 0.375 * 2 < 1, 0.375 * 3 >= 1, 0.25 * 4 >=1
+  //   1st outcome wins because 0 < 0.125
   //
   // 3 random numbers for the 2nd state transition:
   //
-  //   3rd command wins because 2/8 * 3 < 1
-  //   2nd outcome wins because 4/8 >= 0.5
+  //   3rd command wins because 0.25 * 3 < 1
+  //   2nd outcome wins because 0.5 >= 0.5
   //
   // 1 random number for the 3rd state transition:
   //
-  //   1st outcome wins because 5/8 < 0.75
+  //   1st outcome wins because 0.625 < 0.75
   //
-  FakeEngine engine(0, 7, {3, 3, 2, 0, 7, 2, 4, 5});
+  FakeEngine engine({0.375, 0.375, 0.25, 0, 0.875, 0.25, 0.5, 0.625});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -341,25 +341,26 @@ TEST(NextStateSamplerTest, ComplexMarkovEventsCtmc) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 5 random numbers for the 1st state transition:
   //
-  //   command choice 1: -log(1 - 2/8) / 5 = 0.0575
-  //   command choice 2: -log(1 - 1/8) / 4 = 0.0334  [winner]
-  //   command choice 3: -log(1 - 2/8) / 4 = 0.0719
-  //   command choice 4: -log(1 - 2/8) / 6 = 0.0479
-  //   1st outcome wins because 1/8 < 0.25
+  //   command choice 1: -log(1 - 0.25) / 5 = 0.0575
+  //   command choice 2: -log(1 - 0.125) / 4 = 0.0334  [winner]
+  //   command choice 3: -log(1 - 0.25) / 4 = 0.0719
+  //   command choice 4: -log(1 - 0.25) / 6 = 0.0479
+  //   1st outcome wins because 0.125 < 0.25
   //
   // 4 random numbers for the 2nd state transition:
   //
-  //   command choice 1: -log(1 - 5/8) / 6    = 0.163
-  //   command choice 2: -log(1 - 3/8) / 3    = 0.567
-  //   command choice 3: -log(1 - 4/8) / 4.5  = 0.154  [winner]
-  //   2nd outcome wins because 4/8 >= 1.25 / 3
+  //   command choice 1: -log(1 - 0.625) / 6    = 0.163
+  //   command choice 2: -log(1 - 0.375) / 3    = 0.567
+  //   command choice 3: -log(1 - 0.5) / 4.5  = 0.154  [winner]
+  //   2nd outcome wins because 0.5 >= 1.25 / 3
   //
   // 2 random number for the 3rd state transition:
   //
-  //   command choice 1: -log(1 - 6/8) / 5 = 0.277  [winner]
-  //   1st outcome wins because 3/8 < 0.4
+  //   command choice 1: -log(1 - 0.75) / 5 = 0.277  [winner]
+  //   1st outcome wins because 0.375 < 0.4
   //
-  FakeEngine engine(0, 7, {2, 1, 2, 2, 1, 5, 3, 4, 4, 6, 3});
+  FakeEngine engine(
+      {0.25, 0.125, 0.25, 0.25, 0.125, 0.625, 0.375, 0.5, 0.5, 0.75, 0.375});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -394,11 +395,11 @@ TEST(NextStateSamplerTest, BreaksTiesForMarkovCommands) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 1 random number consumed per state transition:
   //
-  //   1st transition: 2nd command wins tie because 1/4 * 2 < 1
+  //   1st transition: 2nd command wins tie because 0.25 * 2 < 1
   //
-  //   2nd transition: 1st command wins tie because 2/4 * 2 >= 1
+  //   2nd transition: 1st command wins tie because 0.5 * 2 >= 1
   //
-  FakeEngine engine(0, 3, {1, 2});
+  FakeEngine engine({0.25, 0.5});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -428,7 +429,7 @@ TEST(NextStateSamplerTest, OneEnabledGsmpEvent) {
   EXPECT_EQ(2, model.EventCount());
   CompiledExpressionEvaluator evaluator(2, 1);
   // One random number consumed per state transition.  No choice.
-  FakeEngine engine(0, 3, {1, 3});
+  FakeEngine engine({0.25, 0.75});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -471,21 +472,21 @@ TEST(NextStateSamplerTest, MultipleEnabledGsmpEvents) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 2 random numbers for the 1st state transition:
   //
-  //   GSMP trigger time 1: (11 - 7) * 0/4 + 7 = 7
-  //   GSMP trigger time 2: (5 - 3) * 2/4 + 3 = 4   [winner]
+  //   GSMP trigger time 1: (11 - 7) * 0 + 7 = 7
+  //   GSMP trigger time 2: (5 - 3) * 0.5 + 3 = 4   [winner]
   //
   // 2 random number for the 2nd state transition:
   //
   //   GSMP trigger time 1: 7 (saved)
-  //   GSMP trigger time 2: 4 + (5 - 3) * 3/4 + 3 = 8.5
-  //   GSMP trigger time 3: 4 + (2 - 1) * 1/4 + 1 = 5.25  [winner]
+  //   GSMP trigger time 2: 4 + (5 - 3) * 0.75 + 3 = 8.5
+  //   GSMP trigger time 3: 4 + (2 - 1) * 0.25 + 1 = 5.25  [winner]
   //
   // 0 random numbers for the 3rd state transition:
   //
   //   GSMP trigger time 1: 7 (saved)    [winner]
   //   GSMP trigger time 2: 8.5 (saved)
   //
-  FakeEngine engine(0, 3, {0, 2, 3, 1});
+  FakeEngine engine({0, 0.5, 0.75, 0.25});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -574,28 +575,29 @@ TEST(NextStateSamplerTest, ComplexGsmpEvents) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 6 random numbers for the 1st state transition:
   //
-  //   command choice 1: -log(1 - 2/8) / 5 = 0.0575
-  //   command choice 2: -log(1 - 1/8) / 4 = 0.0334  [winner]
-  //   command choice 3: (200 - 100) * 6/8 + 100 = 175
-  //   command choice 4: (2 - 0) * 3/8 + 0 = 0.75
-  //   command choice 5: (2 - 0) * 4/8 + 0 = 1
-  //   1st outcome wins because 1/8 < 0.25
+  //   command choice 1: -log(1 - 0.25) / 5 = 0.0575
+  //   command choice 2: -log(1 - 0.125) / 4 = 0.0334  [winner]
+  //   command choice 3: (200 - 100) * 0.75 + 100 = 175
+  //   command choice 4: (2 - 0) * 0.375 + 0 = 0.75
+  //   command choice 5: (2 - 0) * 0.5 + 0 = 1
+  //   1st outcome wins because 0.125 < 0.25
   //
   // 4 random numbers for the 2nd state transition:
   //
   //   command choice 1: 1 (saved)                 [winner]
-  //   command choice 2: (5 - 1) * 1/8 + 1 = 1.5
-  //   command choice 3: (3 - 2) * 6/8 + 2 = 2.75
-  //   2nd outcome wins because 4/8 >= 1.25 / 3
-  //   2st outcome wins 3/8 < 0.5
+  //   command choice 2: (5 - 1) * 0.125 + 1 = 1.5
+  //   command choice 3: (3 - 2) * 0.75 + 2 = 2.75
+  //   2nd outcome wins because 0.5 >= 1.25 / 3
+  //   2st outcome wins 0.375 < 0.5
   //
   // 3 random numbers for the 3rd state transition:
   //
-  //   command choice 1: -log(1 - 7/8) / 5 = 0.416      [winner]
-  //   command choice 2: (200 - 100) * 0/8 + 100 = 100
-  //   1st outcome wins because 3/8 < 0.4
+  //   command choice 1: -log(1 - 0.875) / 5 = 0.416      [winner]
+  //   command choice 2: (200 - 100) * 0 + 100 = 100
+  //   1st outcome wins because 0.375 < 0.4
   //
-  FakeEngine engine(0, 7, {2, 1, 6, 3, 4, 1, 1, 6, 4, 3, 7, 0, 3});
+  FakeEngine engine({0.25, 0.125, 0.75, 0.375, 0.5, 0.125, 0.125, 0.75, 0.5,
+                     0.375, 0.875, 0, 0.375});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
@@ -659,17 +661,17 @@ TEST(NextStateSamplerTest, BreaksTiesForGsmpCommands) {
   CompiledExpressionEvaluator evaluator(2, 1);
   // 3 random numbers for the 1st state transition:
   //
-  //   GSMP trigger time 1: (3 - 1) * 6/8 + 1 = 2.5
-  //   GSMP trigger time 2: (4 - 0) * 5/8 + 0 = 2.5
-  //   2nd command wins tie because 3/8 * 2 < 1
+  //   GSMP trigger time 1: (3 - 1) * 0.75 + 1 = 2.5
+  //   GSMP trigger time 2: (4 - 0) * 0.625 + 0 = 2.5
+  //   2nd command wins tie because 0.375 * 2 < 1
   //
   // 2 random numbers for the 2nd state transition:
   //
   //   GSMP trigger time 1: 2.5 (saved)
-  //   GSMP trigger time 2: 2.5 + (4 - 0) * 0/8 + 0 = 2.5
-  //   1st command wins tie because 4/8 * 2 >= 1
+  //   GSMP trigger time 2: 2.5 + (4 - 0) * 0 + 0 = 2.5
+  //   1st command wins tie because 0.5 * 2 >= 1
   //
-  FakeEngine engine(0, 7, {6, 5, 3, 0, 4});
+  FakeEngine engine({0.75, 0.625, 0.375, 0, 0.5});
   CompiledDistributionSampler<FakeEngine> sampler(&engine);
   NextStateSampler<FakeEngine> simulator(&model, &evaluator, &sampler);
   State state(model);
