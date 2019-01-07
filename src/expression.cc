@@ -34,7 +34,7 @@ namespace {
 
 // An expression and path property visitor that prints an expression or path
 // property to an output stream.
-class Printer : public ExpressionVisitor, public PathPropertyVisitor {
+class Printer final : public ExpressionVisitor, public PathPropertyVisitor {
  public:
   explicit Printer(std::ostream* os);
 

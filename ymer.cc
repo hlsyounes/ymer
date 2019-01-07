@@ -203,7 +203,7 @@ CompiledExpression CompileAndOptimizeExpression(
   }
 }
 
-class DistributionCompiler : public DistributionVisitor {
+class DistributionCompiler final : public DistributionVisitor {
  public:
   DistributionCompiler(
       const std::map<std::string, const Expression*>* formulas_by_name,
@@ -941,8 +941,8 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
   return std::move(result.property);
 }
 
-class CompiledPropertyInspector : public CompiledPropertyVisitor,
-                                  public CompiledPathPropertyVisitor {
+class CompiledPropertyInspector final : public CompiledPropertyVisitor,
+                                        public CompiledPathPropertyVisitor {
  public:
   CompiledPropertyInspector();
 

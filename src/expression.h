@@ -36,7 +36,7 @@ class ExpressionVisitor;
 //
 // This class supports the visitor pattern.  Example usage:
 //
-//   class ConcreteExpressionVisitor : public ExpressionVisitor {
+//   class ConcreteExpressionVisitor final : public ExpressionVisitor {
 //     ...
 //   };
 //
@@ -63,7 +63,7 @@ class PathPropertyVisitor;
 //
 // This class supports the visitor pattern.  Example usage:
 //
-//   class ConcretePathPropertyVisitor : public PathPropertyVisitor {
+//   class ConcretePathPropertyVisitor final : public PathPropertyVisitor {
 //     ...
 //   };
 //

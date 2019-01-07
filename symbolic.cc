@@ -37,8 +37,8 @@
 
 namespace {
 
-class SymbolicVerifier : public CompiledPropertyVisitor,
-                         public CompiledPathPropertyVisitor {
+class SymbolicVerifier final : public CompiledPropertyVisitor,
+                               public CompiledPathPropertyVisitor {
  public:
   explicit SymbolicVerifier(const DecisionDiagramModel* dd_model,
                             bool top_level_property, double epsilon);

@@ -35,7 +35,7 @@ class ProcessAlgebraVisitor;
 //
 // This class supports the visitor pattern.  Example usage:
 //
-//   class ConcreteProcessAlgebraVisitor : public ProcessAlgebraVisitor {
+//   class ConcreteProcessAlgebraVisitor final : public ProcessAlgebraVisitor {
 //     ...
 //   };
 //

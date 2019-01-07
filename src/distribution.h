@@ -34,7 +34,7 @@ class DistributionVisitor;
 //
 // This class supports the visitor pattern.  Example usage:
 //
-//   class ConcreteDistributionVisitor : public DistributionVisitor {
+//   class ConcreteDistributionVisitor final : public DistributionVisitor {
 //     ...
 //   };
 //

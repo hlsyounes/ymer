@@ -77,8 +77,8 @@ struct DdCache {
   std::mutex mutex;
 };
 
-class SamplingVerifier : public CompiledPropertyVisitor,
-                         public CompiledPathPropertyVisitor {
+class SamplingVerifier final : public CompiledPropertyVisitor,
+                               public CompiledPathPropertyVisitor {
  private:
   struct Result {
     int path_length;

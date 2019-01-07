@@ -899,7 +899,7 @@ void CompiledExpressionEvaluator::ExecuteOperations(
 
 namespace {
 
-class ExpressionCompiler : public ExpressionVisitor {
+class ExpressionCompiler final : public ExpressionVisitor {
  public:
   explicit ExpressionCompiler(
       const std::map<std::string, const Expression*>* formulas_by_name,
@@ -1410,7 +1410,7 @@ void ExpressionCompiler::DoVisitProbabilityEstimationOperation(
       "unexpected probability estimation operation in expression");
 }
 
-class ExpressionToAddConverter : public ExpressionVisitor {
+class ExpressionToAddConverter final : public ExpressionVisitor {
  public:
   explicit ExpressionToAddConverter(
       const std::map<std::string, const Expression*>* formulas_by_name,

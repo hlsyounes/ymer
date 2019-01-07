@@ -111,7 +111,7 @@ TypedValue GetDefaultValue(Type type) {
   LOG(FATAL) << "bad type";
 }
 
-class ConstantExpressionEvaluator : public ExpressionVisitor {
+class ConstantExpressionEvaluator final : public ExpressionVisitor {
  public:
   ConstantExpressionEvaluator(
       const std::map<std::string, const Expression*>* formulas_by_name,
@@ -768,7 +768,7 @@ std::string RewriteSimpleIdentifier(
   return (i == substitutions.end()) ? name : i->second;
 }
 
-class ExpressionRewriter : public ExpressionVisitor {
+class ExpressionRewriter final : public ExpressionVisitor {
  public:
   explicit ExpressionRewriter(
       const std::vector<NamedExpression>* formulas,
@@ -870,7 +870,7 @@ std::unique_ptr<const Expression> RewriteExpression(
   return rewriter.release_expr();
 }
 
-class DistributionRewriter : public DistributionVisitor {
+class DistributionRewriter final : public DistributionVisitor {
  public:
   explicit DistributionRewriter(
       const std::vector<NamedExpression>* formulas,

@@ -31,7 +31,7 @@ namespace {
 
 // A process algebra visitor that prints process algebra expressions to an
 // output stream.
-class Printer : public ProcessAlgebraVisitor {
+class Printer final : public ProcessAlgebraVisitor {
  public:
   explicit Printer(std::ostream* os);
 

@@ -42,8 +42,8 @@ namespace {
 
 // A compiled property visitor that prints a compiled property to an output
 // stream.
-class CompiledPropertyPrinter : public CompiledPropertyVisitor,
-                                public CompiledPathPropertyVisitor {
+class CompiledPropertyPrinter final : public CompiledPropertyVisitor,
+                                      public CompiledPathPropertyVisitor {
  public:
   explicit CompiledPropertyPrinter(std::ostream* os);
 
@@ -343,7 +343,8 @@ std::unique_ptr<const CompiledProperty> CompilerState::ReleaseProperty(
   return std::move(property_);
 }
 
-class PropertyCompiler : public ExpressionVisitor, public PathPropertyVisitor {
+class PropertyCompiler final : public ExpressionVisitor,
+                               public PathPropertyVisitor {
  public:
   PropertyCompiler(
       const std::map<std::string, const Expression*>* formulas_by_name,
@@ -780,8 +781,8 @@ std::unique_ptr<const CompiledProperty> OptimizerState::ReleaseProperty() {
   return property;
 }
 
-class CompiledPropertyOptimizer : public CompiledPropertyVisitor,
-                                  CompiledPathPropertyVisitor {
+class CompiledPropertyOptimizer final : public CompiledPropertyVisitor,
+                                        CompiledPathPropertyVisitor {
  public:
   explicit CompiledPropertyOptimizer(
       const Optional<DecisionDiagramManager>* dd_manager);
@@ -902,8 +903,8 @@ std::unique_ptr<const CompiledProperty> OptimizeProperty(
 
 namespace {
 
-class PropertyRegisterCounter : public CompiledPropertyVisitor,
-                                public CompiledPathPropertyVisitor {
+class PropertyRegisterCounter final : public CompiledPropertyVisitor,
+                                      public CompiledPathPropertyVisitor {
  public:
   PropertyRegisterCounter();
 

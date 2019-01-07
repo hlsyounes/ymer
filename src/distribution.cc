@@ -28,7 +28,7 @@ void Distribution::Accept(DistributionVisitor* visitor) const {
 namespace {
 
 // A distribution visitor that prints a distribution to an output stream.
-class DistributionPrinter : public DistributionVisitor {
+class DistributionPrinter final : public DistributionVisitor {
  public:
   explicit DistributionPrinter(std::ostream* os);
 

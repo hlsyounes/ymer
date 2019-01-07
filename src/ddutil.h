@@ -108,7 +108,7 @@ class DecisionDiagram {
 class ADD;
 
 // Wrapper class for BDDs, with automatic referencing and dereferencing.
-class BDD : public DecisionDiagram {
+class BDD final : public DecisionDiagram {
  public:
   // Explicit conversion from ADD to BDD.
   explicit BDD(const ADD& dd);
@@ -171,7 +171,7 @@ class BDD : public DecisionDiagram {
 BDD Ite(const BDD& dd1, const BDD& dd2, const BDD& dd3);
 
 // Wrapper class for ADDs, with automatic referencing and dereferencing.
-class ADD : public DecisionDiagram {
+class ADD final : public DecisionDiagram {
  public:
   // Explicit conversion from BDD to ADD.
   explicit ADD(const BDD& dd);
