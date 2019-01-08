@@ -17,6 +17,9 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
+// Needed on some systems to define lgamma_r.
+#define _REENTRANT
+
 #include "statistics.h"
 
 #include <algorithm>
