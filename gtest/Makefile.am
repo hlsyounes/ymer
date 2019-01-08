@@ -219,7 +219,7 @@ lib_libgtest_main_la_LIBADD = lib/libgtest.la
 # TESTS -- Programs run automatically by "make check"
 # check_PROGRAMS -- Programs built by "make check" but not necessarily run
 
-noinst_LTLIBRARIES = samples/libsamples.la
+check_LTLIBRARIES = samples/libsamples.la
 
 samples_libsamples_la_SOURCES = \
   samples/sample1.cc \
