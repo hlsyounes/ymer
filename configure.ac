@@ -56,7 +56,7 @@ AC_SEARCH_LIBS(gettext, intl)
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h float.h libintl.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([float.h libintl.h stdlib.h string.h sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_SIZEOF([void *])
@@ -69,7 +69,7 @@ AC_HEADER_TIME
 
 # Checks for library functions.
 AC_FUNC_SELECT_ARGTYPES
-AC_CHECK_FUNCS([floor gethostbyname gettimeofday memset pow rint select socket sqrt strcasecmp strerror getopt_long])
+AC_CHECK_FUNCS([floor memset pow socket sqrt strcasecmp strerror getopt_long])
 
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_SUBDIRS([glog gsl gtest])
