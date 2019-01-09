@@ -1257,7 +1257,7 @@ void ExpressionCompiler::DoVisitBinaryOperation(const BinaryOperation& expr) {
                                   " applied to ", type_));
         return;
       }
-      size_t jump_pos;
+      size_t jump_pos = -1;
       if (expr.op() == BinaryOperator::IFF) {
         ++dst_;
       } else {

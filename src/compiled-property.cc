@@ -653,7 +653,9 @@ OptimizerState::OptimizerState() {}
 
 OptimizerState::OptimizerState(
     std::unique_ptr<const CompiledExpressionProperty>&& expr_operand)
-    : expr_operand_(std::move(expr_operand)), is_negated_(false) {}
+    : expr_operand_(std::move(expr_operand)),
+      is_negated_(false),
+      op_(CompiledNaryOperator::AND) {}
 
 OptimizerState::OptimizerState(
     std::unique_ptr<const CompiledProbabilityThresholdProperty>&& property)
