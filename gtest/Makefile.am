@@ -219,8 +219,9 @@ lib_libgtest_main_la_LIBADD = lib/libgtest.la
 # TESTS -- Programs run automatically by "make check"
 # check_PROGRAMS -- Programs built by "make check" but not necessarily run
 
-check_LTLIBRARIES = samples/libsamples.la
+check_LTLIBRARIES =
 
+check_LTLIBRARIES += samples/libsamples.la
 samples_libsamples_la_SOURCES = \
   samples/sample1.cc \
   samples/sample1.h \
@@ -230,6 +231,9 @@ samples_libsamples_la_SOURCES = \
   samples/sample4.cc \
   samples/sample4.h
 
+check_LTLIBRARIES += samples/libsample1_unittest.la
+samples_libsample1_unittest_la_SOURCES = samples/sample1_unittest.cc
+
 TESTS=
 TESTS_ENVIRONMENT = GTEST_SOURCE_DIR="$(srcdir)/test" \
                     GTEST_BUILD_DIR="$(top_builddir)/test"
@@ -238,10 +242,11 @@ check_PROGRAMS=
 # A simple sample on using gtest.
 TESTS += samples/sample1_unittest
 check_PROGRAMS += samples/sample1_unittest
-samples_sample1_unittest_SOURCES = samples/sample1_unittest.cc
+samples_sample1_unittest_SOURCES =
 samples_sample1_unittest_LDADD = lib/libgtest_main.la \
                                  lib/libgtest.la \
-                                 samples/libsamples.la
+                                 samples/libsamples.la \
+                                 samples/libsample1_unittest.la
 
 # Another sample.  It also verifies that libgtest works.
 TESTS += samples/sample10_unittest
@@ -266,8 +271,9 @@ FUSED_GTEST_SRC = \
 if HAVE_PYTHON
 TESTS += test/fused_gtest_test
 check_PROGRAMS += test/fused_gtest_test
-test_fused_gtest_test_SOURCES = $(FUSED_GTEST_SRC) \
-                                samples/sample1.cc samples/sample1_unittest.cc
+test_fused_gtest_test_SOURCES = $(FUSED_GTEST_SRC)
+test_fused_gtest_test_LDADD = samples/libsamples.la \
+                              samples/libsample1_unittest.la
 test_fused_gtest_test_CPPFLAGS = -I"$(srcdir)/fused-src"
 
 # Build rules for putting fused Google Test files into the distribution

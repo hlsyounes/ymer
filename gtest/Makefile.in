@@ -159,6 +159,11 @@ am__v_lt_1 =
 lib_libgtest_main_la_DEPENDENCIES = lib/libgtest.la
 am_lib_libgtest_main_la_OBJECTS = src/gtest_main.lo
 lib_libgtest_main_la_OBJECTS = $(am_lib_libgtest_main_la_OBJECTS)
+samples_libsample1_unittest_la_LIBADD =
+am_samples_libsample1_unittest_la_OBJECTS =  \
+	samples/sample1_unittest.lo
+samples_libsample1_unittest_la_OBJECTS =  \
+	$(am_samples_libsample1_unittest_la_OBJECTS)
 samples_libsamples_la_LIBADD =
 am_samples_libsamples_la_OBJECTS = samples/sample1.lo \
 	samples/sample2.lo samples/sample4.lo
@@ -169,23 +174,22 @@ am_samples_sample10_unittest_OBJECTS =  \
 samples_sample10_unittest_OBJECTS =  \
 	$(am_samples_sample10_unittest_OBJECTS)
 samples_sample10_unittest_DEPENDENCIES = lib/libgtest.la
-am_samples_sample1_unittest_OBJECTS =  \
-	samples/sample1_unittest.$(OBJEXT)
+am_samples_sample1_unittest_OBJECTS =
 samples_sample1_unittest_OBJECTS =  \
 	$(am_samples_sample1_unittest_OBJECTS)
 samples_sample1_unittest_DEPENDENCIES = lib/libgtest_main.la \
-	lib/libgtest.la samples/libsamples.la
+	lib/libgtest.la samples/libsamples.la \
+	samples/libsample1_unittest.la
 am__test_fused_gtest_test_SOURCES_DIST = fused-src/gtest/gtest-all.cc \
-	fused-src/gtest/gtest.h fused-src/gtest/gtest_main.cc \
-	samples/sample1.cc samples/sample1_unittest.cc
+	fused-src/gtest/gtest.h fused-src/gtest/gtest_main.cc
 am__objects_1 =  \
 	fused-src/gtest/test_fused_gtest_test-gtest-all.$(OBJEXT) \
 	fused-src/gtest/test_fused_gtest_test-gtest_main.$(OBJEXT)
-@HAVE_PYTHON_TRUE@am_test_fused_gtest_test_OBJECTS = $(am__objects_1) \
-@HAVE_PYTHON_TRUE@	samples/test_fused_gtest_test-sample1.$(OBJEXT) \
-@HAVE_PYTHON_TRUE@	samples/test_fused_gtest_test-sample1_unittest.$(OBJEXT)
+@HAVE_PYTHON_TRUE@am_test_fused_gtest_test_OBJECTS = $(am__objects_1)
 test_fused_gtest_test_OBJECTS = $(am_test_fused_gtest_test_OBJECTS)
-test_fused_gtest_test_LDADD = $(LDADD)
+@HAVE_PYTHON_TRUE@test_fused_gtest_test_DEPENDENCIES =  \
+@HAVE_PYTHON_TRUE@	samples/libsamples.la \
+@HAVE_PYTHON_TRUE@	samples/libsample1_unittest.la
 am_test_gtest_all_test_OBJECTS = test/gtest_all_test.$(OBJEXT)
 test_gtest_all_test_OBJECTS = $(am_test_gtest_all_test_OBJECTS)
 test_gtest_all_test_DEPENDENCIES = lib/libgtest_main.la \
@@ -243,6 +247,7 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(lib_libgtest_la_SOURCES) $(lib_libgtest_main_la_SOURCES) \
+	$(samples_libsample1_unittest_la_SOURCES) \
 	$(samples_libsamples_la_SOURCES) \
 	$(samples_sample10_unittest_SOURCES) \
 	$(samples_sample1_unittest_SOURCES) \
@@ -250,6 +255,7 @@ SOURCES = $(lib_libgtest_la_SOURCES) $(lib_libgtest_main_la_SOURCES) \
 	$(test_gtest_all_test_SOURCES)
 DIST_SOURCES = $(lib_libgtest_la_SOURCES) \
 	$(lib_libgtest_main_la_SOURCES) \
+	$(samples_libsample1_unittest_la_SOURCES) \
 	$(samples_libsamples_la_SOURCES) \
 	$(samples_sample10_unittest_SOURCES) \
 	$(samples_sample1_unittest_SOURCES) \
@@ -768,7 +774,8 @@ lib_libgtest_main_la_LIBADD = lib/libgtest.la
 #
 # TESTS -- Programs run automatically by "make check"
 # check_PROGRAMS -- Programs built by "make check" but not necessarily run
-check_LTLIBRARIES = samples/libsamples.la
+check_LTLIBRARIES = samples/libsamples.la \
+	samples/libsample1_unittest.la
 samples_libsamples_la_SOURCES = \
   samples/sample1.cc \
   samples/sample1.h \
@@ -778,13 +785,15 @@ samples_libsamples_la_SOURCES = \
   samples/sample4.cc \
   samples/sample4.h
 
+samples_libsample1_unittest_la_SOURCES = samples/sample1_unittest.cc
 TESTS_ENVIRONMENT = GTEST_SOURCE_DIR="$(srcdir)/test" \
                     GTEST_BUILD_DIR="$(top_builddir)/test"
 
-samples_sample1_unittest_SOURCES = samples/sample1_unittest.cc
+samples_sample1_unittest_SOURCES = 
 samples_sample1_unittest_LDADD = lib/libgtest_main.la \
                                  lib/libgtest.la \
-                                 samples/libsamples.la
+                                 samples/libsamples.la \
+                                 samples/libsample1_unittest.la
 
 samples_sample10_unittest_SOURCES = samples/sample10_unittest.cc
 samples_sample10_unittest_LDADD = lib/libgtest.la
@@ -799,8 +808,9 @@ FUSED_GTEST_SRC = \
   fused-src/gtest/gtest.h \
   fused-src/gtest/gtest_main.cc
 
-@HAVE_PYTHON_TRUE@test_fused_gtest_test_SOURCES = $(FUSED_GTEST_SRC) \
-@HAVE_PYTHON_TRUE@                                samples/sample1.cc samples/sample1_unittest.cc
+@HAVE_PYTHON_TRUE@test_fused_gtest_test_SOURCES = $(FUSED_GTEST_SRC)
+@HAVE_PYTHON_TRUE@test_fused_gtest_test_LDADD = samples/libsamples.la \
+@HAVE_PYTHON_TRUE@                              samples/libsample1_unittest.la
 
 @HAVE_PYTHON_TRUE@test_fused_gtest_test_CPPFLAGS = -I"$(srcdir)/fused-src"
 
@@ -930,6 +940,11 @@ samples/$(am__dirstamp):
 samples/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) samples/$(DEPDIR)
 	@: > samples/$(DEPDIR)/$(am__dirstamp)
+samples/sample1_unittest.lo: samples/$(am__dirstamp) \
+	samples/$(DEPDIR)/$(am__dirstamp)
+
+samples/libsample1_unittest.la: $(samples_libsample1_unittest_la_OBJECTS) $(samples_libsample1_unittest_la_DEPENDENCIES) $(EXTRA_samples_libsample1_unittest_la_DEPENDENCIES) samples/$(am__dirstamp)
+	$(AM_V_CXXLD)$(CXXLINK)  $(samples_libsample1_unittest_la_OBJECTS) $(samples_libsample1_unittest_la_LIBADD) $(LIBS)
 samples/sample1.lo: samples/$(am__dirstamp) \
 	samples/$(DEPDIR)/$(am__dirstamp)
 samples/sample2.lo: samples/$(am__dirstamp) \
@@ -954,12 +969,10 @@ samples/sample10_unittest.$(OBJEXT): samples/$(am__dirstamp) \
 samples/sample10_unittest$(EXEEXT): $(samples_sample10_unittest_OBJECTS) $(samples_sample10_unittest_DEPENDENCIES) $(EXTRA_samples_sample10_unittest_DEPENDENCIES) samples/$(am__dirstamp)
 	@rm -f samples/sample10_unittest$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(samples_sample10_unittest_OBJECTS) $(samples_sample10_unittest_LDADD) $(LIBS)
-samples/sample1_unittest.$(OBJEXT): samples/$(am__dirstamp) \
-	samples/$(DEPDIR)/$(am__dirstamp)
 
 samples/sample1_unittest$(EXEEXT): $(samples_sample1_unittest_OBJECTS) $(samples_sample1_unittest_DEPENDENCIES) $(EXTRA_samples_sample1_unittest_DEPENDENCIES) samples/$(am__dirstamp)
 	@rm -f samples/sample1_unittest$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(samples_sample1_unittest_OBJECTS) $(samples_sample1_unittest_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(samples_sample1_unittest_OBJECTS) $(samples_sample1_unittest_LDADD) $(LIBS)
 fused-src/gtest/$(am__dirstamp):
 	@$(MKDIR_P) fused-src/gtest
 	@: > fused-src/gtest/$(am__dirstamp)
@@ -972,10 +985,6 @@ fused-src/gtest/test_fused_gtest_test-gtest-all.$(OBJEXT):  \
 fused-src/gtest/test_fused_gtest_test-gtest_main.$(OBJEXT):  \
 	fused-src/gtest/$(am__dirstamp) \
 	fused-src/gtest/$(DEPDIR)/$(am__dirstamp)
-samples/test_fused_gtest_test-sample1.$(OBJEXT):  \
-	samples/$(am__dirstamp) samples/$(DEPDIR)/$(am__dirstamp)
-samples/test_fused_gtest_test-sample1_unittest.$(OBJEXT):  \
-	samples/$(am__dirstamp) samples/$(DEPDIR)/$(am__dirstamp)
 test/$(am__dirstamp):
 	@$(MKDIR_P) test
 	@: > test/$(am__dirstamp)
@@ -1009,11 +1018,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@fused-src/gtest/$(DEPDIR)/test_fused_gtest_test-gtest_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/sample1.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/sample10_unittest.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/sample1_unittest.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/sample1_unittest.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/sample2.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/sample4.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/test_fused_gtest_test-sample1.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/gtest-all.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/gtest_main.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@test/$(DEPDIR)/gtest_all_test.Po@am__quote@
@@ -1069,34 +1076,6 @@ fused-src/gtest/test_fused_gtest_test-gtest_main.obj: fused-src/gtest/gtest_main
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='fused-src/gtest/gtest_main.cc' object='fused-src/gtest/test_fused_gtest_test-gtest_main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o fused-src/gtest/test_fused_gtest_test-gtest_main.obj `if test -f 'fused-src/gtest/gtest_main.cc'; then $(CYGPATH_W) 'fused-src/gtest/gtest_main.cc'; else $(CYGPATH_W) '$(srcdir)/fused-src/gtest/gtest_main.cc'; fi`
-
-samples/test_fused_gtest_test-sample1.o: samples/sample1.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT samples/test_fused_gtest_test-sample1.o -MD -MP -MF samples/$(DEPDIR)/test_fused_gtest_test-sample1.Tpo -c -o samples/test_fused_gtest_test-sample1.o `test -f 'samples/sample1.cc' || echo '$(srcdir)/'`samples/sample1.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) samples/$(DEPDIR)/test_fused_gtest_test-sample1.Tpo samples/$(DEPDIR)/test_fused_gtest_test-sample1.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='samples/sample1.cc' object='samples/test_fused_gtest_test-sample1.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o samples/test_fused_gtest_test-sample1.o `test -f 'samples/sample1.cc' || echo '$(srcdir)/'`samples/sample1.cc
-
-samples/test_fused_gtest_test-sample1.obj: samples/sample1.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT samples/test_fused_gtest_test-sample1.obj -MD -MP -MF samples/$(DEPDIR)/test_fused_gtest_test-sample1.Tpo -c -o samples/test_fused_gtest_test-sample1.obj `if test -f 'samples/sample1.cc'; then $(CYGPATH_W) 'samples/sample1.cc'; else $(CYGPATH_W) '$(srcdir)/samples/sample1.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) samples/$(DEPDIR)/test_fused_gtest_test-sample1.Tpo samples/$(DEPDIR)/test_fused_gtest_test-sample1.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='samples/sample1.cc' object='samples/test_fused_gtest_test-sample1.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o samples/test_fused_gtest_test-sample1.obj `if test -f 'samples/sample1.cc'; then $(CYGPATH_W) 'samples/sample1.cc'; else $(CYGPATH_W) '$(srcdir)/samples/sample1.cc'; fi`
-
-samples/test_fused_gtest_test-sample1_unittest.o: samples/sample1_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT samples/test_fused_gtest_test-sample1_unittest.o -MD -MP -MF samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Tpo -c -o samples/test_fused_gtest_test-sample1_unittest.o `test -f 'samples/sample1_unittest.cc' || echo '$(srcdir)/'`samples/sample1_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Tpo samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='samples/sample1_unittest.cc' object='samples/test_fused_gtest_test-sample1_unittest.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o samples/test_fused_gtest_test-sample1_unittest.o `test -f 'samples/sample1_unittest.cc' || echo '$(srcdir)/'`samples/sample1_unittest.cc
-
-samples/test_fused_gtest_test-sample1_unittest.obj: samples/sample1_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT samples/test_fused_gtest_test-sample1_unittest.obj -MD -MP -MF samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Tpo -c -o samples/test_fused_gtest_test-sample1_unittest.obj `if test -f 'samples/sample1_unittest.cc'; then $(CYGPATH_W) 'samples/sample1_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/samples/sample1_unittest.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Tpo samples/$(DEPDIR)/test_fused_gtest_test-sample1_unittest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='samples/sample1_unittest.cc' object='samples/test_fused_gtest_test-sample1_unittest.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(test_fused_gtest_test_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o samples/test_fused_gtest_test-sample1_unittest.obj `if test -f 'samples/sample1_unittest.cc'; then $(CYGPATH_W) 'samples/sample1_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/samples/sample1_unittest.cc'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
