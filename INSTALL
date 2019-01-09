@@ -1,19 +1,13 @@
 Copyright 1994, 1995, 1996, 1999, 2000, 2001, 2002 Free Software
 Foundation, Inc.
-Copyright (C) 2003, 2004 Carnegie Mellon University
+Copyright (C) 2003--2005 Carnegie Mellon University
+Copyright (C) 2011-2019 Google Inc
 
    This file is free documentation; the copyright holders give
 unlimited permission to copy, distribute and modify it.
 
 Basic Installation
 ==================
-
-   This package requires CUDD.  Before compiling this package, you
-need to download and compile CUDD, and install the libraries and
-include files of CUDD in a single directory on your machine.  CUDD
-must be obtained separately from this package.  CUDD is available via
-anonymous ftp from vlsi.colorado.edu.  For more information on CUDD,
-visit http://vlsi.colorado.edu/~fabio/CUDD/.
 
    The `configure' shell script attempts to guess correct values for
 various system-dependent variables used during compilation.  It uses
@@ -45,22 +39,22 @@ a newer version of `autoconf'.
 The simplest way to compile this package is:
 
   1. `cd' to the directory containing the package's source code and type
-     `./configure CUDDDIR=<cudddir>' to configure the package for your
-     system, where <cudddir> is the location of CUDD libraries and
-     include files on you machine.  If you're using `csh' on an old
-     version of System V, you might need to type `sh ./configure
-     CUDDDIR=<cudddir>' instead to prevent `csh' from trying to
-     execute `configure' itself.
+     `./configure' to configure the package for your system.  If you're
+     using `csh' on an old version of System V, you might need to type
+     `sh ./configure' instead to prevent `csh' from trying to execute
+     `configure' itself.
 
      Running `configure' takes awhile.  While running, it prints some
      messages telling which features it is checking for.
 
   2. Type `make' to compile the package.
 
-  3. Type `make install' to install the programs and any data files and
+  3. Type `make check' to compile and run tests.
+
+  4. Type `make install' to install the programs and any data files and
      documentation.
 
-  4. You can remove the program binaries and object files from the
+  5. You can remove the program binaries and object files from the
      source code directory by typing `make clean'.  To also remove the
      files that `configure' created (so you can compile the package for
      a different kind of computer), type `make distclean'.  There is
@@ -127,17 +121,8 @@ option `--program-prefix=PREFIX' or `--program-suffix=SUFFIX'.
 Optional Features
 =================
 
-   Some packages pay attention to `--enable-FEATURE' options to
-`configure', where FEATURE indicates an optional part of the package.
-They may also pay attention to `--with-PACKAGE' options, where PACKAGE
-is something like `gnu-as' or `x' (for the X Window System).  The
-`README' should mention any `--enable-' and `--with-' options that the
-package recognizes.
-
-   For packages that use the X Window System, `configure' can usually
-find the X include and library files automatically, but if it doesn't,
-you can use the `configure' options `--x-includes=DIR' and
-`--x-libraries=DIR' to specify their locations.
+   If you have tcmalloc installed on your system, you can use it with
+this package by passing `--with-tcmalloc' to `configure'.
 
 Specifying the System Type
 ==========================

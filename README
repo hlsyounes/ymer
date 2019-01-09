@@ -1,5 +1,5 @@
 Copyright (C) 2003--2005 Carnegie Mellon University
-Copyright (C) 2011-2015 Google Inc
+Copyright (C) 2011-2019 Google Inc
 
    This file is free documentation; the copyright holders give
 unlimited permission to copy, distribute and modify it.
@@ -35,3 +35,13 @@ Running Ymer
 
 Ymer is controlled by a command line interface.  Run `./ymer --help' for details
 on available command line options.
+
+Bug Reports and Feedback
+========================
+
+If you think you have found a bug, or want to request a feature, file an issue
+here:
+
+  https://github.com/hlsyounes/ymer/issues
+
+Send any other feedback to hlsyounes@gmail.com.
