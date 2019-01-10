@@ -22,6 +22,7 @@
 #ifndef COMPILED_MODEL_H_
 #define COMPILED_MODEL_H_
 
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -30,7 +31,6 @@
 #include "compiled-distribution.h"
 #include "compiled-expression.h"
 #include "ddutil.h"
-#include "optional.h"
 
 // A compiled update.
 class CompiledUpdate {
@@ -73,13 +73,13 @@ class CompiledMarkovCommand {
  public:
   // Constructs a compiled Markov command with the given guard and outcomes.
   explicit CompiledMarkovCommand(
-      const Optional<int>& module, const CompiledExpression& guard,
+      const std::optional<int>& module, const CompiledExpression& guard,
       const CompiledExpression& weight,
       const std::vector<CompiledMarkovOutcome>& outcomes);
 
   // Returns the module for this command, or none if the compiled command is not
   // associated with a module.
-  const Optional<int>& module() const { return module_; }
+  const std::optional<int>& module() const { return module_; }
 
   // Returns the guard for this command.
   const CompiledExpression& guard() const { return guard_; }
@@ -93,7 +93,7 @@ class CompiledMarkovCommand {
   }
 
  private:
-  Optional<int> module_;
+  std::optional<int> module_;
   CompiledExpression guard_;
   CompiledExpression weight_;
   std::vector<CompiledMarkovOutcome> outcomes_;
@@ -104,7 +104,7 @@ class CompiledGsmpCommand {
  public:
   // Constructs a compiled GSMP command with the given guard, delay
   // distribution, and updates.
-  explicit CompiledGsmpCommand(const Optional<int>& module,
+  explicit CompiledGsmpCommand(const std::optional<int>& module,
                                const CompiledExpression& guard,
                                const CompiledGsmpDistribution& delay,
                                const std::vector<CompiledUpdate>& updates,
@@ -112,7 +112,7 @@ class CompiledGsmpCommand {
 
   // Returns the module for this command, or none if the compiled command is not
   // associated with a module.
-  const Optional<int>& module() const { return module_; }
+  const std::optional<int>& module() const { return module_; }
 
   // Returns the guard for this command.
   const CompiledExpression& guard() const { return guard_; }
@@ -129,7 +129,7 @@ class CompiledGsmpCommand {
   int first_index() const { return first_index_; }
 
  private:
-  Optional<int> module_;
+  std::optional<int> module_;
   CompiledExpression guard_;
   CompiledGsmpDistribution delay_;
   std::vector<CompiledUpdate> updates_;
@@ -153,7 +153,7 @@ class CompiledModel {
                          const std::vector<StateVariableInfo>& variables,
                          const std::vector<std::set<int>>& module_variables,
                          const std::vector<int>& init_values,
-                         const Optional<CompiledExpression>& init_expr);
+                         const std::optional<CompiledExpression>& init_expr);
 
   // Sets the single (non-factored) Markov commands for this compiled model.
   void set_single_markov_commands(
@@ -217,7 +217,9 @@ class CompiledModel {
   const std::vector<int>& init_values() const { return init_values_; }
 
   // Returns the optional init expression for this compiled model.
-  const Optional<CompiledExpression>& init_expr() const { return init_expr_; }
+  const std::optional<CompiledExpression>& init_expr() const {
+    return init_expr_;
+  }
 
   // Returns the single Markov commands for this compiled model.
   const std::vector<CompiledMarkovCommand>& single_markov_commands() const {
@@ -241,9 +243,7 @@ class CompiledModel {
     return factored_gsmp_commands_;
   }
 
-  const Optional<int>& pivot_variable() const {
-    return pivot_variable_;
-  }
+  const std::optional<int>& pivot_variable() const { return pivot_variable_; }
 
   const std::vector<std::vector<CompiledMarkovCommand>>&
   pivoted_single_markov_commands() const {
@@ -266,7 +266,7 @@ class CompiledModel {
   std::vector<StateVariableInfo> variables_;
   std::vector<std::set<int>> module_variables_;
   std::vector<int> init_values_;
-  Optional<CompiledExpression> init_expr_;
+  std::optional<CompiledExpression> init_expr_;
   // The single (non-factored) commands with memoryless distributions.
   std::vector<CompiledMarkovCommand> single_markov_commands_;
   // For every action, and every module where the action occurs, the factored
@@ -282,7 +282,7 @@ class CompiledModel {
   // with factored_markov_commands_, ignoring the first module, to get the
   // composite commands.
   std::vector<CompiledGsmpCommandFactors> factored_gsmp_commands_;
-  Optional<int> pivot_variable_;
+  std::optional<int> pivot_variable_;
   std::vector<std::vector<CompiledMarkovCommand>>
       pivoted_single_markov_commands_;
   int gsmp_event_count_;

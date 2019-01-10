@@ -27,6 +27,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 
 #include "hybrid.h"
@@ -432,7 +433,7 @@ void SymbolicVerifier::DoVisitCompiledUntilProperty(
    */
   std::vector<double> soln = dd_model_->odd().AddToVector(ADD(dd2));
   std::vector<double> soln2(nstates);
-  Optional<int> init;
+  std::optional<int> init;
   if (top_level_property_) {
     init = dd_model_->initial_state_index();
   }

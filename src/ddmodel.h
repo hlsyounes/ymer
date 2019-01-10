@@ -23,6 +23,7 @@
 #define DD_MODEL_H_
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "compiled-model.h"
@@ -42,7 +43,9 @@ class DecisionDiagramModel {
   const ADD& rate_matrix() const { return rate_matrix_; }
   const BDD& reachable_states() const { return reachable_states_; }
   const ODD& odd() const { return odd_; }
-  Optional<int> initial_state_index() const { return initial_state_index_; }
+  std::optional<int> initial_state_index() const {
+    return initial_state_index_;
+  }
 
  private:
   DecisionDiagramModel(const DecisionDiagramManager* manager,
@@ -54,7 +57,7 @@ class DecisionDiagramModel {
   ADD rate_matrix_;
   BDD reachable_states_;
   ODD odd_;
-  Optional<int> initial_state_index_;
+  std::optional<int> initial_state_index_;
 };
 
 #endif  // DDMODEL_H_

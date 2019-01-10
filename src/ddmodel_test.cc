@@ -19,7 +19,8 @@
 
 #include "ddmodel.h"
 
-#include "ptrutil.h"
+#include <memory>
+#include <optional>
 
 #include "gtest/gtest.h"
 
@@ -29,25 +30,26 @@ template <typename T>
 CompiledExpression MakeGuard(
     const std::string& variable, T value,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager) {
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   const auto result = CompileExpression(
-      BinaryOperation(BinaryOperator::EQUAL, MakeUnique<Identifier>("b"),
-                      MakeUnique<Literal>(value)),
+      BinaryOperation(BinaryOperator::EQUAL, std::make_unique<Identifier>("b"),
+                      std::make_unique<Literal>(value)),
       Type::BOOL, {}, identifiers_by_name, dd_manager);
   CHECK(result.errors.empty());
   return result.expr;
 }
 
 CompiledExpression MakeWeight(
-    double value, const Optional<DecisionDiagramManager>& dd_manager) {
+    double value, const std::optional<DecisionDiagramManager>& dd_manager) {
   const auto result =
       CompileExpression(Literal(value), Type::DOUBLE, {}, {}, dd_manager);
   CHECK(result.errors.empty());
   return result.expr;
 }
 
-CompiledUpdate MakeUpdate(int variable, bool value,
-                          const Optional<DecisionDiagramManager>& dd_manager) {
+CompiledUpdate MakeUpdate(
+    int variable, bool value,
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   const auto result =
       CompileExpression(Literal(value), Type::BOOL, {}, {}, dd_manager);
   CHECK(result.errors.empty());
@@ -55,7 +57,7 @@ CompiledUpdate MakeUpdate(int variable, bool value,
 }
 
 TEST(DecisionDiagramModelTest, MakeSimple) {
-  Optional<DecisionDiagramManager> manager = DecisionDiagramManager(2);
+  std::optional<DecisionDiagramManager> manager = DecisionDiagramManager(2);
   const std::vector<StateVariableInfo> variables = {{"b", 0, 1}};
   const std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"b", IdentifierInfo::Variable(Type::BOOL, 0, 0, 0, 0)}};

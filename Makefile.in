@@ -90,8 +90,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = ymer$(EXEEXT)
-check_PROGRAMS = src/optional_test$(EXEEXT) src/strutil_test$(EXEEXT) \
-	src/timeutil_test$(EXEEXT) src/ptrutil_test$(EXEEXT) \
+check_PROGRAMS = src/strutil_test$(EXEEXT) src/timeutil_test$(EXEEXT) \
 	src/statistics_test$(EXEEXT) src/ddutil_test$(EXEEXT) \
 	src/typed-value_test$(EXEEXT) src/expression_test$(EXEEXT) \
 	src/distribution_test$(EXEEXT) \
@@ -316,9 +315,6 @@ src_expression_test_DEPENDENCIES = src/libexpression.la \
 am_src_model_test_OBJECTS = src/model_test.$(OBJEXT)
 src_model_test_OBJECTS = $(am_src_model_test_OBJECTS)
 src_model_test_DEPENDENCIES = src/libmodel.la src/libtest-main.la
-am_src_optional_test_OBJECTS = src/optional_test.$(OBJEXT)
-src_optional_test_OBJECTS = $(am_src_optional_test_OBJECTS)
-src_optional_test_DEPENDENCIES = src/libtest-main.la
 am_src_parser_test_OBJECTS = src/parser_test.$(OBJEXT)
 src_parser_test_OBJECTS = $(am_src_parser_test_OBJECTS)
 src_parser_test_DEPENDENCIES = src/libparser.la src/libtest-main.la
@@ -328,9 +324,6 @@ src_process_algebra_test_OBJECTS =  \
 	$(am_src_process_algebra_test_OBJECTS)
 src_process_algebra_test_DEPENDENCIES = src/libprocess-algebra.la \
 	src/libtest-main.la
-am_src_ptrutil_test_OBJECTS = src/ptrutil_test.$(OBJEXT)
-src_ptrutil_test_OBJECTS = $(am_src_ptrutil_test_OBJECTS)
-src_ptrutil_test_DEPENDENCIES = src/libtest-main.la
 am_src_simulator_test_OBJECTS = src/simulator_test.$(OBJEXT)
 src_simulator_test_OBJECTS = $(am_src_simulator_test_OBJECTS)
 src_simulator_test_DEPENDENCIES = src/libcompiled-distribution.la \
@@ -449,12 +442,10 @@ SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_ddmodel_test_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
-	$(src_process_algebra_test_SOURCES) \
-	$(src_ptrutil_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_timeutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_parser_test_SOURCES) $(src_process_algebra_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_timeutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(cudd_mtr_libmtr_la_SOURCES) $(cudd_st_libst_la_SOURCES) \
 	$(cudd_util_libutil_la_SOURCES) \
@@ -476,12 +467,10 @@ DIST_SOURCES = $(cudd_cudd_libcudd_la_SOURCES) \
 	$(src_ddmodel_test_SOURCES) $(src_ddutil_test_SOURCES) \
 	$(src_distribution_test_SOURCES) \
 	$(src_expression_test_SOURCES) $(src_model_test_SOURCES) \
-	$(src_optional_test_SOURCES) $(src_parser_test_SOURCES) \
-	$(src_process_algebra_test_SOURCES) \
-	$(src_ptrutil_test_SOURCES) $(src_simulator_test_SOURCES) \
-	$(src_statistics_test_SOURCES) $(src_strutil_test_SOURCES) \
-	$(src_timeutil_test_SOURCES) $(src_typed_value_test_SOURCES) \
-	$(ymer_SOURCES)
+	$(src_parser_test_SOURCES) $(src_process_algebra_test_SOURCES) \
+	$(src_simulator_test_SOURCES) $(src_statistics_test_SOURCES) \
+	$(src_strutil_test_SOURCES) $(src_timeutil_test_SOURCES) \
+	$(src_typed_value_test_SOURCES) $(ymer_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -804,7 +793,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
-HAVE_CXX11 = @HAVE_CXX11@
+HAVE_CXX17 = @HAVE_CXX17@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -991,9 +980,8 @@ cudd_util_libutil_la_CPPFLAGS = $(CUDD_DEFINES)
 #
 # Ymer libraries.
 #
-HEADER_FILES = src/fake_rng.h src/model-checking-params.h src/optional.h \
-    src/ptrutil.h src/simulator.h src/strutil.h src/timeutil.h \
-    src/unique-ptr-vector.h
+HEADER_FILES = src/fake_rng.h src/model-checking-params.h src/simulator.h \
+    src/strutil.h src/timeutil.h src/unique-ptr-vector.h
 
 src_libstatistics_la_SOURCES = src/statistics.h src/statistics.cc
 src_libstatistics_la_LIBADD = glog/libglog.la gsl/libgsl.la
@@ -1059,14 +1047,10 @@ ymer_LDADD = cudd/cudd/libcudd.la gsl/libgsl.la \
 check_LTLIBRARIES = src/libtest-main.la
 src_libtest_main_la_SOURCES = src/test-main.cc
 src_libtest_main_la_LIBADD = glog/libglog.la gtest/lib/libgtest.la
-src_optional_test_SOURCES = src/optional_test.cc
-src_optional_test_LDADD = src/libtest-main.la
 src_strutil_test_SOURCES = src/strutil_test.cc
 src_strutil_test_LDADD = src/libtest-main.la
 src_timeutil_test_SOURCES = src/timeutil_test.cc
 src_timeutil_test_LDADD = src/libtest-main.la
-src_ptrutil_test_SOURCES = src/ptrutil_test.cc
-src_ptrutil_test_LDADD = src/libtest-main.la
 src_statistics_test_SOURCES = src/statistics_test.cc
 src_statistics_test_LDADD = src/libstatistics.la src/libtest-main.la
 src_ddutil_test_SOURCES = src/ddutil_test.cc
@@ -1566,12 +1550,6 @@ src/model_test.$(OBJEXT): src/$(am__dirstamp) \
 src/model_test$(EXEEXT): $(src_model_test_OBJECTS) $(src_model_test_DEPENDENCIES) $(EXTRA_src_model_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/model_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_model_test_OBJECTS) $(src_model_test_LDADD) $(LIBS)
-src/optional_test.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-
-src/optional_test$(EXEEXT): $(src_optional_test_OBJECTS) $(src_optional_test_DEPENDENCIES) $(EXTRA_src_optional_test_DEPENDENCIES) src/$(am__dirstamp)
-	@rm -f src/optional_test$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(src_optional_test_OBJECTS) $(src_optional_test_LDADD) $(LIBS)
 src/parser_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1584,12 +1562,6 @@ src/process-algebra_test.$(OBJEXT): src/$(am__dirstamp) \
 src/process-algebra_test$(EXEEXT): $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_DEPENDENCIES) $(EXTRA_src_process_algebra_test_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/process-algebra_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_process_algebra_test_OBJECTS) $(src_process_algebra_test_LDADD) $(LIBS)
-src/ptrutil_test.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-
-src/ptrutil_test$(EXEEXT): $(src_ptrutil_test_OBJECTS) $(src_ptrutil_test_DEPENDENCIES) $(EXTRA_src_ptrutil_test_DEPENDENCIES) src/$(am__dirstamp)
-	@rm -f src/ptrutil_test$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(src_ptrutil_test_OBJECTS) $(src_ptrutil_test_LDADD) $(LIBS)
 src/simulator_test.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -1741,12 +1713,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/grammar.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/model_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/optional_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/parser_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/process-algebra.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/process-algebra_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ptrutil_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/simulator_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/statistics_test.Po@am__quote@
@@ -2611,13 +2581,6 @@ recheck: all $(check_LTLIBRARIES) $(check_PROGRAMS)
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
-src/optional_test.log: src/optional_test$(EXEEXT)
-	@p='src/optional_test$(EXEEXT)'; \
-	b='src/optional_test'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
 src/strutil_test.log: src/strutil_test$(EXEEXT)
 	@p='src/strutil_test$(EXEEXT)'; \
 	b='src/strutil_test'; \
@@ -2628,13 +2591,6 @@ src/strutil_test.log: src/strutil_test$(EXEEXT)
 src/timeutil_test.log: src/timeutil_test$(EXEEXT)
 	@p='src/timeutil_test$(EXEEXT)'; \
 	b='src/timeutil_test'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
-src/ptrutil_test.log: src/ptrutil_test$(EXEEXT)
-	@p='src/ptrutil_test$(EXEEXT)'; \
-	b='src/ptrutil_test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

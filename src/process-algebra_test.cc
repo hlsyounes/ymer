@@ -19,7 +19,8 @@
 
 #include "process-algebra.h"
 
-#include "ptrutil.h"
+#include <memory>
+
 #include "strutil.h"
 
 #include "gtest/gtest.h"
@@ -29,50 +30,55 @@ namespace {
 TEST(ProcessAlgebraTest, Ouput) {
   const ParallelComposition expr1(
       ParallelCompositionOperator::ALPHABETIZED,
-      MakeUnique<ModuleIdentifier>("foo"),
-      MakeUnique<ParallelComposition>(ParallelCompositionOperator::ALPHABETIZED,
-                                      MakeUnique<ModuleIdentifier>("bar"),
-                                      MakeUnique<ModuleIdentifier>("baz")));
+      std::make_unique<ModuleIdentifier>("foo"),
+      std::make_unique<ParallelComposition>(
+          ParallelCompositionOperator::ALPHABETIZED,
+          std::make_unique<ModuleIdentifier>("bar"),
+          std::make_unique<ModuleIdentifier>("baz")));
   EXPECT_EQ("foo || bar || baz", StrCat(expr1));
   const ParallelComposition expr2(
       ParallelCompositionOperator::ALPHABETIZED,
-      MakeUnique<ModuleIdentifier>("foo"),
-      MakeUnique<ParallelComposition>(ParallelCompositionOperator::ASYNCHRONOUS,
-                                      MakeUnique<ModuleIdentifier>("bar"),
-                                      MakeUnique<ModuleIdentifier>("baz")));
+      std::make_unique<ModuleIdentifier>("foo"),
+      std::make_unique<ParallelComposition>(
+          ParallelCompositionOperator::ASYNCHRONOUS,
+          std::make_unique<ModuleIdentifier>("bar"),
+          std::make_unique<ModuleIdentifier>("baz")));
   EXPECT_EQ("foo || (bar ||| baz)", StrCat(expr2));
   const ParallelComposition expr3(
       ParallelCompositionOperator::ALPHABETIZED,
-      MakeUnique<ModuleIdentifier>("foo"),
-      MakeUnique<ActionHiding>(std::set<std::string>({"a", "b"}),
-                               MakeUnique<ModuleIdentifier>("bar")));
+      std::make_unique<ModuleIdentifier>("foo"),
+      std::make_unique<ActionHiding>(
+          std::set<std::string>({"a", "b"}),
+          std::make_unique<ModuleIdentifier>("bar")));
   EXPECT_EQ("foo || bar / {a,b}", StrCat(expr3));
   const ParallelComposition expr4(
       ParallelCompositionOperator::ALPHABETIZED,
-      MakeUnique<ParallelComposition>(ParallelCompositionOperator::ALPHABETIZED,
-                                      MakeUnique<ModuleIdentifier>("foo"),
-                                      MakeUnique<ModuleIdentifier>("bar")),
-      MakeUnique<ModuleIdentifier>("baz"));
+      std::make_unique<ParallelComposition>(
+          ParallelCompositionOperator::ALPHABETIZED,
+          std::make_unique<ModuleIdentifier>("foo"),
+          std::make_unique<ModuleIdentifier>("bar")),
+      std::make_unique<ModuleIdentifier>("baz"));
   EXPECT_EQ("foo || bar || baz", StrCat(expr4));
-  const ParallelComposition expr5(ParallelCompositionOperator::ALPHABETIZED,
-                                  MakeUnique<RestrictedParallelComposition>(
-                                      std::set<std::string>({"a", "b"}),
-                                      MakeUnique<ModuleIdentifier>("foo"),
-                                      MakeUnique<ModuleIdentifier>("bar")),
-                                  MakeUnique<ModuleIdentifier>("baz"));
+  const ParallelComposition expr5(
+      ParallelCompositionOperator::ALPHABETIZED,
+      std::make_unique<RestrictedParallelComposition>(
+          std::set<std::string>({"a", "b"}),
+          std::make_unique<ModuleIdentifier>("foo"),
+          std::make_unique<ModuleIdentifier>("bar")),
+      std::make_unique<ModuleIdentifier>("baz"));
   EXPECT_EQ("(foo |[a,b]| bar) || baz", StrCat(expr5));
   const ParallelComposition expr6(
       ParallelCompositionOperator::ALPHABETIZED,
-      MakeUnique<ActionRenaming>(
+      std::make_unique<ActionRenaming>(
           std::map<std::string, std::string>({{"a", "b"}, {"c", "d"}}),
-          MakeUnique<ModuleIdentifier>("foo")),
-      MakeUnique<ModuleIdentifier>("bar"));
+          std::make_unique<ModuleIdentifier>("foo")),
+      std::make_unique<ModuleIdentifier>("bar"));
   EXPECT_EQ("foo {a<-b,c<-d} || bar", StrCat(expr6));
-  const ActionHiding expr7(
-      {"a", "b"},
-      MakeUnique<ParallelComposition>(ParallelCompositionOperator::ALPHABETIZED,
-                                      MakeUnique<ModuleIdentifier>("foo"),
-                                      MakeUnique<ModuleIdentifier>("bar")));
+  const ActionHiding expr7({"a", "b"},
+                           std::make_unique<ParallelComposition>(
+                               ParallelCompositionOperator::ALPHABETIZED,
+                               std::make_unique<ModuleIdentifier>("foo"),
+                               std::make_unique<ModuleIdentifier>("bar")));
   EXPECT_EQ("(foo || bar) / {a,b}", StrCat(expr7));
 }
 

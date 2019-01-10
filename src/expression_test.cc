@@ -20,8 +20,8 @@
 #include "expression.h"
 
 #include <limits>
+#include <memory>
 
-#include "ptrutil.h"
 #include "strutil.h"
 #include "unique-ptr-vector.h"
 
@@ -89,93 +89,93 @@ TEST(FunctionCallTest, OutputUnknownFunction) {
 
 TEST(FunctionCallTest, OutputMin) {
   const FunctionCall expr1(Function::MIN,
-                           MakeArguments(MakeUnique<Literal>(17)));
-  const FunctionCall expr2(
-      Function::MIN,
-      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
+                           MakeArguments(std::make_unique<Literal>(17)));
+  const FunctionCall expr2(Function::MIN,
+                           MakeArguments(std::make_unique<Literal>(42),
+                                         std::make_unique<Literal>(0.5)));
   EXPECT_EQ("min(17);min(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputMax) {
   const FunctionCall expr1(Function::MAX,
-                           MakeArguments(MakeUnique<Literal>(17)));
-  const FunctionCall expr2(
-      Function::MAX,
-      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
+                           MakeArguments(std::make_unique<Literal>(17)));
+  const FunctionCall expr2(Function::MAX,
+                           MakeArguments(std::make_unique<Literal>(42),
+                                         std::make_unique<Literal>(0.5)));
   EXPECT_EQ("max(17);max(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputFloor) {
   const FunctionCall expr1(Function::FLOOR,
-                           MakeArguments(MakeUnique<Literal>(17)));
+                           MakeArguments(std::make_unique<Literal>(17)));
   const FunctionCall expr2(Function::FLOOR,
-                           MakeArguments(MakeUnique<Literal>(0.5)));
+                           MakeArguments(std::make_unique<Literal>(0.5)));
   EXPECT_EQ("floor(17);floor(0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputCeil) {
   const FunctionCall expr1(Function::CEIL,
-                           MakeArguments(MakeUnique<Literal>(17)));
+                           MakeArguments(std::make_unique<Literal>(17)));
   const FunctionCall expr2(Function::CEIL,
-                           MakeArguments(MakeUnique<Literal>(0.5)));
+                           MakeArguments(std::make_unique<Literal>(0.5)));
   EXPECT_EQ("ceil(17);ceil(0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputPow) {
-  const FunctionCall expr1(
-      Function::POW,
-      MakeArguments(MakeUnique<Literal>(17), MakeUnique<Literal>(-0.5)));
-  const FunctionCall expr2(
-      Function::POW,
-      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
+  const FunctionCall expr1(Function::POW,
+                           MakeArguments(std::make_unique<Literal>(17),
+                                         std::make_unique<Literal>(-0.5)));
+  const FunctionCall expr2(Function::POW,
+                           MakeArguments(std::make_unique<Literal>(42),
+                                         std::make_unique<Literal>(0.5)));
   EXPECT_EQ("pow(17, -0.5);pow(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputLog) {
-  const FunctionCall expr1(
-      Function::LOG,
-      MakeArguments(MakeUnique<Literal>(17), MakeUnique<Literal>(2.5)));
-  const FunctionCall expr2(
-      Function::LOG,
-      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(0.5)));
+  const FunctionCall expr1(Function::LOG,
+                           MakeArguments(std::make_unique<Literal>(17),
+                                         std::make_unique<Literal>(2.5)));
+  const FunctionCall expr2(Function::LOG,
+                           MakeArguments(std::make_unique<Literal>(42),
+                                         std::make_unique<Literal>(0.5)));
   EXPECT_EQ("log(17, 2.5);log(42, 0.5)", StrCat(expr1, ';', expr2));
 }
 
 TEST(FunctionCallTest, OutputMod) {
-  const FunctionCall expr1(
-      Function::MOD,
-      MakeArguments(MakeUnique<Literal>(17), MakeUnique<Literal>(42)));
-  const FunctionCall expr2(
-      Function::MOD,
-      MakeArguments(MakeUnique<Literal>(42), MakeUnique<Literal>(-17)));
+  const FunctionCall expr1(Function::MOD,
+                           MakeArguments(std::make_unique<Literal>(17),
+                                         std::make_unique<Literal>(42)));
+  const FunctionCall expr2(Function::MOD,
+                           MakeArguments(std::make_unique<Literal>(42),
+                                         std::make_unique<Literal>(-17)));
   EXPECT_EQ("mod(17, 42);mod(42, -17)", StrCat(expr1, ';', expr2));
 }
 
 TEST(UnaryOperationTest, OutputNegation) {
   const UnaryOperation expr1(
       UnaryOperator::NEGATE,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::PLUS, MakeUnique<Literal>(17),
-          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::PLUS, std::make_unique<Literal>(17),
+          std::make_unique<UnaryOperation>(UnaryOperator::NEGATE,
+                                           std::make_unique<Identifier>("b"))));
   const UnaryOperation expr2(
       UnaryOperator::NEGATE,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::MINUS, MakeUnique<Literal>(17),
-          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::MINUS, std::make_unique<Literal>(17),
+          std::make_unique<UnaryOperation>(UnaryOperator::NEGATE,
+                                           std::make_unique<Identifier>("b"))));
   const UnaryOperation expr3(
       UnaryOperator::NEGATE,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::MULTIPLY, MakeUnique<Literal>(17),
-          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::MULTIPLY, std::make_unique<Literal>(17),
+          std::make_unique<UnaryOperation>(UnaryOperator::NEGATE,
+                                           std::make_unique<Identifier>("b"))));
   const UnaryOperation expr4(
       UnaryOperator::NEGATE,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::DIVIDE, MakeUnique<Literal>(17),
-          MakeUnique<UnaryOperation>(UnaryOperator::NEGATE,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::DIVIDE, std::make_unique<Literal>(17),
+          std::make_unique<UnaryOperation>(UnaryOperator::NEGATE,
+                                           std::make_unique<Identifier>("b"))));
   EXPECT_EQ("-(17 + -b);-(17 - -b);-(17 * -b);-(17 / -b)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -183,28 +183,28 @@ TEST(UnaryOperationTest, OutputNegation) {
 TEST(UnaryOperationTest, OutputLogicalNot) {
   const UnaryOperation expr1(
       UnaryOperator::NOT,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::AND, MakeUnique<Literal>(true),
-          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::AND, std::make_unique<Literal>(true),
+          std::make_unique<UnaryOperation>(UnaryOperator::NOT,
+                                           std::make_unique<Identifier>("b"))));
   const UnaryOperation expr2(
       UnaryOperator::NOT,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::OR, MakeUnique<Literal>(true),
-          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::OR, std::make_unique<Literal>(true),
+          std::make_unique<UnaryOperation>(UnaryOperator::NOT,
+                                           std::make_unique<Identifier>("b"))));
   const UnaryOperation expr3(
       UnaryOperator::NOT,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::IMPLY, MakeUnique<Literal>(true),
-          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::IMPLY, std::make_unique<Literal>(true),
+          std::make_unique<UnaryOperation>(UnaryOperator::NOT,
+                                           std::make_unique<Identifier>("b"))));
   const UnaryOperation expr4(
       UnaryOperator::NOT,
-      MakeUnique<BinaryOperation>(
-          BinaryOperator::IFF, MakeUnique<Literal>(true),
-          MakeUnique<UnaryOperation>(UnaryOperator::NOT,
-                                     MakeUnique<Identifier>("b"))));
+      std::make_unique<BinaryOperation>(
+          BinaryOperator::IFF, std::make_unique<Literal>(true),
+          std::make_unique<UnaryOperation>(UnaryOperator::NOT,
+                                           std::make_unique<Identifier>("b"))));
   EXPECT_EQ("!(true & !b);!(true | !b);!(true => !b);!(true <=> !b)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -212,33 +212,36 @@ TEST(UnaryOperationTest, OutputLogicalNot) {
 TEST(BinaryOperationTest, OutputAddition) {
   const BinaryOperation expr1(
       BinaryOperator::PLUS,
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
-      BinaryOperator::PLUS, MakeUnique<BinaryOperation>(
-                                BinaryOperator::MINUS, MakeUnique<Literal>(17),
-                                MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::PLUS,
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::PLUS,
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::PLUS, MakeUnique<BinaryOperation>(
-                                BinaryOperator::DIVIDE, MakeUnique<Literal>(17),
-                                MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::PLUS,
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("17 + b + c - d;17 - b + c * d;17 * b + c / d;17 / b + c + d",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -246,34 +249,36 @@ TEST(BinaryOperationTest, OutputAddition) {
 TEST(BinaryOperationTest, OutputSubtraction) {
   const BinaryOperation expr1(
       BinaryOperator::MINUS,
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
-      BinaryOperator::MINUS, MakeUnique<BinaryOperation>(
-                                 BinaryOperator::MINUS, MakeUnique<Literal>(17),
-                                 MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::MINUS,
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::MINUS,
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::MINUS,
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("17 + b - (c - d);17 - b - c * d;17 * b - c / d;17 / b - (c + d)",
             StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
 }
@@ -281,35 +286,36 @@ TEST(BinaryOperationTest, OutputSubtraction) {
 TEST(BinaryOperationTest, OutputMultiplication) {
   const BinaryOperation expr1(
       BinaryOperator::MULTIPLY,
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::MULTIPLY,
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::MULTIPLY,
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::MULTIPLY,
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ(
       "(17 + b) * (c - d);(17 - b) * c * d;17 * b * c / d;17 / b * (c + d)",
       StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
@@ -318,35 +324,36 @@ TEST(BinaryOperationTest, OutputMultiplication) {
 TEST(BinaryOperationTest, OutputDivision) {
   const BinaryOperation expr1(
       BinaryOperator::DIVIDE,
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::DIVIDE,
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::DIVIDE,
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::DIVIDE,
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ(
       "(17 + b) / (c - d);(17 - b) / (c * d);17 * b / (c / d);17 / b / (c + d)",
       StrCat(expr1, ';', expr2, ';', expr3, ';', expr4));
@@ -354,33 +361,37 @@ TEST(BinaryOperationTest, OutputDivision) {
 
 TEST(BinaryOperationTest, OutputAnd) {
   const BinaryOperation expr1(
-      BinaryOperator::AND, MakeUnique<BinaryOperation>(
-                               BinaryOperator::AND, MakeUnique<Literal>(true),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::OR,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::AND,
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::AND,
-      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::AND, MakeUnique<BinaryOperation>(
-                               BinaryOperator::IMPLY, MakeUnique<Literal>(true),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::AND,
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::AND, MakeUnique<BinaryOperation>(
-                               BinaryOperator::IFF, MakeUnique<Literal>(true),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::AND,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::AND,
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("true & b & (c | d);(true | b) & (c => d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("(true => b) & (c <=> d);(true <=> b) & c & d",
@@ -389,33 +400,37 @@ TEST(BinaryOperationTest, OutputAnd) {
 
 TEST(BinaryOperationTest, OutputOr) {
   const BinaryOperation expr1(
-      BinaryOperator::OR, MakeUnique<BinaryOperation>(
-                              BinaryOperator::AND, MakeUnique<Literal>(true),
-                              MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::OR,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::OR,
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::OR,
-      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::OR, MakeUnique<BinaryOperation>(
-                              BinaryOperator::IMPLY, MakeUnique<Literal>(true),
-                              MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::OR,
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::OR, MakeUnique<BinaryOperation>(
-                              BinaryOperator::IFF, MakeUnique<Literal>(true),
-                              MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::AND,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::OR,
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("true & b | c | d;true | b | (c => d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("(true => b) | (c <=> d);(true <=> b) | c & d",
             StrCat(expr3, ';', expr4));
@@ -423,34 +438,37 @@ TEST(BinaryOperationTest, OutputOr) {
 
 TEST(BinaryOperationTest, OutputImply) {
   const BinaryOperation expr1(
-      BinaryOperator::IMPLY, MakeUnique<BinaryOperation>(
-                                 BinaryOperator::AND, MakeUnique<Literal>(true),
-                                 MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::OR,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::IMPLY,
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::IMPLY,
-      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::IMPLY,
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Literal>(true),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::IMPLY, MakeUnique<BinaryOperation>(
-                                 BinaryOperator::IFF, MakeUnique<Literal>(true),
-                                 MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::AND,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::IMPLY,
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("true & b => c | d;true | b => (c => d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("true => b => (c <=> d);(true <=> b) => c & d",
@@ -459,33 +477,37 @@ TEST(BinaryOperationTest, OutputImply) {
 
 TEST(BinaryOperationTest, OutputIff) {
   const BinaryOperation expr1(
-      BinaryOperator::IFF, MakeUnique<BinaryOperation>(
-                               BinaryOperator::AND, MakeUnique<Literal>(true),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::OR,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::IFF,
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::IFF,
-      MakeUnique<BinaryOperation>(BinaryOperator::OR, MakeUnique<Literal>(true),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::IFF, MakeUnique<BinaryOperation>(
-                               BinaryOperator::IMPLY, MakeUnique<Literal>(true),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::IFF,
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
-      BinaryOperator::IFF, MakeUnique<BinaryOperation>(
-                               BinaryOperator::IFF, MakeUnique<Literal>(true),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::AND,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::IFF,
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Literal>(true),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("true & b <=> c | d;true | b <=> c => d",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("true => b <=> (c <=> d);true <=> b <=> c & d",
@@ -495,34 +517,36 @@ TEST(BinaryOperationTest, OutputIff) {
 TEST(BinaryOperationTest, OutputLess) {
   const BinaryOperation expr1(
       BinaryOperator::LESS,
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::LESS,
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
-      BinaryOperator::LESS, MakeUnique<BinaryOperation>(
-                                BinaryOperator::MINUS, MakeUnique<Literal>(17),
-                                MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      BinaryOperator::LESS,
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::LESS,
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("17 + b < c * d;17 >= b < (c = d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 - b < c / d;17 > b < (c != d)", StrCat(expr3, ';', expr4));
 }
@@ -530,36 +554,36 @@ TEST(BinaryOperationTest, OutputLess) {
 TEST(BinaryOperationTest, OutputLessEqual) {
   const BinaryOperation expr1(
       BinaryOperator::LESS_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::LESS_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::LESS_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::AND,
-                                  MakeUnique<Literal>(false),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::OR,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Literal>(false),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::LESS_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("17 - b <= c / d;17 > b <= (c != d)", StrCat(expr1, ';', expr2));
   EXPECT_EQ("(false & b) <= (c | d);(17 = b) <= (c < d)",
             StrCat(expr3, ';', expr4));
@@ -568,36 +592,36 @@ TEST(BinaryOperationTest, OutputLessEqual) {
 TEST(BinaryOperationTest, OutputGreaterEqual) {
   const BinaryOperation expr1(
       BinaryOperator::GREATER_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::AND,
-                                  MakeUnique<Literal>(false),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::OR,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Literal>(false),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::OR,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::GREATER_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::GREATER_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Literal>(false),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Literal>(false),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::GREATER_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("(false & b) >= (c | d);(17 = b) >= (c < d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("(false => b) >= (c <=> d);(17 != b) >= (c <= d)",
@@ -607,35 +631,36 @@ TEST(BinaryOperationTest, OutputGreaterEqual) {
 TEST(BinaryOperationTest, OutputGreater) {
   const BinaryOperation expr1(
       BinaryOperator::GREATER,
-      MakeUnique<BinaryOperation>(BinaryOperator::IMPLY,
-                                  MakeUnique<Literal>(false),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::IFF,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::IMPLY,
+                                        std::make_unique<Literal>(false),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::IFF,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::GREATER,
-      MakeUnique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::NOT_EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::GREATER,
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::GREATER,
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("(false => b) > (c <=> d);(17 != b) > (c <= d)",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 * b > c + d;17 < b > (c >= d)", StrCat(expr3, ';', expr4));
@@ -644,35 +669,36 @@ TEST(BinaryOperationTest, OutputGreater) {
 TEST(BinaryOperationTest, OutputEqual) {
   const BinaryOperation expr1(
       BinaryOperator::EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("17 * b = c + d;17 < b = c >= d", StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 / b = c - d;17 <= b = c > d", StrCat(expr3, ';', expr4));
 }
@@ -680,57 +706,59 @@ TEST(BinaryOperationTest, OutputEqual) {
 TEST(BinaryOperationTest, OutputNotEqual) {
   const BinaryOperation expr1(
       BinaryOperator::NOT_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::DIVIDE,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MINUS,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::DIVIDE,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MINUS,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr2(
       BinaryOperator::NOT_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::LESS_EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr3(
       BinaryOperator::NOT_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::PLUS, MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::MULTIPLY,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::MULTIPLY,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   const BinaryOperation expr4(
       BinaryOperator::NOT_EQUAL,
-      MakeUnique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
-                                  MakeUnique<Literal>(17),
-                                  MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Identifier>("d")));
+      std::make_unique<BinaryOperation>(BinaryOperator::GREATER_EQUAL,
+                                        std::make_unique<Literal>(17),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Identifier>("d")));
   EXPECT_EQ("17 / b != c - d;17 <= b != c > d", StrCat(expr1, ';', expr2));
   EXPECT_EQ("17 + b != c * d;17 >= b != (c = d)", StrCat(expr3, ';', expr4));
 }
 
 TEST(ConditionalTest, OutputConditional) {
   const Conditional expr1(
-      MakeUnique<Literal>(true),
-      MakeUnique<Conditional>(
-          MakeUnique<BinaryOperation>(BinaryOperator::PLUS,
-                                      MakeUnique<Identifier>("a"),
-                                      MakeUnique<Identifier>("b")),
-          MakeUnique<UnaryOperation>(
+      std::make_unique<Literal>(true),
+      std::make_unique<Conditional>(
+          std::make_unique<BinaryOperation>(BinaryOperator::PLUS,
+                                            std::make_unique<Identifier>("a"),
+                                            std::make_unique<Identifier>("b")),
+          std::make_unique<UnaryOperation>(
               UnaryOperator::NEGATE,
-              MakeUnique<FunctionCall>(
-                  Function::CEIL, MakeArguments(MakeUnique<Identifier>("c")))),
-          MakeUnique<Identifier>("d")),
-      MakeUnique<BinaryOperation>(
+              std::make_unique<FunctionCall>(
+                  Function::CEIL,
+                  MakeArguments(std::make_unique<Identifier>("c")))),
+          std::make_unique<Identifier>("d")),
+      std::make_unique<BinaryOperation>(
           BinaryOperator::PLUS,
-          MakeUnique<Conditional>(MakeUnique<Literal>(false),
-                                  MakeUnique<Identifier>("e"),
-                                  MakeUnique<Identifier>("f")),
-          MakeUnique<Literal>(42)));
+          std::make_unique<Conditional>(std::make_unique<Literal>(false),
+                                        std::make_unique<Identifier>("e"),
+                                        std::make_unique<Identifier>("f")),
+          std::make_unique<Literal>(42)));
   EXPECT_EQ("true ? a + b ? -ceil(c) : d : (false ? e : f) + 42",
             StrCat(expr1));
 }
@@ -738,22 +766,24 @@ TEST(ConditionalTest, OutputConditional) {
 TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
   const ProbabilityThresholdOperation expr1(
       ProbabilityThresholdOperator::LESS, 0.25,
-      MakeUnique<UntilProperty>(
+      std::make_unique<UntilProperty>(
           TimeRange(0, std::numeric_limits<double>::infinity()),
-          MakeUnique<Literal>(true), MakeUnique<Identifier>("a")));
+          std::make_unique<Literal>(true), std::make_unique<Identifier>("a")));
   const ProbabilityThresholdOperation expr2(
       ProbabilityThresholdOperator::LESS_EQUAL, 0.5,
-      MakeUnique<UntilProperty>(TimeRange(0.5, 17), MakeUnique<Literal>(true),
-                                MakeUnique<Identifier>("b")));
+      std::make_unique<UntilProperty>(TimeRange(0.5, 17),
+                                      std::make_unique<Literal>(true),
+                                      std::make_unique<Identifier>("b")));
   const ProbabilityThresholdOperation expr3(
       ProbabilityThresholdOperator::GREATER_EQUAL, 0.75,
-      MakeUnique<UntilProperty>(TimeRange(0, 42), MakeUnique<Identifier>("c"),
-                                MakeUnique<Identifier>("d")));
+      std::make_unique<UntilProperty>(TimeRange(0, 42),
+                                      std::make_unique<Identifier>("c"),
+                                      std::make_unique<Identifier>("d")));
   const ProbabilityThresholdOperation expr4(
       ProbabilityThresholdOperator::GREATER, 1,
-      MakeUnique<UntilProperty>(
+      std::make_unique<UntilProperty>(
           TimeRange(4711, std::numeric_limits<double>::infinity()),
-          MakeUnique<Literal>(false), MakeUnique<Literal>(true)));
+          std::make_unique<Literal>(false), std::make_unique<Literal>(true)));
   EXPECT_EQ("P<0.25[ true U a ];P<=0.5[ true U[0.5,17] b ]",
             StrCat(expr1, ';', expr2));
   EXPECT_EQ("P>=0.75[ c U<=42 d ];P>1[ false U>=4711 true ]",
@@ -761,9 +791,10 @@ TEST(ProbabilityThresholdOperationTest, OutputProbabilityThresholdOperation) {
 }
 
 TEST(ProbabilityEstimationOperationTest, OutputProbabilityEstimationOperation) {
-  const ProbabilityEstimationOperation expr(MakeUnique<EventuallyProperty>(
-      TimeRange(0, std::numeric_limits<double>::infinity()),
-      MakeUnique<Identifier>("a")));
+  const ProbabilityEstimationOperation expr(
+      std::make_unique<EventuallyProperty>(
+          TimeRange(0, std::numeric_limits<double>::infinity()),
+          std::make_unique<Identifier>("a")));
   EXPECT_EQ("P=?[ F a ]", StrCat(expr));
 }
 
@@ -778,14 +809,14 @@ TEST(TimeRangeTest, Output) {
 TEST(EventuallyPropertyTest, Output) {
   EXPECT_EQ("F a", StrCat(EventuallyProperty(
                        {0, std::numeric_limits<double>::infinity()},
-                       MakeUnique<Identifier>("a"))));
-  EXPECT_EQ("F[0.5,17] b",
-            StrCat(EventuallyProperty({0.5, 17}, MakeUnique<Identifier>("b"))));
-  EXPECT_EQ("F<=42 d",
-            StrCat(EventuallyProperty({0, 42}, MakeUnique<Identifier>("d"))));
+                       std::make_unique<Identifier>("a"))));
+  EXPECT_EQ("F[0.5,17] b", StrCat(EventuallyProperty(
+                               {0.5, 17}, std::make_unique<Identifier>("b"))));
+  EXPECT_EQ("F<=42 d", StrCat(EventuallyProperty(
+                           {0, 42}, std::make_unique<Identifier>("d"))));
   EXPECT_EQ("F>=4711 true", StrCat(EventuallyProperty(
                                 {4711, std::numeric_limits<double>::infinity()},
-                                MakeUnique<Literal>(true))));
+                                std::make_unique<Literal>(true))));
 }
 
 }  // namespace

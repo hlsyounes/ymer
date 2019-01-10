@@ -25,13 +25,13 @@
 #define COMPILED_EXPRESSION_H_
 
 #include <map>
+#include <optional>
 #include <ostream>
 #include <utility>
 #include <vector>
 
 #include "ddutil.h"
 #include "expression.h"
-#include "optional.h"
 #include "typed-value.h"
 
 // Opcodes supported by the virtual machine used for evaluating compiled
@@ -284,22 +284,22 @@ class CompiledExpression {
   // Constructs a compiled expression with the given operations and optional
   // decision digram.
   explicit CompiledExpression(const std::vector<Operation>& operations,
-                              const Optional<ADD>& dd);
+                              const std::optional<ADD>& dd);
 
   // Returns the operations for this compiled expression.
   const std::vector<Operation>& operations() const { return operations_; }
 
   // Returns the optional decision diagram for this compiled expression.
-  const Optional<ADD>& dd() const { return dd_; }
+  const std::optional<ADD>& dd() const { return dd_; }
 
   // Returns this compiled expression after the given variable assignment.
   CompiledExpression WithAssignment(
       const IdentifierInfo& variable, int value,
-      const Optional<DecisionDiagramManager>& dd_manager) const;
+      const std::optional<DecisionDiagramManager>& dd_manager) const;
 
  private:
   std::vector<Operation> operations_;
-  Optional<ADD> dd_;
+  std::optional<ADD> dd_;
 };
 
 // Output operator for compiled expressions.
@@ -353,7 +353,7 @@ CompileExpressionResult CompileExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager);
+    const std::optional<DecisionDiagramManager>& dd_manager);
 
 // Same as CompileExpression, except it handles labels.  Intended for use with
 // expressions that are part of properties.
@@ -362,7 +362,7 @@ CompileExpressionResult CompilePropertyExpression(
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager);
+    const std::optional<DecisionDiagramManager>& dd_manager);
 
 // Returns an ADD representing the given identifier info.
 ADD IdentifierToAdd(const DecisionDiagramManager& dd_manager,

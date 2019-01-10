@@ -24,13 +24,13 @@
 #define COMPILED_PROPERTY_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "compiled-expression.h"
 #include "ddutil.h"
-#include "optional.h"
 #include "unique-ptr-vector.h"
 
 class CompiledPropertyVisitor;
@@ -278,12 +278,12 @@ CompilePropertyResult CompileProperty(
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager);
+    const std::optional<DecisionDiagramManager>& dd_manager);
 
 // Optimizes the given property.
 std::unique_ptr<const CompiledProperty> OptimizeProperty(
     const CompiledProperty& property,
-    const Optional<DecisionDiagramManager>& dd_manager);
+    const std::optional<DecisionDiagramManager>& dd_manager);
 
 // Returns the number of integer and double registers referenced by the given
 // compiled expression.

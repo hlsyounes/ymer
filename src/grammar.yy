@@ -34,7 +34,6 @@
 #include "model.h"
 #include "parser-state.h"
 #include "process-algebra.h"
-#include "ptrutil.h"
 #include "strutil.h"
 #include "typed-value.h"
 
@@ -57,6 +56,12 @@ void yyerror(const YYLTYPE& location, const std::string& msg,
 void yyerror(YYLTYPE* llocp, void* scanner, ParserState* state,
              const std::string& msg) {
   yyerror(*llocp, msg, state);
+}
+
+// Wraps the given raw pointer in a std::unique_ptr<T>.
+template <typename T>
+std::unique_ptr<T> WrapUnique(T* p) {
+  return std::unique_ptr<T>(p);
 }
 
 Function MakeFunction(const YYLTYPE& location, const std::string* name,
@@ -386,9 +391,9 @@ std::vector<Update>* AddUpdate(Update* update, std::vector<Update>* updates) {
 }
 
 Outcome* NewOutcome(const Distribution* delay, std::vector<Update>* updates) {
-  return new Outcome((delay == nullptr)
-                         ? MakeUnique<Memoryless>(MakeUnique<Literal>(1))
-                         : WrapUnique(delay),
+  return new Outcome((delay == nullptr) ? std::make_unique<Memoryless>(
+                                              std::make_unique<Literal>(1))
+                                        : WrapUnique(delay),
                      std::move(*WrapUnique(updates)));
 }
 

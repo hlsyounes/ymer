@@ -35,7 +35,7 @@ AM_PROG_LEX
 AC_PROG_LIBTOOL
 AC_PROG_YACC
 
-AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 
 # Whether to use tcmalloc.
 AC_ARG_WITH([tcmalloc],

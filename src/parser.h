@@ -22,17 +22,17 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "expression.h"
 #include "model.h"
-#include "optional.h"
 #include "unique-ptr-vector.h"
 
 // Struct for storing the result of successfully parsing a file of string.
 struct ModelAndProperties {
-  Optional<Model> model;
+  std::optional<Model> model;
   UniquePtrVector<const Expression> properties;
 };
 

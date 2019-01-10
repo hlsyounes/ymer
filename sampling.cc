@@ -27,6 +27,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <set>
 #include <thread>
@@ -70,7 +71,7 @@ struct DdCache {
   struct Entry {
     BDD dd1;
     BDD dd2;
-    Optional<BDD> feasible;
+    std::optional<BDD> feasible;
   };
 
   std::unordered_map<int, Entry> entries;
@@ -154,8 +155,9 @@ class SamplingVerifier final : public CompiledPropertyVisitor,
   std::unique_ptr<SequentialTester<typename ResultType<Algorithm>::type>>
   NewSequentialTester(Algorithm algorithm, double theta0, double theta1) const;
   template <typename OutputIterator>
-  bool VerifyHelper(const CompiledProperty& property, const Optional<BDD>& ddf,
-                    bool default_result, OutputIterator* state_inserter);
+  bool VerifyHelper(const CompiledProperty& property,
+                    const std::optional<BDD>& ddf, bool default_result,
+                    OutputIterator* state_inserter);
   std::string StateToString(const State& state) const;
 
   const CompiledModel* const model_;
@@ -487,9 +489,9 @@ class StateLess {
 
 void SamplingVerifier::DoVisitCompiledUntilProperty(
     const CompiledUntilProperty& path_property) {
-  Optional<BDD> dd1;
-  Optional<BDD> dd2;
-  Optional<BDD> feasible;
+  std::optional<BDD> dd1;
+  std::optional<BDD> dd2;
+  std::optional<BDD> feasible;
   bool use_termination_probability = false;
   if (dd_model_ == nullptr) {
     // Sampling engine.
@@ -683,7 +685,7 @@ void SamplingVerifier::DoVisitCompiledUntilProperty(
 
 template <typename OutputIterator>
 bool SamplingVerifier::VerifyHelper(const CompiledProperty& property,
-                                    const Optional<BDD>& ddf,
+                                    const std::optional<BDD>& ddf,
                                     bool default_result,
                                     OutputIterator* state_inserter) {
   if (dd_model_ != nullptr) {

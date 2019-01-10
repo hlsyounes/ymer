@@ -22,16 +22,16 @@
 #ifndef PARSER_STATE_H_
 #define PARSER_STATE_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "model.h"
-#include "optional.h"
 #include "strutil.h"
 
 class ParserState {
  public:
-  ParserState(const Optional<std::string>& filename,
+  ParserState(const std::optional<std::string>& filename,
               std::vector<std::string>* errors)
       : filename_(filename), errors_(errors), success_(true) {}
 
@@ -66,9 +66,9 @@ class ParserState {
   bool success() const { return success_; }
 
  private:
-  const Optional<std::string> filename_;
+  const std::optional<std::string> filename_;
   std::vector<std::string>* const errors_;
-  Optional<Model> model_;
+  std::optional<Model> model_;
   UniquePtrVector<const Expression> properties_;
   bool success_;
 };

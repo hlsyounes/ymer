@@ -591,12 +591,12 @@ std::vector<Operation> MakeConjunction(
 CompiledExpression::CompiledExpression() = default;
 
 CompiledExpression::CompiledExpression(const std::vector<Operation>& operations,
-                                       const Optional<ADD>& dd)
+                                       const std::optional<ADD>& dd)
     : operations_(operations), dd_(dd) {}
 
 CompiledExpression CompiledExpression::WithAssignment(
     const IdentifierInfo& variable, int value,
-    const Optional<DecisionDiagramManager>& dd_manager) const {
+    const std::optional<DecisionDiagramManager>& dd_manager) const {
   CHECK(variable.is_variable());
   std::vector<Operation> operations;
   operations.reserve(operations_.size());
@@ -633,7 +633,7 @@ CompiledExpression CompiledExpression::WithAssignment(
       operations.push_back(o);
     }
   }
-  Optional<ADD> dd;
+  std::optional<ADD> dd;
   if (dd_.has_value()) {
     dd = ADD(IdentifierToAdd(dd_manager.value(), variable)
                  .Interval(value, value)) *
@@ -1609,12 +1609,12 @@ void ExpressionToAddConverter::DoVisitProbabilityEstimationOperation(
   LOG(FATAL) << "not an expression";
 }
 
-Optional<ADD> ExpressionToAdd(
+std::optional<ADD> ExpressionToAdd(
     const Expression& expr,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager) {
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   if (dd_manager.has_value()) {
     ExpressionToAddConverter converter(&formulas_by_name, labels_by_name,
                                        &identifiers_by_name,
@@ -1622,7 +1622,7 @@ Optional<ADD> ExpressionToAdd(
     expr.Accept(&converter);
     return converter.add();
   }
-  return Optional<ADD>();
+  return std::nullopt;
 }
 
 }  // namespace
@@ -1654,7 +1654,7 @@ CompileExpressionResult CompileExpressionImpl(
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, const Expression*>* labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager) {
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   CompileExpressionResult result;
   ExpressionCompiler compiler(&formulas_by_name, labels_by_name,
                               &identifiers_by_name, &result.errors);
@@ -1684,7 +1684,7 @@ CompileExpressionResult CompileExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager) {
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   return CompileExpressionImpl(expr, expected_type, formulas_by_name, nullptr,
                                identifiers_by_name, dd_manager);
 }
@@ -1694,7 +1694,7 @@ CompileExpressionResult CompilePropertyExpression(
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager) {
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   return CompileExpressionImpl(expr, expected_type, formulas_by_name,
                                &labels_by_name, identifiers_by_name,
                                dd_manager);
@@ -1845,8 +1845,8 @@ class BasicBlock {
 
   const int* GetIntValue(size_t r) const;
   const double* GetDoubleValue(size_t r) const;
-  Optional<int> GetVariable(size_t r,
-                            const std::vector<BasicBlock>& blocks) const;
+  std::optional<int> GetVariable(size_t r,
+                                 const std::vector<BasicBlock>& blocks) const;
   std::set<OperationIndex> GetIntDependencies(size_t r) const;
   std::set<OperationIndex> GetDoubleDependencies(size_t r) const;
   bool IsFallthrough() const;
@@ -1974,7 +1974,7 @@ void BasicBlock::AddBinaryIntOperation(const Operation& o,
   const int* value2 = GetIntValue(o.operand2());
   if (value1 == nullptr || value2 == nullptr) {
     if (value1 != nullptr) {
-      const Optional<int> variable = GetVariable(o.operand2(), blocks);
+      const std::optional<int> variable = GetVariable(o.operand2(), blocks);
       if (variable.has_value()) {
         if (o.opcode() == Opcode::IEQ) {
           SetIntDependency(
@@ -2009,7 +2009,7 @@ void BasicBlock::AddBinaryIntOperation(const Operation& o,
         }
       }
     } else if (value2 != nullptr) {
-      const Optional<int> variable = GetVariable(o.ioperand1(), blocks);
+      const std::optional<int> variable = GetVariable(o.ioperand1(), blocks);
       if (variable.has_value()) {
         if (o.opcode() == Opcode::IEQ) {
           SetIntDependency(
@@ -2243,7 +2243,7 @@ const double* BasicBlock::GetDoubleValue(size_t r) const {
   return (i == double_states_.end()) ? nullptr : i->second.value();
 }
 
-Optional<int> BasicBlock::GetVariable(
+std::optional<int> BasicBlock::GetVariable(
     size_t r, const std::vector<BasicBlock>& blocks) const {
   const auto i = int_states_.find(r);
   if (i == int_states_.end()) {
@@ -2497,7 +2497,8 @@ std::vector<OperationIndex> OrderByRank(
 
 CompiledExpression OptimizeExpressionImpl(
     const std::vector<BasicBlock>& blocks, size_t end_block_index,
-    const std::set<OperationIndex>& live_operations, const Optional<ADD>& dd) {
+    const std::set<OperationIndex>& live_operations,
+    const std::optional<ADD>& dd) {
   std::vector<Operation> optimized_operations;
   std::multimap<size_t, size_t> jump_targets;
   const auto ordered_live_operations = OrderByRank(live_operations, blocks);

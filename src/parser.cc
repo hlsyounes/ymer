@@ -22,8 +22,8 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <optional>
 
-#include "optional.h"
 #include "parser-state.h"
 
 struct yy_buffer_state;
@@ -53,7 +53,7 @@ yy_buffer_state* ScanFile(FILE* file, void* scanner) {
 }
 
 bool ParseImpl(std::function<yy_buffer_state*(void*)> create_buffer,
-               const Optional<std::string>& filename,
+               const std::optional<std::string>& filename,
                ModelAndProperties* result, std::vector<std::string>* errors) {
   void* scanner;
   yylex_init(&scanner);

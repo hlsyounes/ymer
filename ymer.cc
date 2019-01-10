@@ -50,6 +50,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -188,7 +189,7 @@ CompiledExpression CompileAndOptimizeExpression(
     const Expression& expr, Type expected_type,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompileExpressionResult result = CompileExpression(
       expr, expected_type, formulas_by_name, identifiers_by_name, dd_manager);
@@ -208,7 +209,7 @@ class DistributionCompiler final : public DistributionVisitor {
   DistributionCompiler(
       const std::map<std::string, const Expression*>* formulas_by_name,
       const std::map<std::string, IdentifierInfo>* identifiers_by_name,
-      const Optional<DecisionDiagramManager>* dd_manager,
+      const std::optional<DecisionDiagramManager>* dd_manager,
       std::vector<std::string>* errors);
 
   bool has_markov_weight() const {
@@ -231,14 +232,14 @@ class DistributionCompiler final : public DistributionVisitor {
   CompiledGsmpDistribution gsmp_delay_;
   const std::map<std::string, const Expression*>* formulas_by_name_;
   const std::map<std::string, IdentifierInfo>* identifiers_by_name_;
-  const Optional<DecisionDiagramManager>* dd_manager_;
+  const std::optional<DecisionDiagramManager>* dd_manager_;
   std::vector<std::string>* errors_;
 };
 
 DistributionCompiler::DistributionCompiler(
     const std::map<std::string, const Expression*>* formulas_by_name,
     const std::map<std::string, IdentifierInfo>* identifiers_by_name,
-    const Optional<DecisionDiagramManager>* dd_manager,
+    const std::optional<DecisionDiagramManager>* dd_manager,
     std::vector<std::string>* errors)
     : gsmp_delay_(CompiledGsmpDistribution::MakeWeibull(0, 0)),
       formulas_by_name_(formulas_by_name),
@@ -275,7 +276,7 @@ void DistributionCompiler::DoVisitWeibull(const Weibull& dist) {
   const double scale = GetDoubleValue(dist.scale());
   const double shape = GetDoubleValue(dist.shape());
   if (shape == 1.0 && errors_->empty()) {
-    Optional<ADD> dd;
+    std::optional<ADD> dd;
     if (dd_manager_->has_value()) {
       dd = dd_manager_->value().GetConstant(1.0 / scale);
     }
@@ -303,7 +304,7 @@ CompiledUpdate CompileUpdate(
     const Update& update,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   auto i = identifiers_by_name.find(update.variable());
   int variable;
@@ -331,7 +332,7 @@ std::vector<CompiledUpdate> CompileUpdates(
     const std::vector<Update>& updates,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   std::vector<CompiledUpdate> compiled_updates;
   compiled_updates.reserve(updates.size());
@@ -483,7 +484,7 @@ CompiledExpression ComposeWeightExpressions(BinaryOperator op,
   for (const Operation& o : expr2.operations()) {
     operations.push_back(o.Shift(pc_shift, reg_shift));
   }
-  Optional<ADD> dd;
+  std::optional<ADD> dd;
   if (op == BinaryOperator::PLUS) {
     operations.push_back(Operation::MakeDADD(0, 1));
     if (expr1.dd().has_value() && expr2.dd().has_value()) {
@@ -518,7 +519,7 @@ CompiledExpression ComposeGuardExpressions(CompiledExpression expr1,
   for (const Operation& o : expr2.operations()) {
     operations.push_back(o.Shift(pc_shift, reg_shift));
   }
-  Optional<ADD> dd;
+  std::optional<ADD> dd;
   if (expr1.dd().has_value() && expr2.dd().has_value()) {
     dd = ADD(BDD(expr1.dd().value()) && BDD(expr2.dd().value()));
   }
@@ -538,7 +539,7 @@ PreCompiledCommands PreCompileCommands(
     const Model& model,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   PreCompiledCommands result;
   DistributionCompiler dist_compiler(&formulas_by_name, &identifiers_by_name,
@@ -717,7 +718,7 @@ CompiledCommands CompileCommands(
     const Model& model,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledCommands result;
   const PreCompiledCommands pre_compiled_commands = PreCompileCommands(
@@ -774,8 +775,9 @@ CompiledCommands CompileCommands(
           updates.insert(updates.end(), outcome.updates().begin(),
                          outcome.updates().end());
           result.single_gsmp_commands.emplace_back(
-              Optional<int>(), ComposeGuardExpressions(gsmp_command.guard(),
-                                                       markov_command.guard()),
+              std::nullopt,
+              ComposeGuardExpressions(gsmp_command.guard(),
+                                      markov_command.guard()),
               gsmp_command.delay(), updates,
               result.single_gsmp_commands.size());
         }
@@ -835,7 +837,7 @@ CompiledCommands CompileCommands(
 
 CompiledExpression OptimizeWithAssignment(
     const CompiledExpression& expr, const IdentifierInfo& variable, int value,
-    const Optional<DecisionDiagramManager>& dd_manager) {
+    const std::optional<DecisionDiagramManager>& dd_manager) {
   return OptimizeIntExpression(
       expr.WithAssignment(variable, value, dd_manager));
 }
@@ -843,11 +845,11 @@ CompiledExpression OptimizeWithAssignment(
 CompiledModel CompileModel(
     const Model& model, const std::vector<StateVariableInfo>& variables,
     const std::vector<int>& init_values,
-    const Optional<CompiledExpression>& init_expr,
+    const std::optional<CompiledExpression>& init_expr,
     const std::vector<int>& max_values,
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompiledModel compiled_model(CompileModelType(model.type(), errors),
                                variables, CompileModuleVariables(model),
@@ -872,7 +874,7 @@ CompiledModel CompileModel(
         max_value - min_value + 1);
     std::vector<CompiledMarkovCommand> other_commands;
     for (const auto& command : compiled_commands.single_markov_commands) {
-      Optional<std::pair<int, CompiledExpression>> pivot_element;
+      std::optional<std::pair<int, CompiledExpression>> pivot_element;
       bool unique = true;
       for (int value = min_value; value <= max_value; ++value) {
         CompiledExpression guard = OptimizeWithAssignment(
@@ -930,7 +932,7 @@ std::unique_ptr<const CompiledProperty> CompileAndOptimizeProperty(
     const std::map<std::string, const Expression*>& formulas_by_name,
     const std::map<std::string, const Expression*>& labels_by_name,
     const std::map<std::string, IdentifierInfo>& identifiers_by_name,
-    const Optional<DecisionDiagramManager>& dd_manager,
+    const std::optional<DecisionDiagramManager>& dd_manager,
     std::vector<std::string>* errors) {
   CompilePropertyResult result =
       CompileProperty(property, formulas_by_name, labels_by_name,
@@ -1341,13 +1343,13 @@ int main(int argc, char* argv[]) {
     }
     auto compile_variables_result = CompileVariables(
         model.variables(), formulas_by_name, &identifiers_by_name, &errors);
-    Optional<DecisionDiagramManager> dd_manager;
+    std::optional<DecisionDiagramManager> dd_manager;
     if (params.engine == ModelCheckingEngine::HYBRID ||
         params.engine == ModelCheckingEngine::MIXED) {
       dd_manager =
           DecisionDiagramManager(2 * compile_variables_result.total_bit_count);
     }
-    Optional<CompiledExpression> init_expr;
+    std::optional<CompiledExpression> init_expr;
     if (model.init() != nullptr) {
       if (compile_variables_result.has_explicit_init) {
         errors.push_back(

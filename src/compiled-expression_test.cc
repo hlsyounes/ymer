@@ -20,8 +20,7 @@
 #include "compiled-expression.h"
 
 #include <cmath>
-
-#include "ptrutil.h"
+#include <memory>
 
 #include "gtest/gtest.h"
 
@@ -33,34 +32,35 @@ FunctionCall MakeFunctionCall(Function function) {
 
 template <typename T>
 FunctionCall MakeFunctionCall(Function function, T a) {
-  return FunctionCall(
-      function, UniquePtrVector<const Expression>(MakeUnique<Literal>(a)));
+  return FunctionCall(function, UniquePtrVector<const Expression>(
+                                    std::make_unique<Literal>(a)));
 }
 
 template <typename T, typename U>
 FunctionCall MakeFunctionCall(Function function, T a, U b) {
-  return FunctionCall(
-      function, UniquePtrVector<const Expression>(MakeUnique<Literal>(a),
-                                                  MakeUnique<Literal>(b)));
+  return FunctionCall(function, UniquePtrVector<const Expression>(
+                                    std::make_unique<Literal>(a),
+                                    std::make_unique<Literal>(b)));
 }
 
 template <typename T, typename U, typename V>
 FunctionCall MakeFunctionCall(Function function, T a, U b, V c) {
   return FunctionCall(
-      function, UniquePtrVector<const Expression>(MakeUnique<Literal>(a),
-                                                  MakeUnique<Literal>(b),
-                                                  MakeUnique<Literal>(c)));
+      function, UniquePtrVector<const Expression>(
+                    std::make_unique<Literal>(a), std::make_unique<Literal>(b),
+                    std::make_unique<Literal>(c)));
 }
 
 template <typename T, typename U>
 BinaryOperation MakeBinaryOperation(BinaryOperator op, T a, U b) {
-  return BinaryOperation(op, MakeUnique<Literal>(a), MakeUnique<Literal>(b));
+  return BinaryOperation(op, std::make_unique<Literal>(a),
+                         std::make_unique<Literal>(b));
 }
 
 template <typename T, typename U, typename V>
 Conditional MakeConditional(T a, U b, V c) {
-  return Conditional(MakeUnique<Literal>(a), MakeUnique<Literal>(b),
-                     MakeUnique<Literal>(c));
+  return Conditional(std::make_unique<Literal>(a), std::make_unique<Literal>(b),
+                     std::make_unique<Literal>(c));
 }
 
 TEST(OperationTest, Shift) {
@@ -1253,14 +1253,14 @@ TEST(CompileExpressionTest, ModFunctionCall) {
 
 TEST(CompileExpressionTest, Negation) {
   const CompileExpressionResult result1 = CompileExpression(
-      UnaryOperation(UnaryOperator::NEGATE, MakeUnique<Literal>(17)), Type::INT,
-      {}, {}, {});
+      UnaryOperation(UnaryOperator::NEGATE, std::make_unique<Literal>(17)),
+      Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(17, 0), Operation::MakeINEG(0)}),
             result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      UnaryOperation(UnaryOperator::NEGATE, MakeUnique<Literal>(17)),
+      UnaryOperation(UnaryOperator::NEGATE, std::make_unique<Literal>(17)),
       Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(
       std::vector<Operation>({Operation::MakeICONST(17, 0),
@@ -1268,21 +1268,21 @@ TEST(CompileExpressionTest, Negation) {
       result2.expr.operations());
 
   const CompileExpressionResult result3 = CompileExpression(
-      UnaryOperation(UnaryOperator::NEGATE, MakeUnique<Literal>(0.5)),
+      UnaryOperation(UnaryOperator::NEGATE, std::make_unique<Literal>(0.5)),
       Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeDCONST(0.5, 0), Operation::MakeDNEG(0)}),
             result3.expr.operations());
 
   const CompileExpressionResult result4 = CompileExpression(
-      UnaryOperation(UnaryOperator::NEGATE, MakeUnique<Literal>(true)),
+      UnaryOperation(UnaryOperator::NEGATE, std::make_unique<Literal>(true)),
       Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator - applied to bool"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      UnaryOperation(UnaryOperator::NEGATE, MakeUnique<Literal>(0.5)),
+      UnaryOperation(UnaryOperator::NEGATE, std::make_unique<Literal>(0.5)),
       Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type int; found "
@@ -1292,36 +1292,36 @@ TEST(CompileExpressionTest, Negation) {
 
 TEST(CompileExpressionTest, LogicalNot) {
   const CompileExpressionResult result1 = CompileExpression(
-      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(true)), Type::BOOL,
-      {}, {}, {});
+      UnaryOperation(UnaryOperator::NOT, std::make_unique<Literal>(true)),
+      Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<Operation>(
                 {Operation::MakeICONST(1, 0), Operation::MakeNOT(0)}),
             result1.expr.operations());
 
   const CompileExpressionResult result2 = CompileExpression(
-      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(17)), Type::BOOL,
-      {}, {}, {});
+      UnaryOperation(UnaryOperator::NOT, std::make_unique<Literal>(17)),
+      Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator ! applied to int"}),
             result2.errors);
 
   const CompileExpressionResult result3 = CompileExpression(
-      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(0.5)), Type::BOOL,
-      {}, {}, {});
+      UnaryOperation(UnaryOperator::NOT, std::make_unique<Literal>(0.5)),
+      Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; unary operator ! applied to double"}),
             result3.errors);
 
   const CompileExpressionResult result4 = CompileExpression(
-      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(true)), Type::INT,
-      {}, {}, {});
+      UnaryOperation(UnaryOperator::NOT, std::make_unique<Literal>(true)),
+      Type::INT, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type int; found bool: "
                  "!true"}),
             result4.errors);
 
   const CompileExpressionResult result5 = CompileExpression(
-      UnaryOperation(UnaryOperator::NOT, MakeUnique<Literal>(true)),
+      UnaryOperation(UnaryOperator::NOT, std::make_unique<Literal>(true)),
       Type::DOUBLE, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
                 {"type mismatch; expecting expression of type double; found "
@@ -2071,9 +2071,9 @@ TEST(CompileExpressionTest, Conditional) {
 TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
   const ProbabilityThresholdOperation expr(
       ProbabilityThresholdOperator::LESS, 0.25,
-      MakeUnique<UntilProperty>(
+      std::make_unique<UntilProperty>(
           TimeRange(0, std::numeric_limits<double>::infinity()),
-          MakeUnique<Literal>(true), MakeUnique<Identifier>("a")));
+          std::make_unique<Literal>(true), std::make_unique<Identifier>("a")));
   const CompileExpressionResult result =
       CompileExpression(expr, Type::BOOL, {}, {}, {});
   EXPECT_EQ(std::vector<std::string>(
@@ -2082,20 +2082,22 @@ TEST(CompileExpressionTest, ProbabilityThresholdOperation) {
 }
 
 TEST(CompileExpressionTest, ComplexExpression) {
-  const BinaryOperation f(BinaryOperator::EQUAL, MakeUnique<Identifier>("a"),
-                          MakeUnique<Literal>(17));
+  const BinaryOperation f(BinaryOperator::EQUAL,
+                          std::make_unique<Identifier>("a"),
+                          std::make_unique<Literal>(17));
   const std::map<std::string, const Expression*> formulas_by_name = {{"f", &f}};
   const std::map<std::string, IdentifierInfo> identifiers_by_name = {
       {"a", IdentifierInfo::Variable(Type::INT, 0, 0, 1, 17)},
       {"b", IdentifierInfo::Variable(Type::BOOL, 1, 2, 2, false)},
       {"c", IdentifierInfo::Variable(Type::INT, 2, 3, 4, 42)}};
   const BinaryOperation expr(
-      BinaryOperator::AND, MakeUnique<BinaryOperation>(
-                               BinaryOperator::AND, MakeUnique<Identifier>("f"),
-                               MakeUnique<Identifier>("b")),
-      MakeUnique<BinaryOperation>(BinaryOperator::EQUAL,
-                                  MakeUnique<Identifier>("c"),
-                                  MakeUnique<Literal>(42)));
+      BinaryOperator::AND,
+      std::make_unique<BinaryOperation>(BinaryOperator::AND,
+                                        std::make_unique<Identifier>("f"),
+                                        std::make_unique<Identifier>("b")),
+      std::make_unique<BinaryOperation>(BinaryOperator::EQUAL,
+                                        std::make_unique<Identifier>("c"),
+                                        std::make_unique<Literal>(42)));
   const CompileExpressionResult result = CompileExpression(
       expr, Type::BOOL, formulas_by_name, identifiers_by_name, {});
   EXPECT_EQ(std::vector<Operation>(
@@ -2660,7 +2662,8 @@ TEST(OptimizeIntExpressionTest, EliminatesDeadCode) {
        Operation::MakeI2D(0), Operation::MakeFLOOR(0)},
       {});
   const std::vector<Operation> expected5 = {
-      Operation::MakeILOAD(0, 0), Operation::MakeI2D(0),
+      Operation::MakeILOAD(0, 0),
+      Operation::MakeI2D(0),
       Operation::MakeFLOOR(0),
   };
   EXPECT_EQ(expected5, OptimizeIntExpression(expr5).operations());

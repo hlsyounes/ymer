@@ -24,10 +24,9 @@
 
 #include <functional>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <vector>
-
-#include "optional.h"
 
 struct DdManager;
 struct DdNode;
@@ -295,6 +294,7 @@ class DecisionDiagramManager {
   explicit DecisionDiagramManager(int variable_count);
 
   DecisionDiagramManager(DecisionDiagramManager&& dd_manager);
+  DecisionDiagramManager& operator=(DecisionDiagramManager&& dd_manager);
 
   // Disallow copy and assign.
   DecisionDiagramManager(const DecisionDiagramManager&) = delete;
@@ -376,7 +376,7 @@ class ODD {
 
   size_t state_count() const { return root_->eoff + root_->toff; }
 
-  Optional<int> StateIndex(const BDD& state) const;
+  std::optional<int> StateIndex(const BDD& state) const;
 
   // Returns a vector representation of the given ADD, using this ODD to map
   // decision diagram nodes to vector indices.

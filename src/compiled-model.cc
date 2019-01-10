@@ -37,13 +37,13 @@ CompiledMarkovOutcome::CompiledMarkovOutcome(
     : probability_(probability), updates_(updates) {}
 
 CompiledMarkovCommand::CompiledMarkovCommand(
-    const Optional<int>& module, const CompiledExpression& guard,
+    const std::optional<int>& module, const CompiledExpression& guard,
     const CompiledExpression& weight,
     const std::vector<CompiledMarkovOutcome>& outcomes)
     : module_(module), guard_(guard), weight_(weight), outcomes_(outcomes) {}
 
 CompiledGsmpCommand::CompiledGsmpCommand(
-    const Optional<int>& module, const CompiledExpression& guard,
+    const std::optional<int>& module, const CompiledExpression& guard,
     const CompiledGsmpDistribution& delay,
     const std::vector<CompiledUpdate>& updates, int first_index)
     : module_(module),
@@ -56,7 +56,7 @@ CompiledModel::CompiledModel(CompiledModelType type,
                              const std::vector<StateVariableInfo>& variables,
                              const std::vector<std::set<int>>& module_variables,
                              const std::vector<int>& init_values,
-                             const Optional<CompiledExpression>& init_expr)
+                             const std::optional<CompiledExpression>& init_expr)
     : type_(type),
       variables_(variables),
       module_variables_(module_variables),

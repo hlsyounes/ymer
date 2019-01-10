@@ -19,8 +19,9 @@
 
 #include "distribution.h"
 
+#include <memory>
+
 #include "expression.h"
-#include "ptrutil.h"
 #include "strutil.h"
 
 #include "gtest/gtest.h"
@@ -28,23 +29,24 @@
 namespace {
 
 TEST(MemorylessTest, Output) {
-  EXPECT_EQ("0.5", StrCat(Memoryless(MakeUnique<Literal>(0.5))));
-  EXPECT_EQ("lambda", StrCat(Memoryless(MakeUnique<Identifier>("lambda"))));
+  EXPECT_EQ("0.5", StrCat(Memoryless(std::make_unique<Literal>(0.5))));
+  EXPECT_EQ("lambda",
+            StrCat(Memoryless(std::make_unique<Identifier>("lambda"))));
 }
 
 TEST(WeibullTest, Output) {
-  EXPECT_EQ("W(2.5, 0.5)", StrCat(Weibull(MakeUnique<Literal>(2.5),
-                                          MakeUnique<Literal>(0.5))));
+  EXPECT_EQ("W(2.5, 0.5)", StrCat(Weibull(std::make_unique<Literal>(2.5),
+                                          std::make_unique<Literal>(0.5))));
 }
 
 TEST(LognormalTest, Output) {
-  EXPECT_EQ("L(2.5, 0.5)", StrCat(Lognormal(MakeUnique<Literal>(2.5),
-                                            MakeUnique<Literal>(0.5))));
+  EXPECT_EQ("L(2.5, 0.5)", StrCat(Lognormal(std::make_unique<Literal>(2.5),
+                                            std::make_unique<Literal>(0.5))));
 }
 
 TEST(UniformTest, Output) {
-  EXPECT_EQ("U(0.5, 17)",
-            StrCat(Uniform(MakeUnique<Literal>(0.5), MakeUnique<Literal>(17))));
+  EXPECT_EQ("U(0.5, 17)", StrCat(Uniform(std::make_unique<Literal>(0.5),
+                                         std::make_unique<Literal>(17))));
 }
 
 }  // namespace

@@ -381,6 +381,15 @@ DecisionDiagramManager::DecisionDiagramManager(
   dd_manager.manager_ = nullptr;
 }
 
+DecisionDiagramManager& DecisionDiagramManager::operator=(
+    DecisionDiagramManager&& dd_manager) {
+  if (this != &dd_manager) {
+    manager_ = dd_manager.manager_;
+    dd_manager.manager_ = nullptr;
+  }
+  return *this;
+}
+
 DecisionDiagramManager::~DecisionDiagramManager() {
   if (manager_ != nullptr) {
     CHECK_EQ(0, Cudd_CheckZeroRef(manager_)) << "unreleased DDs";
@@ -552,9 +561,9 @@ ODD ODD::Make(const BDD& reachable_states) {
   return ODD(root, builder.node_count());
 }
 
-Optional<int> ODD::StateIndex(const BDD& state) const {
+std::optional<int> ODD::StateIndex(const BDD& state) const {
   if (state.MintermCount(Cudd_ReadSize(state.manager()) / 2) != 1) {
-    return {};
+    return std::nullopt;
   }
   int index = 0;
   const OddNode* node = root_;
