@@ -1,6 +1,20 @@
-Version 4.2.2 (Jan 9, 2019):
+Version 4.3 (Jan 9, 2019):
 
-* Fixed compilation issues with newer versions of clang and gcc.
+* Replace support for distributed sampling with support for multi-threaded
+  sampling.
+
+* Provide more statistics on sample path lengths in output.
+
+* Use distinct tokens for non-exponential distributions (@W, @l, @U) so as not
+  to clash with legal identifiers in the PRISM language.
+
+* Fix compilation of properties with labels.
+
+* Ensure optimization does not reorder operations in compiled expressions.
+
+* When path logging is enabled, make sure the last state is always logged.
+
+* Fix build issues with newer versions of clang and gcc.
 
 
 Version 4.2.1 (Apr 30, 2015):
