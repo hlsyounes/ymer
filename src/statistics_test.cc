@@ -26,35 +26,22 @@
 
 namespace {
 
-TEST(LChooseTest, All) {
-  EXPECT_EQ(0, lchoose(0, 0));
-  EXPECT_EQ(0, lchoose(1, 0));
-  EXPECT_EQ(0, lchoose(1, 1));
-  EXPECT_EQ(0, lchoose(2, 0));
-  EXPECT_DOUBLE_EQ(log(2), lchoose(2, 1));
-  EXPECT_EQ(0, lchoose(2, 2));
-  EXPECT_DOUBLE_EQ(log(5), lchoose(5, 1));
-  EXPECT_DOUBLE_EQ(log(15), lchoose(6, 2));
-  EXPECT_DOUBLE_EQ(log(35), lchoose(7, 3));
-  EXPECT_DOUBLE_EQ(log(70), lchoose(8, 4));
-}
-
 TEST(BinoInvTest, All) {
   EXPECT_EQ(0, binoinv(0, 7, 0.5));
-  EXPECT_EQ(0, binoinv(0.007, 7, 0.5));
-  EXPECT_EQ(1, binoinv(0.009, 7, 0.5));
-  EXPECT_EQ(1, binoinv(0.062, 7, 0.5));
-  EXPECT_EQ(2, binoinv(0.064, 7, 0.5));
-  EXPECT_EQ(2, binoinv(0.226, 7, 0.5));
-  EXPECT_EQ(3, binoinv(0.228, 7, 0.5));
-  EXPECT_EQ(3, binoinv(0.499, 7, 0.5));
-  EXPECT_EQ(4, binoinv(0.501, 7, 0.5));
-  EXPECT_EQ(4, binoinv(0.772, 7, 0.5));
-  EXPECT_EQ(5, binoinv(0.774, 7, 0.5));
-  EXPECT_EQ(5, binoinv(0.936, 7, 0.5));
-  EXPECT_EQ(6, binoinv(0.938, 7, 0.5));
-  EXPECT_EQ(6, binoinv(0.991, 7, 0.5));
-  EXPECT_EQ(7, binoinv(0.993, 7, 0.5));
+  EXPECT_EQ(0, binoinv(0.0078125, 7, 0.5));
+  EXPECT_EQ(1, binoinv(0.0078126, 7, 0.5));
+  EXPECT_EQ(1, binoinv(0.0625, 7, 0.5));
+  EXPECT_EQ(2, binoinv(0.0626, 7, 0.5));
+  EXPECT_EQ(2, binoinv(0.2265625, 7, 0.5));
+  EXPECT_EQ(3, binoinv(0.2265626, 7, 0.5));
+  EXPECT_EQ(3, binoinv(0.5, 7, 0.5));
+  EXPECT_EQ(4, binoinv(0.51, 7, 0.5));
+  EXPECT_EQ(4, binoinv(0.7734375, 7, 0.5));
+  EXPECT_EQ(5, binoinv(0.7734376, 7, 0.5));
+  EXPECT_EQ(5, binoinv(0.9375, 7, 0.5));
+  EXPECT_EQ(6, binoinv(0.9376, 7, 0.5));
+  EXPECT_EQ(6, binoinv(0.9921875, 7, 0.5));
+  EXPECT_EQ(7, binoinv(0.9921876, 7, 0.5));
   EXPECT_EQ(7, binoinv(1, 7, 0.5));
 
   EXPECT_EQ(0, binoinv(0, 7, 0));
@@ -74,13 +61,13 @@ TEST(BinoInvTest, All) {
   EXPECT_EQ(3, binoinv(0.898, 5, 0.25));
   EXPECT_EQ(3, binoinv(0.984, 5, 0.25));
   EXPECT_EQ(4, binoinv(0.986, 5, 0.25));
-  EXPECT_EQ(4, binoinv(0.999, 5, 0.25));
-  EXPECT_EQ(5, binoinv(0.9995, 5, 0.25));
+  EXPECT_EQ(4, binoinv(0.9990234375, 5, 0.25));
+  EXPECT_EQ(5, binoinv(0.9990234376, 5, 0.25));
   EXPECT_EQ(5, binoinv(1, 5, 0.25));
 
   EXPECT_EQ(0, binoinv(0, 4, 0.75));
-  EXPECT_EQ(0, binoinv(0.003, 4, 0.75));
-  EXPECT_EQ(1, binoinv(0.005, 4, 0.75));
+  EXPECT_EQ(0, binoinv(0.00390625, 4, 0.75));
+  EXPECT_EQ(1, binoinv(0.00390626, 4, 0.75));
   EXPECT_EQ(1, binoinv(0.050, 4, 0.75));
   EXPECT_EQ(2, binoinv(0.052, 4, 0.75));
   EXPECT_EQ(2, binoinv(0.261, 4, 0.75));

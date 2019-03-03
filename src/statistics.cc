@@ -17,19 +17,10 @@
 // along with Ymer; if not, write to the Free Software Foundation,
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-// Needed on some systems to define lgamma_r.
-#define _REENTRANT
-
 #include "statistics.h"
 
 #include <algorithm>
 #include <cmath>
-
-double lchoose(double x, double y) {
-  int sign;
-  return lgamma_r(x + 1, &sign) - lgamma_r(y + 1, &sign) -
-         lgamma_r(x - y + 1, &sign);
-}
 
 int binoinv(double y, int n, double p) {
   CHECK_LE(0, y);
@@ -44,15 +35,41 @@ int binoinv(double y, int n, double p) {
     return n;
   }
   const double q = 1 - p;
-  const double lp = log(p);
-  const double lq = log(q);
-  double sum = pow(q, n);
-  int x = 0;
-  while (sum < y && x < n) {
-    ++x;
-    sum += exp(lchoose(n, x) + x * lp + (n - x) * lq);
+  const double r = p / q;
+  // Let q = 1 - p and r = p / q.  With C(n, i) being the binomial coefficient,
+  // the probability mass function for a binomial distribution with parameters n
+  // and p can be written as:
+  //
+  //   f(i; n, p) = C(n, i) * p^i * q^{n - i}
+  //
+  // We can derive the following recursive definition:
+  //
+  //   f(i + 1; n, p) = C(n, i + 1) * p^{i+1} * q^{n - i - 1}
+  //                  = C(n, i + 1) * p^i * p^{n - i} * r
+  //                  = C(n, i) * p^i * p^{n - i} * r * (n - i) / (i + 1)
+  //                  = f(i; n, p) * r * (n - i) / (i + 1)
+  //
+  // The base case for the recursion is:
+  //
+  //   f(0; n, p) = q^n
+  //
+  // The cumulative distribution function can be given the following recursive
+  // definition:
+  //
+  //   F(i + 1; n, p) = F(i; n, p) + f(i + 1; n, p)
+  //   F(0; n, p) = f(0; n, p)
+  //
+  // To compute the inverse, Finv(y; n, p), we compute F(i; n, p) starting from
+  // 0 and incrementing i until F(i; n, p) >= y.
+  int i = 0;
+  double f_i = pow(q, n);
+  double sum = f_i;
+  while (sum < y && i < n) {
+    f_i *= r * (n - i) / (i + 1);
+    sum += f_i;
+    ++i;
   }
-  return x;
+  return i;
 }
 
 double MaxNestedError(double delta) { return delta / (0.5 + delta); }
