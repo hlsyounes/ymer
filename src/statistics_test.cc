@@ -26,7 +26,7 @@
 
 namespace {
 
-TEST(BinoInvTest, All) {
+TEST(BinoInvTest, SmallN) {
   EXPECT_EQ(0, binoinv(0, 7, 0.5));
   EXPECT_EQ(0, binoinv(0.0078125, 7, 0.5));
   EXPECT_EQ(1, binoinv(0.0078126, 7, 0.5));
@@ -75,6 +75,12 @@ TEST(BinoInvTest, All) {
   EXPECT_EQ(3, binoinv(0.683, 4, 0.75));
   EXPECT_EQ(4, binoinv(0.684, 4, 0.75));
   EXPECT_EQ(4, binoinv(1, 4, 0.75));
+}
+
+TEST(BinoInvTest, LargeN) {
+  EXPECT_EQ(0, binoinv(0, 2000, 0.5));
+  EXPECT_EQ(1000, binoinv(0.5, 2000, 0.5));
+  EXPECT_EQ(2000, binoinv(1, 2000, 0.5));
 }
 
 TEST(MaxNestedErrorTest, All) {

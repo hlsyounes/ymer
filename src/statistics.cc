@@ -44,7 +44,7 @@ int binoinv(double y, int n, double p) {
   //
   // We can derive the following recursive definition:
   //
-  //   f(i + 1; n, p) = C(n, i + 1) * p^{i+1} * q^{n - i - 1}
+  //   f(i + 1; n, p) = C(n, i + 1) * p^{i + 1} * q^{n - i - 1}
   //                  = C(n, i + 1) * p^i * p^{n - i} * r
   //                  = C(n, i) * p^i * p^{n - i} * r * (n - i) / (i + 1)
   //                  = f(i; n, p) * r * (n - i) / (i + 1)
@@ -61,13 +61,27 @@ int binoinv(double y, int n, double p) {
   //
   // To compute the inverse, Finv(y; n, p), we compute F(i; n, p) starting from
   // 0 and incrementing i until F(i; n, p) >= y.
+  //
+  // For large n, we use log f(i; n, p) in the computation to avoid underflow.
   int i = 0;
-  double f_i = pow(q, n);
-  double sum = f_i;
-  while (sum < y && i < n) {
-    f_i *= r * (n - i) / (i + 1);
-    sum += f_i;
-    ++i;
+  const double lqn = n * std::log2(q);
+  if (-lqn < 1000) {
+    double f_i = std::pow(q, n);
+    double sum = f_i;
+    while (sum < y && i < n) {
+      f_i *= r * (n - i) / (i + 1);
+      sum += f_i;
+      ++i;
+    }
+  } else {
+    const double lr = std::log2(r);
+    double lf_i = lqn;
+    double sum = std::pow(2.0, lf_i);
+    while (sum < y && i < n) {
+      lf_i += lr + std::log2(n - i) - std::log2(i + 1);
+      sum += std::pow(2.0, lf_i);
+      ++i;
+    }
   }
   return i;
 }
